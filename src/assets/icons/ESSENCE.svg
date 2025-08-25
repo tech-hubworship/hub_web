@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="300" height="400" viewBox="0 0 300 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 상단 표지판 -->
+  <g filter="url(#shadow)">
+    <rect x="50" y="50" width="200" height="200" rx="10" fill="white"/>
+    <path d="M125 100 L175 150 L175 120 L200 120 M175 150 L175 180 L150 180 M150 180 L150 200" stroke="#D6001C" stroke-width="15"/>
+    <circle cx="200" cy="80" r="15" fill="#D6001C"/>
+  </g>
+  
+  <!-- 하단 Gospel 표지판 -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="270" width="180" height="80" rx="10" fill="white"/>
+    <text x="150" y="320" text-anchor="middle" font-family="serif" font-size="36" fill="#D6001C">Gospel</text>
+  </g>
+  
+  <!-- 기둥 -->
+  <rect x="145" y="250" width="10" height="20" fill="white"/>
+  
+  <!-- 그림자 효과 -->
+  <defs>
+    <filter id="shadow" x="-4" y="-4" width="120%" height="120%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+</svg>
