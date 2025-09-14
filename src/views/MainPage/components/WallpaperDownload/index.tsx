@@ -1,8 +1,23 @@
+/**
+ * WallpaperDownload 컴포넌트
+ * 
+ * 배경화면 다운로드 기능을 제공합니다.
+ * - 배경화면 목록 표시
+ * - 개별/일괄 다운로드 기능
+ * - 드래그 스크롤 지원
+ * - 다운로드 카운트 관리
+ * 
+ * @author HUB Development Team
+ * @version 1.0.0
+ */
+
 import { useState, useRef, useEffect } from 'react';
 import * as S from './style';
-import axios from 'axios';
 
-// 배경화면 이미지 목록
+/**
+ * 배경화면 이미지 목록
+ * 각 배경화면의 메타데이터를 포함합니다.
+ */
 const wallpapers = [
   {
     id: 1,
@@ -38,43 +53,93 @@ const wallpapers = [
   },
 ];
 
+/**
+ * WallpaperDownload 컴포넌트
+ * 
+ * 배경화면 다운로드 기능을 제공하는 메인 컴포넌트입니다.
+ */
 export default function WallpaperDownload() {
+  // 선택된 배경화면 상태
   const [selectedWallpaper, setSelectedWallpaper] = useState<number | null>(null);
+  // 구절 표시 상태
   const [showVerse, setShowVerse] = useState(false);
+  // 스크롤 참조
   const scrollRef = useRef<HTMLDivElement>(null);
+  // 드래그 상태 관리
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+  // 다운로드 상태 관리
   const [isDownloading, setIsDownloading] = useState(false);
   const [remainingDownloads, setRemainingDownloads] = useState<number | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
 
-  // 남은 다운로드 횟수 조회
+  /**
+   * 컴포넌트 마운트 시 남은 다운로드 수 조회
+   */
   useEffect(() => {
     const fetchRemainingDownloads = async () => {
+      console.log('다운로드 수 조회 시작...');
       try {
-        const response = await axios.get('/api/downloads/count');
-        setRemainingDownloads(response.data.remainingCount);
+        const response = await fetch('/api/downloads/decrement');
+        console.log('API 응답 상태:', response.status);
+        
+        const data = await response.json();
+        console.log('API 응답 데이터:', data);
+        
+        if (data.success) {
+          console.log('다운로드 수 조회 성공:', data.data.remaining_count);
+          setRemainingDownloads(data.data.remaining_count);
+        } else {
+          console.error('API 응답 실패:', data.message);
+          // 에러 시 기본값 설정
+          setRemainingDownloads(0);
+        }
       } catch (error) {
-        console.error('다운로드 횟수 조회 오류:', error);
-        setDownloadError('다운로드 횟수를 조회할 수 없습니다.');
+        console.error('다운로드 수 조회 실패:', error);
+        setRemainingDownloads(0);
       }
     };
 
     fetchRemainingDownloads();
   }, []);
 
+  /**
+   * 개별 배경화면 다운로드 처리
+   * 다운로드 전에 서버에서 카운트 차감을 확인합니다.
+   */
   const handleDownload = async () => {
-    if (selectedWallpaper === null || isDownloading || remainingDownloads === 0) return;
+    if (selectedWallpaper === null || isDownloading || (remainingDownloads !== null && remainingDownloads <= 0)) return;
     
     setIsDownloading(true);
     setDownloadError(null);
     
     try {
-      // 다운로드 카운트 감소 API 호출
-      const response = await axios.post('/api/downloads/count');
-      setRemainingDownloads(response.data.remainingCount);
+      console.log('다운로드 카운트 차감 요청 시작...');
+      // 먼저 서버에서 다운로드 카운트 차감 시도
+      const decrementResponse = await fetch('/api/downloads/decrement', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('차감 API 응답 상태:', decrementResponse.status);
+      const decrementData = await decrementResponse.json();
+      console.log('차감 API 응답 데이터:', decrementData);
+      
+      if (!decrementData.success) {
+        console.log('다운로드 카운트 차감 실패:', decrementData.message);
+        setIsDownloading(false);
+        setDownloadError(decrementData.message || '다운로드 한도가 초과되었습니다.');
+        setRemainingDownloads(decrementData.remaining_count || 0);
+        return;
+      }
+      
+      // 카운트 차감 성공 시 남은 다운로드 수 업데이트
+      console.log('다운로드 카운트 차감 성공, 남은 수:', decrementData.data.remaining_count);
+      setRemainingDownloads(decrementData.data.remaining_count);
       
       const wallpaper = wallpapers.find(w => w.id === selectedWallpaper);
       if (!wallpaper) {
@@ -107,34 +172,44 @@ export default function WallpaperDownload() {
     } catch (error) {
       console.error('다운로드 중 오류 발생:', error);
       setIsDownloading(false);
-      
-      if (axios.isAxiosError(error) && error.response?.status === 403) {
-        setRemainingDownloads(0);
-        setDownloadError('현재 다운로드를 처리할 수 없습니다. 나중에 다시 시도해주세요.');
-      } else {
-        setDownloadError('다운로드 중 오류가 발생했습니다. 다시 시도해주세요.');
-      }
+      setDownloadError('다운로드 중 오류가 발생했습니다. 다시 시도해주세요.');
     }
   };
 
-  // 일괄 다운로드 함수
+  /**
+   * 일괄 다운로드 함수
+   * 각 이미지 다운로드 전에 서버에서 카운트 차감을 확인합니다.
+   */
   const handleBulkDownload = async () => {
-    if (isDownloading || isBulkDownloading || remainingDownloads === 0) return;
+    if (isDownloading || isBulkDownloading || (remainingDownloads !== null && remainingDownloads < wallpapers.length)) return;
+    
     setIsBulkDownloading(true);
     setDownloadError(null);
+    
     try {
-      // 다운로드 제한이 있다면 남은 횟수만큼만 다운로드
-      let downloadCount = wallpapers.length;
-      if (typeof remainingDownloads === 'number') {
-        downloadCount = Math.min(downloadCount, remainingDownloads);
-      }
-      // 다운로드 카운트 감소 API 호출 (일괄로)
-      const response = await axios.post('/api/downloads/count', { count: downloadCount });
-      setRemainingDownloads(response.data.remainingCount);
-      // 실제 이미지 다운로드
-      for (let i = 0; i < downloadCount; i++) {
+      // 모든 배경화면 다운로드
+      for (let i = 0; i < wallpapers.length; i++) {
+        // 각 다운로드 전에 카운트 차감 시도
+        const decrementResponse = await fetch('/api/downloads/decrement', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        const decrementData = await decrementResponse.json();
+        
+        if (!decrementData.success) {
+          setDownloadError(decrementData.message || '다운로드 한도가 초과되었습니다.');
+          setRemainingDownloads(decrementData.remaining_count || 0);
+          break;
+        }
+        
+        // 카운트 차감 성공 시 남은 다운로드 수 업데이트
+        setRemainingDownloads(decrementData.data.remaining_count);
+        
         const wallpaper = wallpapers[i];
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve) => {
           const image = new Image();
           image.crossOrigin = "anonymous";
           image.src = wallpaper.mobile;
@@ -154,15 +229,15 @@ export default function WallpaperDownload() {
       setIsBulkDownloading(false);
     } catch (error) {
       setIsBulkDownloading(false);
-      if (axios.isAxiosError(error) && error.response?.status === 403) {
-        setRemainingDownloads(0);
-        setDownloadError('현재 다운로드를 처리할 수 없습니다. 나중에 다시 시도해주세요.');
-      } else {
-        setDownloadError('일괄 다운로드 중 오류가 발생했습니다. 다시 시도해주세요.');
-      }
+      setDownloadError('일괄 다운로드 중 오류가 발생했습니다. 다시 시도해주세요.');
     }
   };
 
+  /**
+   * 드래그 스크롤 이벤트 핸들러들
+   * 마우스와 터치 이벤트를 모두 지원합니다.
+   */
+  
   // 마우스 드래그 시작
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollRef.current) return;
@@ -247,32 +322,20 @@ export default function WallpaperDownload() {
             ))}
           </S.WallpaperGrid>
           
-          {/* {selectedWallpaper !== null && showVerse && (
-            <S.VerseContainer>
-              <S.Verse>
-                {wallpapers.find(w => w.id === selectedWallpaper)?.verse}
-              </S.Verse>
-            </S.VerseContainer>
-          )} */}
+
           
           <S.DownloadSection>
+
+            
             <S.DownloadButton 
               onClick={handleDownload}
-              disabled={selectedWallpaper === null || isDownloading || remainingDownloads === 0 || isBulkDownloading}
+              disabled={selectedWallpaper === null || isDownloading || isBulkDownloading || (remainingDownloads !== null && remainingDownloads <= 0)}
             >
-              <S.ButtonText $isDisabled={selectedWallpaper === null || isDownloading || remainingDownloads === 0 || isBulkDownloading}>
+              <S.ButtonText $isDisabled={selectedWallpaper === null || isDownloading || isBulkDownloading || (remainingDownloads !== null && remainingDownloads <= 0)}>
                 {isDownloading ? '다운로드 중...' : '배경화면 다운로드'}
               </S.ButtonText>
             </S.DownloadButton>
-            {/* 일괄 다운로드 버튼 추가 */}
-            {/* <S.DownloadButton 
-              onClick={handleBulkDownload}
-              disabled={isDownloading || isBulkDownloading || remainingDownloads === 0}
-            >
-              <S.ButtonText $isDisabled={isDownloading || isBulkDownloading || remainingDownloads === 0}>
-                {isBulkDownloading ? '일괄 다운로드 중...' : '일괄 다운로드'}
-              </S.ButtonText>
-            </S.DownloadButton> */}
+            
             
             {downloadError && (
               <S.ErrorMessage>

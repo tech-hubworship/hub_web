@@ -3,22 +3,27 @@ import { colors } from '@sopt-makers/colors';
 import Link from 'next/link';
 import { css } from '@emotion/react';
 import { imgLogoHub } from '@src/assets/mainLogo';
-import useHeader from '@src/hooks/useHeader';
 import { GrowDown } from '@src/lib/styles/animation';
 import { menuTapList } from '../constants/menuTapList';
 import { MenuTapType } from '../types';
 import { useRouter } from 'next/router';
-import { useLoading } from '@src/contexts/LoadingContext';
 
 function DesktopHeader() {
-  const { handleClickLogo, handleIsSelected } = useHeader();
   const router = useRouter();
-  const { startLoading } = useLoading();
+
+  // 로고 클릭 핸들러
+  const handleClickLogo = () => {
+    router.push("/");
+  };
+
+  // 선택 상태 확인 함수
+  const handleIsSelected = (href: string) => {
+    return router.pathname === href;
+  };
 
   // 페이지 이동 핸들러
   const handleNavigate = (href: string, e: React.MouseEvent) => {
     e.preventDefault();
-    startLoading();
     
     // 약간의 지연 후 페이지 이동
     setTimeout(() => {

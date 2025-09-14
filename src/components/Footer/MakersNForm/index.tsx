@@ -1,9 +1,23 @@
-import { FC } from 'react';
-import useScrollPosition from '@src/hooks/useScrollPosition';
+import { FC, useState, useEffect } from 'react';
 import St from './style';
 
 const MakersNForm: FC = () => {
-  const { isScrollingDown, isScrollTop } = useScrollPosition();
+  const [isScrollingDown, setIsScrollingDown] = useState(false);
+  const [isScrollTop, setIsScrollTop] = useState(true);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      setIsScrollingDown(currentScrollY > lastScrollY);
+      setIsScrollTop(currentScrollY === 0);
+      lastScrollY = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleClickKakao = () => {
     // window.Kakao.Channel.chat({

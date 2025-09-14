@@ -265,4 +265,12 @@ export const ErrorMessage = styled.div`
   color: #ed2725;
   font-size: 14px;
   text-align: center;
+`;
+
+export const RemainingDownloads = styled.div`
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-weight: 500;
 `; 

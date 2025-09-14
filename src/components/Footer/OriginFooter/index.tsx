@@ -3,7 +3,6 @@ import { FC, useState } from "react";
 import ArrowRight from "@src/assets/icons/arrow_right_16x16.svg";
 import Channels from "@src/components/Footer/Channels";
 import * as St from "./style";
-import { supabase } from "@src/lib/supabase";
 
 const OriginFooter: FC = () => {
   const router = useRouter();
@@ -38,42 +37,9 @@ const OriginFooter: FC = () => {
     setSendError("");
 
     try {
-      // inquiries 테이블이 없는 경우를 대비한 에러 처리
-      const { error } = await supabase
-        .from('inquiries')
-        .insert([
-          { 
-            message: message.trim(),
-            created_at: new Date().toISOString()
-          }
-        ]);
-
-      if (error) {
-        console.error("문의사항 저장 오류:", error);
-        if (error.code === "42P01") {  // 테이블이 없는 경우
-          // 테이블 생성 시도 (관리자 권한이 필요하므로 실패할 수 있음)
-          try {
-            await supabase.rpc('create_inquiries_table');
-            // 테이블 생성 후 다시 저장 시도
-            const { error: insertError } = await supabase
-              .from('inquiries')
-              .insert([
-                { 
-                  message: message.trim(),
-                  created_at: new Date().toISOString()
-                }
-              ]);
-            
-            if (insertError) throw insertError;
-          } catch (createTableError) {
-            console.error("테이블 생성 오류:", createTableError);
-            throw createTableError;
-          }
-        } else {
-          throw error;
-        }
-      }
-
+      // 임시로 콘솔에만 출력
+      console.log("문의사항:", message.trim());
+      
       setSendSuccess(true);
       setMessage("");
       setTimeout(() => {

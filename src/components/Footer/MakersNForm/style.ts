@@ -33,9 +33,9 @@ const FooterForm = styled.div<{ hide: boolean }>`
 const FooterLink = styled(Link)`
   padding: 17px 10px;
 
-  color: #c0c5c9;
+  color: #ffffff;
   line-height: normal;
-  font-size: 16rem;
+  font-size: 14px;
 
   &:hover {
     cursor: pointer;
@@ -45,8 +45,8 @@ const FooterLink = styled(Link)`
 const FooterButton = styled.button`
   padding: 17px 10px;
 
-  color: #c0c5c9;
-  font-size: 16rem;
+  color: #ffffff;
+  font-size: 14px;
 
   &:hover {
     cursor: pointer;

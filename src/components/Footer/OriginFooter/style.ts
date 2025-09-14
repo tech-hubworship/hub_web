@@ -52,8 +52,8 @@ export const TitleButton = styled.button`
   display: flex;
   align-items: center;
 
-  color: ${colors.gray10};
-  font-size: 14rem;
+  color: #ffffff;
+  font-size: 14px;
   font-weight: 700;
 
   span {
@@ -66,12 +66,13 @@ export const CopyrightText = styled.p`
   width: 100%;
   margin-top: 25px;
   line-height: 180%;
-  font-size: 14rem;
+  font-size: 12px;
   font-weight: 400;
+  color: #ffffff;
 
   /* 모바일 뷰 */
   @media (max-width: 47.86875rem) {
-    font-size: 12rem;
+    font-size: 10px;
   }
 `;
 
@@ -86,8 +87,9 @@ export const ChannelsWrap = styled.div`
 export const ChannelTitleText = styled.p`
   margin-bottom: 25px;
   line-height: 20px;
-  font-size: 16rem;
+  font-size: 14px;
   font-weight: 500;
+  color: #ffffff;
 
   /* 모바일 뷰 */
   @media (max-width: 47.86875rem) {

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import MenuBar from "@src/assets/icons/menuBar.svg";
 import XButton from "@src/assets/icons/x_button.svg";
 
-import { Condition } from "@src/components/common/Condition";
 import { MenuState } from "../types";
 import HeaderMenu from "./HeaderMenu";
 import RecruitButton from "./RecruitButton";
@@ -37,12 +36,12 @@ function MobileHeader({ onMenuStateChange }: MobileHeaderProps) {
         </ToggleButton> */}
         {/* <RecruitButton /> */}
       </StyledHeader>
-      <Condition statement={isMenuShown === "open"}>
+      {isMenuShown === "open" && (
         <HeaderMenu
           isMenuShown={isMenuShown}
           handleHeaderToggleButton={handleHeaderToggleButton}
         />
-      </Condition>
+      )}
     </>
   );
 }
