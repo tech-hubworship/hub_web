@@ -2,6 +2,7 @@
  * 문의사항 API 라우트
  * GET: 문의사항 목록 조회 (관리자만)
  * POST: 문의사항 생성
+ * PUT: 문의사항 상태 업데이트 (관리자용)
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -38,35 +39,42 @@ export async function createInquiry(data: {
   subject?: string;
   message: string;
 }): Promise<Inquiry> {
-  const sql = `
-    INSERT INTO inquiries (name, email, phone, subject, message)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING *
-  `;
-  
-  const values = [
-    data.name || null,
-    data.email || null,
-    data.phone || null,
-    data.subject || null,
-    data.message
-  ];
-  
-  const result = await query(sql, values);
-  return result.rows[0];
+  // query 함수 대신 Supabase ORM의 insert 메소드를 사용하도록 수정
+  const { data: newInquiry, error } = await supabaseAdmin
+    .from('inquiries')
+    .insert({
+      name: data.name || null,
+      email: data.email || null,
+      phone: data.phone || null,
+      subject: data.subject || null,
+      message: data.message,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return newInquiry;
 }
 
 // PUT: 문의사항 상태 업데이트 (관리자용)
 export async function updateInquiryStatus(id: number, status: string): Promise<Inquiry> {
-  const sql = `
-    UPDATE inquiries 
-    SET status = $1, updated_at = CURRENT_TIMESTAMP
-    WHERE id = $2
-    RETURNING *
-  `;
-  
-  const result = await query(sql, [status, id]);
-  return result.rows[0];
+  // query 함수 대신 Supabase ORM의 update 메소드를 사용하도록 수정
+  const { data: updatedInquiry, error } = await supabaseAdmin
+    .from('inquiries')
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+  return updatedInquiry;
 }
 
 // API 핸들러

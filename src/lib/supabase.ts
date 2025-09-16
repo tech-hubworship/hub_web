@@ -6,8 +6,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // 환경 변수에서 Supabase 설정 가져오기
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase 환경 변수가 설정되지 않았습니다. SUPABASE_URL과 SUPABASE_KEY를 확인하세요.');
@@ -31,6 +31,22 @@ export const supabaseAdmin = createClient(
     }
   }
 );
+
+// 에러 핸들링 유틸 함수 (400 에러 시 팝업)
+export async function safeInsert(table: string, data: any) {
+  const { data: inserted, error } = await supabase.from(table).insert(data);
+  if (error) {
+    // PGRST301 은 이미 존재하는 PK 때문에 발생
+    if (error.code === 'PGRST301') {
+      alert(`데이터를 저장할 수 없습니다.\n사유: ${error.message}`);
+    } else {
+      console.error('Supabase Insert Error:', error);
+      alert(`데이터 저장 중 오류가 발생했습니다.\n사유: ${error.message}`);
+    }
+    return null;
+  }
+  return inserted;
+}
 
 // 테이블 타입 정의
 export interface DownloadsTable {
