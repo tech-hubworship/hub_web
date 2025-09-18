@@ -79,7 +79,7 @@ export default function LoginPage() {
     try {
       setLoading(true);
       setError("");
-
+      
       const response = await fetch("/api/auth/google-callback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,9 +122,7 @@ export default function LoginPage() {
       setError("Google 로그인에 실패했습니다.");
     },
     flow: "auth-code",
-    // 클라이언트에서 사용되는 환경 변수 값을 직접 로그로 출력합니다.
     redirect_uri: process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI,
-    prompt: "consent",
   });
 
   // -------------------------------
