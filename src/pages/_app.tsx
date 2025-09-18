@@ -11,6 +11,7 @@ import React from "react";
 import { RecoilRoot } from 'recoil';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,9 +68,11 @@ function MyApp({ Component, pageProps }: AppProps) {
       <Global styles={global} />
       <QueryClientProvider client={queryClient}>
         <MotionConfig isValidProp={isValidProp}>
-          <Component {...pageProps} />
-          <Analytics />
-          <SpeedInsights />
+          <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ""}>
+            <Component {...pageProps} />
+            <Analytics />
+            <SpeedInsights />
+          </GoogleOAuthProvider>
         </MotionConfig>
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>

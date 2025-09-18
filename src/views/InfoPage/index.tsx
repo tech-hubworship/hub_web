@@ -2,6 +2,7 @@ import PageLayout from "@src/components/common/PageLayout";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "@src/lib/supabase";
+import { User } from "@supabase/supabase-js"; 
 import Head from "next/head";
 import * as S from "./style";
 
@@ -20,8 +21,8 @@ interface UserData {
 export default function MyInfoPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null); // Supabase auth user
-  const [userData, setUserData] = useState<UserData | null>(null); // public.users table user
+  const [user, setUser] = useState<any>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleLogout = async () => {
@@ -39,38 +40,51 @@ export default function MyInfoPage() {
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
+
+      // ✅ 세션 먼저 확인
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      console.log("세션 확인:", sessionData, sessionError);
+
+      if (sessionError || !sessionData.session) {
+        console.error("세션 없음:", sessionError?.message);
+        router.push("/login");
+        return;
+      }
+
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      console.log("인증 유저 확인:", authUser, authError);
 
       if (authError || !authUser) {
-        // 인증되지 않았으면 로그인 페이지로 리다이렉트
         console.error("사용자 인증 실패:", authError?.message);
         router.push("/login");
         return;
       }
-      
+
       setUser(authUser);
 
       try {
-        // google_users에서 phone_number 조회 (auth.uid로 접근)
         const { data: gUser, error: gError } = await supabase
           .from("google_users")
           .select("phone_number")
           .eq("uuid", authUser.id)
           .maybeSingle();
 
+        console.log("google_users 조회:", gUser, gError);
+
         if (gError || !gUser) {
           console.error("Google user not found:", gError?.message);
-          router.push("/login"); // 매핑된 유저가 없으면 로그인 페이지로
+          router.push("/login");
           return;
         }
 
-        // users 테이블에서 상세 정보 조회 (RLS 정책에 의해 접근 가능)
         const { data: dbUser, error: dbError } = await supabase
           .from("users")
           .select("*")
           .eq("phone_number", gUser.phone_number)
           .maybeSingle();
-        
+
+        console.log("users 조회:", dbUser, dbError);
+
         if (dbError || !dbUser) {
           console.error("DB users table not found:", dbError?.message);
           setError("사용자 정보를 찾을 수 없습니다.");
@@ -88,7 +102,7 @@ export default function MyInfoPage() {
 
     fetchUserData();
   }, [router]);
-  
+
   if (loading) {
     return (
       <PageLayout>
@@ -128,7 +142,10 @@ export default function MyInfoPage() {
       <S.Wrapper>
         <S.Title>내 정보</S.Title>
         <S.Card>
-          <S.ProfileImage src={`https://www.gravatar.com/avatar/${user?.id}?d=retro`} alt="프로필 이미지" />
+          <S.ProfileImage
+            src={`https://www.gravatar.com/avatar/${user?.id}?d=retro`}
+            alt="프로필 이미지"
+          />
           <S.InfoWrapper>
             <S.InfoItem>
               <S.Label>이름</S.Label>
