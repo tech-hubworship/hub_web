@@ -36,6 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error("[로그] Google 토큰 교환 실패:", errText);
       return res.status(401).json({ error: "Failed to exchange code for token" });
     }
+    console.log("Token exchange 요청 redirect_uri:", process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI);
 
     const { id_token, access_token } = await tokenResponse.json();
 
