@@ -1,4 +1,4 @@
-// 파일 경로: src/pages/api/auth/[...nextauth].ts (최종 수정본)
+// 파일 경로: src/pages/api/auth/[...nextauth].ts
 
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
@@ -15,25 +15,17 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
   },
   callbacks: {
-    /**
-     * JWT 토큰이 생성될 때, Google 계정의 고유 ID(sub)를 토큰에 'id'라는 이름으로 저장합니다.
-     * 이 값은 login/Info 페이지에서 사용자를 식별하는 데 사용됩니다.
-     */
+    // JWT: 토큰에 user.id 추가
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
       }
       return token;
     },
-
-    /**
-     * 클라이언트에서 세션 정보를 조회할 때, JWT 토큰에 저장된 'id'를
-     * 최종 session.user 객체에 포함시켜 전달합니다.
-     */
+    // Session: 클라이언트에 user.id 전달
     async session({ session, token }) {
       if (token.id && session.user) {
-        // session.user.id 형태로 클라이언트에서 사용할 수 있게 됩니다.
-        // @ts-ignore
+        // @ts-ignore // 아래 next-auth.d.ts 파일 생성 시 이 주석 제거
         session.user.id = token.id as string;
       }
       return session;

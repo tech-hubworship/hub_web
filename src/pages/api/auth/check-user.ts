@@ -1,4 +1,4 @@
-// 파일 경로: src/pages/api/auth/check-user.ts (새 파일)
+// 파일 경로: src/pages/api/auth/check-user.ts
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
@@ -6,6 +6,7 @@ import { authOptions } from './[...nextauth]';
 import { supabaseAdmin } from '@src/lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // 세션: 서버에서 사용자 세션 확인
   const session = await getServerSession(req, res, authOptions);
 
   if (!session || !session.user) {
@@ -19,18 +20,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: '세션에 사용자 ID가 없습니다.' });
     }
 
-    // 관리자 클라이언트로 사용자가 DB에 존재하는지 확인합니다.
+    // DB: 관리자 권한으로 사용자 존재 여부 확인
     const { data, error } = await supabaseAdmin
       .from('google_users')
       .select('uuid')
       .eq('uuid', userId)
-      .maybeSingle(); // 결과가 없어도 에러가 아닌 null을 반환합니다.
+      .maybeSingle(); // 조회: 결과 없으면 null 반환
 
     if (error) {
       throw error;
     }
 
-    // 데이터가 존재하면 exists: true, 아니면 exists: false를 반환합니다.
+    // 반환: 사용자 존재 여부 (true/false)
     res.status(200).json({ exists: !!data });
 
   } catch (error: any) {

@@ -24,7 +24,6 @@ export default function LoginPage() {
   const [isTerminationModalOpen, setIsTerminationModalOpen] = useState(false);
 
   useEffect(() => {
-    // [변경] 인증이 완료되고, 아직 로그인 단계일 때만 사용자 확인을 시작합니다.
     if (status === "authenticated" && step === "login") {
       checkUserRegistration();
     }
@@ -47,7 +46,7 @@ export default function LoginPage() {
     window.location.reload();
   };
 
-  // [변경] 사용자 확인 로직을 API 호출 방식으로 변경합니다.
+  // [변경] 사용자 확인 로직을 API 호출 방식으로 변경
   const checkUserRegistration = async () => {
     console.log("[로그] 서버에 사용자 등록 여부 확인 시작.");
     setLoading(true);

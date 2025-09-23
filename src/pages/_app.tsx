@@ -1,5 +1,3 @@
-// 파일 경로: src/pages/_app.tsx
-
 import isValidProp from "@emotion/is-prop-valid";
 import { MotionConfig } from "framer-motion";
 import type { AppProps } from "next/app";
@@ -13,7 +11,6 @@ import React from "react";
 import { RecoilRoot } from 'recoil';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-// [변경] SessionProvider를 import합니다.
 import { SessionProvider } from 'next-auth/react'; 
 
 export const queryClient = new QueryClient({
@@ -29,11 +26,9 @@ export const queryClient = new QueryClient({
   },
 });
 
-// [변경] pageProps에서 session을 분리합니다.
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   return (
     <RecoilRoot>
-      {/* [변경] GoogleOAuthProvider를 SessionProvider로 교체하고 앱 전체를 감쌉니다. */}
       <SessionProvider session={session}>
         <Head>
           <title>HUB</title>

@@ -13,7 +13,7 @@ export const Wrapper = styled.div`
   gap: 40px;
   background-color: #000000;
   color: #ffffff;
-  box-sizing: border-box; /* 패딩이 높이에 포함되도록 설정 */
+  box-sizing: border-box;
 `;
 
 export const Title = styled.h1`
@@ -41,7 +41,7 @@ export const ProfileImage = styled.img`
   height: 100px;
   border-radius: 50%;
   margin-bottom: 24px;
-  object-fit: cover; /* 이미지가 잘리지 않도록 object-fit 추가 */
+  object-fit: cover;
 `;
 
 export const InfoWrapper = styled.div`
@@ -82,7 +82,7 @@ export const LogoutButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
-  margin-top: auto; /* 버튼이 항상 카드 하단에 위치하도록 수정 (선택사항) */
+  margin-top: auto;
 
   &:hover {
     background-color: #D62321;

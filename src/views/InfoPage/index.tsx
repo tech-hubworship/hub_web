@@ -1,5 +1,3 @@
-// File path: src/pages/Info/index.tsx
-
 import PageLayout from "@src/components/common/PageLayout";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";

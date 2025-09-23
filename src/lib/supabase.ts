@@ -1,8 +1,3 @@
-/**
- * Supabase 클라이언트 설정
- * 환경 변수에서 Supabase 설정을 가져와 클라이언트를 초기화합니다.
- */
-
 import { createClient } from '@supabase/supabase-js';
 
 // 환경 변수에서 Supabase 설정 가져오기
@@ -28,7 +23,6 @@ export const supabaseAdmin = createClient(
       autoRefreshToken: false,
       persistSession: false
     },
-    // 💡 수정: 서버용 클라이언트에도 동일하게 스키마 설정을 추가합니다.
     db: {
       schema: 'public',
     }
