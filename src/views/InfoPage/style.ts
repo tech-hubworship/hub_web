@@ -1,19 +1,16 @@
-// 파일 경로: src/views/InfoPage/style.ts (최종 수정본)
-
 import styled from "@emotion/styled";
 
 export const Wrapper = styled.div`
   width: 100%;
-  min-height: 100vh;
+  min-height: calc(100vh - 162px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  padding: 100px 20px 60px 20px;
+  justify-content: center;
+  padding: 40px 20px;
   gap: 40px;
   background-color: #000000;
   color: #ffffff;
-  box-sizing: border-box; /* 패딩이 높이에 포함되도록 설정 */
 `;
 
 export const Title = styled.h1`
@@ -41,7 +38,6 @@ export const ProfileImage = styled.img`
   height: 100px;
   border-radius: 50%;
   margin-bottom: 24px;
-  object-fit: cover; /* 이미지가 잘리지 않도록 object-fit 추가 */
 `;
 
 export const InfoWrapper = styled.div`
@@ -82,7 +78,6 @@ export const LogoutButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
-  margin-top: auto; /* 버튼이 항상 카드 하단에 위치하도록 수정 (선택사항) */
 
   &:hover {
     background-color: #D62321;

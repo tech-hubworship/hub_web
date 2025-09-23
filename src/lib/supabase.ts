@@ -6,17 +6,18 @@
 import { createClient } from '@supabase/supabase-js';
 
 // 환경 변수에서 Supabase 설정 가져오기
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// 2. 서버(API Route)에서만 사용할 관리자용 클라이언트 (RLS 정책 우회)
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase 환경 변수가 설정되지 않았습니다. SUPABASE_URL과 SUPABASE_KEY를 확인하세요.');
 }
+
+// Supabase 클라이언트 생성
+export const supabase = createClient(
+  supabaseUrl!,
+  supabaseAnonKey!
+);
 
 // 서버 사이드용 클라이언트 (서비스 역할 키 사용)
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -27,10 +28,6 @@ export const supabaseAdmin = createClient(
     auth: {
       autoRefreshToken: false,
       persistSession: false
-    },
-    // 💡 수정: 서버용 클라이언트에도 동일하게 스키마 설정을 추가합니다.
-    db: {
-      schema: 'public',
     }
   }
 );

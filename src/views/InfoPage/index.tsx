@@ -1,18 +1,15 @@
-// File path: src/pages/Info/index.tsx
-
 import PageLayout from "@src/components/common/PageLayout";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "@src/lib/supabase";
+import { User } from "@supabase/supabase-js"; 
 import Head from "next/head";
-import * as S from "@src/views/InfoPage/style";
-import { useSession, signOut } from 'next-auth/react';
-import { useQuery } from '@tanstack/react-query';
+import * as S from "./style";
 
-interface ProfileData {
+// 사용자 데이터 타입 정의
+interface UserData {
   id: number;
   name: string;
-  email: string;
   birth_date: string;
   phone_number: string;
   cell_name: string;
@@ -21,83 +18,158 @@ interface ProfileData {
   last_login_at: string;
 }
 
-const fetchProfile = async (): Promise<ProfileData> => {
-  const response = await fetch('/api/user/profile');
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to fetch profile information.');
-  }
-  return response.json();
-};
-
 export default function MyInfoPage() {
   const router = useRouter();
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push('/login');
-    },
-  });
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: profileData, error, isLoading } = useQuery<ProfileData, Error>({
-    queryKey: ['userProfile', session?.user?.email],
-    queryFn: fetchProfile,
-    enabled: status === 'authenticated',
-  });
-
-  const handleLogout = () => {
-    signOut({ callbackUrl: '/login' });
-  };
-
-  const renderContent = () => {
-    if (status === 'loading' || isLoading) {
-      return <S.LoadingText>정보를 불러오는 중...</S.LoadingText>;
-    }
-
+  const handleLogout = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signOut();
     if (error) {
-      return (
-        <>
-          <S.ErrorMessage>{error.message}</S.ErrorMessage>
-          <S.LogoutButton onClick={handleLogout}>로그인 페이지로</S.LogoutButton>
-        </>
-      );
+      console.error("로그아웃 오류:", error);
+      setError("로그아웃에 실패했습니다.");
+    } else {
+      router.push("/login");
     }
-
-    if (!profileData) {
-      return (
-        <>
-          <S.NoDataText>사용자 정보가 없습니다.</S.NoDataText>
-          <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
-        </>
-      );
-    }
-
-    return (
-      <S.Card>
-        <S.ProfileImage
-          src={session?.user?.image || `https://www.gravatar.com/avatar/?d=retro`}
-          alt="프로필 이미지"
-        />
-        <S.InfoWrapper>
-          <S.InfoItem><S.Label>이름</S.Label><S.Value>{profileData.name}</S.Value></S.InfoItem>
-          <S.InfoItem><S.Label>이메일</S.Label><S.Value>{profileData.email}</S.Value></S.InfoItem>
-          <S.InfoItem><S.Label>전화번호</S.Label><S.Value>{profileData.phone_number}</S.Value></S.InfoItem>
-          <S.InfoItem><S.Label>생년월일</S.Label><S.Value>{profileData.birth_date}</S.Value></S.InfoItem>
-          <S.InfoItem><S.Label>다락방</S.Label><S.Value>{profileData.cell_name}</S.Value></S.InfoItem>
-          <S.InfoItem><S.Label>순장</S.Label><S.Value>{profileData.leader_name}</S.Value></S.InfoItem>
-        </S.InfoWrapper>
-        <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
-      </S.Card>
-    );
+    setLoading(false);
   };
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      setLoading(true);
+
+      // ✅ 세션 먼저 확인
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      console.log("세션 확인:", sessionData, sessionError);
+
+      if (sessionError || !sessionData.session) {
+        console.error("세션 없음:", sessionError?.message);
+        router.push("/login");
+        return;
+      }
+
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      console.log("인증 유저 확인:", authUser, authError);
+
+      if (authError || !authUser) {
+        console.error("사용자 인증 실패:", authError?.message);
+        router.push("/login");
+        return;
+      }
+
+      setUser(authUser);
+
+      try {
+        const { data: gUser, error: gError } = await supabase
+          .from("google_users")
+          .select("phone_number")
+          .eq("uuid", authUser.id)
+          .maybeSingle();
+
+        console.log("google_users 조회:", gUser, gError);
+
+        if (gError || !gUser) {
+          console.error("Google user not found:", gError?.message);
+          router.push("/login");
+          return;
+        }
+
+        const { data: dbUser, error: dbError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("phone_number", gUser.phone_number)
+          .maybeSingle();
+
+        console.log("users 조회:", dbUser, dbError);
+
+        if (dbError || !dbUser) {
+          console.error("DB users table not found:", dbError?.message);
+          setError("사용자 정보를 찾을 수 없습니다.");
+          return;
+        }
+
+        setUserData(dbUser as UserData);
+      } catch (e: any) {
+        console.error("데이터 로드 오류:", e);
+        setError("사용자 정보를 가져오는 중 오류가 발생했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <PageLayout>
+        <S.Wrapper>
+          <S.LoadingText>정보를 불러오는 중...</S.LoadingText>
+        </S.Wrapper>
+      </PageLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <PageLayout>
+        <S.Wrapper>
+          <S.ErrorMessage>{error}</S.ErrorMessage>
+          <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
+        </S.Wrapper>
+      </PageLayout>
+    );
+  }
+
+  if (!userData) {
+    return (
+      <PageLayout>
+        <S.Wrapper>
+          <S.NoDataText>사용자 정보가 없습니다.</S.NoDataText>
+        </S.Wrapper>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout>
-      <Head><title>내 정보</title></Head>
+      <Head>
+        <title>내 정보</title>
+      </Head>
       <S.Wrapper>
-        {/* [Correction] Moved the Title component outside of the conditional rendering */}
         <S.Title>내 정보</S.Title>
-        {renderContent()}
+        <S.Card>
+          <S.ProfileImage
+            src={`https://www.gravatar.com/avatar/${user?.id}?d=retro`}
+            alt="프로필 이미지"
+          />
+          <S.InfoWrapper>
+            <S.InfoItem>
+              <S.Label>이름</S.Label>
+              <S.Value>{userData.name}</S.Value>
+            </S.InfoItem>
+            <S.InfoItem>
+              <S.Label>전화번호</S.Label>
+              <S.Value>{userData.phone_number}</S.Value>
+            </S.InfoItem>
+            <S.InfoItem>
+              <S.Label>생년월일</S.Label>
+              <S.Value>{userData.birth_date}</S.Value>
+            </S.InfoItem>
+            <S.InfoItem>
+              <S.Label>다락방</S.Label>
+              <S.Value>{userData.cell_name}</S.Value>
+            </S.InfoItem>
+            <S.InfoItem>
+              <S.Label>순장</S.Label>
+              <S.Value>{userData.leader_name}</S.Value>
+            </S.InfoItem>
+          </S.InfoWrapper>
+          <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
+        </S.Card>
       </S.Wrapper>
     </PageLayout>
   );
