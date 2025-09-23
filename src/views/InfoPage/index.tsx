@@ -1,12 +1,13 @@
+// 파일 경로: src/pages/Info/index.tsx
+
 import PageLayout from "@src/components/common/PageLayout";
-import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "@src/lib/supabase";
 import Head from "next/head";
 import * as S from "@src/views/InfoPage/style";
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 
+// 추가: API로부터 받을 프로필 데이터 타입
 interface ProfileData {
   id: number;
   name: string;
@@ -15,15 +16,14 @@ interface ProfileData {
   phone_number: string;
   cell_name: string;
   leader_name: string;
-  status: string;
-  last_login_at: string;
 }
 
+// 추가: 사용자 프로필을 가져오는 fetch 함수
 const fetchProfile = async (): Promise<ProfileData> => {
   const response = await fetch('/api/user/profile');
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to fetch profile information.');
+    throw new Error(errorData.error || '프로필 정보를 가져오는데 실패했습니다.');
   }
   return response.json();
 };
@@ -31,24 +31,26 @@ const fetchProfile = async (): Promise<ProfileData> => {
 export default function MyInfoPage() {
   const router = useRouter();
   const { data: session, status } = useSession({
-    required: true,
+    required: true, // 변경: 세션 없으면 로그인 페이지로 자동 이동
     onUnauthenticated() {
       router.push('/login');
     },
   });
 
+  // 변경: React Query를 사용하여 API로부터 데이터를 가져옵니다.
   const { data: profileData, error, isLoading } = useQuery<ProfileData, Error>({
     queryKey: ['userProfile', session?.user?.email],
     queryFn: fetchProfile,
-    enabled: status === 'authenticated',
+    enabled: status === 'authenticated', // 세션이 있을 때만 쿼리 실행
   });
 
   const handleLogout = () => {
     signOut({ callbackUrl: '/login' });
   };
 
+  // 렌더링 로직을 함수로 분리
   const renderContent = () => {
-    if (status === 'loading' || isLoading) {
+    if (isLoading || status === 'loading') {
       return <S.LoadingText>정보를 불러오는 중...</S.LoadingText>;
     }
 
@@ -93,7 +95,6 @@ export default function MyInfoPage() {
     <PageLayout>
       <Head><title>내 정보</title></Head>
       <S.Wrapper>
-        {/* [Correction] Moved the Title component outside of the conditional rendering */}
         <S.Title>내 정보</S.Title>
         {renderContent()}
       </S.Wrapper>

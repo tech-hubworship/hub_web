@@ -6,9 +6,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// 2. 서버(API Route)에서만 사용할 관리자용 클라이언트 (RLS 정책 우회)
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase 환경 변수가 설정되지 않았습니다. SUPABASE_URL과 SUPABASE_KEY를 확인하세요.');
 }
