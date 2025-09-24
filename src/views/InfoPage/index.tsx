@@ -31,24 +31,22 @@ const fetchProfile = async (): Promise<ProfileData> => {
 export default function MyInfoPage() {
   const router = useRouter();
   const { data: session, status } = useSession({
-    required: true, // 변경: 세션 없으면 로그인 페이지로 자동 이동
+    required: true,
     onUnauthenticated() {
       router.push('/login');
     },
   });
 
-  // 변경: React Query를 사용하여 API로부터 데이터를 가져옵니다.
   const { data: profileData, error, isLoading } = useQuery<ProfileData, Error>({
     queryKey: ['userProfile', session?.user?.email],
     queryFn: fetchProfile,
-    enabled: status === 'authenticated', // 세션이 있을 때만 쿼리 실행
+    enabled: status === 'authenticated',
   });
 
   const handleLogout = () => {
     signOut({ callbackUrl: '/login' });
   };
 
-  // 렌더링 로직을 함수로 분리
   const renderContent = () => {
     if (isLoading || status === 'loading') {
       return <S.LoadingText>정보를 불러오는 중...</S.LoadingText>;
@@ -74,10 +72,6 @@ export default function MyInfoPage() {
 
     return (
       <S.Card>
-        <S.ProfileImage
-          src={session?.user?.image || `https://www.gravatar.com/avatar/?d=retro`}
-          alt="프로필 이미지"
-        />
         <S.InfoWrapper>
           <S.InfoItem><S.Label>이름</S.Label><S.Value>{profileData.name}</S.Value></S.InfoItem>
           <S.InfoItem><S.Label>이메일</S.Label><S.Value>{profileData.email}</S.Value></S.InfoItem>

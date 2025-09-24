@@ -10,23 +10,25 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     }),
   ],
-  secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: 'jwt',
   },
+  // ⭐️ [핵심] 콜백을 극도로 단순화하여 안정성을 확보합니다.
   callbacks: {
-    // JWT: 토큰에 user.id 추가
+    // 1. jwt: 토큰에 로그인에 필요한 최소한의 정보(ID, 이름, 이메일)만 담습니다.
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
+        token.sub = user.id; // 구글 ID
+        token.name = user.name;
+        token.email = user.email;
       }
       return token;
     },
-    // Session: 클라이언트에 user.id 전달
+    // 2. session: 브라우저가 사용할 세션 객체에 토큰 정보를 그대로 전달합니다.
     async session({ session, token }) {
-      if (token.id && session.user) {
-        // @ts-ignore // 아래 next-auth.d.ts 파일 생성 시 이 주석 제거
-        session.user.id = token.id as string;
+      if (token.sub && session.user) {
+        session.user.id = token.sub;
+        // isNewUser 같은 DB 정보는 여기서 확인하지 않습니다!
       }
       return session;
     },

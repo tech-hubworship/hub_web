@@ -1,13 +1,10 @@
-// 파일 경로: src/pages/login/index.tsx
-
-import PageLayout from "@src/components/common/PageLayout";
-import { useState, useEffect } from "react";
-import { supabase } from "@src/lib/supabase";
+import { useEffect } from "react";
 import { useRouter } from "next/router";
-import { FaGoogle } from "react-icons/fa";
-import * as S from "@src/views/LoginPage/style";
+import { useSession, signIn } from "next-auth/react";
 import Head from "next/head";
-import { useSession, signIn, signOut } from "next-auth/react";
+import PageLayout from "@src/components/common/PageLayout";
+import * as S from "@src/views/LoginPage/style";
+import { FaGoogle } from "react-icons/fa";
 
 const REDIRECT_KEY = "login_redirect";
 
@@ -15,162 +12,36 @@ export default function LoginPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [step, setStep] = useState<"login" | "phone">("login");
-  const [phone, setPhone] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMessage, setModalMessage] = useState("");
-  const [isTerminationModalOpen, setIsTerminationModalOpen] = useState(false);
-
   useEffect(() => {
-    // @ts-ignore
-    if (status === "authenticated" && session?.user?.id && step === "login") {
-      // @ts-ignore
-      checkGoogleUser(session.user.id);
-    }
-  }, [status, session, step]);
-
-  // [변경] DB 직접 조회 -> API 호출
-  const checkGoogleUser = async (userId: string) => {
-    console.log(`[로그] 서버에 사용자(${userId}) 등록 여부 확인.`);
-    setLoading(true);
-    try {
-      const response = await fetch('/api/auth/check-user');
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || '사용자 확인 중 오류 발생');
-
-      if (data.exists) {
-        const path = localStorage.getItem(REDIRECT_KEY) || "/Info";
+    if (status === "authenticated") {
+      if (session.user?.isNewUser) {
+        router.replace("/signup");
+      } else {
+        const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/Info";
         localStorage.removeItem(REDIRECT_KEY);
-        router.push(path);
-      } else {
-        setStep("phone");
+        router.replace(redirectPath);
       }
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [status, session, router]);
 
-  const showModal = (message: string) => {
-    setModalMessage(message);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setModalMessage("");
-  };
-
-  const handleTerminateSession = async () => {
-    await signOut({ redirect: false });
-    window.location.reload();
-  };
-
-  const handleGoogleLogin = () => {
-    setLoading(true);
-    signIn('google').catch((err) => {
-      setError("로그인 처리 중 오류가 발생했습니다.");
-      setLoading(false);
-    });
-  };
-
-  const handlePhoneSubmit = async () => {
-    // @ts-ignore
-    if (!session?.user?.id) {
-      showModal("세션이 만료되었습니다. 다시 로그인 해주세요.");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    const { error: rpcError } = await supabase.rpc("upsert_google_user_by_phone", {
-      // @ts-ignore
-      p_uuid: session.user.id,
-      p_email: session.user.email,
-      p_phone_number: phone,
-    });
-
-    if (rpcError) {
-      if (rpcError.code === "23505") {
-        setIsTerminationModalOpen(true);
-      } else {
-        showModal(rpcError.message || "전화번호가 서비스 사용자 테이블에 없습니다.");
-      }
-      setLoading(false);
-      return;
-    }
-
-    const path = localStorage.getItem(REDIRECT_KEY) || "/Info";
-    localStorage.removeItem(REDIRECT_KEY);
-    router.push(path);
-  };
-
-  if (status === "loading" || loading) {
+  if (status === "loading" || status === "authenticated") {
     return (
       <PageLayout>
-        <S.Wrapper>
-          <S.LoginCard><S.Title>로그인 상태 확인 중...</S.Title></S.LoginCard>
-        </S.Wrapper>
+        <S.Wrapper><S.LoginCard><S.Title>로그인 정보를 확인 중입니다...</S.Title></S.LoginCard></S.Wrapper>
       </PageLayout>
     );
   }
-  
+
   return (
     <PageLayout>
       <Head><title>로그인</title></Head>
       <S.Wrapper>
         <S.LoginCard>
-          {step === "login" && (
-            <>
-              <S.Title>구글을 사용해 로그인해보세요!</S.Title>
-              <S.Subtitle>한번 연동된 계정은 변경이 어려우니 잘 선택해주세요.</S.Subtitle>
-              <S.GoogleLoginButton type="button" onClick={handleGoogleLogin} disabled={loading}>
-                <FaGoogle /> Google 계정으로 로그인
-              </S.GoogleLoginButton>
-            </>
-          )}
-
-          {step === "phone" && (
-            <>
-              <S.Title>전화번호를 입력해주세요</S.Title>
-              <S.Input type="text" placeholder="01012345678" value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                maxLength={11} disabled={loading}
-              />
-              <S.LoginButton onClick={handlePhoneSubmit} disabled={loading}>확인</S.LoginButton>
-            </>
-          )}
-
-          {error && <S.ErrorMessage>{error}</S.ErrorMessage>}
-
-          {isModalOpen && (
-            <S.ModalOverlay>
-              <S.ModalContent>
-                <S.ModalTitle>알림</S.ModalTitle>
-                <S.ModalSubtitle>{modalMessage}</S.ModalSubtitle>
-                <S.ModalCloseButton onClick={closeModal}>닫기</S.ModalCloseButton>
-              </S.ModalContent>
-            </S.ModalOverlay>
-          )}
-
-          {isTerminationModalOpen && (
-            <S.ModalOverlay>
-              <S.ModalContent>
-                <S.ModalTitle>알림</S.ModalTitle>
-                <S.ModalSubtitle>
-                  이미 해당 전화번호로 연결된 구글 계정이 있습니다.
-                  <br />
-                  현재 구글 세션을 종료하고 다시 로그인하시겠습니까?
-                </S.ModalSubtitle>
-                <S.ModalButton onClick={handleTerminateSession}>예, 종료합니다</S.ModalButton>
-                <S.ModalCloseButton onClick={() => setIsTerminationModalOpen(false)}>아니오</S.ModalCloseButton>
-              </S.ModalContent>
-            </S.ModalOverlay>
-          )}
+          <S.Title>로그인하고 모든 서비스를 이용해보세요</S.Title>
+          <S.Subtitle>구글 계정을 통해 간편하게 시작할 수 있습니다.</S.Subtitle>
+          <S.GoogleLoginButton type="button" onClick={() => signIn('google')}>
+            <FaGoogle /> Google 계정으로 로그인
+          </S.GoogleLoginButton>
         </S.LoginCard>
       </S.Wrapper>
     </PageLayout>

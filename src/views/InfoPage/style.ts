@@ -4,7 +4,7 @@ import styled from "@emotion/styled";
 
 export const Wrapper = styled.div`
   width: 100%;
-  min-height: 100vh;
+  min-height: 82.5vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -34,14 +34,6 @@ export const Card = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-`;
-
-export const ProfileImage = styled.img`
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  margin-bottom: 24px;
-  object-fit: cover;
 `;
 
 export const InfoWrapper = styled.div`

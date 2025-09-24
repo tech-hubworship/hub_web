@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // 환경 변수에서 Supabase 설정 가져오기
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -11,10 +11,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // 서버 사이드용 클라이언트 (서비스 역할 키 사용)
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 export const supabaseAdmin = createClient(
   supabaseUrl!,
-  supabaseServiceKey || supabaseAnonKey!,
+  supabaseServiceRoleKey || supabaseAnonKey!,
   {
     auth: {
       autoRefreshToken: false,
