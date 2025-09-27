@@ -2,6 +2,9 @@
 
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import { supabaseAdmin } from '@src/lib/supabase';
+
+// Session 타입 정의는 @types/next-auth.d.ts 파일에서 관리합니다.
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -13,22 +16,53 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
-  // ⭐️ [핵심] 콜백을 극도로 단순화하여 안정성을 확보합니다.
   callbacks: {
-    // 1. jwt: 토큰에 로그인에 필요한 최소한의 정보(ID, 이름, 이메일)만 담습니다.
     async jwt({ token, user }) {
       if (user) {
-        token.sub = user.id; // 구글 ID
-        token.name = user.name;
+        token.sub = user.id;
         token.email = user.email;
+        token.name = user.name;
       }
       return token;
     },
-    // 2. session: 브라우저가 사용할 세션 객체에 토큰 정보를 그대로 전달합니다.
+
     async session({ session, token }) {
       if (token.sub && session.user) {
         session.user.id = token.sub;
-        // isNewUser 같은 DB 정보는 여기서 확인하지 않습니다!
+
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('phone_number, birth_date, status')
+          .eq('user_id', token.sub)
+          .single();
+        
+        if (!profile) {
+          await supabaseAdmin.from('profiles').insert({ user_id: token.sub, email: token.email, name: token.name });
+          session.user.isNewUser = true;
+          session.user.isAdmin = false;
+          session.user.roles = [];
+        } else {
+          session.user.isNewUser = !profile.phone_number || !profile.birth_date;
+          session.user.isAdmin = profile.status === '관리자';
+
+          if (session.user.isAdmin) {
+            const { data: rolesData } = await supabaseAdmin
+                .from('admin_roles')
+                .select('roles(name)')
+                .eq('user_id', token.sub);
+            
+            // ⭐️ [핵심 수정] rolesData의 타입을 명확하게 지정하여 TypeScript 오류를 해결합니다.
+            // Supabase 조회 결과가 `{ roles: { name: string } }` 형태의 객체 배열임을 알려줍니다.
+            const typedRolesData = rolesData as { roles: { name: string } }[] | null;
+
+            session.user.roles = typedRolesData 
+                ? typedRolesData.map(r => r.roles.name) 
+                : [];
+
+          } else {
+            session.user.roles = [];
+          }
+        }
       }
       return session;
     },
