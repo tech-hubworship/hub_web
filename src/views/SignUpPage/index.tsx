@@ -7,13 +7,37 @@ import Head from 'next/head';
 import PageLayout from '@src/components/common/PageLayout';
 import * as S from '@src/views/LoginPage/style';
 
+// 그룹별 다락방 목록 데이터
+const hubGroups: { [key: string]: string[] } = {
+    "사랑": ["사랑", "자비", "열정", "은혜", "겸손", "지혜"],
+    "믿음": ["믿음", "절제", "화평", "오래참음", "충성", "선교"],
+};
+
+// 각 단계별 컴포넌트
+const StepComponent = ({ title, children, onBack, onNext, nextDisabled, finalStep=false, onSubmit, loading=false }: any) => (
+    <>
+      <S.Title>{title}</S.Title>
+      <S.InputGroup>{children}</S.InputGroup>
+      <S.ButtonWrapper>
+        {onBack && <S.CancelButton onClick={onBack}>이전</S.CancelButton>}
+        {finalStep ? (
+            <S.SubmitButton onClick={onSubmit} disabled={nextDisabled || loading}>
+                {loading ? '가입하는 중...' : '가입 완료'}
+            </S.SubmitButton>
+        ) : (
+            <S.SubmitButton onClick={onNext} disabled={nextDisabled}>다음</S.SubmitButton>
+        )}
+      </S.ButtonWrapper>
+    </>
+);
+
 export default function SignUpPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    name: '', birth_date: '', phone_number: '', gender: 'M',
-    cell_name: '', leader_name: '', community: '',
+    name: '', birth_date: '', gender: 'M', community: '', group_name: '', cell_name: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,32 +53,26 @@ export default function SignUpPage() {
       router.replace('/Info');
       return;
     }
-    if (user.name) {
-      setFormData(prev => ({ ...prev, name: user.name ?? '' }));
-    }
+    // ⭐️ [수정] 구글 계정 이름을 자동으로 채우는 로직을 삭제했습니다.
+    // if (user.name) {
+    //   setFormData(prev => ({ ...prev, name: user.name ?? '' }));
+    // }
   }, [session, status, router]);
   
-  // ⭐️ [수정] 입력값 변경을 처리하는 함수
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-
-    // 'birth_date' 입력 필드일 경우에만 자동 하이픈 로직을 적용합니다.
+    
     if (name === 'birth_date') {
-      const onlyNumbers = value.replace(/[^\d]/g, ''); // 숫자 이외의 문자는 모두 제거
+      const onlyNumbers = value.replace(/[^\d]/g, '');
       let formattedDate = onlyNumbers;
-
-      // YYYY-MM 형식으로 자동 변환
       if (onlyNumbers.length > 4) {
         formattedDate = `${onlyNumbers.slice(0, 4)}-${onlyNumbers.slice(4)}`;
       }
-      // YYYY-MM-DD 형식으로 자동 변환
       if (onlyNumbers.length > 6) {
         formattedDate = `${onlyNumbers.slice(0, 4)}-${onlyNumbers.slice(4, 6)}-${onlyNumbers.slice(6, 8)}`;
       }
-      
       setFormData(prev => ({ ...prev, [name]: formattedDate }));
     } else {
-      // 다른 입력 필드는 기존 방식대로 처리
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
@@ -63,13 +81,6 @@ export default function SignUpPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-
-    const { name, birth_date, phone_number, gender, cell_name, leader_name, community } = formData;
-    if (!name || !birth_date || !phone_number || !gender || !cell_name || !leader_name || !community) {
-      setError('모든 항목을 빠짐없이 입력해주세요.');
-      setLoading(false);
-      return;
-    }
 
     try {
       const response = await fetch('/api/auth/complete-profile', {
@@ -90,6 +101,60 @@ export default function SignUpPage() {
     }
   };
 
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return (
+          <StepComponent title="실명을 알려주세요" onNext={() => setStep(2)} nextDisabled={!formData.name}>
+            <S.Input name="name" value={formData.name} onChange={handleChange} required autoFocus />
+          </StepComponent>
+        );
+      case 2:
+        return (
+          <StepComponent title="생년월일을 알려주세요" onBack={() => setStep(1)} onNext={() => setStep(3)} nextDisabled={formData.birth_date.length !== 10}>
+             <S.Input name="birth_date" type="text" placeholder="YYYYMMDD" value={formData.birth_date} onChange={handleChange} maxLength={10} required />
+          </StepComponent>
+        );
+      case 3:
+        return (
+          <StepComponent title="소속 공동체를 선택해주세요" onBack={() => setStep(2)} onNext={() => setStep(formData.community === '허브' ? 4 : 6)} nextDisabled={!formData.community}>
+            <S.Select name="community" value={formData.community} onChange={handleChange} required>
+              <option value="">-- 선택 --</option><option value="허브">허브</option><option value="타공동체">타공동체</option>
+            </S.Select>
+          </StepComponent>
+        );
+      case 4:
+        if (formData.community !== '허브') return null;
+        return (
+          <StepComponent title="소속된 그룹을 선택해주세요" onBack={() => setStep(3)} onNext={() => setStep(5)} nextDisabled={!formData.group_name}>
+            <S.Select name="group_name" value={formData.group_name} onChange={(e) => setFormData({...formData, group_name: e.target.value, cell_name: ''})} required>
+              <option value="">-- 선택 --</option>{Object.keys(hubGroups).map(group => <option key={group} value={group}>{group}</option>)}
+            </S.Select>
+          </StepComponent>
+        );
+      case 5:
+        if (formData.community !== '허브') return null;
+        return (
+          <StepComponent title="소속된 다락방을 선택해주세요" onBack={() => setStep(4)} onNext={() => setStep(6)} nextDisabled={!formData.cell_name}>
+            <S.Select name="cell_name" value={formData.cell_name} onChange={handleChange} required>
+              <option value="">-- 선택 --</option>
+              {formData.group_name && hubGroups[formData.group_name]?.map(cell => <option key={cell} value={cell}>{cell}</option>)}
+            </S.Select>
+          </StepComponent>
+        );
+      case 6:
+        return (
+          <StepComponent title="성별을 선택해주세요" onBack={() => setStep(formData.community === '허브' ? 5 : 3)} finalStep={true} onSubmit={handleSubmit} loading={loading}>
+            <S.Select name="gender" value={formData.gender} onChange={handleChange} required>
+              <option value="M">남성</option><option value="F">여성</option>
+            </S.Select>
+          </StepComponent>
+        );
+      default:
+        return null;
+    }
+  };
+
   if (status !== 'authenticated' || !session?.user?.isNewUser) {
     return <PageLayout><div>Loading...</div></PageLayout>;
   }
@@ -98,66 +163,9 @@ export default function SignUpPage() {
     <PageLayout>
       <Head><title>회원가입</title></Head>
       <S.Wrapper>
-        <S.LoginCard as="form" onSubmit={handleSubmit}>
-          <S.Title>추가 정보 입력</S.Title>
-          <S.Subtitle>원활한 서비스 이용을 위해 모든 정보를 입력해주세요.</S.Subtitle>
-          
-          <S.InputGroup>
-            <S.Label>실명 (본명)*</S.Label>
-            <S.Input name="name" value={formData.name} onChange={handleChange} required />
-          </S.InputGroup>
-          
-          {/* ⭐️ [수정] 생년월일 입력 필드 */}
-          <S.InputGroup>
-            <S.Label>생년월일*</S.Label>
-            <S.Input 
-              name="birth_date" 
-              type="text" // 타입을 'text'로 변경
-              placeholder="YYYYMMDD" // 사용자 안내 문구 추가
-              value={formData.birth_date} 
-              onChange={handleChange} 
-              maxLength={10} // 'YYYY-MM-DD' 길이에 맞게 설정
-              required 
-            />
-          </S.InputGroup>
-
-          <S.InputGroup>
-            <S.Label>전화번호* ('-' 없이)</S.Label>
-            <S.Input name="phone_number" type="tel" value={formData.phone_number} onChange={handleChange} maxLength={11} required />
-          </S.InputGroup>
-
-          <S.InputGroup>
-            <S.Label>성별*</S.Label>
-            <S.Select name="gender" value={formData.gender} onChange={handleChange} required>
-              <option value="M">남성</option>
-              <option value="F">여성</option>
-            </S.Select>
-          </S.InputGroup>
-
-          <S.InputGroup>
-            <S.Label>다락방 이름*</S.Label>
-            <S.Input name="cell_name" onChange={handleChange} required />
-          </S.InputGroup>
-
-          <S.InputGroup>
-            <S.Label>순장 이름*</S.Label>
-            <S.Input name="leader_name" onChange={handleChange} required />
-          </S.InputGroup>
-          
-          <S.InputGroup>
-            <S.Label>소속 공동체*</S.Label>
-            <S.Select name="community" value={formData.community} onChange={handleChange} required>
-              <option value="">-- 선택 --</option>
-              <option value="허브">허브</option>
-              <option value="타공동체">타공동체</option>
-            </S.Select>
-          </S.InputGroup>
-
+        <S.LoginCard>
+          {renderStep()}
           {error && <S.ErrorMessage>{error}</S.ErrorMessage>}
-          
-          <S.SubmitButton type="submit" disabled={loading}>
-            {loading ? '가입하는 중...' : '가입 완료'}
-          </S.SubmitButton>
         </S.LoginCard>
       </S.Wrapper>
     </PageLayout>

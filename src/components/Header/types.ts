@@ -9,6 +9,7 @@ export type SingleMenuTap = {
   type: MenuTapType.DEFAULT | MenuTapType.SPECIAL;
   title: string;
   href: string;
+  auth?: boolean;
 };
 
 export type MenuTapList = SingleMenuTap[];

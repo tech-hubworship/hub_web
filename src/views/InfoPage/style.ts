@@ -1,10 +1,10 @@
-// 파일 경로: src/views/InfoPage/style.ts (최종 수정본)
+// 파일 경로: src/views/InfoPage/style.ts
 
 import styled from "@emotion/styled";
 
 export const Wrapper = styled.div`
   width: 100%;
-  min-height: 82.5vh;
+  min-height: 85vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -50,6 +50,7 @@ export const InfoItem = styled.div`
   align-items: center;
   padding-bottom: 8px;
   border-bottom: 1px solid #e0e0e0;
+  min-height: 38px;
 `;
 
 export const Label = styled.span`
@@ -66,18 +67,18 @@ export const Value = styled.span`
 export const LogoutButton = styled.button`
   width: 100%;
   padding: 14px 0;
-  background-color: #ED2725;
-  color: #fff;
   border: none;
   border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: auto;
+  transition: all 0.2s;
+  background-color: #555;
+  color: #fff;
+  margin-top: 16px;
 
   &:hover {
-    background-color: #D62321;
+    background-color: #333;
   }
 `;
 
@@ -85,6 +86,8 @@ export const ErrorMessage = styled.p`
   color: #e74c3c;
   font-size: 16px;
   text-align: center;
+  width: 100%;
+  margin-bottom: 1rem;
 `;
 
 export const LoadingText = styled.p`

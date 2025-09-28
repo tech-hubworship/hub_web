@@ -7,23 +7,22 @@ import * as S from "@src/views/InfoPage/style";
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 
-// 추가: API로부터 받을 프로필 데이터 타입
+// ⭐️ [수정] API로부터 받을 프로필 데이터 타입에 birth_date 추가
 interface ProfileData {
-  id: number;
   name: string;
   email: string;
-  birth_date: string;
-  phone_number: string;
+  birth_date: string; // 생년월일 추가
+  gender: 'M' | 'F';
+  community: string;
+  group_name: string;
   cell_name: string;
-  leader_name: string;
 }
 
-// 추가: 사용자 프로필을 가져오는 fetch 함수
+// 사용자 프로필을 가져오는 fetch 함수
 const fetchProfile = async (): Promise<ProfileData> => {
   const response = await fetch('/api/user/profile');
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || '프로필 정보를 가져오는데 실패했습니다.');
+    throw new Error('프로필 정보를 가져오는데 실패했습니다.');
   }
   return response.json();
 };
@@ -38,7 +37,7 @@ export default function MyInfoPage() {
   });
 
   const { data: profileData, error, isLoading } = useQuery<ProfileData, Error>({
-    queryKey: ['userProfile', session?.user?.email],
+    queryKey: ['userProfile', session?.user?.id],
     queryFn: fetchProfile,
     enabled: status === 'authenticated',
   });
@@ -53,21 +52,11 @@ export default function MyInfoPage() {
     }
 
     if (error) {
-      return (
-        <>
-          <S.ErrorMessage>{error.message}</S.ErrorMessage>
-          <S.LogoutButton onClick={handleLogout}>로그인 페이지로</S.LogoutButton>
-        </>
-      );
+      return <S.ErrorMessage>{error.message}</S.ErrorMessage>;
     }
 
     if (!profileData) {
-      return (
-        <>
-          <S.NoDataText>사용자 정보가 없습니다.</S.NoDataText>
-          <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
-        </>
-      );
+      return <S.NoDataText>사용자 정보가 없습니다.</S.NoDataText>;
     }
 
     return (
@@ -75,10 +64,16 @@ export default function MyInfoPage() {
         <S.InfoWrapper>
           <S.InfoItem><S.Label>이름</S.Label><S.Value>{profileData.name}</S.Value></S.InfoItem>
           <S.InfoItem><S.Label>이메일</S.Label><S.Value>{profileData.email}</S.Value></S.InfoItem>
-          <S.InfoItem><S.Label>전화번호</S.Label><S.Value>{profileData.phone_number}</S.Value></S.InfoItem>
+          {/* ⭐️ [수정] 생년월일 항목을 화면에 표시 */}
           <S.InfoItem><S.Label>생년월일</S.Label><S.Value>{profileData.birth_date}</S.Value></S.InfoItem>
-          <S.InfoItem><S.Label>다락방</S.Label><S.Value>{profileData.cell_name}</S.Value></S.InfoItem>
-          <S.InfoItem><S.Label>순장</S.Label><S.Value>{profileData.leader_name}</S.Value></S.InfoItem>
+          <S.InfoItem><S.Label>공동체</S.Label><S.Value>{profileData.community}</S.Value></S.InfoItem>
+          {/* '허브' 공동체일 때만 그룹과 다락방 정보 표시 */}
+          {profileData.community === '허브' && (
+            <>
+              <S.InfoItem><S.Label>그룹</S.Label><S.Value>{profileData.group_name}</S.Value></S.InfoItem>
+              <S.InfoItem><S.Label>다락방</S.Label><S.Value>{profileData.cell_name}</S.Value></S.InfoItem>
+            </>
+          )}
         </S.InfoWrapper>
         <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
       </S.Card>

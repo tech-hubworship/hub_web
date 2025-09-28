@@ -1,3 +1,5 @@
+// 파일 경로: src/components/Header/Desktop/index.tsx
+
 import styled from '@emotion/styled';
 import { colors } from '@sopt-makers/colors';
 import Link from 'next/link';
@@ -7,25 +9,22 @@ import { GrowDown } from '@src/lib/styles/animation';
 import { menuTapList } from '../constants/menuTapList';
 import { MenuTapType } from '../types';
 import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/react'; // ⭐️ 1. useSession을 import 합니다.
 
 function DesktopHeader() {
   const router = useRouter();
+  const { data: session, status } = useSession(); // ⭐️ 2. 세션 상태를 가져옵니다.
 
-  // 로고 클릭 핸들러
   const handleClickLogo = () => {
     router.push("/");
   };
 
-  // 선택 상태 확인 함수
   const handleIsSelected = (href: string) => {
     return router.pathname === href;
   };
 
-  // 페이지 이동 핸들러
   const handleNavigate = (href: string, e: React.MouseEvent) => {
     e.preventDefault();
-    
-    // 약간의 지연 후 페이지 이동
     setTimeout(() => {
       router.push(href);
     }, 100);
@@ -38,18 +37,28 @@ function DesktopHeader() {
           <Logo onClick={handleClickLogo} />
         </CenterAligner>
         <MenuTitlesWrapper>
-          {menuTapList.map((menuTap) => (
-            <MenuTitle
-              as="a"
-              href={menuTap.href}
-              menuColor={menuTap.type}
-              key={menuTap.title}
-              isSelected={handleIsSelected(menuTap.href)}
-              onClick={(e) => handleNavigate(menuTap.href, e)}
-            >
-              {menuTap.title}
-            </MenuTitle>
-          ))}
+          {menuTapList
+            // ⭐️ 3. [핵심] 메뉴 목록을 필터링합니다.
+            .filter(menuTap => {
+              // auth 속성이 true인 메뉴는, 로그인 상태(authenticated)일 때만 보여줍니다.
+              if (menuTap.auth) {
+                return status === 'authenticated';
+              }
+              // auth 속성이 없는 메뉴는 항상 보여줍니다.
+              return true;
+            })
+            .map((menuTap) => (
+              <MenuTitle
+                as="a"
+                href={menuTap.href}
+                menuColor={menuTap.type}
+                key={menuTap.title}
+                isSelected={handleIsSelected(menuTap.href)}
+                onClick={(e) => handleNavigate(menuTap.href, e)}
+              >
+                {menuTap.title}
+              </MenuTitle>
+            ))}
         </MenuTitlesWrapper>
       </Wrapper>
     </>

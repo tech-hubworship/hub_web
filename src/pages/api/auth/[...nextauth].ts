@@ -4,8 +4,6 @@ import NextAuth, { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import { supabaseAdmin } from '@src/lib/supabase';
 
-// Session 타입 정의는 @types/next-auth.d.ts 파일에서 관리합니다.
-
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -30,38 +28,30 @@ export const authOptions: NextAuthOptions = {
       if (token.sub && session.user) {
         session.user.id = token.sub;
 
-        const { data: profile } = await supabaseAdmin
+        // ⭐️ [핵심 수정] 더 이상 존재하지 않는 'phone_number' 대신,
+        // 'isNewUser' 여부를 판별할 수 있는 'birth_date'와 'cell_name'을 조회합니다.
+        const { data: profile, error } = await supabaseAdmin
           .from('profiles')
-          .select('phone_number, birth_date, status')
+          .select('birth_date, cell_name') // 프로필 완성 여부를 확인할 수 있는 컬럼 조회
           .eq('user_id', token.sub)
-          .single();
+          .maybeSingle();
         
+        if (error) {
+          console.error("Error fetching profile in session:", error);
+        }
+
+        // [핵심] 조회 결과, 프로필이 없다면 최초 로그인으로 간주하고 기본 프로필 생성
         if (!profile) {
-          await supabaseAdmin.from('profiles').insert({ user_id: token.sub, email: token.email, name: token.name });
+          await supabaseAdmin.from('profiles').insert({
+              user_id: token.sub,
+              email: token.email,
+              name: token.name,
+          });
           session.user.isNewUser = true;
-          session.user.isAdmin = false;
-          session.user.roles = [];
         } else {
-          session.user.isNewUser = !profile.phone_number || !profile.birth_date;
-          session.user.isAdmin = profile.status === '관리자';
-
-          if (session.user.isAdmin) {
-            const { data: rolesData } = await supabaseAdmin
-                .from('admin_roles')
-                .select('roles(name)')
-                .eq('user_id', token.sub);
-            
-            // ⭐️ [핵심 수정] rolesData의 타입을 명확하게 지정하여 TypeScript 오류를 해결합니다.
-            // Supabase 조회 결과가 `{ roles: { name: string } }` 형태의 객체 배열임을 알려줍니다.
-            const typedRolesData = rolesData as { roles: { name: string } }[] | null;
-
-            session.user.roles = typedRolesData 
-                ? typedRolesData.map(r => r.roles.name) 
-                : [];
-
-          } else {
-            session.user.roles = [];
-          }
+          // ⭐️ [핵심 수정] 프로필이 있다면, 'birth_date'가 입력되었는지를 기준으로 신규 유저 여부를 판단합니다.
+          // birth_date는 모든 유저의 필수값이기 때문입니다.
+          session.user.isNewUser = !profile.birth_date;
         }
       }
       return session;

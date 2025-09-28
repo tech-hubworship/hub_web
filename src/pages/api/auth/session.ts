@@ -16,13 +16,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   
   try {
     // 1. DB에서 현재 유저의 프로필을 조회합니다.
+    // ⭐️ [수정] 더 이상 존재하지 않는 'phone_number' 대신, 'birth_date'를 조회합니다.
     const { data: profile, error } = await supabaseAdmin
         .from('profiles')
-        .select('phone_number, birth_date')
+        .select('birth_date') // 'birth_date'가 입력되었는지를 기준으로 신규 유저 여부를 판단합니다.
         .eq('user_id', userId)
         .single();
     
-    if (error && error.code !== 'PGRST116') { // PGRST116: 'Not Found'는 정상
+    if (error && error.code !== 'PGRST116') { // PGRST116: 'Not Found'는 정상적인 경우일 수 있습니다.
         throw error;
     }
 
@@ -38,7 +39,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (insertError) throw insertError;
         isNewUser = true;
     } else {
-        isNewUser = !profile.phone_number || !profile.birth_date;
+        // ⭐️ [수정] 'birth_date'가 있는지 여부로 신규 유저를 판단합니다.
+        isNewUser = !profile.birth_date;
     }
 
     // 3. 최종 세션 정보에 isNewUser를 포함하여 반환합니다.
