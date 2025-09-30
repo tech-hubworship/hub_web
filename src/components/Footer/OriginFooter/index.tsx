@@ -1,5 +1,6 @@
 import { useRouter } from "next/router";
 import { FC, useState } from "react";
+import Link from "next/link";
 import ArrowRight from "@src/assets/icons/arrow_right_16x16.svg";
 import Channels from "@src/components/Footer/Channels";
 import * as St from "./style";
@@ -62,6 +63,14 @@ const OriginFooter: FC = () => {
             <span>개발자에게 한마디(익명)</span>
             <ArrowRight />
           </St.TitleButton>
+          <St.LegalLinks>
+            <Link href="/law/terms" passHref legacyBehavior>
+              <St.LegalLink>이용약관</St.LegalLink>
+            </Link>
+            <Link href="/law/privacy" passHref legacyBehavior>
+              <St.LegalLink>개인정보 처리방침</St.LegalLink>
+            </Link>
+          </St.LegalLinks>
           <St.CopyrightText>
             HUB TECH
             <br />

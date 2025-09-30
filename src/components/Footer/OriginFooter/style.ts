@@ -62,9 +62,39 @@ export const TitleButton = styled.button`
   }
 `;
 
+export const LegalLinks = styled.div`
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+
+  /* 모바일 뷰 */
+  @media (max-width: 47.86875rem) {
+    gap: 12px;
+  }
+`;
+
+export const LegalLink = styled.a`
+  font-size: 12px;
+  font-weight: 400;
+  color: #ffffff;
+  text-decoration: none;
+  cursor: pointer;
+  
+  &:hover {
+    text-decoration: underline;
+    opacity: 0.8;
+  }
+
+  /* 모바일 뷰 */
+  @media (max-width: 47.86875rem) {
+    font-size: 10px;
+  }
+`;
+
 export const CopyrightText = styled.p`
   width: 100%;
-  margin-top: 25px;
+  margin-top: 12px;
   line-height: 180%;
   font-size: 12px;
   font-weight: 400;
