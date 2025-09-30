@@ -8,27 +8,34 @@ export const Wrapper = styled.div`
     align-items: center;
     min-height: 80vh;
     padding: 20px;
+    background-color: #f0f2f5;
 `;
 
+export const Label = styled.label`
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-align: left;
+`;
 export const Card = styled.div`
     background: white;
     padding: 40px;
     border-radius: 12px;
-    box-shadow: 0 4px S20px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     width: 100%;
     max-width: 500px;
     text-align: center;
 `;
 
 export const Title = styled.h2`
-    margin-bottom: 25rem;
-    font-size: 31rem;
+    margin-bottom: 20rem;
+    font-size: 20rem;
     color: #333;
 `;
 
 export const InputGroup = styled.div`
     width: 100%;
-    margin-bottom: 5rem;
+    margin-bottom: 1.5rem;
 `;
 
 export const Input = styled.input`
@@ -43,7 +50,7 @@ export const Textarea = styled.textarea`
     width: 100%;
     min-height: 120px;
     padding: 12px;
-    font-size: 10rem;
+    font-size: 20rem;
     border: 1px solid #ddd;
     border-radius: 8px;
     resize: vertical;
@@ -58,7 +65,7 @@ export const ButtonWrapper = styled.div`
 const BaseButton = styled.button`
     flex: 1;
     padding: 12px;
-    font-size: 20rem;
+    font-size: 15rem;
     font-weight: 600;
     cursor: pointer;
     border-radius: 8px;

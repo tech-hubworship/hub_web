@@ -2,16 +2,17 @@
 
 import { DefaultSession } from 'next-auth';
 
+// Session 타입을 확장하여 필요한 속성들을 추가합니다.
 declare module 'next-auth' {
-  /**
-   * 클라이언트에서 사용될 Session 객체의 최종 타입 정의
-   */
-  interface Session {
-    user?: {
-      id?: string | null;
-      isNewUser?: boolean;
-      isAdmin?: boolean;    // ⭐️ 관리자 여부 타입
-      roles?: string[];     // ⭐️ 세부 권한 목록 타입
-    } & DefaultSession['user']; // 기존의 name, email, image 타입은 NextAuth 기본 타입을 그대로 사용
-  }
+    interface Session {
+      user: {
+        id?: string | null;
+        name?: string | null;
+        email?: string | null;
+        image?: string | null;
+        isNewUser?: boolean;
+        isAdmin?: boolean;
+        roles?: string[];
+      };
+    }
 }
