@@ -17,7 +17,7 @@ export default function LoginPage() {
       if (session.user?.isNewUser) {
         router.replace("/signup");
       } else {
-        const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/Info";
+        const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/info";
         localStorage.removeItem(REDIRECT_KEY);
         router.replace(redirectPath);
       }

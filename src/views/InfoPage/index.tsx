@@ -1,4 +1,4 @@
-// 파일 경로: src/pages/Info/index.tsx
+// 파일 경로: src/pages/info/index.tsx
 
 import PageLayout from "@src/components/common/PageLayout";
 import { useRouter } from "next/router";

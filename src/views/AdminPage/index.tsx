@@ -1,7 +1,6 @@
 // 파일 경로: src/pages/admin/index.tsx
 
 import { useSession } from 'next-auth/react';
-// ⭐️ [수정] 'next-router' -> 'next/router'로 경로를 수정했습니다.
 import { useRouter } from 'next/router';
 import PageLayout from '@src/components/common/PageLayout';
 import * as S from "@src/views/AdminPage/style";
@@ -51,12 +50,12 @@ export default function AdminPage() {
                         </S.MenuButton>
                     )}
 
-                    {/* '디자인팀' 또는 '말씀카드' 권한이 있는 관리자에게만 보이는 메뉴 */}
-                    {(roles.includes('디자인팀') || roles.includes('말씀카드')) && (
+                    {/* '디자인팀' 또는 '양육MC' 권한이 있는 관리자에게만 보이는 메뉴 */}
+                    {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
                         <Link href="/admin/design" passHref>
                             <S.MenuButton as="a">
                                 <span>🎨</span>
-                                디자인 관리 (말씀카드)
+                                디자인 관리
                             </S.MenuButton>
                         </Link>
                     )}

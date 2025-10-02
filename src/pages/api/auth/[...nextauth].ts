@@ -28,11 +28,9 @@ export const authOptions: NextAuthOptions = {
       if (token.sub && session.user) {
         session.user.id = token.sub;
 
-        // ⭐️ [핵심 수정] 더 이상 존재하지 않는 'phone_number' 대신,
-        // 'isNewUser' 여부를 판별할 수 있는 'birth_date'와 'cell_name'을 조회합니다.
         const { data: profile, error } = await supabaseAdmin
           .from('profiles')
-          .select('birth_date, cell_name') // 프로필 완성 여부를 확인할 수 있는 컬럼 조회
+          .select('*, admin_roles(roles(name))')
           .eq('user_id', token.sub)
           .maybeSingle();
         
@@ -40,18 +38,36 @@ export const authOptions: NextAuthOptions = {
           console.error("Error fetching profile in session:", error);
         }
 
-        // [핵심] 조회 결과, 프로필이 없다면 최초 로그인으로 간주하고 기본 프로필 생성
         if (!profile) {
+          // --- 최초 로그인 사용자 ---
           await supabaseAdmin.from('profiles').insert({
               user_id: token.sub,
               email: token.email,
               name: token.name,
           });
           session.user.isNewUser = true;
+          session.user.isAdmin = false; // 신규 유저는 관리자가 아님
+          session.user.roles = [];      // 신규 유저는 역할이 없음
         } else {
-          // ⭐️ [핵심 수정] 프로필이 있다면, 'birth_date'가 입력되었는지를 기준으로 신규 유저 여부를 판단합니다.
-          // birth_date는 모든 유저의 필수값이기 때문입니다.
+          // --- 기존 사용자 ---
           session.user.isNewUser = !profile.birth_date;
+
+          // ⭐️ [수정된 관리자 확인 로직]
+          // 1. admin_roles 또는 status로 관리자 여부 확인
+          const hasAdminRoles = profile.admin_roles && (profile.admin_roles as any[]).length > 0;
+          const isAdminByStatus = profile.status === '관리자';
+          
+          // 2. session.user.isAdmin (boolean) 설정
+          session.user.isAdmin = hasAdminRoles || isAdminByStatus;
+
+          // 3. session.user.roles (역할 이름 배열) 설정
+          if (hasAdminRoles) {
+            session.user.roles = (profile.admin_roles as any[]).map(
+              (roleEntry) => roleEntry.roles?.name
+            ).filter(Boolean); // null이나 undefined가 들어가지 않도록 필터링
+          } else {
+            session.user.roles = [];
+          }
         }
       }
       return session;
