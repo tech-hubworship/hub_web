@@ -21,21 +21,71 @@ export default async function handler(
   const userId = session.user.id;
 
   try {
-    // ⭐️ [수정] select 목록에 'birth_date'를 추가합니다.
-    const { data: profile, error } = await supabaseAdmin
+    // 1. 프로필 + 그룹/다락방 관계 정보 조회
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('name, email, birth_date, gender, community, group_name, cell_name')
+      .select(`
+        name, email, birth_date, gender, community,
+        hub_groups!fk_group_id ( id, name ), 
+        hub_cells!fk_cell_id ( id, name )
+      `)
       .eq('user_id', userId)
       .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') { // 결과가 없는 경우
-        return res.status(404).json({ message: 'Profile not found' });
-      }
-      throw error;
+    if (profileError && profileError.code !== 'PGRST116') {
+      throw profileError;
     }
 
-    res.status(200).json(profile);
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+
+    // 2. 관리자 역할 조회
+    const { data: roles } = await supabaseAdmin
+      .from('admin_roles')
+      .select(`roles ( name )`)
+      .eq('user_id', userId);
+
+    // 3. 담당 그룹 조회 (목회자/그룹장)
+    const { data: responsibleGroup } = await supabaseAdmin
+      .from('hub_groups')
+      .select('id, name')
+      .or(`pastor_id.eq.${userId},group_leader_id.eq.${userId}`)
+      .maybeSingle();
+
+    // 4. 담당 다락방 조회 (다락방장)
+    const { data: responsibleCell } = await supabaseAdmin
+      .from('hub_cells')
+      .select(`id, name, hub_groups ( id, name )`)
+      .eq('cell_leader_id', userId)
+      .maybeSingle();
+
+    // 5. 응답 데이터 구성
+    const responseData = {
+      name: profile.name,
+      email: profile.email,
+      birth_date: profile.birth_date,
+      gender: profile.gender,
+      community: profile.community,
+
+      group_id: (profile.hub_groups as any)?.id || null,
+      group_name: (profile.hub_groups as any)?.name || null,
+
+      cell_id: (profile.hub_cells as any)?.id || null,
+      cell_name: (profile.hub_cells as any)?.name || null,
+
+      roles: roles?.map(r => (r.roles as any).name) || [],
+
+      responsible_group_id: responsibleGroup?.id || null,
+      responsible_group_name: responsibleGroup?.name || null,
+
+      responsible_cell_id: responsibleCell?.id || null,
+      responsible_cell_info: responsibleCell
+        ? `${(responsibleCell.hub_groups as any)?.name} / ${responsibleCell.name}`
+        : null,
+    };
+
+    res.status(200).json(responseData);
 
   } catch (error: any) {
     console.error('Error in /api/user/profile:', error);

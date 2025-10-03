@@ -1,87 +1,146 @@
-// 파일 경로: src/pages/signup/index.tsx
+// 파일 경로: src/views/SignUpPage/index.tsx
 
 import { useState, useEffect, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import PageLayout from '@src/components/common/PageLayout';
-import * as S from '@src/views/LoginPage/style';
-
-// 그룹별 다락방 목록 데이터
-const hubGroups: { [key: string]: string[] } = {
-    "사랑": ["사랑", "자비", "열정", "은혜", "겸손", "지혜"],
-    "믿음": ["믿음", "절제", "화평", "오래참음", "충성", "선교"],
-};
+import * as S from './style';
 
 // 각 단계별 컴포넌트
 const StepComponent = ({ title, children, onBack, onNext, nextDisabled, finalStep=false, onSubmit, loading=false }: any) => (
-    <>
-      <S.Title>{title}</S.Title>
-      <S.InputGroup>{children}</S.InputGroup>
-      <S.ButtonWrapper>
-        {onBack && <S.CancelButton onClick={onBack}>이전</S.CancelButton>}
-        {finalStep ? (
-            <S.SubmitButton onClick={onSubmit} disabled={nextDisabled || loading}>
-                {loading ? '가입하는 중...' : '가입 완료'}
-            </S.SubmitButton>
-        ) : (
-            <S.SubmitButton onClick={onNext} disabled={nextDisabled}>다음</S.SubmitButton>
-        )}
-      </S.ButtonWrapper>
-    </>
+    <S.Card>
+        <S.Title>{title}</S.Title>
+        <S.InputGroup>{children}</S.InputGroup>
+        <S.ButtonWrapper>
+            {onBack && <S.CancelButton onClick={onBack}>이전</S.CancelButton>}
+            {finalStep ? (
+                <S.SubmitButton onClick={onSubmit} disabled={nextDisabled || loading}>
+                    {loading ? '가입하는 중...' : '가입 완료'}
+                </S.SubmitButton>
+            ) : (
+                <S.SubmitButton onClick={onNext} disabled={nextDisabled}>다음</S.SubmitButton>
+            )}
+        </S.ButtonWrapper>
+    </S.Card>
 );
+
+// 역할 이름 상수화
+const ROLES = {
+    PASTOR: '목회자',
+    GROUP_LEADER: '그룹장',
+    CELL_LEADER: '다락방장',
+    MC: 'MC',
+};
+
+// 18세 이상인지 확인하는 함수
+const isOldEnough = (dateString: string): boolean => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
+    const birthDate = new Date(dateString);
+    if (isNaN(birthDate.getTime())) return false;
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return age >= 18;
+};
 
 export default function SignUpPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { role } = router.query;
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    name: '', birth_date: '', gender: 'M', community: '', group_name: '', cell_name: '',
+    name: '',
+    birth_date: '',
+    gender: 'M',
+    community: role ? '허브' : '',
+    group_id: '',
+    cell_id: '',
+    responsible_group_id: '',
+    responsible_cell_id: '',
+    role: role || '',
   });
+  const [groups, setGroups] = useState<{id: number, name: string}[]>([]);
+  const [cells, setCells] = useState<{id: number, name: string}[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+
+  // API 호출 로직
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await fetch('/api/signup/groups');
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        setGroups(data.data);
+      } catch (err: any) { setError(err.message); }
+    };
+    fetchGroups();
+  }, []);
 
   useEffect(() => {
-    if (status === 'loading') return;
-    if (status === 'unauthenticated' || !session?.user) {
-      router.replace('/login');
-      return;
+    const groupIdForCellFetch = formData.responsible_group_id || formData.group_id;
+    if (groupIdForCellFetch) {
+      const fetchCells = async () => {
+        try {
+          const response = await fetch(`/api/signup/cells?groupId=${groupIdForCellFetch}`);
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message);
+          setCells(data.data);
+        } catch (err: any) { setError(err.message); }
+      };
+      fetchCells();
+    } else {
+      setCells([]);
     }
-    const { user } = session;
-    if (!user.isNewUser) {
-      router.replace('/info');
-      return;
+  }, [formData.group_id, formData.responsible_group_id]);
+
+  // 세션 확인 및 렌더링 준비
+  useEffect(() => {
+    if (status === 'unauthenticated') router.replace('/login');
+    if (session && !session.user?.isNewUser) router.replace('/info');
+    if (status === 'authenticated' && session.user?.isNewUser) {
+        setIsReady(true);
     }
-    // ⭐️ [수정] 구글 계정 이름을 자동으로 채우는 로직을 삭제했습니다.
-    // if (user.name) {
-    //   setFormData(prev => ({ ...prev, name: user.name ?? '' }));
-    // }
   }, [session, status, router]);
-  
+
+  // ⭐️ [핵심 수정] 역할에 따른 자동 단계 이동 로직 (React 규칙 준수)
+  useEffect(() => {
+    if (isReady && step === 3 && role) {
+        if (role === ROLES.MC) {
+            setStep(6);
+        } else if ([ROLES.PASTOR, ROLES.GROUP_LEADER, ROLES.CELL_LEADER].includes(role as string)) {
+            setStep(4);
+        }
+    }
+  }, [step, role, isReady]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
     if (name === 'birth_date') {
-      const onlyNumbers = value.replace(/[^\d]/g, '');
+      const onlyNumbers = value.replace(/[^\d]/g, '').slice(0, 8);
       let formattedDate = onlyNumbers;
-      if (onlyNumbers.length > 4) {
-        formattedDate = `${onlyNumbers.slice(0, 4)}-${onlyNumbers.slice(4)}`;
-      }
-      if (onlyNumbers.length > 6) {
-        formattedDate = `${onlyNumbers.slice(0, 4)}-${onlyNumbers.slice(4, 6)}-${onlyNumbers.slice(6, 8)}`;
-      }
+      if (onlyNumbers.length > 4) { formattedDate = `${onlyNumbers.slice(0, 4)}-${onlyNumbers.slice(4)}`; }
+      if (onlyNumbers.length > 6) { formattedDate = `${onlyNumbers.slice(0, 4)}-${onlyNumbers.slice(4, 6)}-${onlyNumbers.slice(6, 8)}`; }
       setFormData(prev => ({ ...prev, [name]: formattedDate }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      return;
     }
+    const newFormData = { ...formData, [name]: value };
+    if (name === 'group_id' || name === 'responsible_group_id') {
+        newFormData.cell_id = '';
+        newFormData.responsible_cell_id = '';
+    }
+    setFormData(newFormData);
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
+    setLoading(true); setError('');
     try {
       const response = await fetch('/api/auth/complete-profile', {
         method: 'POST',
@@ -89,11 +148,9 @@ export default function SignUpPage() {
         body: JSON.stringify(formData),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || '오류가 발생했습니다.');
-      
+      if (!response.ok) throw new Error(data.message);
       alert('회원가입이 완료되었습니다!');
       router.replace('/info');
-
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -106,45 +163,78 @@ export default function SignUpPage() {
       case 1:
         return (
           <StepComponent title="실명을 알려주세요" onNext={() => setStep(2)} nextDisabled={!formData.name}>
+            {role && <S.Subtitle style={{marginBottom: '16px', fontWeight: 600, color: '#007bff'}}>{role} 역할로 가입을 진행합니다.</S.Subtitle>}
             <S.Input name="name" value={formData.name} onChange={handleChange} required autoFocus />
           </StepComponent>
         );
       case 2:
+        const isAgeInvalid = formData.birth_date.length === 10 && !isOldEnough(formData.birth_date);
         return (
-          <StepComponent title="생년월일을 알려주세요" onBack={() => setStep(1)} onNext={() => setStep(3)} nextDisabled={formData.birth_date.length !== 10}>
-             <S.Input name="birth_date" type="text" placeholder="YYYYMMDD" value={formData.birth_date} onChange={handleChange} maxLength={10} required />
+          <StepComponent title="생년월일을 알려주세요" onBack={() => setStep(1)} onNext={() => setStep(3)} nextDisabled={formData.birth_date.length !== 10 || !isOldEnough(formData.birth_date)}>
+             <S.Input name="birth_date" type="text" placeholder="YYYY-MM-DD" value={formData.birth_date} onChange={handleChange} maxLength={10} required />
+             {isAgeInvalid && <S.ErrorMessage>만 18세 이상만 가입할 수 있습니다.</S.ErrorMessage>}
           </StepComponent>
         );
       case 3:
+        if (role) return null; // 역할이 있으면 상단 useEffect가 처리하므로 렌더링 안 함
         return (
-          <StepComponent title="소속 공동체를 선택해주세요" onBack={() => setStep(2)} onNext={() => setStep(formData.community === '허브' ? 4 : 6)} nextDisabled={!formData.community}>
-            <S.Select name="community" value={formData.community} onChange={handleChange} required>
-              <option value="">-- 선택 --</option><option value="허브">허브</option><option value="타공동체">타공동체</option>
-            </S.Select>
-          </StepComponent>
+            <StepComponent title="소속 공동체를 선택해주세요" onBack={() => setStep(2)} onNext={() => formData.community === '타공동체' ? setStep(6) : setStep(7)} nextDisabled={!formData.community}>
+              <S.Select name="community" value={formData.community} onChange={handleChange} required>
+                <option value="">-- 공동체 선택 --</option>
+                <option value="허브">허브</option>
+                <option value="타공동체">타공동체</option>
+              </S.Select>
+            </StepComponent>
         );
       case 4:
-        if (formData.community !== '허브') return null;
         return (
-          <StepComponent title="소속된 그룹을 선택해주세요" onBack={() => setStep(3)} onNext={() => setStep(5)} nextDisabled={!formData.group_name}>
-            <S.Select name="group_name" value={formData.group_name} onChange={(e) => setFormData({...formData, group_name: e.target.value, cell_name: ''})} required>
-              <option value="">-- 선택 --</option>{Object.keys(hubGroups).map(group => <option key={group} value={group}>{group}</option>)}
+          <StepComponent title="담당하실 그룹을 선택해주세요" onBack={() => setStep(2)} onNext={() => role === ROLES.CELL_LEADER ? setStep(5) : setStep(6)} nextDisabled={!formData.responsible_group_id}>
+            <S.Select name="responsible_group_id" value={formData.responsible_group_id} onChange={handleChange} required>
+              <option value="">-- 담당 그룹 선택 --</option>
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </S.Select>
           </StepComponent>
         );
       case 5:
-        if (formData.community !== '허브') return null;
         return (
-          <StepComponent title="소속된 다락방을 선택해주세요" onBack={() => setStep(4)} onNext={() => setStep(6)} nextDisabled={!formData.cell_name}>
-            <S.Select name="cell_name" value={formData.cell_name} onChange={handleChange} required>
-              <option value="">-- 선택 --</option>
-              {formData.group_name && hubGroups[formData.group_name]?.map(cell => <option key={cell} value={cell}>{cell}</option>)}
+          <StepComponent title="담당하실 다락방을 선택해주세요" onBack={() => setStep(4)} onNext={() => setStep(6)} nextDisabled={!formData.responsible_cell_id}>
+            <S.Select name="responsible_cell_id" value={formData.responsible_cell_id} onChange={handleChange} required>
+              <option value="">-- 담당 다락방 선택 --</option>
+              {cells.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </S.Select>
+          </StepComponent>
+        );
+      case 7:
+        return (
+          <StepComponent title="소속 그룹을 선택해주세요" onBack={() => setStep(3)} onNext={() => setStep(8)} nextDisabled={!formData.group_id}>
+            <S.Select name="group_id" value={formData.group_id} onChange={handleChange} required>
+              <option value="">-- 그룹 선택 --</option>
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </S.Select>
+          </StepComponent>
+        );
+      case 8:
+        return (
+          <StepComponent title="소속 다락방을 선택해주세요" onBack={() => setStep(7)} onNext={() => setStep(6)} nextDisabled={!formData.cell_id}>
+            <S.Select name="cell_id" value={formData.cell_id} onChange={handleChange} required>
+              <option value="">-- 다락방 선택 --</option>
+              {cells.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </S.Select>
           </StepComponent>
         );
       case 6:
+        const handleBackFromGender = () => {
+            if (role) {
+                if ([ROLES.PASTOR, ROLES.GROUP_LEADER].includes(role as string)) setStep(4);
+                else if (role === ROLES.CELL_LEADER) setStep(5);
+                else setStep(2);
+            } else {
+                if (formData.community === '타공동체') setStep(3);
+                else setStep(8);
+            }
+        }
         return (
-          <StepComponent title="성별을 선택해주세요" onBack={() => setStep(formData.community === '허브' ? 5 : 3)} finalStep={true} onSubmit={handleSubmit} loading={loading}>
+          <StepComponent title="성별을 선택해주세요" onBack={handleBackFromGender} finalStep={true} onSubmit={handleSubmit} loading={loading}>
             <S.Select name="gender" value={formData.gender} onChange={handleChange} required>
               <option value="M">남성</option><option value="F">여성</option>
             </S.Select>
@@ -155,7 +245,7 @@ export default function SignUpPage() {
     }
   };
 
-  if (status !== 'authenticated' || !session?.user?.isNewUser) {
+  if (!isReady || (status === 'loading')) {
     return <PageLayout><div>Loading...</div></PageLayout>;
   }
 
@@ -163,10 +253,10 @@ export default function SignUpPage() {
     <PageLayout>
       <Head><title>회원가입</title></Head>
       <S.Wrapper>
-        <S.LoginCard>
+        <S.Card>
           {renderStep()}
           {error && <S.ErrorMessage>{error}</S.ErrorMessage>}
-        </S.LoginCard>
+        </S.Card>
       </S.Wrapper>
     </PageLayout>
   );
