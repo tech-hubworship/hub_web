@@ -50,7 +50,7 @@ export default function SignUpPage() {
     }
     const { user } = session;
     if (!user.isNewUser) {
-      router.replace('/Info');
+      router.replace('/info');
       return;
     }
     // ⭐️ [수정] 구글 계정 이름을 자동으로 채우는 로직을 삭제했습니다.
@@ -92,7 +92,7 @@ export default function SignUpPage() {
       if (!response.ok) throw new Error(data.message || '오류가 발생했습니다.');
       
       alert('회원가입이 완료되었습니다!');
-      router.replace('/Info');
+      router.replace('/info');
 
     } catch (err: any) {
       setError(err.message);

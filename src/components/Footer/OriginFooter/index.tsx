@@ -64,6 +64,9 @@ const OriginFooter: FC = () => {
             <ArrowRight />
           </St.TitleButton>
           <St.LegalLinks>
+            <Link href="/law/intro" passHref legacyBehavior>
+              <St.LegalLink>사이트 소개</St.LegalLink>
+            </Link>
             <Link href="/law/terms" passHref legacyBehavior>
               <St.LegalLink>이용약관</St.LegalLink>
             </Link>
@@ -77,6 +80,8 @@ const OriginFooter: FC = () => {
             Copyrightⓒ2025.HUB. All rights reserved.
           </St.CopyrightText>
         </div>
+        
+        
         <St.ChannelsWrap>
           <St.ChannelTitleText>HUB 채널 바로가기</St.ChannelTitleText>
           <Channels isFooter={true} />

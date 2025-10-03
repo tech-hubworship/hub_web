@@ -46,6 +46,7 @@ export const ContentWrap = styled.div`
   }
 `;
 
+
 export const TitleButton = styled.button`
   cursor: pointer;
   line-height: 20px;
