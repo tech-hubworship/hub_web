@@ -43,7 +43,6 @@ export const Title = styled.h1`
   margin-bottom: 12px;
   color: #111;
   line-height: 1.4;
-  cursor: pointer; /* 이스터에그를 위해 커서 변경 */
 `;
 
 export const Subtitle = styled.p`

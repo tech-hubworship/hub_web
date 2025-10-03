@@ -150,7 +150,6 @@ export const ModalTitle = styled.h2`
   color: #111;
   text-align: center;
   margin-bottom: 24px;
-  cursor: pointer;
 `;
 
 export const Select = styled.select`
