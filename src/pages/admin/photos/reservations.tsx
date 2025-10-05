@@ -130,7 +130,7 @@ const CameraControls = styled.div`
   gap: 16px;
 `;
 
-const CameraButton = styled.button`
+const CameraButton = styled.button<{ variant?: 'danger' }>`
   padding: 16px 24px;
   background: ${props => props.variant === 'danger' ? '#ef4444' : '#10b981'};
   color: white;
@@ -144,6 +144,11 @@ const CameraButton = styled.button`
 
   &:hover {
     background: ${props => props.variant === 'danger' ? '#dc2626' : '#059669'};
+  }
+
+  &:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
   }
 `;
 
