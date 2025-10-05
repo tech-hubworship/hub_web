@@ -129,6 +129,36 @@ CREATE TABLE IF NOT EXISTS downloads (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 사진 폴더 테이블
+CREATE TABLE IF NOT EXISTS photo_folders (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    is_public BOOLEAN DEFAULT TRUE,
+    order_index INTEGER DEFAULT 0,
+    created_by INTEGER REFERENCES admins(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 사진 테이블
+CREATE TABLE IF NOT EXISTS photos (
+    id SERIAL PRIMARY KEY,
+    folder_id INTEGER REFERENCES photo_folders(id) ON DELETE CASCADE,
+    title VARCHAR(255),
+    description TEXT,
+    image_url TEXT NOT NULL,
+    thumbnail_url TEXT,
+    file_size INTEGER,
+    width INTEGER,
+    height INTEGER,
+    file_format VARCHAR(10), -- jpg, png, gif, webp 등
+    is_active BOOLEAN DEFAULT TRUE,
+    uploaded_by INTEGER REFERENCES admins(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 인덱스 생성
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_announcements_active ON announcements(is_active);
@@ -143,6 +173,11 @@ CREATE INDEX IF NOT EXISTS idx_meal_applications_date ON meal_applications(meal_
 CREATE INDEX IF NOT EXISTS idx_accommodation_applications_dates ON accommodation_applications(check_in_date, check_out_date);
 CREATE INDEX IF NOT EXISTS idx_lost_items_status ON lost_items(status);
 CREATE INDEX IF NOT EXISTS idx_downloads_key ON downloads(key);
+CREATE INDEX IF NOT EXISTS idx_photo_folders_public ON photo_folders(is_public);
+CREATE INDEX IF NOT EXISTS idx_photo_folders_order ON photo_folders(order_index);
+CREATE INDEX IF NOT EXISTS idx_photos_folder_id ON photos(folder_id);
+CREATE INDEX IF NOT EXISTS idx_photos_active ON photos(is_active);
+CREATE INDEX IF NOT EXISTS idx_photos_created_at ON photos(created_at);
 
 -- 업데이트 트리거 함수
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -164,6 +199,8 @@ CREATE TRIGGER update_meal_applications_updated_at BEFORE UPDATE ON meal_applica
 CREATE TRIGGER update_accommodation_applications_updated_at BEFORE UPDATE ON accommodation_applications FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_lost_items_updated_at BEFORE UPDATE ON lost_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_downloads_updated_at BEFORE UPDATE ON downloads FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_photo_folders_updated_at BEFORE UPDATE ON photo_folders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_photos_updated_at BEFORE UPDATE ON photos FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- 일반 SQL 쿼리 실행 함수
 CREATE OR REPLACE FUNCTION execute_sql(query_text text)

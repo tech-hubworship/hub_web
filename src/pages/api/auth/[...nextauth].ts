@@ -9,10 +9,35 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
   ],
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30일
+  },
+  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-key-for-development',
+  useSecureCookies: process.env.NODE_ENV === 'production',
+  debug: process.env.NODE_ENV === 'development',
+  cookies: {
+    state: {
+      name: process.env.NODE_ENV === 'production' 
+        ? '__Secure-next-auth.state' 
+        : 'next-auth.state',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 900, // 15분
+      },
+    },
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -72,9 +97,6 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-  },
-  pages: {
-    signIn: '/login',
   },
 };
 

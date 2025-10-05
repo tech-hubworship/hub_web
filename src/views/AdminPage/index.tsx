@@ -2,14 +2,14 @@
 
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import PageLayout from '@src/components/common/PageLayout';
 import * as S from "@src/views/AdminPage/style";
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function AdminPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
     useEffect(() => {
         // 인증되지 않았거나, 관리자가 아닌 경우 메인 페이지로 리디렉션합니다.
@@ -22,53 +22,137 @@ export default function AdminPage() {
         }
     }, [status, session, router]);
 
-
     // 로딩 중이거나 아직 세션 정보가 확인되지 않은 상태
     if (status === 'loading' || !session?.user?.isAdmin) {
-        return <PageLayout><S.InfoText>Loading...</S.InfoText></PageLayout>;
+        return (
+            <S.AdminLayout>
+                <S.LoadingContainer>
+                    <S.LoadingSpinner />
+                    <S.LoadingText>Loading...</S.LoadingText>
+                </S.LoadingContainer>
+            </S.AdminLayout>
+        );
     }
     
     // session.user.roles가 없을 경우를 대비하여 빈 배열로 기본값 설정
     const roles = session.user.roles || [];
 
     return (
-        <PageLayout>
-            <S.Wrapper>
-                <S.Title>관리자 페이지</S.Title>
-                <S.Subtitle>
-                    {roles.length > 0 
-                        ? `당신은 다음 권한을 가지고 있습니다: ${roles.join(', ')}`
-                        : "현재 부여된 세부 권한이 없습니다."
-                    }
-                </S.Subtitle>
-                <S.MenuGrid>
+        <S.AdminLayout>
+            <S.Sidebar collapsed={sidebarCollapsed}>
+                <S.SidebarHeader>
+                    <S.Logo>
+                        {!sidebarCollapsed && <S.LogoText>HUB Admin</S.LogoText>}
+                        <S.ToggleButton onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+                            {sidebarCollapsed ? '→' : '←'}
+                        </S.ToggleButton>
+                    </S.Logo>
+                </S.SidebarHeader>
+                
+                <S.NavMenu>
+                    <S.NavItem active>
+                        <S.NavIcon>🏠</S.NavIcon>
+                        {!sidebarCollapsed && <S.NavText>대시보드</S.NavText>}
+                    </S.NavItem>
+                    
                     {/* '사진팀' 권한이 있는 관리자에게만 보이는 메뉴 */}
                     {roles.includes('사진팀') && (
-                        <S.MenuButton>
-                            <span>📷</span>
-                            사진 관리
-                        </S.MenuButton>
+                        <Link href="/admin/photos" passHref>
+                            <S.NavItem as="a">
+                                <S.NavIcon>📷</S.NavIcon>
+                                {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
+                            </S.NavItem>
+                        </Link>
                     )}
 
                     {/* '디자인팀' 또는 '양육MC' 권한이 있는 관리자에게만 보이는 메뉴 */}
                     {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
                         <Link href="/admin/design" passHref>
-                            <S.MenuButton as="a">
-                                <span>🎨</span>
-                                디자인 관리
-                            </S.MenuButton>
+                            <S.NavItem as="a">
+                                <S.NavIcon>🎨</S.NavIcon>
+                                {!sidebarCollapsed && <S.NavText>디자인 관리</S.NavText>}
+                            </S.NavItem>
                         </Link>
                     )}
                     
                     {/* '서기' 권한이 있는 관리자에게만 보이는 메뉴 */}
                     {roles.includes('서기') && (
-                        <S.MenuButton>
-                            <span>✍️</span>
-                            서기 관리
-                        </S.MenuButton>
+                        <Link href="/admin/secretary" passHref>
+                            <S.NavItem as="a">
+                                <S.NavIcon>✍️</S.NavIcon>
+                                {!sidebarCollapsed && <S.NavText>서기 관리</S.NavText>}
+                            </S.NavItem>
+                        </Link>
                     )}
-                </S.MenuGrid>
-            </S.Wrapper>
-        </PageLayout>
+                </S.NavMenu>
+            </S.Sidebar>
+
+            <S.MainContent>
+                <S.TopBar>
+                    <S.TopBarLeft>
+                        <S.PageTitle>관리자 대시보드</S.PageTitle>
+                        <S.Breadcrumb>관리자 페이지</S.Breadcrumb>
+                    </S.TopBarLeft>
+                    <S.TopBarRight>
+                        <S.UserInfo>
+                            <S.UserAvatar>
+                                {session.user.name?.charAt(0) || 'U'}
+                            </S.UserAvatar>
+                            <S.UserDetails>
+                                <S.UserName>{session.user.name || '관리자'}</S.UserName>
+                                <S.UserRole>{roles.join(', ') || '관리자'}</S.UserRole>
+                            </S.UserDetails>
+                        </S.UserInfo>
+                    </S.TopBarRight>
+                </S.TopBar>
+
+                <S.ContentArea>
+                    <S.WelcomeCard>
+                        <S.WelcomeTitle>환영합니다, {session.user.name || '관리자'}님!</S.WelcomeTitle>
+                        <S.WelcomeSubtitle>
+                            HUB 관리자 대시보드에서 시스템을 관리할 수 있습니다.
+                        </S.WelcomeSubtitle>
+                    </S.WelcomeCard>
+
+                    <S.DashboardGrid>
+                        {roles.includes('사진팀') && (
+                            <Link href="/admin/photos" passHref>
+                                <S.DashboardCard as="a">
+                                    <S.DashboardIcon className="dashboard-icon">📷</S.DashboardIcon>
+                                    <S.DashboardTitle className="dashboard-title">사진 관리</S.DashboardTitle>
+                                    <S.DashboardDescription className="dashboard-description">
+                                        사진 업로드, 관리, 통계 확인
+                                    </S.DashboardDescription>
+                                </S.DashboardCard>
+                            </Link>
+                        )}
+                        
+                        {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
+                            <Link href="/admin/design" passHref>
+                                <S.DashboardCard as="a">
+                                    <S.DashboardIcon className="dashboard-icon">🎨</S.DashboardIcon>
+                                    <S.DashboardTitle className="dashboard-title">디자인 관리</S.DashboardTitle>
+                                    <S.DashboardDescription className="dashboard-description">
+                                        디자인 작업 관리 및 통계
+                                    </S.DashboardDescription>
+                                </S.DashboardCard>
+                            </Link>
+                        )}
+                        
+                        {roles.includes('서기') && (
+                            <Link href="/admin/secretary" passHref>
+                                <S.DashboardCard as="a">
+                                    <S.DashboardIcon className="dashboard-icon">✍️</S.DashboardIcon>
+                                    <S.DashboardTitle className="dashboard-title">서기 관리</S.DashboardTitle>
+                                    <S.DashboardDescription className="dashboard-description">
+                                        회의록 및 문서 관리
+                                    </S.DashboardDescription>
+                                </S.DashboardCard>
+                            </Link>
+                        )}
+                    </S.DashboardGrid>
+                </S.ContentArea>
+            </S.MainContent>
+        </S.AdminLayout>
     );
 }

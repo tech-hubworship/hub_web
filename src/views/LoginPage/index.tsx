@@ -30,6 +30,11 @@ export default function LoginPage() {
 
 
   useEffect(() => {
+    // URL 파라미터에서 redirect 정보 가져오기
+    if (router.query.redirect) {
+      localStorage.setItem(REDIRECT_KEY, router.query.redirect as string);
+    }
+
     if (status === "authenticated") {
       const signupRole = sessionStorage.getItem(SIGNUP_ROLE_KEY);
       sessionStorage.removeItem(SIGNUP_ROLE_KEY); // 역할 정보 사용 후 즉시 삭제
