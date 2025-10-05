@@ -24,12 +24,22 @@ const ImageViewerPage = () => {
     size?: string;
   } | null>(null);
 
+  // HTTP URL을 HTTPS로 변환하는 함수
+  const convertToHttps = (url: string): string => {
+    if (url.startsWith('http://')) {
+      return url.replace('http://', 'https://');
+    }
+    return url;
+  };
+
   useEffect(() => {
     if (url && typeof url === "string") {
       try {
         // URL 디코딩
         const decodedUrl = decodeURIComponent(url);
-        setImageUrl(decodedUrl);
+        // HTTP를 HTTPS로 변환
+        const httpsUrl = convertToHttps(decodedUrl);
+        setImageUrl(httpsUrl);
         setImageError(false);
         setLoading(true);
       } catch (error) {
@@ -50,6 +60,7 @@ const ImageViewerPage = () => {
   };
 
   const handleImageError = () => {
+    console.log("이미지 로드 실패 - HTTPS 변환 후에도 접근 불가");
     setImageError(true);
     setLoading(false);
   };
@@ -58,12 +69,27 @@ const ImageViewerPage = () => {
     if (!imageUrl) return;
 
     try {
-      const response = await fetch(imageUrl);
+      // HTTPS URL 사용 (이미 변환된 상태)
+      const response = await fetch(imageUrl, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit'
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const blob = await response.blob();
       
       // 파일명 생성 (URL에서 추출하거나 기본값 사용)
       const urlParts = imageUrl.split('/');
-      const fileName = urlParts[urlParts.length - 1] || 'image';
+      let fileName = urlParts[urlParts.length - 1] || 'image';
+      
+      // 파일 확장자가 없으면 .jpg로 기본 설정
+      if (!fileName.includes('.')) {
+        fileName += '.jpg';
+      }
       
       // 다운로드 링크 생성
       const downloadUrl = window.URL.createObjectURL(blob);
@@ -74,9 +100,22 @@ const ImageViewerPage = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
+      
+      console.log("다운로드 성공:", fileName);
     } catch (error) {
       console.error("다운로드 오류:", error);
-      alert("다운로드 중 오류가 발생했습니다.");
+      
+      // 더 구체적인 에러 메시지 제공
+      let errorMessage = "다운로드 중 오류가 발생했습니다.";
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage = "이미지에 접근할 수 없습니다. HTTPS 연결을 확인해주세요.";
+        } else if (error.message.includes('HTTP error')) {
+          errorMessage = "이미지 서버에서 오류가 발생했습니다.";
+        }
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -114,7 +153,8 @@ const ImageViewerPage = () => {
             <ErrorIcon>⚠️</ErrorIcon>
             <ErrorTitle>이미지를 불러올 수 없습니다</ErrorTitle>
             <ErrorText>
-              이미지 URL이 올바르지 않거나 접근할 수 없습니다.
+              이미지 URL이 올바르지 않거나 HTTPS 연결에 문제가 있습니다.<br/>
+              원본 이미지 서버가 HTTPS를 지원하지 않을 수 있습니다.
             </ErrorText>
             <ErrorActions>
               <Button onClick={handleGoBack}>뒤로가기</Button>
