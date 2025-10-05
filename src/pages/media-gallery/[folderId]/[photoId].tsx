@@ -385,7 +385,7 @@ export default function PhotoDetail() {
         
         if (activeReservation) {
           // 현재 사용자의 예약인지 확인
-          const isUserReservation = activeReservation.user_id === session.user.id;
+          const isUserReservation = activeReservation.user_id === session?.user?.id;
           
           if (isUserReservation) {
             setIsReserved(true);
@@ -401,7 +401,7 @@ export default function PhotoDetail() {
           }
         } else {
           // 활성 예약이 없는 경우
-          const userReservation = data.reservations.find((r: any) => r.user_id === session.user.id);
+          const userReservation = data.reservations.find((r: any) => r.user_id === session?.user?.id);
           
           if (userReservation && userReservation.status === '취소됨') {
             // 취소된 예약이 있는 경우 재예약 가능
@@ -464,9 +464,9 @@ export default function PhotoDetail() {
         },
         body: JSON.stringify({
           photo_id: photo.id,
-          user_id: session.user.id,
-          user_name: session.user.name || session.user.email,
-          user_email: session.user.email,
+          user_id: session.user?.id,
+          user_name: session.user?.name || session.user?.email,
+          user_email: session.user?.email,
           message: `${photo.title || '사진'} 예약`
         }),
       });

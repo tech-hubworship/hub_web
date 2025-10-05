@@ -96,7 +96,7 @@ export default function SecretaryDashboard() {
                 <S.TopBar>
                     <S.TopBarLeft>
                         <S.PageTitle>서기 관리 대시보드</S.PageTitle>
-                        <S.Breadcrumb>관리자 페이지 > 서기 관리</S.Breadcrumb>
+                        <S.Breadcrumb>관리자 페이지 &gt; 서기 관리</S.Breadcrumb>
                     </S.TopBarLeft>
                     <S.TopBarRight>
                         <S.UserInfo>
