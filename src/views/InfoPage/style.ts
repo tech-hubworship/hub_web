@@ -15,86 +15,24 @@ const slideUp = keyframes`
 
 export const Wrapper = styled.div`
   width: 100%;
-  min-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 100px 20px 60px 20px;
-  gap: 40px;
-  background-color: #000000;
-  color: #ffffff;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  padding: 0;
   box-sizing: border-box;
 `;
 
-export const Title = styled.h1`
-  font-size: 32px;
-  font-weight: 800;
-  color: #ED2725;
-  line-height: 1.4;
-  text-align: center;
-  cursor: pointer; /* 역할 변경 이스터에그를 위해 */
+export const Title = styled.h2`
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 2px;
+  white-space: pre-line;
+  line-height: 37px;
+  letter-spacing: -0.56px;
+  color: #000000;
 `;
 
-export const Card = styled.div`
-  background: #ffffff;
-  width: 100%;
-  max-width: 500px;
-  padding: 40px 32px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
 
-export const InfoWrapper = styled.div`
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 32px;
-`;
 
-export const InfoItem = styled.div`
-  display: flex;
-  flex-direction: column; /* 세로 정렬로 변경 */
-  align-items: flex-start; /* 왼쪽 정렬 */
-  gap: 8px; /* 라벨과 값 사이 간격 */
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e0e0e0;
-  min-height: 38px;
-  width: 100%;
-`;
-
-export const Label = styled.span`
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-`;
-
-export const Value = styled.span`
-  font-size: 16px;
-  color: #555;
-`;
-
-export const LogoutButton = styled.button`
-  width: 100%;
-  padding: 14px 0;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  background-color: #555;
-  color: #fff;
-  margin-top: 16px;
-
-  &:hover {
-    background-color: #333;
-  }
-`;
 
 export const ErrorMessage = styled.p`
   color: #e74c3c;
@@ -105,7 +43,7 @@ export const ErrorMessage = styled.p`
 `;
 
 export const LoadingText = styled.p`
-  color: #fff;
+  color: #666;
   font-size: 16px;
   text-align: center;
 `;
@@ -230,4 +168,261 @@ export const SubmitButton = styled.button`
   &:hover:not(:disabled) {
     background-color: #0056b3;
   }
+`;
+
+// 새로운 컴포넌트들을 위한 스타일 추가
+// 헤더 섹션
+export const HeaderSection = styled.div`
+  padding: 10px 20px 10px 20px;
+  color: black;
+  position: relative;
+  overflow: hidden;
+  margin-top: 70px;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 100%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+`;
+
+export const HeaderContent = styled.div`
+  position: relative;
+  z-index: 1;
+`;
+
+export const UserInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+`;
+
+export const Avatar = styled.div`
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(128, 128, 128, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(128, 128, 128, 0.6);
+  color: white;
+`;
+
+export const UserDetails = styled.div`
+  flex: 1;
+`;
+
+export const UserName = styled.h1`
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: black;
+`;
+
+export const UserSubtitle = styled.p`
+  font-size: 14px;
+  margin: 0;
+  color: rgba(0, 0, 0, 0.7);
+`;
+
+export const HeaderActions = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+`;
+
+export const ActionButton = styled.button`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(128, 128, 128, 0.3);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: black;
+  font-size: 18px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(128, 128, 128, 0.5);
+    transform: scale(1.05);
+  }
+`;
+
+export const NotificationBadge = styled.div`
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff4757;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+`;
+
+export const Content = styled.main`
+  padding: 20px;
+  margin-top: -20px;
+  position: relative;
+  z-index: 2;
+`;
+
+export const Card = styled.div`
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+`;
+
+export const CardHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+`;
+
+export const CardTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: #1a1a1a;
+`;
+
+export const CardAction = styled.button`
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+export const Section = styled.section`
+  margin-bottom: 24px;
+`;
+
+// 정보 항목 스타일
+export const InfoItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+export const InfoLabel = styled.span`
+  font-size: 15px;
+  color: #666;
+  font-weight: 500;
+`;
+
+export const InfoValue = styled.span`
+  font-size: 15px;
+  color: #1a1a1a;
+  font-weight: 600;
+  text-align: right;
+`;
+
+export const MenuGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+`;
+
+export const MenuItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 12px;
+  
+  &:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-2px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+export const MenuIcon = styled.div`
+  font-size: 24px;
+  margin-bottom: 8px;
+`;
+
+export const MenuText = styled.div`
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  text-align: center;
+  line-height: 1.2;
+`;
+
+// 로그아웃 버튼 스타일
+export const LogoutButton = styled.button`
+  width: 100%;
+  height: 56px;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  margin-top: 8px;
+  margin-bottom: 40px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: #f8f9fa;
+    border-color: #d0d0d0;
+  }
+  
+  &:active {
+    transform: scale(0.98);
+  }
+`;
+
+// 모달 관련 스타일들
+export const InfoWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+`;
+
+export const Label = styled.label`
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
 `;
