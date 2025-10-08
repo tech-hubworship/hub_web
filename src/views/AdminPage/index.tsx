@@ -9,16 +9,17 @@ import { useEffect, useState } from 'react';
 export default function AdminPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // PC에서는 기본적으로 표시
 
     useEffect(() => {
         // 인증되지 않았거나, 관리자가 아닌 경우 메인 페이지로 리디렉션합니다.
         if (status === 'authenticated' && !session?.user?.isAdmin) {
-            alert("관리자만 접근할 수 있는 페이지입니다.");
+            alert("⛔️ 관리자만 접근할 수 있는 페이지입니다.");
             router.replace('/');
         }
         if (status === 'unauthenticated') {
-            router.replace('/');
+            const currentPath = router.asPath;
+            router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
         }
     }, [status, session, router]);
 
@@ -39,6 +40,7 @@ export default function AdminPage() {
 
     return (
         <S.AdminLayout>
+            <S.SidebarOverlay visible={!sidebarCollapsed} onClick={() => setSidebarCollapsed(true)} />
             <S.Sidebar collapsed={sidebarCollapsed}>
                 <S.SidebarHeader>
                     <S.Logo>
@@ -55,9 +57,19 @@ export default function AdminPage() {
                         {!sidebarCollapsed && <S.NavText>대시보드</S.NavText>}
                     </S.NavItem>
                     
+                    {/* 회원관리 메뉴 - MC 권한이 있는 관리자에게만 표시 */}
+                    {roles.includes('MC') && (
+                        <Link href="/admin/users" passHref legacyBehavior>
+                            <S.NavItem as="a">
+                                <S.NavIcon>👥</S.NavIcon>
+                                {!sidebarCollapsed && <S.NavText>회원관리</S.NavText>}
+                            </S.NavItem>
+                        </Link>
+                    )}
+                    
                     {/* '사진팀' 권한이 있는 관리자에게만 보이는 메뉴 */}
                     {roles.includes('사진팀') && (
-                        <Link href="/admin/photos" passHref>
+                        <Link href="/admin/photos" passHref legacyBehavior>
                             <S.NavItem as="a">
                                 <S.NavIcon>📷</S.NavIcon>
                                 {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
@@ -67,7 +79,7 @@ export default function AdminPage() {
 
                     {/* '디자인팀' 또는 '양육MC' 권한이 있는 관리자에게만 보이는 메뉴 */}
                     {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
-                        <Link href="/admin/design" passHref>
+                        <Link href="/admin/design" passHref legacyBehavior>
                             <S.NavItem as="a">
                                 <S.NavIcon>🎨</S.NavIcon>
                                 {!sidebarCollapsed && <S.NavText>디자인 관리</S.NavText>}
@@ -77,7 +89,7 @@ export default function AdminPage() {
                     
                     {/* '서기' 권한이 있는 관리자에게만 보이는 메뉴 */}
                     {roles.includes('서기') && (
-                        <Link href="/admin/secretary" passHref>
+                        <Link href="/admin/secretary" passHref legacyBehavior>
                             <S.NavItem as="a">
                                 <S.NavIcon>✍️</S.NavIcon>
                                 {!sidebarCollapsed && <S.NavText>서기 관리</S.NavText>}
@@ -90,8 +102,13 @@ export default function AdminPage() {
             <S.MainContent>
                 <S.TopBar>
                     <S.TopBarLeft>
-                        <S.PageTitle>관리자 대시보드</S.PageTitle>
-                        <S.Breadcrumb>관리자 페이지</S.Breadcrumb>
+                        <S.MobileMenuButton onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+                            ☰
+                        </S.MobileMenuButton>
+                        <div>
+                            <S.PageTitle>관리자 대시보드</S.PageTitle>
+                            <S.Breadcrumb>관리자 페이지</S.Breadcrumb>
+                        </div>
                     </S.TopBarLeft>
                     <S.TopBarRight>
                         <S.UserInfo>
@@ -115,8 +132,21 @@ export default function AdminPage() {
                     </S.WelcomeCard>
 
                     <S.DashboardGrid>
+                        {/* 회원관리 카드 - MC 권한이 있는 관리자에게만 표시 */}
+                        {roles.includes('MC') && (
+                            <Link href="/admin/users" passHref legacyBehavior>
+                                <S.DashboardCard as="a">
+                                    <S.DashboardIcon className="dashboard-icon">👥</S.DashboardIcon>
+                                    <S.DashboardTitle className="dashboard-title">회원관리</S.DashboardTitle>
+                                    <S.DashboardDescription className="dashboard-description">
+                                        계정관리 및 권한관리
+                                    </S.DashboardDescription>
+                                </S.DashboardCard>
+                            </Link>
+                        )}
+
                         {roles.includes('사진팀') && (
-                            <Link href="/admin/photos" passHref>
+                            <Link href="/admin/photos" passHref legacyBehavior>
                                 <S.DashboardCard as="a">
                                     <S.DashboardIcon className="dashboard-icon">📷</S.DashboardIcon>
                                     <S.DashboardTitle className="dashboard-title">사진 관리</S.DashboardTitle>
@@ -128,7 +158,7 @@ export default function AdminPage() {
                         )}
                         
                         {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
-                            <Link href="/admin/design" passHref>
+                            <Link href="/admin/design" passHref legacyBehavior>
                                 <S.DashboardCard as="a">
                                     <S.DashboardIcon className="dashboard-icon">🎨</S.DashboardIcon>
                                     <S.DashboardTitle className="dashboard-title">디자인 관리</S.DashboardTitle>
@@ -140,7 +170,7 @@ export default function AdminPage() {
                         )}
                         
                         {roles.includes('서기') && (
-                            <Link href="/admin/secretary" passHref>
+                            <Link href="/admin/secretary" passHref legacyBehavior>
                                 <S.DashboardCard as="a">
                                     <S.DashboardIcon className="dashboard-icon">✍️</S.DashboardIcon>
                                     <S.DashboardTitle className="dashboard-title">서기 관리</S.DashboardTitle>
