@@ -30,9 +30,7 @@ const IntroPage = () => {
           <Content>
             <List>
               <ListItem>1. HUB 행사 및 이벤트 정보 제공</ListItem>
-              <ListItem>2. 찬양 자료 및 리소스 공유</ListItem>
-              <ListItem>3. 커뮤니티 소통 공간 제공</ListItem>
-              <ListItem>4. HUB 관련 소식 및 업데이트 전달</ListItem>
+              <ListItem>2. HUB 관련 소식 및 업데이트 전달</ListItem>
             </List>
           </Content>
         </Section>
@@ -68,13 +66,7 @@ const IntroPage = () => {
                   <ListItem>- 광고나 상업적 목적이 전혀 없습니다</ListItem>
                 </SubList>
               </ListItem>
-              <ListItem>2. 커뮤니티 중심
-                <SubList>
-                  <ListItem>- HUB 멤버들 간의 소통을 위한 공간입니다</ListItem>
-                  <ListItem>- 찬양과 예배에 대한 정보를 공유합니다</ListItem>
-                </SubList>
-              </ListItem>
-              <ListItem>3. 투명한 운영
+              <ListItem>2. 투명한 운영
                 <SubList>
                   <ListItem>- 모든 정책과 약관을 공개합니다</ListItem>
                   <ListItem>- 사용자 피드백을 적극 수렴합니다</ListItem>
