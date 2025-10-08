@@ -7,6 +7,22 @@ export const AdminLayout = styled.div`
   background-color: #f8fafc;
 `;
 
+// 사이드바 오버레이 (모바일에서 사이드바 열릴 때 배경)
+export const SidebarOverlay = styled.div<{ visible: boolean }>`
+  display: none;
+  
+  @media (max-width: 768px) {
+    display: ${props => props.visible ? 'block' : 'none'};
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+`;
+
 // 사이드바
 export const Sidebar = styled.aside<{ collapsed: boolean }>`
   width: ${props => props.collapsed ? '70px' : '280px'};
@@ -19,7 +35,7 @@ export const Sidebar = styled.aside<{ collapsed: boolean }>`
   box-shadow: 4px 0 6px rgba(0, 0, 0, 0.1);
 
   @media (max-width: 768px) {
-    width: ${props => props.collapsed ? '0' : '280px'};
+    width: 280px;
     transform: ${props => props.collapsed ? 'translateX(-100%)' : 'translateX(0)'};
   }
 `;
@@ -107,6 +123,35 @@ export const MainContent = styled.main`
   }
 `;
 
+// 모바일 메뉴 버튼
+export const MobileMenuButton = styled.button`
+  display: none;
+  background: white;
+  border: 1px solid #e2e8f0;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: all 0.2s ease;
+  margin-right: 12px;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  @media (max-width: 768px) {
+    display: flex;
+  }
+`;
+
 // 상단 바
 export const TopBar = styled.header`
   background: white;
@@ -123,8 +168,12 @@ export const TopBar = styled.header`
 
 export const TopBarLeft = styled.div`
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 4px;
+  
+  @media (max-width: 768px) {
+    flex-direction: row;
+  }
 `;
 
 export const PageTitle = styled.h1`

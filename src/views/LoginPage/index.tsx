@@ -43,7 +43,7 @@ export default function LoginPage() {
         const url = signupRole ? `/signup?role=${signupRole}` : "/signup";
         router.replace(url);
       } else {
-        const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/info";
+        const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/myinfo";
         localStorage.removeItem(REDIRECT_KEY);
         router.replace(redirectPath);
       }

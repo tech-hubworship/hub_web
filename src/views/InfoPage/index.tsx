@@ -1,6 +1,6 @@
 // 파일 경로: src/views/InfoPage/index.tsx
 
-import { useState, useEffect, FormEvent, useRef } from 'react';
+import React, { useState, useEffect, FormEvent, useRef } from 'react';
 import PageLayout from "@src/components/common/PageLayout";
 import { useRouter } from "next/router";
 import Head from "next/head";
@@ -186,34 +186,129 @@ export default function MyInfoPage() {
       }
   }, [userStatus]);
 
+  // 새로운 메뉴 핸들러들
+  const handleFaqClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push('/FAQ');
+  };
+
+  const handleMealsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push('/meals');
+  };
+
+  const handleLostItemsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push('/lost-items');
+  };
+
+  const handleAnnouncementsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push('/announcements');
+  };
+
   if (isLoading || isStatusLoading) {
     return <PageLayout><S.LoadingText>정보를 불러오는 중...</S.LoadingText></PageLayout>;
   }
+
+  // 사용자 이름에서 첫 글자 추출
+  const getInitial = (name: string) => {
+    return name ? name.charAt(0) : 'U';
+  };
 
   return (
     <PageLayout>
       <Head><title>내 정보</title></Head>
       <S.Wrapper>
-        <S.Title>내 정보</S.Title>
-        {(error || statusError) && <S.ErrorMessage>{error?.message || statusError?.message}</S.ErrorMessage>}
-        
-        {profileData && isModalOpen && <UpdateModal onClose={() => setIsModalOpen(false)}/>}
-        
-        {profileData && !isModalOpen && (
-          <S.Card>
-            <S.InfoWrapper>
-              <S.InfoItem><S.Label>이름</S.Label><S.Value>{profileData.name}</S.Value></S.InfoItem>
-              <S.InfoItem><S.Label>이메일</S.Label><S.Value>{profileData.email}</S.Value></S.InfoItem>
-              {profileData.roles.length > 0 && <S.InfoItem><S.Label>역할</S.Label><S.Value>{profileData.roles.join(', ')}</S.Value></S.InfoItem>}
-              {profileData.responsible_group_name && <S.InfoItem><S.Label>담당 그룹</S.Label><S.Value>{profileData.responsible_group_name}</S.Value></S.InfoItem>}
-              {profileData.responsible_cell_info && <S.InfoItem><S.Label>담당 다락방</S.Label><S.Value>{profileData.responsible_cell_info}</S.Value></S.InfoItem>}
-              <S.InfoItem><S.Label>공동체</S.Label><S.Value>{profileData.community}</S.Value></S.InfoItem>
-              {profileData.group_name && <S.InfoItem><S.Label>소속 그룹</S.Label><S.Value>{profileData.group_name}</S.Value></S.InfoItem>}
-              {profileData.cell_name && <S.InfoItem><S.Label>소속 다락방</S.Label><S.Value>{profileData.cell_name}</S.Value></S.InfoItem>}
-            </S.InfoWrapper>
-            <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
-          </S.Card>
-        )}
+        {/* 헤더 섹션 */}
+        <S.HeaderSection>
+          <S.HeaderContent>
+            <S.UserInfo>
+              <S.Avatar>
+                {getInitial(profileData?.name || '')}
+              </S.Avatar>
+              <S.UserDetails>
+                <S.UserName>{profileData?.name || '사용자'}</S.UserName>
+                <S.UserSubtitle>내 정보 보기</S.UserSubtitle>
+              </S.UserDetails>
+            </S.UserInfo>
+
+          </S.HeaderContent>
+        </S.HeaderSection>
+
+        <S.Content>
+          {(error || statusError) && <S.ErrorMessage>{error?.message || statusError?.message}</S.ErrorMessage>}
+          
+          {profileData && isModalOpen && <UpdateModal onClose={() => setIsModalOpen(false)}/>}
+          
+          {profileData && !isModalOpen && (
+            <>
+              {/* 기본 정보 카드 */}
+              <S.Card>
+                <S.CardHeader>
+                  <S.CardTitle>기본 정보</S.CardTitle>
+                  <S.CardAction>
+                    <span>&gt;</span>
+                  </S.CardAction>
+                </S.CardHeader>
+                <S.InfoItem>
+                  <S.InfoLabel>이름</S.InfoLabel>
+                  <S.InfoValue>{profileData.name}</S.InfoValue>
+                </S.InfoItem>
+                <S.InfoItem>
+                  <S.InfoLabel>이메일</S.InfoLabel>
+                  <S.InfoValue>{profileData.email}</S.InfoValue>
+                </S.InfoItem>
+                <S.InfoItem>
+                  <S.InfoLabel>공동체</S.InfoLabel>
+                  <S.InfoValue>{profileData.community}</S.InfoValue>
+                </S.InfoItem>
+                {profileData.group_name && (
+                  <S.InfoItem>
+                    <S.InfoLabel>소속 그룹</S.InfoLabel>
+                    <S.InfoValue>{profileData.group_name}</S.InfoValue>
+                  </S.InfoItem>
+                )}
+                {profileData.cell_name && (
+                  <S.InfoItem>
+                    <S.InfoLabel>소속 다락방</S.InfoLabel>
+                    <S.InfoValue>{profileData.cell_name}</S.InfoValue>
+                  </S.InfoItem>
+                )}
+              </S.Card>
+
+              {/* 허브업 정보 카드 */}
+              <S.Card>
+                <S.CardHeader>
+                  <S.CardTitle>허브업 정보</S.CardTitle>
+                  <S.CardAction>
+                    <span>&gt;</span>
+                  </S.CardAction>
+                </S.CardHeader>
+                <S.MenuGrid>
+                  <S.MenuItem onClick={handleMealsClick}>
+                    <S.MenuIcon>🍽️</S.MenuIcon>
+                    <S.MenuText>식단표</S.MenuText>
+                  </S.MenuItem>
+                  <S.MenuItem onClick={handleLostItemsClick}>
+                    <S.MenuIcon>🔍</S.MenuIcon>
+                    <S.MenuText>분실물</S.MenuText>
+                  </S.MenuItem>
+                  <S.MenuItem onClick={handleAnnouncementsClick}>
+                    <S.MenuIcon>📢</S.MenuIcon>
+                    <S.MenuText>공지사항</S.MenuText>
+                  </S.MenuItem>
+                  <S.MenuItem onClick={handleFaqClick}>
+                    <S.MenuIcon>❓</S.MenuIcon>
+                    <S.MenuText>FAQ</S.MenuText>
+                  </S.MenuItem>
+                </S.MenuGrid>
+              </S.Card>
+
+              <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
+            </>
+          )}
+        </S.Content>
       </S.Wrapper>
     </PageLayout>
   );
