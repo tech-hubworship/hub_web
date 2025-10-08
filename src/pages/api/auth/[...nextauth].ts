@@ -40,12 +40,30 @@ export const authOptions: NextAuthOptions = {
     },
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.sub = user.id;
         token.email = user.email;
         token.name = user.name;
       }
+
+      // 토큰에 isAdmin 정보 추가 (매 요청마다 확인)
+      if (token.sub) {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('status, admin_roles(roles(name))')
+          .eq('user_id', token.sub)
+          .maybeSingle();
+
+        if (profile) {
+          const hasAdminRoles = profile.admin_roles && (profile.admin_roles as any[]).length > 0;
+          const isAdminByStatus = profile.status === '관리자';
+          token.isAdmin = hasAdminRoles || isAdminByStatus;
+        } else {
+          token.isAdmin = false;
+        }
+      }
+
       return token;
     },
 
@@ -76,7 +94,7 @@ export const authOptions: NextAuthOptions = {
         } else {
           // --- 기존 사용자 ---
           session.user.isNewUser = !profile.birth_date;
-
+          session.user.name = profile.name;
           // ⭐️ [수정된 관리자 확인 로직]
           // 1. admin_roles 또는 status로 관리자 여부 확인
           const hasAdminRoles = profile.admin_roles && (profile.admin_roles as any[]).length > 0;
@@ -84,7 +102,7 @@ export const authOptions: NextAuthOptions = {
           
           // 2. session.user.isAdmin (boolean) 설정
           session.user.isAdmin = hasAdminRoles || isAdminByStatus;
-
+          
           // 3. session.user.roles (역할 이름 배열) 설정
           if (hasAdminRoles) {
             session.user.roles = (profile.admin_roles as any[]).map(
