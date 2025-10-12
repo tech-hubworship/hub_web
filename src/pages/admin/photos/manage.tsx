@@ -656,7 +656,7 @@ export default function PhotoManagePage() {
           
           <S.NavItem active>
             <S.NavIcon>📸</S.NavIcon>
-            {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
+            {!sidebarCollapsed && <S.NavText>사진 업로드</S.NavText>}
           </S.NavItem>
           
           {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
@@ -683,7 +683,7 @@ export default function PhotoManagePage() {
         <S.TopBar>
           <S.TopBarLeft>
             <S.PageTitle>사진 관리</S.PageTitle>
-            <S.Breadcrumb>관리자 페이지 &gt; 사진 관리 &gt; 사진 관리</S.Breadcrumb>
+            <S.Breadcrumb>관리자 페이지 &gt; 사진 관리 &gt; 사진 업로드</S.Breadcrumb>
           </S.TopBarLeft>
           <S.TopBarRight>
             <S.UserInfo>

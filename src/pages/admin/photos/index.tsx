@@ -75,7 +75,7 @@ export default function PhotosDashboard() {
                     <Link href="/admin/photos/manage" passHref>
                         <S.NavItem as="a">
                             <S.NavIcon>📸</S.NavIcon>
-                            {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
+                            {!sidebarCollapsed && <S.NavText>사진 업로드</S.NavText>}
                         </S.NavItem>
                     </Link>
                     
@@ -131,7 +131,7 @@ export default function PhotosDashboard() {
                         <Link href="/admin/photos/manage" passHref>
                             <S.DashboardCard as="a">
                                 <S.DashboardIcon className="dashboard-icon">📸</S.DashboardIcon>
-                                <S.DashboardTitle className="dashboard-title">사진 관리</S.DashboardTitle>
+                                <S.DashboardTitle className="dashboard-title">사진 업로드</S.DashboardTitle>
                                 <S.DashboardDescription className="dashboard-description">
                                     사진을 업로드하고 수정, 삭제, 미리보기를 할 수 있습니다
                                 </S.DashboardDescription>
@@ -168,8 +168,6 @@ export default function PhotosDashboard() {
                             </S.DashboardCard>
                         </Link>
                         
-                    </S.DashboardGrid>
-
                         <Link href="/admin/photos/reservations" passHref>
                             <S.DashboardCard as="a">
                                 <S.DashboardIcon className="dashboard-icon">📋</S.DashboardIcon>
@@ -179,6 +177,8 @@ export default function PhotosDashboard() {
                                 </S.DashboardDescription>
                             </S.DashboardCard>
                         </Link>
+                        
+                    </S.DashboardGrid>
                 </S.ContentArea>
             </S.MainContent>
         </S.AdminLayout>

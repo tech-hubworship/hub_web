@@ -761,6 +761,55 @@ export default function PhotoReservations() {
         </StatCard>
       </StatsGrid>
 
+      {/* QR 코드 스캐너 */}
+      <QRScanner>
+        <ScannerTitle>📱 QR 코드 스캐너</ScannerTitle>
+        <ScannerDescription>
+          사용자가 보여주는 교환권 QR 코드를 스캔하여 수령 완료 처리를 진행합니다.
+          <br />
+          카메라를 사용하거나 QR 스캐너 앱으로 스캔한 데이터를 입력하세요.
+        </ScannerDescription>
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+          <ScanButton onClick={startCamera} disabled={scanning}>
+            📷 카메라로 스캔
+          </ScanButton>
+        </div>
+        <QRInput
+          placeholder="QR 코드를 스캔하여 여기에 붙여넣으세요..."
+          value={qrInput}
+          onChange={(e) => setQrInput(e.target.value)}
+        />
+        <ScanButton onClick={scanQRCode} disabled={scanning}>
+          {scanning ? '처리 중...' : '수령 완료 처리'}
+        </ScanButton>
+      </QRScanner>
+
+      {/* 카메라 모달 */}
+      {showCamera && (
+        <CameraContainer>
+          <ScanGuide>
+            QR 코드를 스캔 영역에 맞춰주세요
+          </ScanGuide>
+          <CameraVideo
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+          />
+          <ScanOverlay />
+          <CameraControls>
+            <CameraButton onClick={stopCamera} variant="danger">
+              취소
+            </CameraButton>
+            <CameraButton onClick={scanFromCamera} disabled={scanning}>
+              {scanning ? '스캔 중...' : '스캔'}
+            </CameraButton>
+          </CameraControls>
+        </CameraContainer>
+      )}
+
+      <div style={{ height: 20 }} />
+
       <FilterBar>
         <FilterSelect 
           value={statusFilter} 
@@ -835,52 +884,6 @@ export default function PhotoReservations() {
           )}
       </ReservationGrid>
 
-      {/* QR 코드 스캐너 */}
-      <QRScanner>
-        <ScannerTitle>📱 QR 코드 스캐너</ScannerTitle>
-        <ScannerDescription>
-          사용자가 보여주는 교환권 QR 코드를 스캔하여 수령 완료 처리를 진행합니다.
-          <br />
-          카메라를 사용하거나 QR 스캐너 앱으로 스캔한 데이터를 입력하세요.
-        </ScannerDescription>
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-          <ScanButton onClick={startCamera} disabled={scanning}>
-            📷 카메라로 스캔
-          </ScanButton>
-        </div>
-        <QRInput
-          placeholder="QR 코드를 스캔하여 여기에 붙여넣으세요..."
-          value={qrInput}
-          onChange={(e) => setQrInput(e.target.value)}
-        />
-        <ScanButton onClick={scanQRCode} disabled={scanning}>
-          {scanning ? '처리 중...' : '수령 완료 처리'}
-        </ScanButton>
-      </QRScanner>
-
-      {/* 카메라 모달 */}
-      {showCamera && (
-        <CameraContainer>
-          <ScanGuide>
-            QR 코드를 스캔 영역에 맞춰주세요
-          </ScanGuide>
-          <CameraVideo
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-          />
-          <ScanOverlay />
-          <CameraControls>
-            <CameraButton onClick={stopCamera} variant="danger">
-              취소
-            </CameraButton>
-            <CameraButton onClick={scanFromCamera} disabled={scanning}>
-              {scanning ? '스캔 중...' : '스캔'}
-            </CameraButton>
-          </CameraControls>
-        </CameraContainer>
-      )}
           </ReservationContainer>
         </S.ContentArea>
       </S.MainContent>
