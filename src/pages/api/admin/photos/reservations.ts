@@ -39,6 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `)
       .eq('user_id', session.user.id)
       .in('roles.name', session.user.roles || []);
+      // TODO: 만약 관리자가 DB에서 사용자의 역할을 변경한다면, 해당 사용자는 로그아웃 후 재로그인 필요
 
     // 3. 권한 확인 (관리자 상태이거나 역할 권한이 있는 경우)
     const isAdmin = profile && profile.status === '관리자';
@@ -117,6 +118,7 @@ async function getReservations(req: NextApiRequest, res: NextApiResponse) {
       total: data?.length || 0,
       pending: data?.filter(r => r.status === '예약중').length || 0,
       completed: data?.filter(r => r.status === '예약완료').length || 0,
+      received: data?.filter(r => r.status === '수령완료').length || 0,
       cancelled: data?.filter(r => r.status === '취소됨').length || 0,
     };
 

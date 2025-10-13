@@ -103,13 +103,13 @@ export default function SignUpPage() {
   // 세션 확인 및 렌더링 준비
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/login');
-    if (session && !session.user?.isNewUser) router.replace('/info');
+    if (session && !session.user?.isNewUser) router.replace('/myinfo');
     if (status === 'authenticated' && session.user?.isNewUser) {
         setIsReady(true);
     }
   }, [session, status, router]);
 
-  // ⭐️ [핵심 수정] 역할에 따른 자동 단계 이동 로직 (React 규칙 준수)
+  // 역할에 따른 자동 단계 이동 로직
   useEffect(() => {
     if (isReady && step === 3 && role) {
         if (role === ROLES.MC) {
@@ -150,7 +150,7 @@ export default function SignUpPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       alert('회원가입이 완료되었습니다!');
-      router.replace('/info');
+      router.replace('/myinfo');
     } catch (err: any) {
       setError(err.message);
     } finally {

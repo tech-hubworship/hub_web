@@ -10,7 +10,7 @@ export const menuTapList: MenuTapList = [
   {
     type: MenuTapType.DEFAULT,
     title: '내 페이지',
-    href: '/info',
+    href: '/myinfo',
     auth: true
   },
   {
