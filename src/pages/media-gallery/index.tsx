@@ -130,14 +130,14 @@ const ReservationButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: rgba(255, 255, 255, 0.9);
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   color: #667eea;
-  font-size: 20px;
+  font-size: 27px;
   cursor: pointer;
   transition: all 0.3s ease;
   z-index: 10;
@@ -226,10 +226,16 @@ const ReservationItem = styled.div`
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 16px;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   align-items: center;
   gap: 16px;
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+  }
 `;
 
 const ReservationThumbnail = styled.img`
@@ -471,7 +477,8 @@ export default function MediaGallery() {
 
     try {
       setLoadingReservations(true);
-      const response = await fetch(`/api/public/photos/reservations?user_id=${session.user.id}`);
+      console.log('사용자 ID:', session.user.id);
+      const response = await fetch(`/api/public/photo-reservations?user_id=${session.user.id}`);
       const data = await response.json();
 
       if (response.ok) {
@@ -482,6 +489,7 @@ export default function MediaGallery() {
         setUserReservations(activeReservations);
         setShowReservations(true);
       } else {
+        console.error('예약 현황 로드 오류:', data.error);
         alert('예약 현황을 불러오는데 실패했습니다.');
       }
     } catch (error) {
@@ -540,7 +548,7 @@ export default function MediaGallery() {
     }
 
     try {
-      const response = await fetch(`/api/public/photos/reservations?id=${reservationId}`, {
+      const response = await fetch(`/api/public/photo-reservations?id=${reservationId}`, {
         method: 'DELETE',
       });
 

@@ -81,9 +81,9 @@ const PhotoItem = styled.div`
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 
-  &:hover {
-    transform: translateY(-8px) scale(1.05);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+  &:hover .photo-overlay {
+    opacity: 1;
+    transform: translateY(0);
   }
 
   &:active {
@@ -103,11 +103,12 @@ const PhotoOverlay = styled.div`
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-  padding: 12px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+  padding: 20px 12px 12px 12px;
   color: white;
   font-size: 12px;
   opacity: 0;
+  transform: translateY(10px);
   transition: opacity 0.3s ease;
 `;
 

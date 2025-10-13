@@ -53,7 +53,9 @@ async function getReservations(req: NextApiRequest, res: NextApiResponse) {
           updated_at
         `)
         .eq('photo_id', photo_id)
-        .eq('status', '예약중');
+        .in('status', ['예약중', '예약완료', '수령완료'])
+        .order('created_at', { ascending: false })
+        .maybeSingle();
     } else if (user_id) {
       // 사용자의 예약 현황 조회
       query = supabaseClient
@@ -92,7 +94,9 @@ async function getReservations(req: NextApiRequest, res: NextApiResponse) {
       return res.status(500).json({ error: '예약 조회 실패' });
     }
 
-    return res.status(200).json({ reservations: data || [] });
+    const responseData = photo_id ? (data ? [data] : []) : (data || []);
+    return res.status(200).json({ reservations: responseData });
+
   } catch (error) {
     console.error('예약 조회 오류:', error);
     return res.status(500).json({ error: '예약 조회 실패' });

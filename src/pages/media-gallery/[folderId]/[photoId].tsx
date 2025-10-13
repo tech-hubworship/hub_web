@@ -62,68 +62,88 @@ const PhotoSubtitle = styled.p`
   opacity: 0.8;
 `;
 
-const DownloadButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  color: #667eea;
-  font-size: 20px;
+// const DownloadButton = styled.button`
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+//   width: 75px;
+//   height: 75px;
+//   background: rgba(255, 255, 255, 0.2);
+//   backdrop-filter: blur(20px);
+//   border: 1px solid rgba(255, 255, 255, 0.3);
+//   border-radius: 50%;
+//   color: #667eea;
+//   font-size: 35px;
+//   cursor: pointer;
+//   transition: all 0.3s ease;
+
+//   &:hover {
+//     background: white;
+//     transform: translateY(-2px) scale(1.1);
+//     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+//   }
+
+//   &:active {
+//     transform: translateY(0) scale(1.05);
+//   }
+
+//   &:disabled {
+//     opacity: 0.5;
+//     cursor: not-allowed;
+//     transform: none;
+//   }
+// `;
+
+const ActionButton = styled.button<{ disabled?: boolean }>`
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
 
-  &:hover {
-    background: white;
-    transform: translateY(-2px) scale(1.1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  // 상태에 따라 다른 스타일 적용
+  &.available {
+    background: #ffffff;
+    color: #667eea;
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
   }
 
-  &:active {
-    transform: translateY(0) scale(1.05);
+  // 예약한 사진 다운로드 기능
+  &.download {
+    background: #10b981;
+    color: white;
+     &:hover {
+      background: #059669;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  &.reserved {
+    background: #10b981;
+    color: white;
+    cursor: default;
+  }
+
+  &.unavailable {
+    background: rgba(0, 0, 0, 0.2);
+    color: rgba(255, 255, 255, 0.6);
+    cursor: not-allowed;
   }
 
   &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
-
-const ReservationButton = styled.button<{ disabled?: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: ${props => props.disabled 
-    ? 'rgba(34, 197, 94, 0.3)' 
-    : 'rgba(255, 255, 255, 0.9)'};
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  color: ${props => props.disabled ? '#22c55e' : '#667eea'};
-  font-size: 20px;
-  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
-  transition: all 0.3s ease;
-  opacity: ${props => props.disabled ? 0.8 : 1};
-
-  &:hover {
-    background: ${props => props.disabled 
-      ? 'rgba(34, 197, 94, 0.4)' 
-      : 'white'};
-    transform: ${props => props.disabled ? 'none' : 'translateY(-2px) scale(1.1)'};
-    box-shadow: ${props => props.disabled 
-      ? 'none' 
-      : '0 8px 32px rgba(0, 0, 0, 0.2)'};
-  }
-
-  &:active {
-    transform: translateY(0) scale(1.05);
+    opacity: 0.7;
   }
 `;
 
@@ -131,7 +151,7 @@ const PhotoContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 1000px;
+  max-width: 400px;
   margin: 0 auto;
 `;
 
@@ -155,47 +175,36 @@ const PhotoImage = styled.img`
   object-fit: contain;
 `;
 
-const PhotoDetails = styled.div`
+// 정보와 예약 버튼을 통합 관리할 액션 패널
+const ActionPanel = styled.div`
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(20px);
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 24px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   width: 100%;
   max-width: 600px;
+  color: white;
 `;
 
 const DetailRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  color: white;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
+  margin-bottom: 16px;
+  font-size: 14px;
 `;
 
 const DetailLabel = styled.span`
-  font-size: 14px;
   font-weight: 600;
   opacity: 0.9;
 `;
 
 const DetailValue = styled.span`
-  font-size: 14px;
   opacity: 0.8;
-`;
-
-const Description = styled.div`
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 14px;
-  line-height: 1.6;
-  opacity: 0.9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 `;
 
 const LoadingContainer = styled.div`
@@ -310,7 +319,7 @@ export default function PhotoDetail() {
 
       if (folderResponse.ok && photosResponse.ok) {
         setFolder(folderData.folder);
-        
+
         // 특정 사진 찾기
         const targetPhoto = photosData.photos.find((p: Photo) => p.id === Number(photoId));
         if (targetPhoto) {
@@ -374,19 +383,19 @@ export default function PhotoDetail() {
 
     try {
       // 해당 사진의 모든 예약 현황 확인
-      const response = await fetch(`/api/public/photos/reservations?photo_id=${photoId}`);
+      const response = await fetch(`/api/public/photo-reservations?photo_id=${photoId}`);
       const data = await response.json();
       
       if (response.ok && data.reservations && data.reservations.length > 0) {
         // 해당 사진의 활성 예약 찾기
         const activeReservation = data.reservations.find((r: any) => 
-          r.status === '예약중' || r.status === '예약완료' || r.status === '수령완료'
+          ['예약중', '예약완료', '수령완료'].includes(r.status)
         );
         
         if (activeReservation) {
           // 현재 사용자의 예약인지 확인
           const isUserReservation = activeReservation.user_id === session?.user?.id;
-          
+
           if (isUserReservation) {
             setIsReserved(true);
             setReservationStatus(activeReservation.status);
@@ -456,10 +465,10 @@ export default function PhotoDetail() {
 
     try {
       setReserving(true);
-      
-      const response = await fetch('/api/public/photos/reservations', {
+
+      const response = await fetch('/api/public/photo-reservations', {
         method: 'POST',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -477,6 +486,8 @@ export default function PhotoDetail() {
         setIsReserved(true);
         setReservationStatus('예약중');
         alert(data.message || '예약완료');
+        setIsAvailable(false);
+        alert(data.message || '예약이 완료되었습니다.');
       } else {
         alert(data.error || '예약에 실패했습니다.');
       }
@@ -508,15 +519,36 @@ export default function PhotoDetail() {
     });
   };
 
+  // 버튼 내용 결정
+  const handleButtonClick = () => {
+    if (isReserved) {
+      handleDownload();
+    } else if (isAvailable) {
+      handleReservation();
+    }
+    // 예약 불가 상태에서는 버튼이 disabled됨
+  };
+
+  // 버튼 내용을 상태에 따라 동적으로 결정
+  const getButtonContent = () => {
+    if (reserving) return "⏳ 예약 중...";
+    if (isReserved) return "📥 사진 다운로드";
+    if (!isAvailable) {
+      return `🚫 이미 ${reservedBy || '다른 분'}이 예약했습니다.`;
+    }
+    return "📌 이 사진 예약하기";
+  };
+
+  // 예약 상태에 따른 클래스 이름을 반환하는 함수
+  const getButtonClass = () => {
+    if (isReserved) return 'reserved';
+    if (!isAvailable) return 'unavailable';
+    return 'available';
+  };
+
+
   if (loading) {
-    return (
-      <DetailContainer>
-        <LoadingContainer>
-          <Spinner />
-          <div>로딩 중...</div>
-        </LoadingContainer>
-      </DetailContainer>
-    );
+    return <DetailContainer><LoadingContainer><Spinner /><div>로딩 중...</div></LoadingContainer></DetailContainer>;
   }
 
   if (error || !photo || !folder) {
@@ -526,15 +558,9 @@ export default function PhotoDetail() {
           <BackButton onClick={handleBackClick}>
             ← 뒤로가기
           </BackButton>
-          <PhotoInfo>
-            <PhotoTitle>오류</PhotoTitle>
-            <PhotoSubtitle>사진 상세</PhotoSubtitle>
-          </PhotoInfo>
-          <div style={{ width: '120px' }} />
         </Header>
         <ErrorMessage>
-          <div style={{ fontSize: '18px', marginBottom: '8px' }}>⚠️</div>
-          <div>{error || '사진을 찾을 수 없습니다.'}</div>
+          ⚠️ {error || '사진을 찾을 수 없습니다.'}
         </ErrorMessage>
       </DetailContainer>
     );
@@ -550,32 +576,7 @@ export default function PhotoDetail() {
           <PhotoTitle>{photo.title || '제목 없음'}</PhotoTitle>
           <PhotoSubtitle>{folder.name}</PhotoSubtitle>
         </PhotoInfo>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <DownloadButton onClick={handleDownload} disabled={downloading}>
-            {downloading ? '⏳' : '📥'}
-          </DownloadButton>
-          
-          {!isAvailable && reservedBy ? (
-            <ReservationButton 
-              disabled={true}
-              style={{ 
-                background: '#6b7280', 
-                cursor: 'not-allowed',
-                opacity: 0.6
-              }}
-            >
-              🚫
-            </ReservationButton>
-          ) : (
-            <ReservationButton 
-              onClick={handleReservation} 
-              disabled={isReserved || reserving || !isAvailable}
-            >
-              {reserving ? '⏳' : 
-               isReserved ? '✅' : '📌'}
-            </ReservationButton>
-          )}
-        </div>
+          <div style={{ width: '120px' }} />
       </Header>
 
       <PhotoContainer>
@@ -591,52 +592,27 @@ export default function PhotoDetail() {
           />
         </PhotoWrapper>
 
-        <PhotoDetails>
+        <ActionPanel>
           <DetailRow>
-            <DetailLabel>폴더</DetailLabel>
-            <DetailValue>{folder.name}</DetailValue>
+            <DetailLabel>업로드</DetailLabel>
+            <DetailValue>{formatDate(photo.created_at)}</DetailValue>
           </DetailRow>
-          
-          {photo.width && photo.height && (
-            <DetailRow>
-              <DetailLabel>크기</DetailLabel>
-              <DetailValue>{photo.width} × {photo.height}</DetailValue>
-            </DetailRow>
-          )}
-          
-          {photo.file_size && (
-            <DetailRow>
-              <DetailLabel>파일 크기</DetailLabel>
-              <DetailValue>{formatFileSize(photo.file_size)}</DetailValue>
-            </DetailRow>
-          )}
-          
-          {photo.file_format && (
-            <DetailRow>
-              <DetailLabel>파일 형식</DetailLabel>
-              <DetailValue>{photo.file_format.toUpperCase()}</DetailValue>
-            </DetailRow>
-          )}
-          
           <DetailRow>
             <DetailLabel>예약 상태</DetailLabel>
             <DetailValue>
-              {!isAvailable && reservedBy ? 
-                `🚫 ${reservedBy}님이 예약함` :
-                isReserved ? 
-                  `✅ ${reservationStatus === '예약중' ? '예약됨' : 
-                         reservationStatus === '예약완료' ? '예약완료' :
-                         reservationStatus === '수령완료' ? '수령완료' : '예약됨'}` :
-                '📌 예약 가능'}
+              {isReserved ? `✅ ${reservationStatus}` : isAvailable ? '📌 예약 가능' : `🚫 ${reservedBy ? `${reservedBy}님이 예약함` : '예약 불가'}`}
             </DetailValue>
           </DetailRow>
-          
-          <DetailRow>
-            <DetailLabel>업로드 날짜</DetailLabel>
-            <DetailValue>{formatDate(photo.created_at)}</DetailValue>
-          </DetailRow>
 
-        </PhotoDetails>
+          <ActionButton
+            onClick={handleReservation}
+            disabled={reserving || (!isAvailable && !isReserved)}
+            className={getButtonClass()}
+          >
+            {getButtonContent()}
+          </ActionButton>
+        </ActionPanel>
+
       </PhotoContainer>
     </DetailContainer>
   );
