@@ -374,7 +374,7 @@ export default function PhotoDetail() {
 
     try {
       // 해당 사진의 모든 예약 현황 확인
-      const response = await fetch(`/api/public/photo-reservations?photo_id=${photoId}`);
+      const response = await fetch(`/api/public/photos/reservations?photo_id=${photoId}`);
       const data = await response.json();
       
       if (response.ok && data.reservations && data.reservations.length > 0) {
@@ -457,7 +457,7 @@ export default function PhotoDetail() {
     try {
       setReserving(true);
       
-      const response = await fetch('/api/public/photo-reservations', {
+      const response = await fetch('/api/public/photos/reservations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

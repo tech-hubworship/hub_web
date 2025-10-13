@@ -383,8 +383,8 @@ export default function PhotoReservations() {
       setError(null);
 
       const url = statusFilter === 'all' 
-        ? '/api/admin/photo-reservations'
-        : `/api/admin/photo-reservations?status=${statusFilter}`;
+        ? '/api/admin/photos/reservations'
+        : `/api/admin/photos/reservations?status=${statusFilter}`;
 
       const response = await fetch(url);
       const data = await response.json();
@@ -405,7 +405,7 @@ export default function PhotoReservations() {
 
   const updateReservationStatus = async (id: number, newStatus: string) => {
     try {
-      const response = await fetch('/api/admin/photo-reservations', {
+      const response = await fetch('/api/admin/photos/reservations', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -561,7 +561,7 @@ export default function PhotoReservations() {
       }
 
       // 수령 완료 처리
-      const response = await fetch('/api/admin/photo-reservations', {
+      const response = await fetch('/api/admin/photos/reservations', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

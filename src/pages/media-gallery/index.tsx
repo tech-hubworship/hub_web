@@ -471,7 +471,7 @@ export default function MediaGallery() {
 
     try {
       setLoadingReservations(true);
-      const response = await fetch(`/api/public/photo-reservations?user_id=${session.user.id}`);
+      const response = await fetch(`/api/public/photos/reservations?user_id=${session.user.id}`);
       const data = await response.json();
 
       if (response.ok) {
@@ -540,7 +540,7 @@ export default function MediaGallery() {
     }
 
     try {
-      const response = await fetch(`/api/public/photo-reservations?id=${reservationId}`, {
+      const response = await fetch(`/api/public/photos/reservations?id=${reservationId}`, {
         method: 'DELETE',
       });
 
