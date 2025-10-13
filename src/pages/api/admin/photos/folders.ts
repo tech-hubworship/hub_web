@@ -275,7 +275,7 @@ async function deleteFolder(req: NextApiRequest, res: NextApiResponse) {
     .eq('id', id);
 
   if (error) {
-    return res.status(500).json({ error: '폴더 삭제 실패' });
+    return res.status(500).json({ error: '폴더 삭제에 실패했습니다.' });
   }
 
   return res.status(200).json({ message: '폴더가 삭제되었습니다.' });

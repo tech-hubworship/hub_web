@@ -69,15 +69,8 @@ export default function PhotosDashboard() {
                     
                     <S.NavItem active>
                         <S.NavIcon>📷</S.NavIcon>
-                        {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
+                        {!sidebarCollapsed && <S.NavText>사진팀 관리</S.NavText>}
                     </S.NavItem>
-                    
-                    <Link href="/admin/photos/manage" passHref>
-                        <S.NavItem as="a">
-                            <S.NavIcon>📸</S.NavIcon>
-                            {!sidebarCollapsed && <S.NavText>사진 업로드</S.NavText>}
-                        </S.NavItem>
-                    </Link>
                     
                     {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
                         <Link href="/admin/design" passHref>
@@ -103,7 +96,7 @@ export default function PhotosDashboard() {
                 <S.TopBar>
                     <S.TopBarLeft>
                         <S.PageTitle>사진팀 대시보드</S.PageTitle>
-                        <S.Breadcrumb>관리자 페이지 &gt; 사진 관리</S.Breadcrumb>
+                        <S.Breadcrumb>관리자 페이지 &gt; 사진팀 관리</S.Breadcrumb>
                     </S.TopBarLeft>
                     <S.TopBarRight>
                         <S.UserInfo>
@@ -131,39 +124,9 @@ export default function PhotosDashboard() {
                         <Link href="/admin/photos/manage" passHref>
                             <S.DashboardCard as="a">
                                 <S.DashboardIcon className="dashboard-icon">📸</S.DashboardIcon>
-                                <S.DashboardTitle className="dashboard-title">사진 업로드</S.DashboardTitle>
+                                <S.DashboardTitle className="dashboard-title">사진 관리</S.DashboardTitle>
                                 <S.DashboardDescription className="dashboard-description">
                                     사진을 업로드하고 수정, 삭제, 미리보기를 할 수 있습니다
-                                </S.DashboardDescription>
-                            </S.DashboardCard>
-                        </Link>
-                        
-                        <Link href="/admin/photos/gallery" passHref>
-                            <S.DashboardCard as="a">
-                                <S.DashboardIcon className="dashboard-icon">🖼️</S.DashboardIcon>
-                                <S.DashboardTitle className="dashboard-title">사진 갤러리</S.DashboardTitle>
-                                <S.DashboardDescription className="dashboard-description">
-                                    업로드된 모든 사진을 확인하고 관리합니다
-                                </S.DashboardDescription>
-                            </S.DashboardCard>
-                        </Link>
-                        
-                        <Link href="/admin/photos/folders" passHref>
-                            <S.DashboardCard as="a">
-                                <S.DashboardIcon className="dashboard-icon">📁</S.DashboardIcon>
-                                <S.DashboardTitle className="dashboard-title">폴더 관리</S.DashboardTitle>
-                                <S.DashboardDescription className="dashboard-description">
-                                    사진 폴더를 생성, 수정, 삭제합니다
-                                </S.DashboardDescription>
-                            </S.DashboardCard>
-                        </Link>
-                        
-                        <Link href="/admin/photos/statistics" passHref>
-                            <S.DashboardCard as="a">
-                                <S.DashboardIcon className="dashboard-icon">📊</S.DashboardIcon>
-                                <S.DashboardTitle className="dashboard-title">통계 분석</S.DashboardTitle>
-                                <S.DashboardDescription className="dashboard-description">
-                                    사진 업로드 통계와 사용 패턴을 분석합니다
                                 </S.DashboardDescription>
                             </S.DashboardCard>
                         </Link>

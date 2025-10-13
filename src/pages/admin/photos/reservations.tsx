@@ -692,7 +692,7 @@ export default function PhotoReservations() {
           
           <S.NavItem as="a" onClick={() => router.push('/admin/photos')}>
             <S.NavIcon>📷</S.NavIcon>
-            {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
+            {!sidebarCollapsed && <S.NavText>사진팀 관리</S.NavText>}
           </S.NavItem>
           
           <S.NavItem active>
@@ -719,8 +719,8 @@ export default function PhotoReservations() {
       <S.MainContent>
         <S.TopBar>
           <S.TopBarLeft>
-            <S.PageTitle>사진 예약 관리</S.PageTitle>
-            <S.Breadcrumb>관리자 페이지 &gt; 사진 관리 &gt; 예약 관리</S.Breadcrumb>
+            <S.PageTitle>예약 관리</S.PageTitle>
+            <S.Breadcrumb>관리자 페이지 &gt; 사진팀 관리 &gt; 예약 관리</S.Breadcrumb>
           </S.TopBarLeft>
           <S.TopBarRight>
             <S.UserInfo>

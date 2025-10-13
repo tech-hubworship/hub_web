@@ -71,7 +71,7 @@ export default function SecretaryDashboard() {
                         <Link href="/admin/photos" passHref>
                             <S.NavItem as="a">
                                 <S.NavIcon>📷</S.NavIcon>
-                                {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
+                                {!sidebarCollapsed && <S.NavText>사진팀 관리</S.NavText>}
                             </S.NavItem>
                         </Link>
                     )}

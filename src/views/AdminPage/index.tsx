@@ -149,9 +149,9 @@ export default function AdminPage() {
                             <Link href="/admin/photos" passHref legacyBehavior>
                                 <S.DashboardCard as="a">
                                     <S.DashboardIcon className="dashboard-icon">📷</S.DashboardIcon>
-                                    <S.DashboardTitle className="dashboard-title">사진 관리</S.DashboardTitle>
+                                    <S.DashboardTitle className="dashboard-title">사진팀 관리</S.DashboardTitle>
                                     <S.DashboardDescription className="dashboard-description">
-                                        사진 업로드, 관리, 통계 확인
+                                        사진 업로드, 관리, 예약 확인
                                     </S.DashboardDescription>
                                 </S.DashboardCard>
                             </Link>

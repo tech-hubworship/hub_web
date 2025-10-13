@@ -381,50 +381,42 @@ export default function PhotoUploadPage() {
                 </S.SidebarHeader>
                 
                 <S.NavMenu>
-                    <Link href="/admin" passHref>
-                        <S.NavItem as="a">
-                            <S.NavIcon>🏠</S.NavIcon>
-                            {!sidebarCollapsed && <S.NavText>대시보드</S.NavText>}
-                        </S.NavItem>
-                    </Link>
+                  <S.NavItem as="a" onClick={() => router.push('/admin')}>
+                    <S.NavIcon>🏠</S.NavIcon>
+                    {!sidebarCollapsed && <S.NavText>대시보드</S.NavText>}
+                  </S.NavItem>
                     
-                    <Link href="/admin/photos" passHref>
-                        <S.NavItem as="a">
-                            <S.NavIcon>📷</S.NavIcon>
-                            {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
-                        </S.NavItem>
-                    </Link>
+                  <S.NavItem as="a" onClick={() => router.push('/admin/photos')}>
+                    <S.NavIcon>📷</S.NavIcon>
+                    {!sidebarCollapsed && <S.NavText>사진팀 관리</S.NavText>}
+                  </S.NavItem>
+                  
+                  <S.NavItem active>
+                    <S.NavIcon>📸</S.NavIcon>
+                    {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
+                  </S.NavItem>
                     
-                    <S.NavItem active>
-                        <S.NavIcon>📤</S.NavIcon>
-                        {!sidebarCollapsed && <S.NavText>사진 업로드</S.NavText>}
+                  {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
+                    <S.NavItem as="a" onClick={() => router.push('/admin/design')}>
+                      <S.NavIcon>🎨</S.NavIcon>
+                      {!sidebarCollapsed && <S.NavText>디자인 관리</S.NavText>}
                     </S.NavItem>
-                    
-                    {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
-                        <Link href="/admin/design" passHref>
-                            <S.NavItem as="a">
-                                <S.NavIcon>🎨</S.NavIcon>
-                                {!sidebarCollapsed && <S.NavText>디자인 관리</S.NavText>}
-                            </S.NavItem>
-                        </Link>
-                    )}
-                    
-                    {roles.includes('서기') && (
-                        <Link href="/admin/secretary" passHref>
-                            <S.NavItem as="a">
-                                <S.NavIcon>✍️</S.NavIcon>
-                                {!sidebarCollapsed && <S.NavText>서기 관리</S.NavText>}
-                            </S.NavItem>
-                        </Link>
-                    )}
+                  )}
+                  
+                  {roles.includes('서기') && (
+                    <S.NavItem as="a" onClick={() => router.push('/admin/secretary')}>
+                      <S.NavIcon>✍️</S.NavIcon>
+                      {!sidebarCollapsed && <S.NavText>서기 관리</S.NavText>}
+                    </S.NavItem>
+                  )}
                 </S.NavMenu>
             </S.Sidebar>
 
             <S.MainContent>
                 <S.TopBar>
                     <S.TopBarLeft>
-                        <S.PageTitle>사진 업로드</S.PageTitle>
-                        <S.Breadcrumb>관리자 페이지 &gt; 사진 관리 &gt; 업로드</S.Breadcrumb>
+                        <S.PageTitle>사진 관리</S.PageTitle>
+                        <S.Breadcrumb>관리자 페이지 &gt; 사진팀 관리 &gt; 사진 관리</S.Breadcrumb>
                     </S.TopBarLeft>
                     <S.TopBarRight>
                         <S.UserInfo>

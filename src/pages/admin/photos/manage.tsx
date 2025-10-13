@@ -632,6 +632,30 @@ export default function PhotoManagePage() {
     );
   }
 
+  const deleteFolder = async (folderId: number) => {
+  if (!window.confirm('정말로 이 폴더를 삭제하시겠습니까?')) return;
+  setLoading(true);
+  try {
+    const response = await fetch(`/api/admin/photos/folders?id=${folderId}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json();
+    if (response.ok) {
+      alert('폴더가 삭제되었습니다.');
+      setSelectedFolder(null);
+      setPhotos([]);
+      await loadFolders();
+    } else {
+      alert(data.error || '폴더 삭제에 실패했습니다.');
+    }
+  } catch (error) {
+    console.error('폴더 삭제 오류:', error);
+    alert('폴더 삭제 중 오류가 발생했습니다.');
+  } finally {
+    setLoading(false);
+  }
+};
+
   const roles = session.user.roles || [];
 
   return (
@@ -653,10 +677,15 @@ export default function PhotoManagePage() {
               {!sidebarCollapsed && <S.NavText>대시보드</S.NavText>}
             </S.NavItem>
           </Link>
+
+          <S.NavItem as="a" onClick={() => router.push('/admin/photos')}>
+            <S.NavIcon>📷</S.NavIcon>
+            {!sidebarCollapsed && <S.NavText>사진팀 관리</S.NavText>}
+          </S.NavItem>
           
           <S.NavItem active>
             <S.NavIcon>📸</S.NavIcon>
-            {!sidebarCollapsed && <S.NavText>사진 업로드</S.NavText>}
+            {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
           </S.NavItem>
           
           {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
@@ -683,7 +712,7 @@ export default function PhotoManagePage() {
         <S.TopBar>
           <S.TopBarLeft>
             <S.PageTitle>사진 관리</S.PageTitle>
-            <S.Breadcrumb>관리자 페이지 &gt; 사진 관리 &gt; 사진 업로드</S.Breadcrumb>
+            <S.Breadcrumb>관리자 페이지 &gt; 사진팀 관리 &gt; 사진 관리</S.Breadcrumb>
           </S.TopBarLeft>
           <S.TopBarRight>
             <S.UserInfo>
@@ -746,7 +775,7 @@ export default function PhotoManagePage() {
                     onClick={() => setShowPhotoUploadModal(true)}
                     style={{ fontSize: '14px', padding: '8px 16px' }}
                   >
-                    📸 사진 업로드
+                    📸 사진 관리
                   </Button>
                 ) : (
                   <Button 
@@ -894,6 +923,7 @@ export default function PhotoManagePage() {
                           borderRadius: '12px',
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
+                          position: 'relative',
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.borderColor = '#3b82f6';
@@ -935,6 +965,27 @@ export default function PhotoManagePage() {
                         }}>
                           {folder.photo_count || 0}개 사진
                         </div>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            deleteFolder(folder.id);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            background: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '2px 8px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                          title="폴더 삭제"
+                        >
+                        삭제
+                      </button>
                       </div>
                     ))}
                   </div>
