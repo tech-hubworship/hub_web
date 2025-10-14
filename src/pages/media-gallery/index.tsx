@@ -16,6 +16,7 @@ const Header = styled.div`
   text-align: center;
   margin-bottom: 40px;
   color: white;
+  padding-top: 60px;
 `;
 
 const Title = styled.h1`
@@ -129,21 +130,21 @@ const ReservationButton = styled.button`
   right: 20px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 60px;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.2);
+  gap: 8px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  color: #667eea;
-  font-size: 27px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  color: white;
+  font-size: 15px;
   z-index: 10;
 
   &:hover {
-    background: white;
+    background: rgba(255, 255, 255, 0.3);
     transform: translateY(-2px) scale(1.1);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   }
@@ -153,7 +154,7 @@ const ReservationButton = styled.button`
   }
 
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.6;
     cursor: not-allowed;
     transform: none;
   }
@@ -172,6 +173,11 @@ const ReservationModal = styled.div`
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+`;
+
+const IconSpan = styled.span`
+  font-size: 20px;
+  line-height: 1;
 `;
 
 const ReservationContent = styled.div`
@@ -421,7 +427,7 @@ export default function MediaGallery() {
       if (response.ok) {
         setFolders(data.folders || []);
       } else {
-        setError(data.error || '폴더를 불러오는데 실패했습니다.');
+        setError(data.error || '폴더를 불러오는 데 실패했습니다.');
       }
     } catch (error) {
       console.error('폴더 로드 오류:', error);
@@ -490,11 +496,11 @@ export default function MediaGallery() {
         setShowReservations(true);
       } else {
         console.error('예약 현황 로드 오류:', data.error);
-        alert('예약 현황을 불러오는데 실패했습니다.');
+        alert('예약 현황을 불러오는 데 실패했습니다.');
       }
     } catch (error) {
       console.error('예약 현황 로드 오류:', error);
-      alert('예약 현황을 불러오는데 실패했습니다.');
+      alert('예약 현황을 불러오는 데 실패했습니다.');
     } finally {
       setLoadingReservations(false);
     }
@@ -598,15 +604,25 @@ export default function MediaGallery() {
 
   return (
     <GalleryContainer>
+      {/* 로그인 상태일 때만 버튼이 보임*/}
+      {status === 'authenticated' && (
+        <ReservationButton onClick={loadUserReservations} disabled={loadingReservations}>
+          {loadingReservations ? (
+            '⏳'
+          ) : (
+            <>
+              <IconSpan>📋</IconSpan>
+              <span>내 예약 현황</span>
+            </>
+          )}
+        </ReservationButton>
+      )}
+
       <Header>
         <Title>미디어선교</Title>
         <Subtitle>갤러리</Subtitle>
       </Header>
-      
-      <ReservationButton onClick={loadUserReservations} disabled={loadingReservations}>
-        {loadingReservations ? '⏳' : '📋'}
-      </ReservationButton>
-      
+
       {folders.length === 0 ? (
         <ErrorMessage>
           <div style={{ fontSize: '18px', marginBottom: '8px' }}>📁</div>
@@ -690,7 +706,7 @@ export default function MediaGallery() {
       {showQRModal && (
         <QRModal onClick={() => setShowQRModal(false)}>
           <QRContent onClick={(e) => e.stopPropagation()}>
-            <QRTitle>🎫 교환권</QRTitle>
+            <QRTitle>✨ 교환권</QRTitle>
             <QRCodeContainer>
               {currentQRData && (
                 <img src={currentQRData} alt="교환권 QR 코드" style={{ maxWidth: '100%', height: 'auto' }} />
