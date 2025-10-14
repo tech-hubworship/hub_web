@@ -17,7 +17,7 @@ interface SurveyStats {
 const fetchSurveyStats = async (surveyId: string): Promise<SurveyStats> => {
     const response = await fetch(`/api/admin/survey-stats?surveyId=${surveyId}`);
     if (!response.ok) {
-        throw new Error('설문조사 통계 정보를 가져오는데 실패했습니다.');
+        throw new Error('설문조사 통계 정보를 가져오는 데 실패했습니다.');
     }
     return response.json();
 };

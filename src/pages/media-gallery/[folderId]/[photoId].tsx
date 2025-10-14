@@ -328,7 +328,7 @@ export default function PhotoDetail() {
           setError('사진을 찾을 수 없습니다.');
         }
       } else {
-        setError('데이터를 불러오는데 실패했습니다.');
+        setError('데이터를 불러오는 데 실패했습니다.');
       }
     } catch (error) {
       console.error('데이터 로드 오류:', error);

@@ -393,11 +393,11 @@ export default function PhotoReservations() {
         setReservations(data.reservations || []);
         setStats(data.stats || stats);
       } else {
-        setError(data.error || '예약 현황을 불러오는데 실패했습니다.');
+        setError(data.error || '예약 현황을 불러오는 데 실패했습니다.');
       }
     } catch (error) {
       console.error('예약 현황 로드 오류:', error);
-      setError('예약 현황을 불러오는데 실패했습니다.');
+      setError('예약 현황을 불러오는 데 실패했습니다.');
     } finally {
       setLoading(false);
     }

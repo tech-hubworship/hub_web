@@ -50,7 +50,7 @@ export default async function handler(
 
     if (error) {
       console.error('Error fetching users:', error);
-      return res.status(500).json({ error: '사용자 목록을 가져오는데 실패했습니다.' });
+      return res.status(500).json({ error: '사용자 목록을 가져오는 데 실패했습니다.' });
     }
 
     // 역할 정보를 roles 배열로 변환하고 group_name, cell_name 추가

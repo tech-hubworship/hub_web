@@ -254,11 +254,11 @@ export default function PhotoUploadPage() {
                     setPhotoForm(prev => ({ ...prev, folder_id: data.folders[0].id }));
                 }
             } else {
-                alert('폴더를 불러오는데 실패했습니다.');
+                alert('폴더를 불러오는 데 실패했습니다.');
             }
         } catch (error) {
             console.error('Error loading folders:', error);
-            alert('폴더를 불러오는데 실패했습니다.');
+            alert('폴더를 불러오는 데 실패했습니다.');
         } finally {
             setLoading(false);
         }

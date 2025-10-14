@@ -203,7 +203,7 @@ export default function FolderGallery() {
       if (response.ok) {
         setFolder(data.folder);
       } else {
-        setError(data.error || '폴더 정보를 불러오는데 실패했습니다.');
+        setError(data.error || '폴더 정보를 불러오는 데 실패했습니다.');
       }
     } catch (error) {
       console.error('폴더 로드 오류:', error);
@@ -219,7 +219,7 @@ export default function FolderGallery() {
       if (response.ok) {
         setPhotos(data.photos || []);
       } else {
-        setError(data.error || '사진을 불러오는데 실패했습니다.');
+        setError(data.error || '사진을 불러오는 데 실패했습니다.');
       }
     } catch (error) {
       console.error('사진 로드 오류:', error);

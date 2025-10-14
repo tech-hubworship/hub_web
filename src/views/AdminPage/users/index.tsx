@@ -44,7 +44,7 @@ export default function UsersAdminPage() {
     queryKey: ['admin-users', searchQuery],
     queryFn: async () => {
       const response = await fetch(`/api/admin/users?search=${encodeURIComponent(searchQuery)}`);
-      if (!response.ok) throw new Error('사용자 목록을 가져오는데 실패했습니다.');
+      if (!response.ok) throw new Error('사용자 목록을 가져오는 데 실패했습니다.');
       return response.json();
     },
   });
