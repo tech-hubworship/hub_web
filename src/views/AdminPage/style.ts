@@ -491,12 +491,22 @@ export const ActionDescription = styled.p`
 
 // 로딩 상태
 export const LoadingContainer = styled.div`
+  position: fixed; /* 화면 전체를 기준으로 위치를 잡습니다 */
+  top: 0;
+  left: 0;
+  width: 100vw; /* 화면 전체 너비 */
+  height: 100vh; /* 화면 전체 높이 */
+  background: rgba(255, 255, 255, 0.8); /* 반투명한 배경 추가 */
+  backdrop-filter: blur(4px); /* 배경을 흐리게 하여 집중도 향상 */
+  z-index: 9999; /* 다른 모든 요소들 위에 표시 */
+
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   background-color: #f8fafc;
+  gap: 16px; /* 스피너와 텍스트 사이 간격 */
 `;
 
 export const LoadingSpinner = styled.div`
