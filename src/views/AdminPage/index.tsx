@@ -72,7 +72,7 @@ export default function AdminPage() {
                         <Link href="/admin/photos" passHref legacyBehavior>
                             <S.NavItem as="a">
                                 <S.NavIcon>📷</S.NavIcon>
-                                {!sidebarCollapsed && <S.NavText>사진 관리</S.NavText>}
+                                {!sidebarCollapsed && <S.NavText>사진팀 관리</S.NavText>}
                             </S.NavItem>
                         </Link>
                     )}
