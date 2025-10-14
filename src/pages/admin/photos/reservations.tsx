@@ -846,9 +846,9 @@ export default function PhotoReservations() {
 
       <ReservationGrid>
         {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>로딩 중...</div>
+            <div style={{ fontSize: '14px', textAlign: 'center', padding: '40px', color: '#6b7280' }}>로딩 중...</div>
         ) : filteredReservations.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+          <div style={{ fontSize: '14px', textAlign: 'center', padding: '40px', color: '#6b7280' }}>
             {statusFilter === 'all' ? '예약이 없습니다.' : `"${statusFilter}" 상태의 예약이 없습니다.`}
           </div>
         ) : (

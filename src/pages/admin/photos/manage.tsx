@@ -111,18 +111,64 @@ const PhotoGrid = styled.div`
   margin-top: 16px;
 `;
 
-const PhotoItem = styled.div`
-  border: 1px solid #e5e7eb;
+const PhotoItem = styled.div<{ isSelected?: boolean }>`
+  border: 2px solid ${props => props.isSelected ? '#3b82f6' : '#e5e7eb'};
   border-radius: 8px;
   overflow: hidden;
   background: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: ${props => props.isSelected ? '0 4px 12px rgba(59, 130, 246, 0.2)' : '0 1px 3px rgba(0, 0, 0, 0.1)'};
+  transition: all 0.2s;
+  position: relative;
   
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
+`;
+
+const CheckboxLabel = styled.label`
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  input:checked + span {
+    opacity: 1;
+  }
+`;
+
+const Checkmark = styled.span`
+  color: white;
+  font-size: 16px;
+  opacity: 0;
+  transition: opacity 0.2s;
+`;
+
+const SelectionActionsBar = styled.div`
+  background: #1f2937;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 `;
 
 const PhotoImage = styled.img`
@@ -317,6 +363,7 @@ export default function PhotoManagePage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
+  const [selectedPhotos, setSelectedPhotos] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [stats, setStats] = useState({ photoCount: 0, folderCount: 0 });
@@ -408,6 +455,7 @@ export default function PhotoManagePage() {
   };
 
   const loadPhotos = async (folderId: number) => {
+    setSelectedPhotos([]);
     setLoading(true);
     try {
       const response = await fetch(`/api/admin/photos?folder_id=${folderId}`);
@@ -422,6 +470,52 @@ export default function PhotoManagePage() {
       alert('사진을 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePhotoSelect = (photoId: number) => {
+    setSelectedPhotos(prev => 
+      prev.includes(photoId) 
+        ? prev.filter(id => id !== photoId) 
+        : [...prev, photoId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedPhotos.length === photos.length) {
+      setSelectedPhotos([]); // 모두 선택된 상태면 전체 해제
+    } else {
+      setSelectedPhotos(photos.map(p => p.id)); // 그렇지 않으면 전체 선택
+    }
+  };
+
+  const deleteSelectedPhotos = async () => {
+    if (!confirm(`정말로 선택된 ${selectedPhotos.length}개의 사진을 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/photos`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: selectedPhotos }), // ID 배열을 body로 전송
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        // 성공 시 선택 상태 초기화 및 목록 새로고침
+        setSelectedPhotos([]);
+        loadPhotos(selectedFolder!.id);
+        loadFolders();
+        alert(data.message || '사진이 삭제되었습니다.');
+      } else {
+        alert('사진 삭제 실패: ' + data.error);
+      }
+    } catch (error) {
+      console.error('사진 삭제 오류:', error);
+      alert('사진 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -604,30 +698,6 @@ export default function PhotoManagePage() {
     }
   };
 
-  const deletePhoto = async (photoId: number) => {
-    if (!confirm('정말로 이 사진을 삭제하시겠습니까?')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/admin/photos?id=${photoId}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        loadPhotos(selectedFolder?.id || 0);
-        loadFolders(); // 폴더 목록도 다시 로드 (사진 개수 업데이트)
-        alert('사진이 삭제되었습니다.');
-      } else {
-        alert('사진 삭제 실패: ' + data.error);
-      }
-    } catch (error) {
-      console.error('사진 삭제 오류:', error);
-      alert('사진 삭제 중 오류가 발생했습니다.');
-    }
-  };
-
   const openEditModal = (photo: Photo) => {
     setEditingPhoto(photo);
     setPhotoForm({
@@ -700,6 +770,8 @@ export default function PhotoManagePage() {
 
   const roles = session.user.roles || [];
 
+  const isAllSelected = photos.length > 0 && selectedPhotos.length === photos.length;
+
   return (
     <S.AdminLayout>
       <S.Sidebar collapsed={sidebarCollapsed}>
@@ -770,11 +842,7 @@ export default function PhotoManagePage() {
         </S.TopBar>
 
         <S.ContentArea>
-          {/* 메인 콘텐츠: 사진 목록 */}
-          <div style={{ 
-            width: '100%', 
-            padding: '0 24px'
-          }}>
+          {!selectedFolder && (
             <StatsGrid>
                 <StatCard>
                     <StatValue>{stats.photoCount}</StatValue>
@@ -785,7 +853,10 @@ export default function PhotoManagePage() {
                     <StatLabel>총 폴더 수</StatLabel>
                 </StatCard>
             </StatsGrid>
-              {/* 헤더 영역 */}
+          )}
+
+          <div style={{ width: '100%' }}>
+              {/* --- 헤더 영역 --- */}
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'space-between', 
@@ -809,7 +880,7 @@ export default function PhotoManagePage() {
                         color: '#6b7280'
                       }}
                     >
-                      ← 폴더 목록
+                      ← 목록
                     </Button>
                   )}
                   <h2 style={{ 
@@ -822,13 +893,22 @@ export default function PhotoManagePage() {
                   </h2>
                 </div>
                 {selectedFolder ? (
-                  <Button 
-                    variant="primary" 
-                    onClick={() => setShowPhotoUploadModal(true)}
-                    style={{ fontSize: '14px', padding: '8px 16px' }}
-                  >
-                    📸 사진 관리
-                  </Button>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <Button 
+                      variant="danger" 
+                      onClick={() => deleteFolder(selectedFolder.id)}
+                      style={{ fontSize: '14px', padding: '8px 16px' }}
+                    >
+                      폴더 삭제
+                    </Button>
+                    <Button 
+                      variant="primary" 
+                      onClick={() => setShowPhotoUploadModal(true)}
+                      style={{ fontSize: '14px', padding: '8px 16px' }}
+                    >
+                      사진 업로드
+                    </Button>
+                  </div>
                 ) : (
                   <Button 
                     variant="primary" 
@@ -840,88 +920,67 @@ export default function PhotoManagePage() {
                 )}
               </div>
               
+              {selectedFolder && selectedPhotos.length > 0 && (
+                <SelectionActionsBar>
+                  <div style={{ fontSize: '14px',display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <label style={{ fontSize: '14px',display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        onChange={handleSelectAll}
+                      />
+                      {isAllSelected ? '전체 해제' : '전체 선택'}
+                    </label>
+                    <span>{selectedPhotos.length}개 항목 선택됨</span>
+                  </div>
+                  <Button
+                    variant="danger"
+                    onClick={deleteSelectedPhotos}
+                  >
+                    선택 삭제
+                  </Button>
+                </SelectionActionsBar>
+              )}
+
+              {/* --- 사진 및 폴더 그리드 영역 --- */}
               {loading ? (
                 <EmptyState>
                   <LoadingSpinner />
                   <div>로딩 중...</div>
                 </EmptyState>
               ) : selectedFolder ? (
-                // 폴더가 선택된 경우: 사진 그리드 표시
                 photos.length === 0 ? (
                   <EmptyState>
-                    <div>이 폴더에 사진이 없습니다.</div>
                     <div style={{ fontSize: '14px', marginTop: '8px' }}>
-                      왼쪽에서 사진을 업로드해보세요.
+                      이 폴더에 사진이 없습니다.
                     </div>
                   </EmptyState>
                 ) : (
                   <PhotoGrid>
-                    {photos.map((photo) => (
-                        <PhotoItem key={photo.id}>
+                    {photos.map((photo) => {
+                      const isSelected = selectedPhotos.includes(photo.id);
+                      return (
+                        <PhotoItem key={photo.id} isSelected={isSelected}>
+                          <CheckboxLabel style={{ background: isSelected ? '#3b82f6' : 'rgba(255,255,255,0.8)', borderColor: isSelected ? '#3b82f6' : '#d1d5db' }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handlePhotoSelect(photo.id)}
+                            />
+                            <Checkmark>✔</Checkmark>
+                          </CheckboxLabel>
                           <PhotoImage
                             src={photo.thumbnail_url || photo.image_url}
                             alt={photo.title || '사진'}
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
-                              const originalSrc = img.src;
-                              console.log('❌ 이미지 로드 실패:', originalSrc);
-                              
-                              // Google Drive 링크인 경우 여러 URL 시도
-                              if (originalSrc.includes('drive.google.com') || originalSrc.includes('googleusercontent.com')) {
-                                // 파일 ID 추출
-                                const fileIdMatch = originalSrc.match(/\/d\/([a-zA-Z0-9_-]+)/);
-                                if (fileIdMatch) {
-                                  const fileId = fileIdMatch[1];
-                                  console.log('🔄 Google Drive 파일 ID로 대안 URL 시도:', fileId);
-                                  const alternativeUrls = getGoogleDriveImageUrl(fileId);
-                                  
-                                  // 첫 번째 URL 시도
-                                  let currentIndex = 0;
-                                  const tryNextUrl = () => {
-                                    if (currentIndex < alternativeUrls.length) {
-                                      console.log(`🔄 대안 URL ${currentIndex + 1} 시도:`, alternativeUrls[currentIndex]);
-                                      img.src = alternativeUrls[currentIndex];
-                                      currentIndex++;
-                                    } else {
-                                      // 모든 URL 실패 시 플레이스홀더 이미지
-                                      console.log('❌ 모든 URL 실패, 플레이스홀더 표시');
-                                      img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDIwMCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik04MCA2MEwxMjAgMTAwTDgwIDEwMEw0MCA2MEw4MCA2MFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHN0eWxlPgp0ZXh0IHsKICBmb250LWZhbWlseTogc3lzdGVtLXVpLCBzYW5zLXNlcmlmOwogIGZvbnQtc2l6ZTogMTJweDsKICBmaWxsOiAjNkI3MjgwOwp9Cjwvc3R5bGU+Cjx0ZXh0IHg9IjEwMCIgeT0iODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuqwgOq4sOumrCDsvZzsiqQg7J6I7Iq1PC90ZXh0Pgo8L3N2Zz4K';
-                                    }
-                                  };
-                                  
-                                  img.onerror = tryNextUrl;
-                                  tryNextUrl();
-                                }
-                              } else {
-                                // 일반 이미지 로드 실패 시 플레이스홀더
-                                console.log('❌ 일반 이미지 로드 실패, 플레이스홀더 표시');
-                                img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDIwMCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik04MCA2MEwxMjAgMTAwTDgwIDEwMEw0MCA2MEw4MCA2MFoiIGZpbGw9IiM5Q0EzQUYiLz4KPHN0eWxlPgp0ZXh0IHsKICBmb250LWZhbWlseTogc3lzdGVtLXVpLCBzYW5zLXNlcmlmOwogIGZvbnQtc2l6ZTogMTJweDsKICBmaWxsOiAjNkI3MjgwOwp9Cjwvc3R5bGU+Cjx0ZXh0IHg9IjEwMCIgeT0iODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuqwgOq4sOumrCDsvZzsiqQg7J6I7Iq1PC90ZXh0Pgo8L3N2Zz4K';
-                              }
+                              img.src = 'data:image/svg+xml;base64,...'; // Placeholder
                             }}
-                            onLoad={(e) => {
-                              const img = e.target as HTMLImageElement;
-                              console.log('✅ 이미지 로드 성공:', img.src);
-                            }}
-                            onClick={() => {
-                              // 클릭 시 새 탭에서 원본 이미지 열기
-                              const imageUrl = photo.thumbnail_url || photo.image_url;
-                              const convertedUrl = convertGoogleDriveUrl(imageUrl);
-                              window.open(convertedUrl, '_blank');
-                            }}
-                            style={{ cursor: 'pointer' }}
                           />
                           <PhotoInfo>
                             <PhotoTitle>{photo.title || '제목 없음'}</PhotoTitle>
                             <PhotoMeta>
-                              {isGoogleDriveUrl(photo.image_url) && '📁 Google Drive • '}
                               {photo.width && photo.height ? `${photo.width}×${photo.height}` : ''}
-                              {photo.file_size ? ` • ${formatFileSize(photo.file_size)}` : ''}
-                              <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
-                                클릭하여 원본 보기
-                              </div>
-                              <div style={{ fontSize: '10px', color: '#ef4444', marginTop: '2px' }}>
-                                이미지가 보이지 않으면 Google Drive 공유 설정을 확인해주세요
-                              </div>
                             </PhotoMeta>
                             <PhotoActions>
                               <Button
@@ -930,20 +989,14 @@ export default function PhotoManagePage() {
                               >
                                 수정
                               </Button>
-                              <Button
-                                variant="danger"
-                                onClick={() => deletePhoto(photo.id)}
-                              >
-                                삭제
-                              </Button>
                             </PhotoActions>
                           </PhotoInfo>
                         </PhotoItem>
-                      ))}
-                    </PhotoGrid>
+                      )
+                    })}
+                  </PhotoGrid>
                 )
               ) : (
-                // 폴더가 선택되지 않은 경우: 폴더 그리드 표시
                 folders.length === 0 ? (
                   <EmptyState>
                     <div>폴더가 없습니다.</div>
@@ -990,54 +1043,15 @@ export default function PhotoManagePage() {
                           e.currentTarget.style.background = '#f8fafc';
                         }}
                       >
-                        <div style={{ 
-                          fontSize: '36px', 
-                          marginBottom: '12px',
-                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-                        }}>
+                        <div style={{ fontSize: '36px', marginBottom: '12px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>
                           📁
                         </div>
-                        <div style={{ 
-                          fontSize: '14px', 
-                          fontWeight: '600', 
-                          color: '#1f2937', 
-                          textAlign: 'center', 
-                          lineHeight: '1.3', 
-                          marginBottom: '6px' 
-                        }}>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', textAlign: 'center', lineHeight: '1.3', marginBottom: '6px' }}>
                           {folder.name}
                         </div>
-                        <div style={{ 
-                          fontSize: '11px', 
-                          color: '#6b7280',
-                          background: '#e5e7eb',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          fontWeight: '500'
-                        }}>
+                        <div style={{ fontSize: '11px', color: '#6b7280', background: '#e5e7eb', padding: '2px 8px', borderRadius: '12px', fontWeight: '500' }}>
                           {folder.photo_count || 0}개 사진
                         </div>
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            deleteFolder(folder.id);
-                          }}
-                          style={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            background: '#ef4444',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '2px 8px',
-                            fontSize: '12px',
-                            cursor: 'pointer'
-                          }}
-                          title="폴더 삭제"
-                        >
-                        삭제
-                      </button>
                       </div>
                     ))}
                   </div>
@@ -1045,29 +1059,23 @@ export default function PhotoManagePage() {
               )}
           </div>
 
-          {/* 사진 업로드 모달 */}
           <Modal show={showPhotoUploadModal}>
             <ModalContent>
               <ModalHeader>
                 <ModalTitle>사진 업로드</ModalTitle>
                 <CloseButton onClick={() => setShowPhotoUploadModal(false)}>×</CloseButton>
               </ModalHeader>
-              
               <UploadForm onSubmit={uploadPhoto}>
                 <FormGroup>
-                  <Label>사진 링크 (Google Drive 링크 지원)</Label>
+                  <Label>사진 링크</Label>
                   <Input
                     type="url"
                     value={photoForm.image_url}
                     onChange={(e) => setPhotoForm(prev => ({ ...prev, image_url: e.target.value }))}
-                    placeholder="https://drive.google.com/file/d/..."
+                    placeholder="https://example.com/photo.jpg"
                     required
                   />
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
-                    Google Drive 링크인 경우 "링크가 있는 모든 사용자" 공유 설정을 확인해주세요
-                  </div>
                 </FormGroup>
-                
                 <FormGroup>
                   <Label>사진 제목</Label>
                   <Input
@@ -1077,7 +1085,6 @@ export default function PhotoManagePage() {
                     placeholder="사진 제목을 입력하세요"
                   />
                 </FormGroup>
-                
                 <FormGroup>
                   <Label>설명</Label>
                   <TextArea
@@ -1086,7 +1093,6 @@ export default function PhotoManagePage() {
                     placeholder="사진 설명을 입력하세요"
                   />
                 </FormGroup>
-                
                 <ModalButtons>
                   <Button type="button" onClick={() => setShowPhotoUploadModal(false)}>
                     취소
@@ -1099,14 +1105,12 @@ export default function PhotoManagePage() {
             </ModalContent>
           </Modal>
 
-          {/* 폴더 생성 모달 */}
           <Modal show={showFolderCreateModal}>
             <ModalContent>
               <ModalHeader>
                 <ModalTitle>새 폴더 만들기</ModalTitle>
                 <CloseButton onClick={() => setShowFolderCreateModal(false)}>×</CloseButton>
               </ModalHeader>
-              
               <UploadForm onSubmit={createFolder}>
                 <FormGroup>
                   <Label>폴더 이름</Label>
@@ -1118,7 +1122,6 @@ export default function PhotoManagePage() {
                     required
                   />
                 </FormGroup>
-                
                 <FormGroup>
                   <Label>설명</Label>
                   <TextArea
@@ -1127,7 +1130,6 @@ export default function PhotoManagePage() {
                     placeholder="폴더 설명을 입력하세요"
                   />
                 </FormGroup>
-                
                 <FormGroup>
                   <Label>
                     <input
@@ -1138,7 +1140,6 @@ export default function PhotoManagePage() {
                     공개 폴더
                   </Label>
                 </FormGroup>
-                
                 <ModalButtons>
                   <Button type="button" onClick={() => setShowFolderCreateModal(false)}>
                     취소
@@ -1151,29 +1152,22 @@ export default function PhotoManagePage() {
             </ModalContent>
           </Modal>
 
-          {/* 사진 수정 모달 */}
           <Modal show={showEditModal}>
             <ModalContent>
               <ModalHeader>
                 <ModalTitle>사진 수정</ModalTitle>
                 <CloseButton onClick={() => setShowEditModal(false)}>×</CloseButton>
               </ModalHeader>
-              
               <UploadForm onSubmit={updatePhoto}>
                 <FormGroup>
-                  <Label>사진 링크 (Google Drive 링크 지원)</Label>
+                  <Label>사진 링크</Label>
                   <Input
                     type="url"
                     value={photoForm.image_url}
                     onChange={(e) => setPhotoForm(prev => ({ ...prev, image_url: e.target.value }))}
-                    placeholder="https://drive.google.com/file/d/파일ID/view?usp=sharing"
                     required
                   />
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
-                    Google Drive 공유 링크를 붙여넣으면 자동으로 변환됩니다
-                  </div>
                 </FormGroup>
-                
                 <FormGroup>
                   <Label>제목</Label>
                   <Input
@@ -1182,7 +1176,6 @@ export default function PhotoManagePage() {
                     onChange={(e) => setPhotoForm(prev => ({ ...prev, title: e.target.value }))}
                   />
                 </FormGroup>
-                
                 <FormGroup>
                   <Label>설명</Label>
                   <TextArea
@@ -1190,7 +1183,6 @@ export default function PhotoManagePage() {
                     onChange={(e) => setPhotoForm(prev => ({ ...prev, description: e.target.value }))}
                   />
                 </FormGroup>
-                
                 <ModalButtons>
                   <Button type="button" onClick={() => setShowEditModal(false)}>
                     취소

@@ -273,12 +273,6 @@ async function updatePhoto(req: NextApiRequest, res: NextApiResponse) {
 
 // 사진 삭제 (소프트 삭제)
 async function deletePhoto(req: NextApiRequest, res: NextApiResponse) {
-  const { id } = req.query;
-
-  if (!id) {
-    return res.status(400).json({ error: '사진 ID는 필수입니다.' });
-  }
-
   const session = await getServerSession(req, res, authOptions);
   
   if (!session?.user?.id) {
@@ -306,14 +300,33 @@ async function deletePhoto(req: NextApiRequest, res: NextApiResponse) {
     return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
   }
 
-  const { error } = await supabaseClient
-    .from('photos')
-    .update({ is_active: false })
-    .eq('id', id);
+  // --- 다중 삭제 로직 ---
+  const { ids } = req.body;
+  if (ids && Array.isArray(ids) && ids.length > 0) {
+    const { error } = await supabaseClient
+      .from('photos')
+      .update({ is_active: false })
+      .in('id', ids);
 
-  if (error) {
-    return res.status(500).json({ error: '사진 삭제 실패' });
+    if (error) {
+      console.error('다중 사진 삭제 오류:', error);
+      return res.status(500).json({ error: '선택된 사진 삭제에 실패했습니다.' });
+    }
+    return res.status(200).json({ message: `${ids.length}개의 사진이 삭제되었습니다.` });
   }
 
-  return res.status(200).json({ message: '사진이 삭제되었습니다.' });
+  // --- 단일 삭제 로직 ---
+  const { id } = req.query;
+  if (id) {
+    const { error } = await supabaseClient
+      .from('photos')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) {
+      console.error('단일 사진 삭제 오류:', error);
+      return res.status(500).json({ error: '사진 삭제에 실패했습니다.' });
+    }
+    return res.status(200).json({ message: '사진이 삭제되었습니다.' });
+  }
 }
