@@ -160,6 +160,27 @@ const ReservationButton = styled.button`
   }
 `;
 
+const DownloadButton = styled.button`
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #2563eb;
+  }
+
+  &:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+`;
+
 const ReservationModal = styled.div`
   position: fixed;
   top: 0;
@@ -405,6 +426,7 @@ export default function MediaGallery() {
   
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showReservations, setShowReservations] = useState(false);
   const [userReservations, setUserReservations] = useState<any[]>([]);
@@ -572,6 +594,48 @@ export default function MediaGallery() {
     }
   };
 
+  const handleDownload = async (reservation: any) => {
+    if (!reservation?.photos) {
+      console.error('예약된 사진 정보가 없습니다.');
+      return;
+    }
+
+    try {
+      setDownloading(true);
+
+      const photo = reservation.photos;
+      const imgUrl = photo.thumbnail_url || photo.image_url;
+      
+      // 이미지를 fetch로 가져와서 blob으로 다운로드
+      const response = await fetch(imgUrl);
+      if (!response.ok) {
+        throw new Error('이미지를 가져올 수 없습니다.');
+      }
+      
+      const blob = await response.blob();
+      
+      // Blob URL 생성
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // 다운로드 링크 생성
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = photo.title ? `${photo.title}.jpg` : `photo_${photo.id}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Blob URL 정리
+      window.URL.revokeObjectURL(blobUrl);
+      
+    } catch (error) {
+      console.error('다운로드 오류:', error);
+      alert('이미지 다운로드에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) {
     return (
       <GalleryContainer>
@@ -646,6 +710,7 @@ export default function MediaGallery() {
       {showReservations && (
         <ReservationModal onClick={() => setShowReservations(false)}>
           <ReservationContent onClick={(e) => e.stopPropagation()}>
+            {/* 모달 헤더 */}
             <ReservationHeader>
               <ReservationTitle>내 예약 현황</ReservationTitle>
               <CloseButton onClick={() => setShowReservations(false)}>
@@ -667,9 +732,11 @@ export default function MediaGallery() {
                       alt={reservation.photos?.title || '사진'}
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
+                        target.onerror = null;
                         target.src = '/placeholder-image.png';
                       }}
-                    />
+                      />
+                    {/* 예약 정보 */}
                     <ReservationInfo>
                       <ReservationStatus status={reservation.status}>
                         {reservation.status}
@@ -690,9 +757,17 @@ export default function MediaGallery() {
                       </CancelButton>
                     )}
                     {reservation.status === '예약완료' && (
-                      <ExchangeButton onClick={() => showExchangeQR(reservation.id)}>
-                        교환권
-                      </ExchangeButton>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <DownloadButton 
+                          onClick={() => handleDownload(reservation)} 
+                          disabled={downloading}
+                        >
+                          {downloading ? '다운로드 중...' : '다운로드'}
+                        </DownloadButton>
+                        <ExchangeButton onClick={() => showExchangeQR(reservation.id)}>
+                          교환권
+                        </ExchangeButton>
+                      </div>
                     )}
                   </ReservationItem>
                 ))}
@@ -706,7 +781,7 @@ export default function MediaGallery() {
       {showQRModal && (
         <QRModal onClick={() => setShowQRModal(false)}>
           <QRContent onClick={(e) => e.stopPropagation()}>
-            <QRTitle>✨ 교환권</QRTitle>
+            <QRTitle>교환권</QRTitle>
             <QRCodeContainer>
               {currentQRData && (
                 <img src={currentQRData} alt="교환권 QR 코드" style={{ maxWidth: '100%', height: 'auto' }} />

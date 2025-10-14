@@ -62,7 +62,7 @@ const PhotoSubtitle = styled.p`
   opacity: 0.8;
 `;
 
-const ActionButton = styled.button<{ disabled?: boolean }>`
+const ReservationButton = styled.button<{ disabled?: boolean }>`
   width: 100%;
   padding: 16px;
   border: none;
@@ -87,21 +87,10 @@ const ActionButton = styled.button<{ disabled?: boolean }>`
     }
   }
 
-  // 예약한 사진 다운로드 기능
-  &.download {
-    background: #10b981;
-    color: white;
-     &:hover {
-      background: #059669;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    }
-  }
-
   &.reserved {
-    background: #10b981;
-    color: white;
-    cursor: default;
+    background: #374151;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: not-allowed;
   }
 
   &.unavailable {
@@ -111,7 +100,8 @@ const ActionButton = styled.button<{ disabled?: boolean }>`
   }
 
   &:disabled {
-    opacity: 0.7;
+    opacity: 0.8;
+    cursor: not-allowed;
   }
 `;
 
@@ -237,7 +227,6 @@ export default function PhotoDetail() {
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
   const [reserving, setReserving] = useState(false);
   const [isReserved, setIsReserved] = useState(false);
   const [reservationStatus, setReservationStatus] = useState<string | null>(null);
@@ -303,44 +292,6 @@ export default function PhotoDetail() {
       setError('네트워크 오류가 발생했습니다.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDownload = async () => {
-    if (!photo) return;
-
-    try {
-      setDownloading(true);
-      
-      const imgUrl = photo.thumbnail_url || photo.image_url;
-      
-      // 이미지를 fetch로 가져와서 blob으로 다운로드
-      const response = await fetch(imgUrl);
-      if (!response.ok) {
-        throw new Error('이미지를 가져올 수 없습니다.');
-      }
-      
-      const blob = await response.blob();
-      
-      // Blob URL 생성
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      // 다운로드 링크 생성
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = photo.title ? `${photo.title}.jpg` : `photo_${photo.id}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Blob URL 정리
-      window.URL.revokeObjectURL(blobUrl);
-      
-    } catch (error) {
-      console.error('다운로드 오류:', error);
-      alert('이미지 다운로드에 실패했습니다.');
-    } finally {
-      setDownloading(false);
     }
   };
 
@@ -487,20 +438,17 @@ export default function PhotoDetail() {
     });
   };
 
-  // 버튼 내용 결정
-  const handleButtonClick = () => {
-    if (isReserved) {
-      handleDownload();
-    } else if (isAvailable) {
+  const handleReservationButtonClick = () => {
+    if (isAvailable) {
       handleReservation();
     }
     // 예약 불가 상태에서는 버튼이 disabled됨
   };
 
   // 버튼 내용을 상태에 따라 동적으로 결정
-  const getButtonContent = () => {
+  const getReservationButtonContent = () => {
     if (reserving) return "⏳ 예약 중...";
-    if (isReserved) return "📥 사진 다운로드";
+    if (isReserved) return "✨ 예약완료 ✨ 예약 현황에서 확인하세요!";
     if (!isAvailable) {
       return `🚫 이미 ${reservedBy || '다른 분'}이 예약했습니다.`;
     }
@@ -508,12 +456,11 @@ export default function PhotoDetail() {
   };
 
   // 예약 상태에 따른 클래스 이름을 반환하는 함수
-  const getButtonClass = () => {
+  const getReservationButtonClass = () => {
     if (isReserved) return 'reserved';
     if (!isAvailable) return 'unavailable';
     return 'available';
   };
-
 
   if (loading) {
     return <DetailContainer><LoadingContainer><Spinner /><div>로딩 중...</div></LoadingContainer></DetailContainer>;
@@ -572,13 +519,13 @@ export default function PhotoDetail() {
             </DetailValue>
           </DetailRow>
 
-          <ActionButton
+          <ReservationButton
             onClick={handleReservation}
             disabled={reserving || (!isAvailable && !isReserved)}
-            className={getButtonClass()}
+            className={getReservationButtonClass()}
           >
-            {getButtonContent()}
-          </ActionButton>
+            {getReservationButtonContent()}
+          </ReservationButton>
         </ActionPanel>
 
       </PhotoContainer>
