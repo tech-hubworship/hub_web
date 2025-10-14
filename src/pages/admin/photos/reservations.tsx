@@ -340,6 +340,7 @@ export default function PhotoReservations() {
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [stats, setStats] = useState<ReservationStats>({
     total: 0,
     pending: 0,
@@ -374,33 +375,53 @@ export default function PhotoReservations() {
   }, [status, session, router]);
 
   useEffect(() => {
-    loadReservations();
-  }, [statusFilter]);
+    const loadReservations = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const loadReservations = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+        // 필터 없이 항상 전체 데이터를 요청합니다.
+        const response = await fetch('/api/admin/photos/reservations');
+        const data = await response.json();
 
-      const url = statusFilter === 'all' 
-        ? '/api/admin/photos/reservations'
-        : `/api/admin/photos/reservations?status=${statusFilter}`;
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (response.ok) {
-        setReservations(data.reservations || []);
-        setStats(data.stats || stats);
-      } else {
-        setError(data.error || '예약 현황을 불러오는 데 실패했습니다.');
+        if (response.ok) {
+          setReservations(data.reservations || []); // 전체 원본 데이터 저장
+          setFilteredReservations(data.reservations || []); // 처음에는 필터링 없이 전체를 보여줌
+          setStats(data.stats || stats);
+        } else {
+          setError(data.error || '예약 현황을 불러오는데 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('예약 현황 로드 오류:', error);
+        setError('예약 현황을 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('예약 현황 로드 오류:', error);
-      setError('예약 현황을 불러오는 데 실패했습니다.');
-    } finally {
-      setLoading(false);
+    };
+    
+    loadReservations();
+  }, []); // 의존성 배열이 비어있으므로, 컴포넌트가 마운트될 때 한 번만 실행됨
+
+  // 원본 데이터가 변경될 때마다 필터링을 다시 실행
+  useEffect(() => {
+    if (statusFilter === 'all') {
+      setFilteredReservations(reservations); // '전체' 선택 시 원본 데이터를 그대로 보여줌
+    } else {
+      // 선택된 상태에 따라 원본 데이터에서 필터링
+      const filtered = reservations.filter(reservation => reservation.status === statusFilter);
+      setFilteredReservations(filtered);
     }
+  }, [statusFilter, reservations]); // 필터나 원본 데이터가 바뀔 때만 실행됨
+  
+  // 상태 업데이트 후 목록을 새로고침 (예: 예약 상태 변경, QR 처리 후)
+  const refreshData = async () => {
+      // 서버에서 최신 데이터를 다시 가져와 화면 갱신
+      const response = await fetch('/api/admin/photos/reservations');
+      const data = await response.json();
+      if (response.ok) {
+          setReservations(data.reservations || []);
+          setStats(data.stats || stats);
+      }
   };
 
   const updateReservationStatus = async (id: number, newStatus: string) => {
@@ -420,7 +441,7 @@ export default function PhotoReservations() {
 
       if (response.ok) {
         alert(data.message || '예약 상태가 수정되었습니다.');
-        loadReservations(); // 목록 새로고침
+        await refreshData(); // 목록 새로고침
       } else {
         alert(data.error || '상태 수정에 실패했습니다.');
       }
@@ -577,7 +598,7 @@ export default function PhotoReservations() {
       if (response.ok) {
         alert(`${reservation.photos?.title || '사진'}의 수령이 완료되었습니다.`);
         setQrInput('');
-        loadReservations(); // 목록 새로고침
+        await refreshData(); // 목록 새로고침
         stopCamera(); // 카메라 종료
       } else {
         alert(data.error || '수령 완료 처리에 실패했습니다.');
@@ -824,64 +845,66 @@ export default function PhotoReservations() {
       </FilterBar>
 
       <ReservationGrid>
-        {reservations.length === 0 ? (
+        {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>로딩 중...</div>
+        ) : filteredReservations.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
-            예약이 없습니다.
+            {statusFilter === 'all' ? '예약이 없습니다.' : `"${statusFilter}" 상태의 예약이 없습니다.`}
           </div>
         ) : (
-          reservations.map((reservation) => (
-            <ReservationCard key={reservation.id}>
-              <PhotoThumbnail
-                src={reservation.photos.image_url}
-                alt={reservation.photos.title}
-                onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSJyZ2JhKDI0MywgMjQ0LCAyNDYsIDAuNSkiLz4KPHN0eWxlPgp0ZXh0IHsKICBmb250LWZhbWlseTogLWFwcGxlLXN5c3RlbSwgQmxpbmtNYWNTeXN0ZW1Gb250LCAnU2VnIFVJJywgUm9ib3RvLCBzYW5zLXNlcmlmOwogIGZvbnQtc2l6ZTogMTJweDsKICBmaWxsOiByZ2JhKDEwNywgMTE0LCAxMjgsIDAuOCk7Cn0KPC9zdHlsZT4KPHRleHQgeD0iNDAiIHk9IjQ1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7svZzsiqQg7J6I7Iq1PC90ZXh0Pgo8L3N2Zz4K';
-                }}
-              />
-              <ReservationInfo>
-                <StatusBadge status={reservation.status}>
-                  {reservation.status}
-                </StatusBadge>
-                <ReservationTitle>
-                  {reservation.photos.title || '제목 없음'}
-                </ReservationTitle>
+        filteredReservations.map((reservation) => (
+          <ReservationCard key={reservation.id}>
+            <PhotoThumbnail
+              src={reservation.photos.image_url}
+              alt={reservation.photos.title}
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSJyZ2JhKDI0MywgMjQ0LCAyNDYsIDAuNSkiLz4KPHN0eWxlPgp0ZXh0IHsKICBmb250LWZhbWlseTogLWFwcGxlLXN5c3RlbSwgQmxpbmtNYWNTeXN0ZW1Gb250LCAnU2VnIFVJJywgUm9ib3RvLCBzYW5zLXNlcmlmOwogIGZvbnQtc2l6ZTogMTJweDsKICBmaWxsOiByZ2JhKDEwNywgMTE0LCAxMjgsIDAuOCk7Cn0KPC9zdHlsZT4KPHRleHQgeD0iNDAiIHk9IjQ1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7svZzsiqQg7J6I7Iq1PC90ZXh0Pgo8L3N2Zz4K';
+              }}
+            />
+            <ReservationInfo>
+              <StatusBadge status={reservation.status}>
+                {reservation.status}
+              </StatusBadge>
+              <ReservationTitle>
+                {reservation.photos.title || '제목 없음'}
+              </ReservationTitle>
+              <ReservationDetails>
+                📁 {reservation.photos.photo_folders.name}
+              </ReservationDetails>
+              <ReservationDetails>
+                👤 {reservation.user_name || reservation.user_email}
+              </ReservationDetails>
+              <ReservationDetails>
+                📅 {formatDate(reservation.created_at)}
+              </ReservationDetails>
+              {reservation.message && (
                 <ReservationDetails>
-                  📁 {reservation.photos.photo_folders.name}
+                  💬 {reservation.message}
                 </ReservationDetails>
-                <ReservationDetails>
-                  👤 {reservation.user_name || reservation.user_email}
-                </ReservationDetails>
-                <ReservationDetails>
-                  📅 {formatDate(reservation.created_at)}
-                </ReservationDetails>
-                {reservation.message && (
-                  <ReservationDetails>
-                    💬 {reservation.message}
-                  </ReservationDetails>
-                )}
-              </ReservationInfo>
-              <ActionButtons>
-                {reservation.status === '예약중' && (
-                  <>
-                    <ActionButton 
-                      variant="complete"
-                      onClick={() => updateReservationStatus(reservation.id, '예약완료')}
-                    >
-                      완료 처리
-                    </ActionButton>
-                    <ActionButton 
-                      variant="cancel"
-                      onClick={() => updateReservationStatus(reservation.id, '취소됨')}
-                    >
-                      취소 처리
-                    </ActionButton>
-                  </>
-                )}
-              </ActionButtons>
-            </ReservationCard>
-            ))
-          )}
+              )}
+            </ReservationInfo>
+            <ActionButtons>
+              {reservation.status === '예약중' && (
+                <>
+                  <ActionButton 
+                    variant="complete"
+                    onClick={() => updateReservationStatus(reservation.id, '예약완료')}
+                  >
+                    완료 처리
+                  </ActionButton>
+                  <ActionButton 
+                    variant="cancel"
+                    onClick={() => updateReservationStatus(reservation.id, '취소됨')}
+                  >
+                    취소 처리
+                  </ActionButton>
+                </>
+              )}
+            </ActionButtons>
+          </ReservationCard>
+          ))
+        )}
       </ReservationGrid>
 
           </ReservationContainer>
