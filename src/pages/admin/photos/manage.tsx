@@ -26,7 +26,6 @@ const SectionTitle = styled.h3`
   border-bottom: 2px solid #e5e7eb;
 `;
 
-
 const UploadForm = styled.form`
   display: flex;
   flex-direction: column;
@@ -231,6 +230,33 @@ const ModalButtons = styled.div`
   justify-content: flex-end;
 `;
 
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+`;
+
+const StatCard = styled.div`
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+`;
+
+const StatValue = styled.div`
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 8px;
+`;
+
+const StatLabel = styled.div`
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+`;
 
 interface Folder {
   id: number;
@@ -293,6 +319,7 @@ export default function PhotoManagePage() {
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [stats, setStats] = useState({ photoCount: 0, folderCount: 0 });
   
   // 모달 상태
   const [showFolderCreateModal, setShowFolderCreateModal] = useState(false);
@@ -346,6 +373,22 @@ export default function PhotoManagePage() {
     }
   }, [selectedFolder]);
 
+  // 통계 로드
+  useEffect(() => {
+    const fetchStats = async () => {
+        try {
+            const response = await fetch('/api/admin/photos/stats');
+            const data = await response.json();
+            if (response.ok) {
+                setStats(data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch stats:', error);
+        }
+    };
+    fetchStats();
+  }, []);
+
   const loadFolders = async () => {
     setLoading(true);
     try {
@@ -381,7 +424,6 @@ export default function PhotoManagePage() {
       setLoading(false);
     }
   };
-
 
   const createFolder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -733,6 +775,16 @@ export default function PhotoManagePage() {
             width: '100%', 
             padding: '0 24px'
           }}>
+            <StatsGrid>
+                <StatCard>
+                    <StatValue>{stats.photoCount}</StatValue>
+                    <StatLabel>총 사진 수</StatLabel>
+                </StatCard>
+                <StatCard>
+                    <StatValue>{stats.folderCount}</StatValue>
+                    <StatLabel>총 폴더 수</StatLabel>
+                </StatCard>
+            </StatsGrid>
               {/* 헤더 영역 */}
               <div style={{ 
                 display: 'flex', 

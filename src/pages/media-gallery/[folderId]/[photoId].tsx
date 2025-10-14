@@ -62,38 +62,6 @@ const PhotoSubtitle = styled.p`
   opacity: 0.8;
 `;
 
-// const DownloadButton = styled.button`
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-//   width: 75px;
-//   height: 75px;
-//   background: rgba(255, 255, 255, 0.2);
-//   backdrop-filter: blur(20px);
-//   border: 1px solid rgba(255, 255, 255, 0.3);
-//   border-radius: 50%;
-//   color: #667eea;
-//   font-size: 35px;
-//   cursor: pointer;
-//   transition: all 0.3s ease;
-
-//   &:hover {
-//     background: white;
-//     transform: translateY(-2px) scale(1.1);
-//     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-//   }
-
-//   &:active {
-//     transform: translateY(0) scale(1.05);
-//   }
-
-//   &:disabled {
-//     opacity: 0.5;
-//     cursor: not-allowed;
-//     transform: none;
-//   }
-// `;
-
 const ActionButton = styled.button<{ disabled?: boolean }>`
   width: 100%;
   padding: 16px;
