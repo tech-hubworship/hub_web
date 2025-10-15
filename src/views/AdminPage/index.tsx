@@ -9,7 +9,9 @@ import { useEffect, useState } from 'react';
 export default function AdminPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // PC에서는 기본적으로 표시
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(
+        typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+    );
 
     useEffect(() => {
         // 인증되지 않았거나, 관리자가 아닌 경우 메인 페이지로 리디렉션합니다.

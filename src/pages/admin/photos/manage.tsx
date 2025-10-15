@@ -310,10 +310,12 @@ interface Folder {
   description?: string;
   is_public: boolean;
   order_index: number;
+  parent_id?: number | null;
   created_by: string;
   created_at: string;
   updated_at: string;
   photo_count?: number;
+  subfolder_count?: number;
 }
 
 interface Photo {
@@ -357,10 +359,13 @@ interface PhotoForm {
 export default function PhotoManagePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+  );
 
   // 상태 관리
-  const [folders, setFolders] = useState<Folder[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]); // 루트 폴더들
+  const [subfolders, setSubfolders] = useState<Folder[]>([]); // 선택된 폴더의 하위 폴더들
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [selectedPhotos, setSelectedPhotos] = useState<number[]>([]);
@@ -412,11 +417,14 @@ export default function PhotoManagePage() {
     loadFolders();
   }, []);
 
-  // 선택된 폴더 변경 시 사진 로드
+  // 선택된 폴더 변경 시 사진과 하위 폴더 로드
   useEffect(() => {
     if (selectedFolder) {
       loadPhotos(selectedFolder.id);
+      loadSubfolders(selectedFolder.id);
       setPhotoForm(prev => ({ ...prev, folder_id: selectedFolder.id }));
+    } else {
+      setSubfolders([]);
     }
   }, [selectedFolder]);
 
@@ -436,10 +444,14 @@ export default function PhotoManagePage() {
     fetchStats();
   }, []);
 
-  const loadFolders = async () => {
+  const loadFolders = async (parentId: number | null = null) => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/photos/folders');
+      const url = parentId 
+        ? `/api/admin/photos/folders?parent_id=${parentId}`
+        : '/api/admin/photos/folders?parent_id=null';
+      
+      const response = await fetch(url);
       const data = await response.json();
       if (response.ok) {
         setFolders(data.folders || []);
@@ -470,6 +482,23 @@ export default function PhotoManagePage() {
       alert('사진을 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 하위 폴더 로드
+  const loadSubfolders = async (folderId: number) => {
+    try {
+      const response = await fetch(`/api/admin/photos/folders?parent_id=${folderId}`);
+      const data = await response.json();
+      if (response.ok) {
+        setSubfolders(data.folders || []);
+      } else {
+        console.error('하위 폴더 로드 실패:', data.error);
+        setSubfolders([]);
+      }
+    } catch (error) {
+      console.error('하위 폴더 로드 오류:', error);
+      setSubfolders([]);
     }
   };
 
@@ -529,12 +558,18 @@ export default function PhotoManagePage() {
 
     setLoading(true);
     try {
+      // 하위 폴더 생성 시 parent_id 포함
+      const folderData = {
+        ...folderForm,
+        parent_id: selectedFolder ? selectedFolder.id : null
+      };
+
       const response = await fetch('/api/admin/photos/folders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(folderForm),
+        body: JSON.stringify(folderData),
       });
 
       const data = await response.json();
@@ -542,7 +577,12 @@ export default function PhotoManagePage() {
         setFolderForm({ name: '', description: '', is_public: true });
         loadFolders();
         setShowFolderCreateModal(false);
-        alert('폴더가 생성되었습니다.');
+        
+        if (selectedFolder) {
+          alert('하위 폴더가 생성되었습니다.');
+        } else {
+          alert('폴더가 생성되었습니다.');
+        }
       } else {
         alert('폴더 생성 실패: ' + data.error);
       }
@@ -895,6 +935,16 @@ export default function PhotoManagePage() {
                 {selectedFolder ? (
                   <div style={{ display: 'flex', gap: '12px' }}>
                     <Button 
+                      variant="secondary" 
+                      onClick={() => {
+                        setFolderForm({ name: '', description: '', is_public: true });
+                        setShowFolderCreateModal(true);
+                      }}
+                      style={{ fontSize: '14px', padding: '8px 16px' }}
+                    >
+                      📁 폴더 만들기
+                    </Button>
+                    <Button 
                       variant="danger" 
                       onClick={() => deleteFolder(selectedFolder.id)}
                       style={{ fontSize: '14px', padding: '8px 16px' }}
@@ -949,14 +999,93 @@ export default function PhotoManagePage() {
                   <div>로딩 중...</div>
                 </EmptyState>
               ) : selectedFolder ? (
-                photos.length === 0 ? (
-                  <EmptyState>
-                    <div style={{ fontSize: '14px', marginTop: '8px' }}>
-                      이 폴더에 사진이 없습니다.
+                <>
+                  {/* 폴더 표시 */}
+                  {subfolders.length > 0 && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <h4 style={{ 
+                        fontSize: '16px', 
+                        fontWeight: '600', 
+                        color: '#1f2937', 
+                        marginBottom: '12px',
+                        paddingBottom: '8px',
+                        borderBottom: '1px solid #e5e7eb'
+                      }}>
+                        📁 폴더
+                      </h4>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                        gap: '16px',
+                        padding: '16px',
+                        background: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px'
+                      }}>
+                        {subfolders.map((subfolder) => (
+                          <div
+                            key={subfolder.id}
+                            onClick={() => setSelectedFolder(subfolder)}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              padding: '20px 16px',
+                              background: '#f8fafc',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              position: 'relative',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = '#3b82f6';
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.15)';
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.background = '#f0f9ff';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = '#e5e7eb';
+                              e.currentTarget.style.boxShadow = 'none';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.background = '#f8fafc';
+                            }}
+                          >
+                            <div style={{ fontSize: '36px', marginBottom: '12px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>
+                              📁
+                            </div>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', textAlign: 'center', lineHeight: '1.3', marginBottom: '6px' }}>
+                              {subfolder.name}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#6b7280', background: '#e5e7eb', padding: '2px 8px', borderRadius: '12px', fontWeight: '500' }}>
+                              📷 {subfolder.photo_count || 0}개 사진
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </EmptyState>
-                ) : (
-                  <PhotoGrid>
+                  )}
+
+                  {/* 사진 표시 */}
+                  {photos.length === 0 && subfolders.length === 0 ? (
+                    <EmptyState>
+                      <div style={{ fontSize: '14px', marginTop: '8px' }}>
+                        이 폴더에 사진과 하위 폴더가 없습니다.
+                      </div>
+                    </EmptyState>
+                  ) : photos.length > 0 ? (
+                    <>
+                      <h4 style={{ 
+                        fontSize: '16px', 
+                        fontWeight: '600', 
+                        color: '#1f2937', 
+                        marginBottom: '12px',
+                        paddingBottom: '8px',
+                        borderBottom: '1px solid #e5e7eb'
+                      }}>
+                        📷 사진
+                      </h4>
+                      <PhotoGrid>
                     {photos.map((photo) => {
                       const isSelected = selectedPhotos.includes(photo.id);
                       return (
@@ -994,8 +1123,10 @@ export default function PhotoManagePage() {
                         </PhotoItem>
                       )
                     })}
-                  </PhotoGrid>
-                )
+                      </PhotoGrid>
+                    </>
+                  ) : null}
+                </>
               ) : (
                 folders.length === 0 ? (
                   <EmptyState>
@@ -1049,8 +1180,20 @@ export default function PhotoManagePage() {
                         <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', textAlign: 'center', lineHeight: '1.3', marginBottom: '6px' }}>
                           {folder.name}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#6b7280', background: '#e5e7eb', padding: '2px 8px', borderRadius: '12px', fontWeight: '500' }}>
-                          {folder.photo_count || 0}개 사진
+                        <div style={{ 
+                          display: 'flex', 
+                          gap: '6px', 
+                          fontSize: '11px', 
+                          color: '#6b7280' 
+                        }}>
+                          <div style={{ background: '#e5e7eb', padding: '2px 8px', borderRadius: '12px', fontWeight: '500' }}>
+                            📷 {folder.photo_count || 0}
+                          </div>
+                          {(folder.subfolder_count || 0) > 0 && (
+                            <div style={{ background: '#dbeafe', padding: '2px 8px', borderRadius: '12px', fontWeight: '500', color: '#1e40af' }}>
+                              📁 {folder.subfolder_count}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1108,7 +1251,9 @@ export default function PhotoManagePage() {
           <Modal show={showFolderCreateModal}>
             <ModalContent>
               <ModalHeader>
-                <ModalTitle>새 폴더 만들기</ModalTitle>
+                <ModalTitle>
+                  {selectedFolder ? `📁 "${selectedFolder.name}"에 폴더 만들기` : '📁 새 폴더 만들기'}
+                </ModalTitle>
                 <CloseButton onClick={() => setShowFolderCreateModal(false)}>×</CloseButton>
               </ModalHeader>
               <UploadForm onSubmit={createFolder}>

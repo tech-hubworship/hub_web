@@ -88,9 +88,13 @@ const ReservationButton = styled.button<{ disabled?: boolean }>`
   }
 
   &.reserved {
-    background: #374151;
-    color: rgba(255, 255, 255, 0.8);
-    cursor: not-allowed;
+    background: #ef4444;
+    color: white;
+    &:hover {
+      background: #dc2626;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+    }
   }
 
   &.unavailable {
@@ -358,6 +362,40 @@ export default function PhotoDetail() {
   };
 
   // 사진 예약
+  const handleDownload = async () => {
+    if (!photo) return;
+
+    try {
+      const imgUrl = photo.image_url;
+      
+      // 이미지를 fetch로 가져와서 blob으로 다운로드
+      const response = await fetch(imgUrl);
+      if (!response.ok) {
+        throw new Error('이미지를 가져올 수 없습니다.');
+      }
+      
+      const blob = await response.blob();
+      
+      // Blob URL 생성
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // 다운로드 링크 생성
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = photo.title ? `${photo.title}.jpg` : `photo_${photo.id}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Blob URL 정리
+      window.URL.revokeObjectURL(blobUrl);
+      
+    } catch (error) {
+      console.error('다운로드 오류:', error);
+      alert('이미지 다운로드에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  };
+
   const handleReservation = async () => {
     if (!photo) return;
 
@@ -508,24 +546,24 @@ export default function PhotoDetail() {
         </PhotoWrapper>
 
         <ActionPanel>
-          <DetailRow>
-            <DetailLabel>업로드</DetailLabel>
-            <DetailValue>{formatDate(photo.created_at)}</DetailValue>
-          </DetailRow>
-          <DetailRow>
-            <DetailLabel>예약 상태</DetailLabel>
-            <DetailValue>
-              {isReserved ? `✅ ${reservationStatus}` : isAvailable ? '📌 예약 가능' : `🚫 ${reservedBy ? `${reservedBy}님이 예약함` : '예약 불가'}`}
-            </DetailValue>
-          </DetailRow>
-
-          <ReservationButton
-            onClick={handleReservation}
-            disabled={reserving || (!isAvailable && !isReserved)}
-            className={getReservationButtonClass()}
-          >
-            {getReservationButtonContent()}
-          </ReservationButton>
+          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+            <ReservationButton
+              onClick={handleDownload}
+              className="available"
+              style={{ flex: 1 }}
+            >
+              다운로드
+            </ReservationButton>
+            
+            <ReservationButton
+              onClick={handleReservation}
+              disabled={reserving || (!isAvailable && !isReserved)}
+              className={getReservationButtonClass()}
+              style={{ flex: 1 }}
+            >
+              {isReserved ? '예약취소' : isAvailable ? '예약가능' : '예약마감'}
+            </ReservationButton>
+          </div>
         </ActionPanel>
 
       </PhotoContainer>

@@ -43,27 +43,7 @@ const ReservationContainer = styled.div`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 `;
 
-const QRScanner = styled.div`
-  margin-top: 24px;
-  padding: 24px;
-  background: #f8fafc;
-  border-radius: 16px;
-  border: 2px dashed #d1d5db;
-`;
-
-const QRInput = styled.textarea`
-  width: 100%;
-  height: 120px;
-  padding: 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
-  resize: none;
-  margin-bottom: 16px;
-  font-family: monospace;
-`;
-
-const ScanButton = styled.button`
+const QRButton = styled.button`
   padding: 12px 24px;
   background: #10b981;
   color: white;
@@ -73,6 +53,9 @@ const ScanButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 
   &:hover {
     background: #059669;
@@ -84,18 +67,101 @@ const ScanButton = styled.button`
   }
 `;
 
-const ScannerTitle = styled.h4`
-  margin: 0 0 16px 0;
-  color: #1f2937;
-  font-size: 16px;
-  font-weight: 600;
+const QRModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
-const ScannerDescription = styled.p`
+const QRModal = styled.div`
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+`;
+
+const QRModalTitle = styled.h3`
   margin: 0 0 16px 0;
+  color: #1f2937;
+  font-size: 20px;
+  font-weight: 700;
+`;
+
+const QRModalDescription = styled.p`
+  margin: 0 0 24px 0;
   color: #6b7280;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
+`;
+
+const QRInput = styled.textarea`
+  width: 100%;
+  height: 120px;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  font-family: monospace;
+  margin-bottom: 16px;
+
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+  }
+`;
+
+const QRModalButtons = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+`;
+
+const QRModalButton = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  ${props => {
+    if (props.variant === 'primary') {
+      return `
+        background: #10b981;
+        color: white;
+        &:hover { background: #059669; }
+      `;
+    }
+    if (props.variant === 'danger') {
+      return `
+        background: #ef4444;
+        color: white;
+        &:hover { background: #dc2626; }
+      `;
+    }
+    return `
+      background: #f3f4f6;
+      color: #374151;
+      &:hover { background: #e5e7eb; }
+    `;
+  }}
+  
+  &:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
 `;
 
 const CameraContainer = styled.div`
@@ -127,6 +193,7 @@ const CameraControls = styled.div`
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 16px;
 `;
 
@@ -210,6 +277,7 @@ const FilterBar = styled.div`
   gap: 12px;
   margin-bottom: 24px;
   align-items: center;
+  flex-wrap: wrap;
 `;
 
 const FilterSelect = styled.select`
@@ -218,6 +286,25 @@ const FilterSelect = styled.select`
   border-radius: 8px;
   font-size: 14px;
   background: white;
+`;
+
+const SearchInput = styled.input`
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  flex: 1;
+  min-width: 250px;
+  
+  &::placeholder {
+    color: #9ca3af;
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+  }
 `;
 
 const ReservationGrid = styled.div`
@@ -338,7 +425,9 @@ const ErrorMessage = styled.div`
 export default function PhotoReservations() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+  );
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [stats, setStats] = useState<ReservationStats>({
@@ -351,6 +440,8 @@ export default function PhotoReservations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showQRModal, setShowQRModal] = useState(false);
   const [qrInput, setQrInput] = useState<string>('');
   const [scanning, setScanning] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -404,14 +495,24 @@ export default function PhotoReservations() {
 
   // 원본 데이터가 변경될 때마다 필터링을 다시 실행
   useEffect(() => {
-    if (statusFilter === 'all') {
-      setFilteredReservations(reservations); // '전체' 선택 시 원본 데이터를 그대로 보여줌
-    } else {
-      // 선택된 상태에 따라 원본 데이터에서 필터링
-      const filtered = reservations.filter(reservation => reservation.status === statusFilter);
-      setFilteredReservations(filtered);
+    let filtered = reservations;
+    
+    // 상태 필터 적용
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(reservation => reservation.status === statusFilter);
     }
-  }, [statusFilter, reservations]); // 필터나 원본 데이터가 바뀔 때만 실행됨
+    
+    // 검색어 필터 적용 (이름 또는 이메일)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(reservation => 
+        reservation.user_name?.toLowerCase().includes(query) || 
+        reservation.user_email?.toLowerCase().includes(query)
+      );
+    }
+    
+    setFilteredReservations(filtered);
+  }, [statusFilter, searchQuery, reservations]); // 필터, 검색어, 원본 데이터가 바뀔 때만 실행됨
   
   // 상태 업데이트 후 목록을 새로고침 (예: 예약 상태 변경, QR 처리 후)
   const refreshData = async () => {
@@ -464,6 +565,16 @@ export default function PhotoReservations() {
   // 카메라 시작
   const startCamera = async () => {
     try {
+      setShowQRModal(false); // 모달 먼저 닫기
+      setShowCamera(true); // 카메라 화면 표시
+      
+      // 비디오 엘리먼트가 준비될 때까지 잠시 대기
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      if (!videoRef.current) {
+        throw new Error('비디오 엘리먼트를 찾을 수 없습니다.');
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: { ideal: 'environment' }, // 후면 카메라 우선
@@ -473,58 +584,69 @@ export default function PhotoReservations() {
       });
       
       setCameraStream(stream);
-      setShowCamera(true);
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        
-        // QR 코드 리더 초기화
-        const reader = new BrowserQRCodeReader();
-        setQrReader(reader);
-        
-        // QR 코드 스캔 시작
-        startQRScanning(reader, videoRef.current);
-      }
-    } catch (error) {
+      console.log('카메라 스트림 시작됨');
+      
+      // QR 코드 리더 초기화
+      const reader = new BrowserQRCodeReader();
+      setQrReader(reader);
+      
+      // QR 코드 스캔 시작
+      await startQRScanning(reader);
+    } catch (error: any) {
       console.error('카메라 시작 오류:', error);
-      alert('카메라에 접근할 수 없습니다. 브라우저 권한을 확인해주세요.');
+      
+      // 카메라 화면 닫기
+      setShowCamera(false);
+      setShowQRModal(true); // 모달 다시 열기
+      
+      let errorMessage = '카메라에 접근할 수 없습니다.\n\n';
+      
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMessage += '카메라 권한이 거부되었습니다.\n\n';
+        errorMessage += '해결 방법:\n';
+        errorMessage += '1. 브라우저 주소창의 🔒 또는 🛈 아이콘을 클릭\n';
+        errorMessage += '2. 카메라 권한을 "허용"으로 변경\n';
+        errorMessage += '3. 페이지를 새로고침\n\n';
+        errorMessage += '또는 아래에서 QR 데이터를 직접 입력할 수 있습니다.';
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        errorMessage += '카메라를 찾을 수 없습니다.\n카메라가 연결되어 있는지 확인해주세요.';
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        errorMessage += '카메라가 다른 프로그램에서 사용 중입니다.\n다른 앱을 종료하고 다시 시도해주세요.';
+      } else {
+        errorMessage += '알 수 없는 오류가 발생했습니다.\n다시 시도하거나 QR 데이터를 직접 입력해주세요.';
+      }
+      
+      alert(errorMessage);
     }
   };
 
-  // QR 코드 스캔 시작
-  const startQRScanning = async (reader: BrowserQRCodeReader, video: HTMLVideoElement) => {
+  // QR 코드 스캔 시작 (자동 스캔)
+  const startQRScanning = async (reader: BrowserQRCodeReader) => {
     try {
-      const videoInputDevices = await reader.listVideoInputDevices();
-      
-      if (videoInputDevices.length === 0) {
-        alert('사용 가능한 카메라가 없습니다.');
+      if (!videoRef.current) {
+        console.error('비디오 엘리먼트가 없습니다.');
         return;
       }
 
-      // 후면 카메라 찾기
-      const backCamera = videoInputDevices.find(device => 
-        device.label.toLowerCase().includes('back') || 
-        device.label.toLowerCase().includes('rear') ||
-        device.label.toLowerCase().includes('environment')
-      );
-
-      const selectedDeviceId = backCamera?.deviceId || videoInputDevices[0].deviceId;
-
-      // QR 코드 스캔 시작
-      reader.decodeFromVideoDevice(selectedDeviceId, video, (result, error) => {
+      console.log('QR 스캔 시작...');
+      
+      // 연속 스캔 시작 - 자동으로 QR 코드 감지
+      reader.decodeFromVideoElement(videoRef.current, (result, error) => {
         if (result) {
           const qrText = result.getText();
-          console.log('QR 코드 스캔 성공:', qrText);
+          console.log('QR 코드 자동 스캔 성공:', qrText);
           
           // QR 코드 스캔 중지
           reader.reset();
-          stopCamera();
           
           // QR 코드 처리
           processQRCode(qrText);
         }
         
+        // NotFoundException은 정상 (아직 QR 코드를 못 찾은 것)
         if (error && error.name !== 'NotFoundException') {
           console.error('QR 스캔 오류:', error);
         }
@@ -532,11 +654,12 @@ export default function PhotoReservations() {
     } catch (error) {
       console.error('QR 스캔 시작 오류:', error);
       alert('QR 스캔을 시작할 수 없습니다.');
+      stopCamera(true);
     }
   };
 
   // 카메라 종료
-  const stopCamera = () => {
+  const stopCamera = (returnToModal = false) => {
     if (qrReader) {
       qrReader.reset();
       setQrReader(null);
@@ -547,6 +670,11 @@ export default function PhotoReservations() {
       setCameraStream(null);
     }
     setShowCamera(false);
+    
+    // 모달로 돌아갈지 여부
+    if (returnToModal) {
+      setShowQRModal(true);
+    }
   };
 
   // QR 코드 스캔 및 수령 완료 처리
@@ -597,9 +725,10 @@ export default function PhotoReservations() {
 
       if (response.ok) {
         alert(`${reservation.photos?.title || '사진'}의 수령이 완료되었습니다.`);
-        setQrInput('');
         await refreshData(); // 목록 새로고침
         stopCamera(); // 카메라 종료
+        setShowQRModal(false); // 모달 닫기
+        setQrInput(''); // 입력 초기화
       } else {
         alert(data.error || '수령 완료 처리에 실패했습니다.');
       }
@@ -612,7 +741,7 @@ export default function PhotoReservations() {
   };
 
   // 수동 입력으로 QR 코드 처리
-  const scanQRCode = async () => {
+  const handleManualQRInput = async () => {
     if (!qrInput.trim()) {
       alert('QR 코드 데이터를 입력해주세요.');
       return;
@@ -620,28 +749,6 @@ export default function PhotoReservations() {
     await processQRCode(qrInput.trim());
   };
 
-  // 수동 스캔 버튼 (카메라가 QR 코드를 인식하지 못할 때 사용)
-  const scanFromCamera = () => {
-    if (!qrReader) {
-      alert('QR 스캐너가 초기화되지 않았습니다.');
-      return;
-    }
-    
-    // 수동으로 한 번 더 스캔 시도
-    if (videoRef.current) {
-      qrReader.decodeFromVideoElement(videoRef.current)
-        .then(result => {
-          const qrText = result.getText();
-          console.log('수동 QR 스캔 성공:', qrText);
-          stopCamera();
-          processQRCode(qrText);
-        })
-        .catch(error => {
-          console.error('수동 QR 스캔 오류:', error);
-          alert('QR 코드를 인식할 수 없습니다. 다시 시도해주세요.');
-        });
-    }
-  };
 
   // 컴포넌트 언마운트 시 카메라 정리
   useEffect(() => {
@@ -782,34 +889,71 @@ export default function PhotoReservations() {
         </StatCard>
       </StatsGrid>
 
-      {/* QR 코드 스캐너 */}
-      <QRScanner>
-        <ScannerTitle>📱 QR 코드 스캐너</ScannerTitle>
-        <ScannerDescription>
-          사용자가 보여주는 교환권 QR 코드를 스캔하여 수령 완료 처리를 진행합니다.
-          <br />
-          카메라를 사용하거나 QR 스캐너 앱으로 스캔한 데이터를 입력하세요.
-        </ScannerDescription>
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-          <ScanButton onClick={startCamera} disabled={scanning}>
-            📷 카메라로 스캔
-          </ScanButton>
-        </div>
-        <QRInput
-          placeholder="QR 코드를 스캔하여 여기에 붙여넣으세요..."
-          value={qrInput}
-          onChange={(e) => setQrInput(e.target.value)}
-        />
-        <ScanButton onClick={scanQRCode} disabled={scanning}>
-          {scanning ? '처리 중...' : '수령 완료 처리'}
-        </ScanButton>
-      </QRScanner>
+      <div style={{ marginBottom: 24 }}>
+        <QRButton onClick={() => setShowQRModal(true)} disabled={scanning}>
+          📷 QR 수령
+        </QRButton>
+      </div>
+
+      {/* QR 수령 모달 */}
+      {showQRModal && (
+        <QRModalOverlay onClick={() => setShowQRModal(false)}>
+          <QRModal onClick={(e) => e.stopPropagation()}>
+            <QRModalTitle>QR 수령 처리</QRModalTitle>
+            <QRModalDescription>
+              사용자가 보여주는 교환권 QR 코드를 스캔하거나, QR 데이터를 직접 입력하여 수령 완료 처리를 진행합니다.
+            </QRModalDescription>
+            
+            <div style={{ marginBottom: 16 }}>
+              <QRModalButton 
+                variant="primary" 
+                onClick={startCamera}
+                disabled={scanning}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                📷 카메라로 스캔
+              </QRModalButton>
+            </div>
+
+            <div style={{ 
+              borderTop: '1px solid #e5e7eb', 
+              paddingTop: 16, 
+              marginTop: 16,
+              marginBottom: 16 
+            }}>
+              <div style={{ color: '#6b7280', fontSize: 12, marginBottom: 12, textAlign: 'center' }}>
+                또는 QR 데이터를 직접 입력
+              </div>
+              <QRInput
+                placeholder='QR 코드 스캔 데이터를 붙여넣으세요...'
+                value={qrInput}
+                onChange={(e) => setQrInput(e.target.value)}
+              />
+            </div>
+
+            <QRModalButtons>
+              <QRModalButton onClick={() => setShowQRModal(false)}>
+                취소
+              </QRModalButton>
+              <QRModalButton 
+                variant="primary" 
+                onClick={handleManualQRInput}
+                disabled={scanning || !qrInput.trim()}
+              >
+                {scanning ? '처리 중...' : '수령 완료 처리'}
+              </QRModalButton>
+            </QRModalButtons>
+          </QRModal>
+        </QRModalOverlay>
+      )}
 
       {/* 카메라 모달 */}
       {showCamera && (
         <CameraContainer>
           <ScanGuide>
             QR 코드를 스캔 영역에 맞춰주세요
+            <br />
+            <span style={{ fontSize: 14, opacity: 0.8 }}>자동으로 인식됩니다</span>
           </ScanGuide>
           <CameraVideo
             ref={videoRef}
@@ -819,11 +963,8 @@ export default function PhotoReservations() {
           />
           <ScanOverlay />
           <CameraControls>
-            <CameraButton onClick={stopCamera} variant="danger">
-              취소
-            </CameraButton>
-            <CameraButton onClick={scanFromCamera} disabled={scanning}>
-              {scanning ? '스캔 중...' : '스캔'}
+            <CameraButton onClick={() => stopCamera(true)} variant="danger">
+              닫기
             </CameraButton>
           </CameraControls>
         </CameraContainer>
@@ -842,6 +983,12 @@ export default function PhotoReservations() {
           <option value="수령완료">수령완료</option>
           <option value="취소됨">취소됨</option>
         </FilterSelect>
+        <SearchInput
+          type="text"
+          placeholder="이름 또는 이메일로 검색..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </FilterBar>
 
       <ReservationGrid>
@@ -900,6 +1047,14 @@ export default function PhotoReservations() {
                     취소 처리
                   </ActionButton>
                 </>
+              )}
+              {reservation.status === '예약완료' && (
+                <ActionButton 
+                  variant="complete"
+                  onClick={() => updateReservationStatus(reservation.id, '수령완료')}
+                >
+                  수령완료
+                </ActionButton>
               )}
             </ActionButtons>
           </ReservationCard>

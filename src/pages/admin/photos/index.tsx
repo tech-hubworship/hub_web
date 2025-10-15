@@ -16,7 +16,9 @@ import { useEffect, useState } from 'react';
 export default function PhotosDashboard() {
     const { data: session, status } = useSession();
     const router = useRouter();
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(
+        typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+    );
 
     useEffect(() => {
         // 인증되지 않았거나, 사진팀 권한이 없는 경우 메인 페이지로 리디렉션

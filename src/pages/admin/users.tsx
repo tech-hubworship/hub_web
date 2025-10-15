@@ -10,7 +10,9 @@ import Link from 'next/link';
 export default function AdminUsersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+  );
 
   useEffect(() => {
     if (status === 'authenticated') {

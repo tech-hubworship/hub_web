@@ -36,9 +36,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-// 폴더 목록 조회
+// 폴더 목록 조회 (계층 구조 지원)
 async function getFolders(req: NextApiRequest, res: NextApiResponse) {
-  const { data, error } = await supabaseClient
+  const { parent_id } = req.query;
+  
+  // parent_id 파라미터에 따라 쿼리 분기
+  let query = supabaseClient
     .from('photo_folders')
     .select(`
       id,
@@ -46,27 +49,48 @@ async function getFolders(req: NextApiRequest, res: NextApiResponse) {
       description,
       is_public,
       order_index,
-      created_at
+      parent_id,
+      created_by,
+      created_at,
+      updated_at
     `)
     .order('order_index', { ascending: true })
     .order('created_at', { ascending: false });
 
+  // parent_id가 지정되면 해당 폴더의 하위 폴더만 조회
+  if (parent_id === 'null' || parent_id === undefined) {
+    query = query.is('parent_id', null);
+  } else if (parent_id) {
+    query = query.eq('parent_id', parseInt(parent_id as string));
+  }
+
+  const { data, error } = await query;
+
   if (error) {
+    console.error('폴더 조회 실패:', error);
     return res.status(500).json({ error: '폴더 조회 실패' });
   }
 
-  // 각 폴더별로 활성 사진 수 계산
+  // 각 폴더별로 활성 사진 수와 하위 폴더 수 계산
   const foldersWithCount = await Promise.all(
     (data || []).map(async (folder) => {
-      const { count } = await supabaseClient
+      // 사진 수 계산
+      const { count: photoCount } = await supabaseClient
         .from('photos')
         .select('*', { count: 'exact', head: true })
         .eq('folder_id', folder.id)
         .eq('is_active', true);
 
+      // 하위 폴더 수 계산
+      const { count: subfolderCount } = await supabaseClient
+        .from('photo_folders')
+        .select('*', { count: 'exact', head: true })
+        .eq('parent_id', folder.id);
+
       return {
         ...folder,
-        photo_count: count || 0
+        photo_count: photoCount || 0,
+        subfolder_count: subfolderCount || 0
       };
     })
   );
@@ -76,7 +100,7 @@ async function getFolders(req: NextApiRequest, res: NextApiResponse) {
 
 // 폴더 생성
 async function createFolder(req: NextApiRequest, res: NextApiResponse) {
-  const { name, description, is_public = true, order_index = 0 } = req.body;
+  const { name, description, is_public = true, order_index = 0, parent_id = null } = req.body;
 
   console.log('Create folder request body:', { name, description, is_public, order_index });
 
@@ -133,11 +157,30 @@ async function createFolder(req: NextApiRequest, res: NextApiResponse) {
 
   console.log('Admin access granted - isAdmin:', isAdmin, 'hasRole:', hasRole);
 
+  // parent_id가 있으면 깊이 확인
+  if (parent_id) {
+    const { data: parentFolder } = await supabaseClient
+      .from('photo_folders')
+      .select('id, parent_id')
+      .eq('id', parent_id)
+      .single();
+
+    if (!parentFolder) {
+      return res.status(400).json({ error: '상위 폴더를 찾을 수 없습니다.' });
+    }
+
+    // 부모 폴더가 이미 하위 폴더인 경우 (2뎁스 제한)
+    if (parentFolder.parent_id !== null) {
+      return res.status(400).json({ error: '폴더는 최대 2뎁스까지만 생성할 수 있습니다.' });
+    }
+  }
+
   console.log('Creating folder with data:', {
     name: name.trim(),
     description: description?.trim() || null,
     is_public,
     order_index,
+    parent_id,
     created_by: session.user.id
   });
 
@@ -148,6 +191,7 @@ async function createFolder(req: NextApiRequest, res: NextApiResponse) {
       description: description?.trim() || null,
       is_public,
       order_index,
+      parent_id,
       created_by: session.user.id
     })
     .select()
@@ -257,15 +301,27 @@ async function deleteFolder(req: NextApiRequest, res: NextApiResponse) {
   }
 
   // 폴더 내 사진 수 확인
-  const { count } = await supabaseClient
+  const { count: photoCount } = await supabaseClient
     .from('photos')
     .select('*', { count: 'exact', head: true })
     .eq('folder_id', id)
     .eq('is_active', true);
 
-  if (count && count > 0) {
+  if (photoCount && photoCount > 0) {
     return res.status(400).json({ 
-      error: `폴더에 ${count}개의 사진이 있어 삭제할 수 없습니다.` 
+      error: `폴더에 ${photoCount}개의 사진이 있어 삭제할 수 없습니다.` 
+    });
+  }
+
+  // 하위 폴더 확인
+  const { count: subfolderCount } = await supabaseClient
+    .from('photo_folders')
+    .select('*', { count: 'exact', head: true })
+    .eq('parent_id', id);
+
+  if (subfolderCount && subfolderCount > 0) {
+    return res.status(400).json({ 
+      error: `폴더에 ${subfolderCount}개의 하위 폴더가 있어 삭제할 수 없습니다.` 
     });
   }
 

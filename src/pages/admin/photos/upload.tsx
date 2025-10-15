@@ -208,7 +208,9 @@ interface UploadForm {
 export default function PhotoUploadPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(
+        typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+    );
     
     // State for photo upload
     const [folders, setFolders] = useState<PhotoFolder[]>([]);

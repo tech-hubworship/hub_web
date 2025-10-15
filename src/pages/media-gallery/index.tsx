@@ -417,7 +417,9 @@ interface Folder {
   id: number;
   name: string;
   description?: string;
+  parent_id?: number | null;
   photo_count: number;
+  subfolder_count?: number;
 }
 
 export default function MediaGallery() {
@@ -443,7 +445,8 @@ export default function MediaGallery() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/public/photo-folders');
+      // 루트 폴더만 로드
+      const response = await fetch('/api/public/photo-folders?parent_id=null');
       const data = await response.json();
       
       if (response.ok) {
@@ -701,7 +704,6 @@ export default function MediaGallery() {
             >
               <FolderIcon>📁</FolderIcon>
               <FolderName>{folder.name}</FolderName>
-              <PhotoCount>{folder.photo_count}개 사진</PhotoCount>
             </FolderApp>
           ))}
         </FolderGrid>

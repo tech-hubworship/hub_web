@@ -184,6 +184,7 @@ export default function FolderGallery() {
   const { folderId } = router.query;
   
   const [folder, setFolder] = useState<Folder | null>(null);
+  const [subfolders, setSubfolders] = useState<Folder[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -191,6 +192,7 @@ export default function FolderGallery() {
   useEffect(() => {
     if (folderId) {
       loadFolderData();
+      loadSubfolders();
       loadPhotos();
     }
   }, [folderId]);
@@ -208,6 +210,23 @@ export default function FolderGallery() {
     } catch (error) {
       console.error('폴더 로드 오류:', error);
       setError('네트워크 오류가 발생했습니다.');
+    }
+  };
+
+  const loadSubfolders = async () => {
+    try {
+      const response = await fetch(`/api/public/photo-folders?parent_id=${folderId}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSubfolders(data.folders || []);
+      } else {
+        console.error('하위 폴더 로드 오류:', data.error);
+        setSubfolders([]);
+      }
+    } catch (error) {
+      console.error('하위 폴더 로드 오류:', error);
+      setSubfolders([]);
     }
   };
 
@@ -283,18 +302,71 @@ export default function FolderGallery() {
         <div style={{ width: '120px' }} /> {/* 공간 확보 */}
       </Header>
       
-      {photos.length === 0 ? (
+      {/* 폴더 표시 */}
+      {subfolders.length > 0 && (
+        <div style={{ marginBottom: '32px', maxWidth: '1000px', margin: '0 auto 32px' }}>
+          <h3 style={{ 
+            fontSize: '18px', 
+            fontWeight: '600', 
+            color: 'white', 
+            marginBottom: '16px',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+          }}>
+            📁 폴더
+          </h3>
+          <PhotoGrid style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}>
+            {subfolders.map((subfolder) => (
+              <PhotoItem
+                key={subfolder.id}
+                onClick={() => router.push(`/media-gallery/${subfolder.id}`)}
+                style={{ aspectRatio: '1' }}
+              >
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(251, 191, 36, 0.2)',
+                  backdropFilter: 'blur(20px)',
+                }}>
+                  <div style={{ fontSize: '48px', marginBottom: '8px' }}>📁</div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: 'white', textAlign: 'center', padding: '0 8px' }}>
+                    {subfolder.name}
+                  </div>
+                </div>
+              </PhotoItem>
+            ))}
+          </PhotoGrid>
+        </div>
+      )}
+
+      {/* 사진 표시 */}
+      {photos.length === 0 && subfolders.length === 0 ? (
         <EmptyState>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>📷</div>
           <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-            사진이 없습니다
+            사진과 폴더가 없습니다
           </div>
           <div style={{ opacity: 0.8 }}>
-            이 폴더에는 아직 사진이 없습니다.
+            이 폴더에는 아직 사진이나 하위 폴더가 없습니다.
           </div>
         </EmptyState>
-      ) : (
-        <PhotoGrid>
+      ) : photos.length > 0 ? (
+        <>
+          <h3 style={{ 
+            fontSize: '18px', 
+            fontWeight: '600', 
+            color: 'white', 
+            marginBottom: '16px',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+            maxWidth: '1000px',
+            margin: '0 auto 16px'
+          }}>
+            📷 사진
+          </h3>
+          <PhotoGrid>
           {photos.map((photo) => (
             <PhotoItem
               key={photo.id}
@@ -327,8 +399,9 @@ export default function FolderGallery() {
               </PhotoOverlay>
             </PhotoItem>
           ))}
-        </PhotoGrid>
-      )}
+          </PhotoGrid>
+        </>
+      ) : null}
     </GalleryContainer>
   );
 }
