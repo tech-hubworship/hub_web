@@ -318,17 +318,9 @@ const ReservationCard = styled.div`
   border-radius: 12px;
   padding: 20px;
   display: grid;
-  grid-template-columns: 80px 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 16px;
   align-items: center;
-`;
-
-const PhotoThumbnail = styled.img`
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 8px;
-  background: #f3f4f6;
 `;
 
 const ReservationInfo = styled.div`
@@ -1012,14 +1004,6 @@ export default function PhotoReservations() {
         ) : (
         filteredReservations.map((reservation) => (
           <ReservationCard key={reservation.id}>
-            <PhotoThumbnail
-              src={reservation.photos.image_url}
-              alt={reservation.photos.title}
-              onError={(e) => {
-                const img = e.target as HTMLImageElement;
-                img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSJyZ2JhKDI0MywgMjQ0LCAyNDYsIDAuNSkiLz4KPHN0eWxlPgp0ZXh0IHsKICBmb250LWZhbWlseTogLWFwcGxlLXN5c3RlbSwgQmxpbmtNYWNTeXN0ZW1Gb250LCAnU2VnIFVJJywgUm9ib3RvLCBzYW5zLXNlcmlmOwogIGZvbnQtc2l6ZTogMTJweDsKICBmaWxsOiByZ2JhKDEwNywgMTE0LCAxMjgsIDAuOCk7Cn0KPC9zdHlsZT4KPHRleHQgeD0iNDAiIHk9IjQ1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7svZzsiqQg7J6I7Iq1PC90ZXh0Pgo8L3N2Zz4K';
-              }}
-            />
             <ReservationInfo>
               <StatusBadge status={reservation.status}>
                 {reservation.status}
