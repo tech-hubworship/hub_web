@@ -20,16 +20,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 재귀적으로 부모 폴더 찾기 (최대 10번 반복으로 무한루프 방지)
     for (let i = 0; i < 10 && currentId !== null; i++) {
-      const { data: folder, error } = await supabase
+      const { data, error } = await supabase
         .from('photo_folders')
         .select('id, name, parent_id')
         .eq('id', currentId)
         .single();
 
-      if (error || !folder) {
+      if (error || !data) {
         break;
       }
 
+      const folder = data as { id: number; name: string; parent_id: number | null };
       path.unshift(folder); // 배열 앞에 추가
       currentId = folder.parent_id;
     }
@@ -40,4 +41,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: '폴더 경로 조회 실패' });
   }
 }
+
 

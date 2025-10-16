@@ -634,23 +634,34 @@ export default function PhotoReservations() {
       console.log('QR 스캔 시작...');
       
       // 연속 스캔 시작 - 자동으로 QR 코드 감지
-      reader.decodeFromVideoElement(videoRef.current, (result, error) => {
-        if (result) {
-          const qrText = result.getText();
-          console.log('QR 코드 자동 스캔 성공:', qrText);
-          
-          // QR 코드 스캔 중지
-          reader.reset();
-          
-          // QR 코드 처리
-          processQRCode(qrText);
+      const scanLoop = async () => {
+        try {
+          const result = await reader.decodeFromVideoElement(videoRef.current!);
+          if (result) {
+            const qrText = result.getText();
+            console.log('QR 코드 자동 스캔 성공:', qrText);
+            
+            // QR 코드 스캔 중지
+            reader.reset();
+            
+            // QR 코드 처리
+            processQRCode(qrText);
+            return;
+          }
+        } catch (error: any) {
+          // NotFoundException은 정상 (아직 QR 코드를 못 찾은 것)
+          if (error && error.name !== 'NotFoundException') {
+            console.error('QR 스캔 오류:', error);
+          }
         }
         
-        // NotFoundException은 정상 (아직 QR 코드를 못 찾은 것)
-        if (error && error.name !== 'NotFoundException') {
-          console.error('QR 스캔 오류:', error);
+        // 다음 프레임에서 다시 시도
+        if (videoRef.current && qrReader) {
+          requestAnimationFrame(scanLoop);
         }
-      });
+      };
+      
+      scanLoop();
     } catch (error) {
       console.error('QR 스캔 시작 오류:', error);
       alert('QR 스캔을 시작할 수 없습니다.');
