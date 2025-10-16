@@ -607,7 +607,7 @@ export default function MediaGallery() {
       setDownloading(true);
 
       const photo = reservation.photos;
-      const imgUrl = photo.thumbnail_url || photo.image_url;
+      const imgUrl = convertGoogleDriveUrl(photo.thumbnail_url || photo.image_url);
       
       // 이미지를 fetch로 가져와서 blob으로 다운로드
       const response = await fetch(imgUrl);

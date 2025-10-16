@@ -253,6 +253,21 @@ export default function FolderGallery() {
     router.push(`/media-gallery/${folderId}/${photo.id}`);
   };
 
+  // Google Drive URL 변환 함수
+  const convertGoogleDriveUrl = (url: string) => {
+    if (!url) return url;
+    
+    // Google Drive 공유 링크에서 파일 ID 추출
+    const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+    if (fileIdMatch) {
+      const fileId = fileIdMatch[1];
+      // 직접 이미지 URL로 변환
+      return `https://lh3.googleusercontent.com/d/${fileId}`;
+    }
+    
+    return url;
+  };
+
   const handleBackClick = () => {
     router.push('/media-gallery');
   };
@@ -385,7 +400,7 @@ export default function FolderGallery() {
               }}
             >
               <PhotoImage
-                src={photo.thumbnail_url || photo.image_url}
+                src={convertGoogleDriveUrl(photo.thumbnail_url || photo.image_url)}
                 alt={photo.title || '사진'}
                 onError={(e) => {
                   // 이미지 로드 실패 시 플레이스홀더

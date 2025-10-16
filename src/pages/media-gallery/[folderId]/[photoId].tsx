@@ -366,7 +366,7 @@ export default function PhotoDetail() {
     if (!photo) return;
 
     try {
-      const imgUrl = photo.image_url;
+      const imgUrl = convertGoogleDriveUrl(photo.image_url);
       
       // 이미지를 fetch로 가져와서 blob으로 다운로드
       const response = await fetch(imgUrl);
@@ -456,6 +456,21 @@ export default function PhotoDetail() {
     }
   };
 
+  // Google Drive URL 변환 함수
+  const convertGoogleDriveUrl = (url: string) => {
+    if (!url) return url;
+    
+    // Google Drive 공유 링크에서 파일 ID 추출
+    const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+    if (fileIdMatch) {
+      const fileId = fileIdMatch[1];
+      // 직접 이미지 URL로 변환
+      return `https://lh3.googleusercontent.com/d/${fileId}`;
+    }
+    
+    return url;
+  };
+
   const handleBackClick = () => {
     router.push(`/media-gallery/${folderId}`);
   };
@@ -535,7 +550,7 @@ export default function PhotoDetail() {
       <PhotoContainer>
         <PhotoWrapper>
           <PhotoImage
-            src={photo.thumbnail_url || photo.image_url}
+            src={convertGoogleDriveUrl(photo.thumbnail_url || photo.image_url)}
             alt={photo.title || '사진'}
             onError={(e) => {
               // 이미지 로드 실패 시 플레이스홀더

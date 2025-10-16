@@ -1099,7 +1099,7 @@ export default function PhotoManagePage() {
                             <Checkmark>✔</Checkmark>
                           </CheckboxLabel>
                           <PhotoImage
-                            src={photo.thumbnail_url || photo.image_url}
+                            src={convertGoogleDriveUrl(photo.thumbnail_url || photo.image_url)}
                             alt={photo.title || '사진'}
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
