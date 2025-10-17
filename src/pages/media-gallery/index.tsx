@@ -485,6 +485,7 @@ export default function MediaGallery() {
 
   const loadFolders = async () => {
     try {
+      console.log('폴더 로딩 시작...');
       setLoading(true);
       setError(null);
       
@@ -492,15 +493,23 @@ export default function MediaGallery() {
       const response = await fetch('/api/public/photo-folders?parent_id=null');
       const data = await response.json();
       
+      console.log('폴더 응답:', data);
+      
       if (response.ok) {
-        setFolders(data.folders || []);
+        const folderData = data.folders || [];
+        console.log('폴더 데이터 설정:', folderData.length, '개');
+        setFolders(folderData);
+        // 폴더 데이터 설정 후 로딩 완료
+        setLoading(false);
+        console.log('폴더 로딩 완료');
       } else {
+        console.error('폴더 로드 실패:', data.error);
         setError(data.error || '폴더를 불러오는 데 실패했습니다.');
+        setLoading(false);
       }
     } catch (error) {
       console.error('폴더 로드 오류:', error);
       setError('네트워크 오류가 발생했습니다.');
-    } finally {
       setLoading(false);
     }
   };
@@ -682,6 +691,41 @@ export default function MediaGallery() {
     }
   };
 
+  // 렌더링 전 상태 확인
+  console.log('렌더링 상태:', { loading, folders: folders?.length, error });
+
+  // 로딩 중이거나 폴더 데이터가 아직 없으면 로딩 화면 표시
+  if (loading || folders === null) {
+    return (
+      <GalleryContainer>
+        <Header>
+          <Title>미디어선교</Title>
+          <Subtitle>갤러리</Subtitle>
+        </Header>
+        <LoadingContainer>
+          <Spinner />
+          <div>로딩 중...</div>
+        </LoadingContainer>
+      </GalleryContainer>
+    );
+  }
+
+  // 에러 발생 시
+  if (error) {
+    return (
+      <GalleryContainer>
+        <Header>
+          <Title>미디어선교</Title>
+          <Subtitle>갤러리</Subtitle>
+        </Header>
+        <ErrorMessage>
+          <div style={{ fontSize: '18px', marginBottom: '8px' }}>⚠️</div>
+          <div>{error}</div>
+        </ErrorMessage>
+      </GalleryContainer>
+    );
+  }
+
   return (
     <GalleryContainer>
       {/* 로그인 상태일 때만 버튼이 보임*/}
@@ -706,21 +750,11 @@ export default function MediaGallery() {
         <Subtitle>갤러리</Subtitle>
       </Header>
 
-      {loading || folders === null ? (
+      {folders.length === 0 ? (
         <LoadingContainer>
           <Spinner />
           <div>로딩 중...</div>
         </LoadingContainer>
-      ) : error ? (
-        <ErrorMessage>
-          <div style={{ fontSize: '18px', marginBottom: '8px' }}>⚠️</div>
-          <div>{error}</div>
-        </ErrorMessage>
-      ) : folders.length === 0 ? (
-        <ErrorMessage>
-          <div style={{ fontSize: '18px', marginBottom: '8px' }}>📁</div>
-          <div>표시할 폴더가 없습니다.</div>
-        </ErrorMessage>
       ) : (
         <FolderGrid>
           {folders.map((folder) => (

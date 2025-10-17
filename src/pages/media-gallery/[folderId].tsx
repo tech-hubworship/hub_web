@@ -407,7 +407,8 @@ export default function FolderGallery() {
   };
 
   const handleBackClick = () => {
-    router.push('/media-gallery');
+    // 브라우저 히스토리로 뒤로 가기
+    router.back();
   };
 
   if (loading) {
