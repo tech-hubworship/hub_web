@@ -78,23 +78,12 @@ const FolderApp = styled.div`
   }
 
   &:hover {
-    transform: translateY(-12px) scale(1.03);
+    transform: translateY(-4px);
     background: rgba(255, 255, 255, 0.18);
     border-color: rgba(255, 255, 255, 0.3);
     box-shadow: 
-      0 20px 60px rgba(0, 0, 0, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.4),
-      0 0 0 1px rgba(255, 255, 255, 0.1);
-
-    > div:first-of-type {
-      transform: scale(1.1) rotate(-5deg);
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
-    }
-  }
-
-  &:active {
-    transform: translateY(-8px) scale(1.01);
-    transition: all 0.15s ease;
+      0 12px 32px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
   }
 `;
 
@@ -480,7 +469,7 @@ export default function MediaGallery() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  const [folders, setFolders] = useState<Folder[]>([]);
+  const [folders, setFolders] = useState<Folder[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -717,7 +706,7 @@ export default function MediaGallery() {
         <Subtitle>갤러리</Subtitle>
       </Header>
 
-      {loading ? (
+      {loading || folders === null ? (
         <LoadingContainer>
           <Spinner />
           <div>로딩 중...</div>
