@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import styled from '@emotion/styled';
 import QRCode from 'qrcode';
+import { Folder, Calendar, Download, X, QrCode, ChevronRight } from 'lucide-react';
 
 // iOS 26 스타일 디자인
 const GalleryContainer = styled.div`
@@ -41,33 +42,75 @@ const FolderGrid = styled.div`
 `;
 
 const FolderApp = styled.div`
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-radius: 24px;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  min-height: 140px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.5),
+      transparent
+    );
+  }
 
   &:hover {
-    transform: translateY(-8px) scale(1.05);
-    background: rgba(255, 255, 255, 0.25);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+    transform: translateY(-12px) scale(1.03);
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 
+      0 20px 60px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.1);
+
+    > div:first-of-type {
+      transform: scale(1.1) rotate(-5deg);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+    }
   }
 
   &:active {
-    transform: translateY(-4px) scale(1.02);
+    transform: translateY(-8px) scale(1.01);
+    transition: all 0.15s ease;
   }
 `;
 
-const FolderIcon = styled.div`
-  font-size: 48px;
+const FolderIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.1));
+  border-radius: 18px;
   margin-bottom: 12px;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
 `;
 
 const FolderName = styled.div`
@@ -75,18 +118,21 @@ const FolderName = styled.div`
   font-weight: 600;
   color: white;
   text-align: center;
-  line-height: 1.3;
-  margin-bottom: 4px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  line-height: 1.4;
+  margin-bottom: 6px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.2px;
 `;
 
 const PhotoCount = styled.div`
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.2);
-  padding: 2px 8px;
-  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.15);
+  padding: 4px 10px;
+  border-radius: 12px;
   backdrop-filter: blur(10px);
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 `;
 
 const LoadingContainer = styled.div`
@@ -132,25 +178,31 @@ const ReservationButton = styled.button`
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
   color: white;
   font-size: 15px;
+  font-weight: 600;
   z-index: 10;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px) scale(1.1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
   }
 
   &:active {
-    transform: translateY(0) scale(1.05);
+    transform: translateY(-1px) scale(1.02);
+    transition: all 0.15s ease;
   }
 
   &:disabled {
@@ -161,6 +213,9 @@ const ReservationButton = styled.button`
 `;
 
 const DownloadButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
   background: #3b82f6;
   color: white;
   border: none;
@@ -196,10 +251,6 @@ const ReservationModal = styled.div`
   padding: 20px;
 `;
 
-const IconSpan = styled.span`
-  font-size: 20px;
-  line-height: 1;
-`;
 
 const ReservationContent = styled.div`
   background: rgba(255, 255, 255, 0.95);
@@ -326,6 +377,9 @@ const CancelButton = styled.button`
 `;
 
 const ExchangeButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
   background: #10b981;
   color: white;
   border: none;
@@ -639,46 +693,19 @@ export default function MediaGallery() {
     }
   };
 
-  if (loading) {
-    return (
-      <GalleryContainer>
-        <Header>
-          <Title>미디어선교</Title>
-          <Subtitle>갤러리</Subtitle>
-        </Header>
-        <LoadingContainer>
-          <Spinner />
-          <div>로딩 중...</div>
-        </LoadingContainer>
-      </GalleryContainer>
-    );
-  }
-
-  if (error) {
-    return (
-      <GalleryContainer>
-        <Header>
-          <Title>미디어선교</Title>
-          <Subtitle>갤러리</Subtitle>
-        </Header>
-        <ErrorMessage>
-          <div style={{ fontSize: '18px', marginBottom: '8px' }}>⚠️</div>
-          <div>{error}</div>
-        </ErrorMessage>
-      </GalleryContainer>
-    );
-  }
-
   return (
     <GalleryContainer>
       {/* 로그인 상태일 때만 버튼이 보임*/}
       {status === 'authenticated' && (
         <ReservationButton onClick={loadUserReservations} disabled={loadingReservations}>
           {loadingReservations ? (
-            '⏳'
+            <>
+              <Spinner style={{ width: '16px', height: '16px', borderWidth: '2px' }} />
+              <span>로딩중...</span>
+            </>
           ) : (
             <>
-              <IconSpan>📋</IconSpan>
+              <Calendar size={18} strokeWidth={2.5} />
               <span>내 예약 현황</span>
             </>
           )}
@@ -690,7 +717,17 @@ export default function MediaGallery() {
         <Subtitle>갤러리</Subtitle>
       </Header>
 
-      {folders.length === 0 ? (
+      {loading ? (
+        <LoadingContainer>
+          <Spinner />
+          <div>로딩 중...</div>
+        </LoadingContainer>
+      ) : error ? (
+        <ErrorMessage>
+          <div style={{ fontSize: '18px', marginBottom: '8px' }}>⚠️</div>
+          <div>{error}</div>
+        </ErrorMessage>
+      ) : folders.length === 0 ? (
         <ErrorMessage>
           <div style={{ fontSize: '18px', marginBottom: '8px' }}>📁</div>
           <div>표시할 폴더가 없습니다.</div>
@@ -702,8 +739,18 @@ export default function MediaGallery() {
               key={folder.id}
               onClick={() => handleFolderClick(folder)}
             >
-              <FolderIcon>📁</FolderIcon>
+              <FolderIconWrapper>
+                <Folder 
+                  size={32} 
+                  color="white" 
+                  strokeWidth={2}
+                  style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }}
+                />
+              </FolderIconWrapper>
               <FolderName>{folder.name}</FolderName>
+              {folder.photo_count > 0 && (
+                <PhotoCount>{folder.photo_count}개 사진</PhotoCount>
+              )}
             </FolderApp>
           ))}
         </FolderGrid>
@@ -716,7 +763,7 @@ export default function MediaGallery() {
             <ReservationHeader>
               <ReservationTitle>내 예약 현황</ReservationTitle>
               <CloseButton onClick={() => setShowReservations(false)}>
-                ✕
+                <X size={20} strokeWidth={2.5} />
               </CloseButton>
             </ReservationHeader>
             
@@ -764,9 +811,11 @@ export default function MediaGallery() {
                           onClick={() => handleDownload(reservation)} 
                           disabled={downloading}
                         >
+                          <Download size={14} strokeWidth={2.5} />
                           {downloading ? '다운로드 중...' : '다운로드'}
                         </DownloadButton>
                         <ExchangeButton onClick={() => showExchangeQR(reservation.id)}>
+                          <QrCode size={14} strokeWidth={2.5} />
                           교환권
                         </ExchangeButton>
                       </div>

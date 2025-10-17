@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import styled from '@emotion/styled';
+import { ArrowLeft, Folder as FolderIcon, Image as ImageIcon } from 'lucide-react';
 
 // iOS 26 스타일 디자인
 const GalleryContainer = styled.div`
@@ -21,25 +22,29 @@ const Header = styled.div`
 const BackButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 25px;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: none;
+  border-radius: 50%;
   color: white;
-  font-size: 16px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
   }
 
   &:active {
-    transform: translateY(0);
+    transform: scale(1.05);
+    transition: all 0.15s ease;
   }
 `;
 
@@ -164,6 +169,97 @@ const EmptyState = styled.div`
   max-width: 400px;
 `;
 
+const SubFolderCard = styled.div`
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-radius: 24px;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  min-height: 140px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.5),
+      transparent
+    );
+  }
+
+  &:hover {
+    transform: translateY(-12px) scale(1.03);
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 
+      0 20px 60px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.1);
+
+    > div:first-of-type {
+      transform: scale(1.1) rotate(-5deg);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  &:active {
+    transform: translateY(-8px) scale(1.01);
+    transition: all 0.15s ease;
+  }
+`;
+
+const SubFolderIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.1));
+  border-radius: 18px;
+  margin-bottom: 12px;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
+`;
+
+const SubFolderName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  text-align: center;
+  line-height: 1.4;
+  margin-bottom: 6px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.2px;
+`;
+
+const FolderGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+`;
+
 interface Photo {
   id: number;
   title?: string;
@@ -186,8 +282,14 @@ export default function FolderGallery() {
   const [folder, setFolder] = useState<Folder | null>(null);
   const [subfolders, setSubfolders] = useState<Folder[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [displayedPhotos, setDisplayedPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observerTarget = useRef<HTMLDivElement>(null);
+  
+  const PHOTOS_PER_PAGE = 12;
 
   useEffect(() => {
     if (folderId) {
@@ -236,7 +338,11 @@ export default function FolderGallery() {
       const data = await response.json();
       
       if (response.ok) {
-        setPhotos(data.photos || []);
+        const allPhotos = data.photos || [];
+        setPhotos(allPhotos);
+        // 처음에는 첫 페이지만 로드
+        setDisplayedPhotos(allPhotos.slice(0, PHOTOS_PER_PAGE));
+        setHasMore(allPhotos.length > PHOTOS_PER_PAGE);
       } else {
         setError(data.error || '사진을 불러오는 데 실패했습니다.');
       }
@@ -247,6 +353,49 @@ export default function FolderGallery() {
       setLoading(false);
     }
   };
+
+  // 더 많은 사진 로드
+  const loadMorePhotos = useCallback(() => {
+    if (!hasMore) return;
+    
+    const nextPage = page + 1;
+    const startIndex = page * PHOTOS_PER_PAGE;
+    const endIndex = startIndex + PHOTOS_PER_PAGE;
+    const newPhotos = photos.slice(startIndex, endIndex);
+    
+    if (newPhotos.length > 0) {
+      setDisplayedPhotos(prev => [...prev, ...newPhotos]);
+      setPage(nextPage);
+      setHasMore(endIndex < photos.length);
+    } else {
+      setHasMore(false);
+    }
+  }, [photos, page, hasMore, PHOTOS_PER_PAGE]);
+
+  // Intersection Observer 설정
+  useEffect(() => {
+    if (!hasMore || loading) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMorePhotos();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loading, loadMorePhotos]);
 
   const handlePhotoClick = (photo: Photo) => {
     // 사진 상세 페이지로 이동
@@ -288,13 +437,13 @@ export default function FolderGallery() {
       <GalleryContainer>
         <Header>
           <BackButton onClick={handleBackClick}>
-            ← 뒤로가기
+            <ArrowLeft size={22} strokeWidth={2.5} />
           </BackButton>
           <FolderInfo>
             <FolderTitle>오류</FolderTitle>
             <FolderSubtitle>갤러리</FolderSubtitle>
           </FolderInfo>
-          <div style={{ width: '120px' }} /> {/* 공간 확보 */}
+          <div style={{ width: '44px' }} /> {/* 공간 확보 */}
         </Header>
         <ErrorMessage>
           <div style={{ fontSize: '18px', marginBottom: '8px' }}>⚠️</div>
@@ -308,13 +457,15 @@ export default function FolderGallery() {
     <GalleryContainer>
       <Header>
         <BackButton onClick={handleBackClick}>
-          ← 뒤로가기
+          <ArrowLeft size={22} strokeWidth={2.5} />
         </BackButton>
         <FolderInfo>
           <FolderTitle>{folder?.name || '갤러리'}</FolderTitle>
-          <FolderSubtitle>{photos.length}개 사진</FolderSubtitle>
+          {photos.length > 0 && (
+            <FolderSubtitle>{photos.length}개 사진</FolderSubtitle>
+          )}
         </FolderInfo>
-        <div style={{ width: '120px' }} /> {/* 공간 확보 */}
+        <div style={{ width: '44px' }} /> {/* 공간 확보 */}
       </Header>
       
       {/* 폴더 표시 */}
@@ -325,35 +476,32 @@ export default function FolderGallery() {
             fontWeight: '600', 
             color: 'white', 
             marginBottom: '16px',
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            📁 폴더
+            <FolderIcon size={20} strokeWidth={2.5} />
+            폴더
           </h3>
-          <PhotoGrid style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}>
+          <FolderGrid>
             {subfolders.map((subfolder) => (
-              <PhotoItem
+              <SubFolderCard
                 key={subfolder.id}
                 onClick={() => router.push(`/media-gallery/${subfolder.id}`)}
-                style={{ aspectRatio: '1' }}
               >
-                <div style={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'rgba(251, 191, 36, 0.2)',
-                  backdropFilter: 'blur(20px)',
-                }}>
-                  <div style={{ fontSize: '48px', marginBottom: '8px' }}>📁</div>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: 'white', textAlign: 'center', padding: '0 8px' }}>
-                    {subfolder.name}
-                  </div>
-                </div>
-              </PhotoItem>
+                <SubFolderIconWrapper>
+                  <FolderIcon 
+                    size={32} 
+                    color="white" 
+                    strokeWidth={2}
+                    style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }}
+                  />
+                </SubFolderIconWrapper>
+                <SubFolderName>{subfolder.name}</SubFolderName>
+              </SubFolderCard>
             ))}
-          </PhotoGrid>
+          </FolderGrid>
         </div>
       )}
 
@@ -377,12 +525,16 @@ export default function FolderGallery() {
             marginBottom: '16px',
             textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
             maxWidth: '1000px',
-            margin: '0 auto 16px'
+            margin: '0 auto 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            📷 사진
+            <ImageIcon size={20} strokeWidth={2.5} />
+            사진
           </h3>
           <PhotoGrid>
-          {photos.map((photo) => (
+          {displayedPhotos.map((photo) => (
             <PhotoItem
               key={photo.id}
               onClick={() => handlePhotoClick(photo)}
@@ -415,6 +567,22 @@ export default function FolderGallery() {
             </PhotoItem>
           ))}
           </PhotoGrid>
+          
+          {/* Lazy Loading Observer Target */}
+          {hasMore && (
+            <div 
+              ref={observerTarget} 
+              style={{ 
+                height: '20px', 
+                margin: '20px 0',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <Spinner style={{ width: '30px', height: '30px' }} />
+            </div>
+          )}
         </>
       ) : null}
     </GalleryContainer>

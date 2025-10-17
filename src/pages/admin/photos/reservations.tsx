@@ -179,9 +179,14 @@ const CameraContainer = styled.div`
 `;
 
 const CameraVideo = styled.video`
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
 `;
 
 const CameraControls = styled.div`
@@ -195,6 +200,7 @@ const CameraControls = styled.div`
   justify-content: center;
   align-items: center;
   gap: 16px;
+  z-index: 1002;
 `;
 
 const CameraButton = styled.button<{ variant?: 'danger' }>`
@@ -230,6 +236,7 @@ const ScanOverlay = styled.div`
   border-radius: 16px;
   background: transparent;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  z-index: 1001;
 `;
 
 const ScanGuide = styled.div`
@@ -241,7 +248,11 @@ const ScanGuide = styled.div`
   color: white;
   font-size: 16px;
   font-weight: 600;
-  z-index: 1001;
+  z-index: 1002;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 16px;
+  border-radius: 12px;
 `;
 
 const StatsGrid = styled.div`
@@ -307,37 +318,62 @@ const SearchInput = styled.input`
   }
 `;
 
-const ReservationGrid = styled.div`
-  display: grid;
-  gap: 16px;
-`;
-
-const ReservationCard = styled.div`
-  background: white;
+const TableContainer = styled.div`
+  overflow-x: auto;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 20px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 16px;
-  align-items: center;
+  background: white;
 `;
 
-const ReservationInfo = styled.div`
-  flex: 1;
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+`;
+
+const TableHead = styled.thead`
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+`;
+
+const TableRow = styled.tr`
+  border-bottom: 1px solid #e5e7eb;
+  
+  &:hover {
+    background: #f9fafb;
+  }
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const TableHeader = styled.th`
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+`;
+
+const TableCell = styled.td`
+  padding: 16px;
+  font-size: 14px;
+  color: #1f2937;
+  vertical-align: middle;
 `;
 
 const ReservationTitle = styled.div`
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 4px;
 `;
 
 const ReservationDetails = styled.div`
-  font-size: 14px;
+  font-size: 13px;
   color: #6b7280;
-  margin-bottom: 2px;
+  margin-top: 2px;
 `;
 
 const StatusBadge = styled.div<{ status: string }>`
@@ -363,18 +399,22 @@ const StatusBadge = styled.div<{ status: string }>`
 
 const ActionButtons = styled.div`
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-width: 200px;
 `;
 
 const ActionButton = styled.button<{ variant?: string }>`
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
+  padding: 8px 14px;
+  border: 2px solid transparent;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
   background: ${props => 
     props.variant === 'complete' ? '#10b981' :
     props.variant === 'cancel' ? '#ef4444' :
@@ -382,7 +422,14 @@ const ActionButton = styled.button<{ variant?: string }>`
   };
   color: white;
 
+  ${props => props.variant === 'cancel' && `
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  `}
+
   &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     background: ${props => 
       props.variant === 'complete' ? '#059669' :
       props.variant === 'cancel' ? '#dc2626' :
@@ -393,6 +440,8 @@ const ActionButton = styled.button<{ variant?: string }>`
   &:disabled {
     background: #9ca3af;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
 `;
 
@@ -412,6 +461,95 @@ const ErrorMessage = styled.div`
   padding: 40px;
   background: rgba(239, 68, 68, 0.1);
   border-radius: 12px;
+`;
+
+// 상세 모달 스타일
+const DetailModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+`;
+
+const DetailModal = styled.div`
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+`;
+
+const DetailModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e5e7eb;
+`;
+
+const DetailModalTitle = styled.h3`
+  margin: 0;
+  color: #1f2937;
+  font-size: 20px;
+  font-weight: 700;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.2s ease;
+  
+  &:hover {
+    color: #1f2937;
+  }
+`;
+
+const DetailSection = styled.div`
+  margin-bottom: 20px;
+`;
+
+const DetailLabel = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+`;
+
+const DetailValue = styled.div`
+  font-size: 15px;
+  color: #1f2937;
+  line-height: 1.6;
+`;
+
+const DetailImage = styled.img`
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin-top: 8px;
+`;
+
+const ClickableRow = styled(TableRow)`
+  cursor: pointer;
+  
+  &:hover {
+    background: #f0f9ff !important;
+  }
 `;
 
 export default function PhotoReservations() {
@@ -439,6 +577,8 @@ export default function PhotoReservations() {
   const [showCamera, setShowCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [qrReader, setQrReader] = useState<BrowserQRCodeReader | null>(null);
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -554,6 +694,31 @@ export default function PhotoReservations() {
     });
   };
 
+  // Google Drive URL 변환 함수
+  const convertGoogleDriveUrl = (url: string) => {
+    if (!url) return url;
+    
+    // Google Drive 공유 링크에서 파일 ID 추출
+    const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+    if (fileIdMatch) {
+      const fileId = fileIdMatch[1];
+      // 직접 이미지 URL로 변환
+      return `https://lh3.googleusercontent.com/d/${fileId}`;
+    }
+    
+    return url;
+  };
+
+  const handleRowClick = (reservation: Reservation) => {
+    setSelectedReservation(reservation);
+    setShowDetailModal(true);
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedReservation(null);
+  };
+
   // 카메라 시작
   const startCamera = async () => {
     try {
@@ -567,19 +732,77 @@ export default function PhotoReservations() {
         throw new Error('비디오 엘리먼트를 찾을 수 없습니다.');
       }
       
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: { ideal: 'environment' }, // 후면 카메라 우선
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+      // 모바일 환경 감지
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      console.log('카메라 시작 시도...', { isMobile });
+      
+      let stream: MediaStream | null = null;
+      
+      // 모바일에서는 후면 카메라 강제 시도
+      if (isMobile) {
+        try {
+          // 먼저 environment (후면 카메라) 시도
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+              facingMode: { exact: 'environment' },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
+            },
+            audio: false
+          });
+          console.log('후면 카메라(environment) 시작 성공');
+        } catch (error) {
+          console.log('exact environment 실패, ideal로 재시도');
+          // exact가 실패하면 ideal로 시도
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            },
+            audio: false
+          });
+          console.log('후면 카메라(ideal) 시작 성공');
         }
-      });
+      } else {
+        // 데스크톱에서는 기본 카메라 사용
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+        console.log('데스크톱 카메라 시작 성공');
+      }
+      
+      if (!stream) {
+        throw new Error('카메라 스트림을 가져올 수 없습니다.');
+      }
       
       setCameraStream(stream);
       videoRef.current.srcObject = stream;
-      await videoRef.current.play();
       
-      console.log('카메라 스트림 시작됨');
+      // 비디오 재생 시작
+      try {
+        await videoRef.current.play();
+        console.log('비디오 재생 시작됨');
+      } catch (playError) {
+        console.error('비디오 재생 오류:', playError);
+        // iOS에서는 사용자 인터랙션 후 재생 필요할 수 있음
+      }
+      
+      // 카메라 트랙 정보 로깅
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        const settings = videoTrack.getSettings();
+        console.log('카메라 설정:', {
+          facingMode: settings.facingMode,
+          width: settings.width,
+          height: settings.height
+        });
+      }
       
       // QR 코드 리더 초기화
       const reader = new BrowserQRCodeReader();
@@ -599,16 +822,17 @@ export default function PhotoReservations() {
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
         errorMessage += '카메라 권한이 거부되었습니다.\n\n';
         errorMessage += '해결 방법:\n';
-        errorMessage += '1. 브라우저 주소창의 🔒 또는 🛈 아이콘을 클릭\n';
-        errorMessage += '2. 카메라 권한을 "허용"으로 변경\n';
-        errorMessage += '3. 페이지를 새로고침\n\n';
+        errorMessage += '1. 브라우저 설정에서 카메라 권한을 "허용"으로 변경\n';
+        errorMessage += '2. 페이지를 새로고침\n\n';
         errorMessage += '또는 아래에서 QR 데이터를 직접 입력할 수 있습니다.';
       } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
         errorMessage += '카메라를 찾을 수 없습니다.\n카메라가 연결되어 있는지 확인해주세요.';
       } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
         errorMessage += '카메라가 다른 프로그램에서 사용 중입니다.\n다른 앱을 종료하고 다시 시도해주세요.';
+      } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
+        errorMessage += '요청한 카메라 설정을 지원하지 않습니다.\n다른 카메라를 사용하거나 QR 데이터를 직접 입력해주세요.';
       } else {
-        errorMessage += '알 수 없는 오류가 발생했습니다.\n다시 시도하거나 QR 데이터를 직접 입력해주세요.';
+        errorMessage += `오류: ${error.message || '알 수 없는 오류'}\n\nQR 데이터를 직접 입력해주세요.`;
       }
       
       alert(errorMessage);
@@ -994,70 +1218,207 @@ export default function PhotoReservations() {
         />
       </FilterBar>
 
-      <ReservationGrid>
+      <TableContainer>
         {loading ? (
-            <div style={{ fontSize: '14px', textAlign: 'center', padding: '40px', color: '#6b7280' }}>로딩 중...</div>
+          <div style={{ fontSize: '14px', textAlign: 'center', padding: '40px', color: '#6b7280' }}>로딩 중...</div>
         ) : filteredReservations.length === 0 ? (
           <div style={{ fontSize: '14px', textAlign: 'center', padding: '40px', color: '#6b7280' }}>
             {statusFilter === 'all' ? '예약이 없습니다.' : `"${statusFilter}" 상태의 예약이 없습니다.`}
           </div>
         ) : (
-        filteredReservations.map((reservation) => (
-          <ReservationCard key={reservation.id}>
-            <ReservationInfo>
-              <StatusBadge status={reservation.status}>
-                {reservation.status}
-              </StatusBadge>
-              <ReservationTitle>
-                {reservation.photos.title || '제목 없음'}
-              </ReservationTitle>
-              <ReservationDetails>
-                📁 {reservation.photos.photo_folders.name}
-              </ReservationDetails>
-              <ReservationDetails>
-                👤 {reservation.user_name || reservation.user_email}
-              </ReservationDetails>
-              <ReservationDetails>
-                📅 {formatDate(reservation.created_at)}
-              </ReservationDetails>
-              {reservation.message && (
-                <ReservationDetails>
-                  💬 {reservation.message}
-                </ReservationDetails>
-              )}
-            </ReservationInfo>
-            <ActionButtons>
-              {reservation.status === '예약중' && (
-                <>
-                  <ActionButton 
-                    variant="complete"
-                    onClick={() => updateReservationStatus(reservation.id, '예약완료')}
-                  >
-                    완료 처리
-                  </ActionButton>
-                  <ActionButton 
-                    variant="cancel"
-                    onClick={() => updateReservationStatus(reservation.id, '취소됨')}
-                  >
-                    취소 처리
-                  </ActionButton>
-                </>
-              )}
-              {reservation.status === '예약완료' && (
-                <ActionButton 
-                  variant="complete"
-                  onClick={() => updateReservationStatus(reservation.id, '수령완료')}
-                >
-                  수령완료
-                </ActionButton>
-              )}
-            </ActionButtons>
-          </ReservationCard>
-          ))
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeader>상태</TableHeader>
+                <TableHeader>사진 제목</TableHeader>
+                <TableHeader>폴더</TableHeader>
+                <TableHeader>예약자</TableHeader>
+                <TableHeader>예약일시</TableHeader>
+                <TableHeader>메시지</TableHeader>
+                <TableHeader style={{ textAlign: 'center' }}>작업</TableHeader>
+              </TableRow>
+            </TableHead>
+            <tbody>
+              {filteredReservations.map((reservation) => (
+                <ClickableRow key={reservation.id} onClick={() => handleRowClick(reservation)}>
+                  <TableCell>
+                    <StatusBadge status={reservation.status}>
+                      {reservation.status}
+                    </StatusBadge>
+                  </TableCell>
+                  <TableCell>
+                    <ReservationTitle>
+                      {reservation.photos.title || '제목 없음'}
+                    </ReservationTitle>
+                  </TableCell>
+                  <TableCell>
+                    {reservation.photos.photo_folders.name}
+                  </TableCell>
+                  <TableCell>
+                    <div style={{ fontWeight: 500 }}>{reservation.user_name}</div>
+                    <ReservationDetails>{reservation.user_email}</ReservationDetails>
+                  </TableCell>
+                  <TableCell style={{ whiteSpace: 'nowrap' }}>
+                    {formatDate(reservation.created_at)}
+                  </TableCell>
+                  <TableCell style={{ maxWidth: '200px' }}>
+                    {reservation.message || '-'}
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <ActionButtons>
+                      {reservation.status === '예약중' && (
+                        <>
+                          <ActionButton 
+                            variant="complete"
+                            onClick={() => updateReservationStatus(reservation.id, '예약완료')}
+                          >
+                            ✓ 완료 처리
+                          </ActionButton>
+                          <ActionButton 
+                            variant="cancel"
+                            onClick={() => updateReservationStatus(reservation.id, '취소됨')}
+                          >
+                            ✕ 취소 처리
+                          </ActionButton>
+                        </>
+                      )}
+                      {reservation.status === '예약완료' && (
+                        <ActionButton 
+                          variant="complete"
+                          onClick={() => updateReservationStatus(reservation.id, '수령완료')}
+                        >
+                          ✓ 수령완료
+                        </ActionButton>
+                      )}
+                    </ActionButtons>
+                  </TableCell>
+                </ClickableRow>
+              ))}
+            </tbody>
+          </Table>
         )}
-      </ReservationGrid>
+      </TableContainer>
 
           </ReservationContainer>
+
+          {/* 상세 모달 */}
+          {showDetailModal && selectedReservation && (
+            <DetailModalOverlay onClick={closeDetailModal}>
+              <DetailModal onClick={(e) => e.stopPropagation()}>
+                <DetailModalHeader>
+                  <DetailModalTitle>예약 상세 정보</DetailModalTitle>
+                  <CloseButton onClick={closeDetailModal}>×</CloseButton>
+                </DetailModalHeader>
+
+                <DetailSection>
+                  <DetailLabel>상태</DetailLabel>
+                  <DetailValue>
+                    <StatusBadge status={selectedReservation.status}>
+                      {selectedReservation.status}
+                    </StatusBadge>
+                  </DetailValue>
+                </DetailSection>
+
+                <DetailSection>
+                  <DetailLabel>사진 정보</DetailLabel>
+                  <DetailValue>
+                    <strong>{selectedReservation.photos.title || '제목 없음'}</strong>
+                    <div style={{ marginTop: 8, color: '#6b7280' }}>
+                      📁 {selectedReservation.photos.photo_folders.name}
+                    </div>
+                  </DetailValue>
+                  {selectedReservation.photos.image_url && (
+                    <DetailImage 
+                      src={convertGoogleDriveUrl(selectedReservation.photos.image_url)} 
+                      alt={selectedReservation.photos.title} 
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjZjNmNGY2Ii8+CjxzdHlsZT4KdGV4dCB7CiAgZm9udC1mYW1pbHk6IC1hcHBsZS1zeXN0ZW0sIEJsaW5rTWFjU3lzdGVtRm9udCwgJ1NlZ29lIFVJJywgUm9ib3RvLCBzYW5zLXNlcmlmOwogIGZvbnQtc2l6ZTogMTZweDsKICBmaWxsOiAjNmI3MjgwOwp9Cjwvc3R5bGU+Cjx0ZXh0IHg9IjIwMCIgeT0iMTUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7ss7TsnpDsnYQg7IiYIOyXhuydjzwvdGV4dD4KPC9zdmc+Cg==';
+                      }}
+                    />
+                  )}
+                </DetailSection>
+
+                <DetailSection>
+                  <DetailLabel>예약자 정보</DetailLabel>
+                  <DetailValue>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                      {selectedReservation.user_name}
+                    </div>
+                    <div style={{ color: '#6b7280' }}>
+                      📧 {selectedReservation.user_email}
+                    </div>
+                  </DetailValue>
+                </DetailSection>
+
+                <DetailSection>
+                  <DetailLabel>예약 일시</DetailLabel>
+                  <DetailValue>
+                    📅 {formatDate(selectedReservation.created_at)}
+                  </DetailValue>
+                </DetailSection>
+
+                {selectedReservation.message && (
+                  <DetailSection>
+                    <DetailLabel>메시지</DetailLabel>
+                    <DetailValue style={{ 
+                      background: '#f9fafb', 
+                      padding: '12px', 
+                      borderRadius: '8px',
+                      border: '1px solid #e5e7eb'
+                    }}>
+                      {selectedReservation.message}
+                    </DetailValue>
+                  </DetailSection>
+                )}
+
+                <DetailSection>
+                  <DetailLabel>예약 ID</DetailLabel>
+                  <DetailValue style={{ fontFamily: 'monospace', color: '#6b7280' }}>
+                    #{selectedReservation.id}
+                  </DetailValue>
+                </DetailSection>
+
+                <DetailSection style={{ marginBottom: 0, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
+                  <ActionButtons>
+                    {selectedReservation.status === '예약중' && (
+                      <>
+                        <ActionButton 
+                          variant="complete"
+                          onClick={() => {
+                            updateReservationStatus(selectedReservation.id, '예약완료');
+                            closeDetailModal();
+                          }}
+                        >
+                          ✓ 완료 처리
+                        </ActionButton>
+                        <ActionButton 
+                          variant="cancel"
+                          onClick={() => {
+                            updateReservationStatus(selectedReservation.id, '취소됨');
+                            closeDetailModal();
+                          }}
+                        >
+                          ✕ 취소 처리
+                        </ActionButton>
+                      </>
+                    )}
+                    {selectedReservation.status === '예약완료' && (
+                      <ActionButton 
+                        variant="complete"
+                        onClick={() => {
+                          updateReservationStatus(selectedReservation.id, '수령완료');
+                          closeDetailModal();
+                        }}
+                      >
+                        ✓ 수령완료
+                      </ActionButton>
+                    )}
+                  </ActionButtons>
+                </DetailSection>
+              </DetailModal>
+            </DetailModalOverlay>
+          )}
         </S.ContentArea>
       </S.MainContent>
     </S.AdminLayout>

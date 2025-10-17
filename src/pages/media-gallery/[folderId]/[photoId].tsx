@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import styled from '@emotion/styled';
+import { ArrowLeft, Download, Calendar } from 'lucide-react';
 
 // iOS 26 스타일 디자인
 const DetailContainer = styled.div`
@@ -22,25 +23,29 @@ const Header = styled.div`
 const BackButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 25px;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: none;
+  border-radius: 50%;
   color: white;
-  font-size: 16px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
   }
 
   &:active {
-    transform: translateY(0);
+    transform: scale(1.05);
+    transition: all 0.15s ease;
   }
 `;
 
@@ -64,14 +69,14 @@ const PhotoSubtitle = styled.p`
 
 const ReservationButton = styled.button<{ disabled?: boolean }>`
   width: 100%;
-  padding: 16px;
+  padding: 14px 20px;
   border: none;
   border-radius: 16px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 20px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin-top: 0;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -325,11 +330,11 @@ export default function PhotoDetail() {
             setIsAvailable(false);
             setReservedBy(null);
           } else {
-            // 다른 사용자가 예약한 경우
+            // 다른 사용자가 예약한 경우 - 이름 숨김
             setIsReserved(false);
             setReservationStatus(null);
             setIsAvailable(false);
-            setReservedBy(activeReservation.user_name || '다른 사용자');
+            setReservedBy(null); // 예약자 이름 숨기기
           }
         } else {
           // 활성 예약이 없는 경우
@@ -410,13 +415,52 @@ export default function PhotoDetail() {
       return;
     }
 
+    // 예약 취소 처리
+    if (isReserved) {
+      try {
+        if (!confirm('예약을 취소하시겠습니까?')) {
+          return;
+        }
+
+        setReserving(true);
+
+        // 사용자의 예약 찾기
+        const reservationResponse = await fetch(`/api/public/photo-reservations?photo_id=${photo.id}&user_id=${session.user?.id}`);
+        const reservationData = await reservationResponse.json();
+        
+        if (reservationResponse.ok && reservationData.reservations && reservationData.reservations.length > 0) {
+          const userReservation = reservationData.reservations.find((r: any) => r.user_id === session.user?.id);
+          
+          if (userReservation) {
+            const response = await fetch(`/api/public/photo-reservations?id=${userReservation.id}`, {
+              method: 'DELETE',
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              alert(data.message || '예약이 취소되었습니다.');
+              setIsReserved(false);
+              setReservationStatus(null);
+              setIsAvailable(true);
+              setReservedBy(null);
+            } else {
+              alert(data.error || '예약 취소에 실패했습니다.');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('예약 취소 오류:', error);
+        alert('예약 취소 중 오류가 발생했습니다.');
+      } finally {
+        setReserving(false);
+      }
+      return;
+    }
+
     // 이미 예약된 사진인지 확인
     if (!isAvailable) {
-      if (reservedBy) {
-        alert(`해당 사진은 이미 ${reservedBy}님에게 예약되어 있습니다.`);
-      } else {
-        alert('이미 예약된 사진입니다.');
-      }
+      alert('이미 예약된 사진입니다.');
       return;
     }
 
@@ -442,7 +486,6 @@ export default function PhotoDetail() {
       if (response.ok) {
         setIsReserved(true);
         setReservationStatus('예약중');
-        alert(data.message || '예약완료');
         setIsAvailable(false);
         alert(data.message || '예약이 완료되었습니다.');
       } else {
@@ -498,16 +541,6 @@ export default function PhotoDetail() {
     // 예약 불가 상태에서는 버튼이 disabled됨
   };
 
-  // 버튼 내용을 상태에 따라 동적으로 결정
-  const getReservationButtonContent = () => {
-    if (reserving) return "⏳ 예약 중...";
-    if (isReserved) return "✨ 예약완료 ✨ 예약 현황에서 확인하세요!";
-    if (!isAvailable) {
-      return `🚫 이미 ${reservedBy || '다른 분'}이 예약했습니다.`;
-    }
-    return "📌 이 사진 예약하기";
-  };
-
   // 예약 상태에 따른 클래스 이름을 반환하는 함수
   const getReservationButtonClass = () => {
     if (isReserved) return 'reserved';
@@ -524,8 +557,12 @@ export default function PhotoDetail() {
       <DetailContainer>
         <Header>
           <BackButton onClick={handleBackClick}>
-            ← 뒤로가기
+            <ArrowLeft size={22} strokeWidth={2.5} />
           </BackButton>
+          <PhotoInfo>
+            <PhotoTitle>오류</PhotoTitle>
+          </PhotoInfo>
+          <div style={{ width: '44px' }} />
         </Header>
         <ErrorMessage>
           ⚠️ {error || '사진을 찾을 수 없습니다.'}
@@ -538,13 +575,12 @@ export default function PhotoDetail() {
     <DetailContainer>
       <Header>
         <BackButton onClick={handleBackClick}>
-          ← 뒤로가기
+          <ArrowLeft size={22} strokeWidth={2.5} />
         </BackButton>
         <PhotoInfo>
-          <PhotoTitle>{photo.title || '제목 없음'}</PhotoTitle>
-          <PhotoSubtitle>{folder.name}</PhotoSubtitle>
+          <PhotoTitle>{folder.name}</PhotoTitle>
         </PhotoInfo>
-          <div style={{ width: '120px' }} />
+          <div style={{ width: '44px' }} />
       </Header>
 
       <PhotoContainer>
@@ -567,6 +603,7 @@ export default function PhotoDetail() {
               className="available"
               style={{ flex: 1 }}
             >
+              <Download size={18} strokeWidth={2.5} />
               다운로드
             </ReservationButton>
             
@@ -576,6 +613,7 @@ export default function PhotoDetail() {
               className={getReservationButtonClass()}
               style={{ flex: 1 }}
             >
+              <Calendar size={18} strokeWidth={2.5} />
               {isReserved ? '예약취소' : isAvailable ? '예약가능' : '예약마감'}
             </ReservationButton>
           </div>
