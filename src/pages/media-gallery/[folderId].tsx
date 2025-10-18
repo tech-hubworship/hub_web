@@ -496,17 +496,7 @@ export default function FolderGallery() {
       )}
 
       {/* 사진 표시 */}
-      {photos.length === 0 && subfolders.length === 0 ? (
-        <EmptyState>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📷</div>
-          <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-            사진과 폴더가 없습니다
-          </div>
-          <div style={{ opacity: 0.8 }}>
-            이 폴더에는 아직 사진이나 하위 폴더가 없습니다.
-          </div>
-        </EmptyState>
-      ) : photos.length > 0 ? (
+      {photos.length > 0 && (
         <>
           <h3 style={{ 
             fontSize: '18px', 
@@ -574,7 +564,7 @@ export default function FolderGallery() {
             </div>
           )}
         </>
-      ) : null}
+      )}
     </GalleryContainer>
   );
 }

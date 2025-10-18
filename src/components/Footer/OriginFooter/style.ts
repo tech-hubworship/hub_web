@@ -231,10 +231,69 @@ export const SubmitButton = styled.button`
   }
 `;
 
-export const SuccessMessage = styled.p`
-  color: #fff;
+export const SuccessMessage = styled.div`
+  color: #27ae60;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+`;
+
+export const SuccessIcon = styled.div`
+  width: 60px;
+  height: 60px;
+  background-color: #27ae60;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  color: white;
+  margin-bottom: 8px;
+  animation: scaleIn 0.3s ease-in-out;
+  
+  @keyframes scaleIn {
+    0% {
+      transform: scale(0);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+`;
+
+export const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 20px;
+`;
+
+export const LoadingSpinner = styled.div`
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
+export const LoadingText = styled.p`
   font-size: 16px;
   font-weight: 500;
-  text-align: center;
-  margin: 20px 0;
+  color: #666;
 `;

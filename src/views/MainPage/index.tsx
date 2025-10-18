@@ -36,9 +36,21 @@ const ContentBanner = dynamic(() => import('./components/ContentBanner'), {
   ssr: false,
   loading: () => <div style={{ minHeight: '200px', background: '#f8f9fa' }}></div>
 });
-const WallpaperDownload = dynamic(() => import('./components/WallpaperDownload'), { 
+// const WallpaperDownload = dynamic(() => import('./components/WallpaperDownload'), { 
+//   ssr: false,
+//   loading: () => <div style={{ minHeight: '300px', background: '#f8f9fa' }}></div>
+// });
+const MediaGallery = dynamic(() => import('./components/MediaGallery'), { 
   ssr: false,
-  loading: () => <div style={{ minHeight: '300px', background: '#f8f9fa' }}></div>
+  loading: () => <div style={{ minHeight: '300px', background: '#ED2725' }}></div>
+});
+const Poster1 = dynamic(() => import('./components/Poster1'), { 
+  ssr: false,
+  loading: () => <div style={{ minHeight: '300px', background: '#000000' }}></div>
+});
+const Poster2 = dynamic(() => import('./components/Poster2'), { 
+  ssr: false,
+  loading: () => <div style={{ minHeight: '300px', background: '#000000' }}></div>
 });
 
 /**
@@ -134,10 +146,25 @@ const MainPage = memo(function MainPage() {
           <Main />
         </LazyLoadSection>
     
-        {/* 배경화면 다운로드 섹션 */}
-        <LazyLoadSection id="wallpaper-section">
-          <WallpaperDownload />
+        {/* 미디어 갤러리 섹션 */}
+        <LazyLoadSection id="media-gallery-section">
+          <MediaGallery />
         </LazyLoadSection>
+        
+        {/* 포스터 1 섹션 */}
+        <LazyLoadSection id="poster1-section">
+          <Poster1 />
+        </LazyLoadSection>
+        
+        {/* 포스터 2 섹션 */}
+        <LazyLoadSection id="poster2-section">
+          <Poster2 />
+        </LazyLoadSection>
+        
+        {/* 배경화면 다운로드 섹션 */}
+        {/* <LazyLoadSection id="wallpaper-section">
+          <WallpaperDownload />
+        </LazyLoadSection> */}
         
         {/* 콘텐츠 배너 섹션 */}
         <LazyLoadSection id="content-section">

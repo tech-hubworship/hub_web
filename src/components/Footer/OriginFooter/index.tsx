@@ -38,8 +38,29 @@ const OriginFooter: FC = () => {
     setSendError("");
 
     try {
-      // 임시로 콘솔에만 출력
-      console.log("문의사항:", message.trim());
+      const response = await fetch('/api/tech-inquiries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message.trim(),
+          inquiryType: 'general',
+          pageUrl: window.location.pathname
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // 에러 상세 정보 콘솔에 출력
+        console.error('API 에러:', data);
+        
+        // 사용자에게 보여줄 에러 메시지
+        const errorMessage = data.error || '메시지 전송에 실패했습니다. 잠시 후 다시 시도해주세요.';
+        
+        throw new Error(errorMessage);
+      }
       
       setSendSuccess(true);
       setMessage("");
@@ -47,9 +68,9 @@ const OriginFooter: FC = () => {
         setIsModalOpen(false);
         setSendSuccess(false);
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("문의사항 저장 오류:", error);
-      setSendError("메시지 전송에 실패했습니다. 다시 시도해주세요.");
+      setSendError(error.message || "메시지 전송에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setSending(false);
     }
@@ -60,7 +81,7 @@ const OriginFooter: FC = () => {
       <St.ContentWrap>
         <div>
           <St.TitleButton onClick={handleClick}>
-            <span>개발자에게 한마디(익명)</span>
+            <span>테크팀에게 한마디(버그, 문의사항)</span>
             <ArrowRight />
           </St.TitleButton>
           <St.LegalLinks>
@@ -92,28 +113,35 @@ const OriginFooter: FC = () => {
         <St.ModalOverlay onClick={handleClose}>
           <St.ModalContent onClick={(e: React.MouseEvent<HTMLDivElement, MouseEvent>) => e.stopPropagation()}>
             <St.ModalHeader>
-              <St.ModalTitle>개발자에게 한마디(익명)</St.ModalTitle>
+              <St.ModalTitle>테크팀에게 한마디(버그, 문의사항)</St.ModalTitle>
               <St.CloseButton onClick={handleClose}>×</St.CloseButton>
             </St.ModalHeader>
             
             <St.ModalBody>
-              {!sendSuccess ? (
+              {sending ? (
+                <St.LoadingContainer>
+                  <St.LoadingSpinner />
+                  <St.LoadingText>제출 중입니다...</St.LoadingText>
+                </St.LoadingContainer>
+              ) : sendSuccess ? (
+                <St.SuccessMessage>
+                  <St.SuccessIcon>✓</St.SuccessIcon>
+                  <div>제출완료되었습니다</div>
+                  <div>감사합니다.</div>
+                </St.SuccessMessage>
+              ) : (
                 <>
                   <St.TextArea 
                     value={message}
                     onChange={handleChange}
-                    placeholder="개발자에게 문의하실 내용이나 의견을 남겨주세요."
+                    placeholder="버그 제보나 문의사항을 익명으로 남겨주세요. 예) 페이지 로딩이 느려요, 특정 기능이 작동하지 않아요 등"
                     disabled={sending}
                   />
                   {sendError && <St.ErrorMessage>{sendError}</St.ErrorMessage>}
                   <St.SubmitButton onClick={handleSubmit} disabled={sending}>
-                    {sending ? "전송 중..." : "보내기"}
+                    제출
                   </St.SubmitButton>
                 </>
-              ) : (
-                <St.SuccessMessage>
-                  메시지가 성공적으로 전송되었습니다!
-                </St.SuccessMessage>
               )}
             </St.ModalBody>
           </St.ModalContent>

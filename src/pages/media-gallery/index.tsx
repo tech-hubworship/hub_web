@@ -750,31 +750,24 @@ export default function MediaGallery() {
         <Subtitle>갤러리</Subtitle>
       </Header>
 
-      {folders.length === 0 ? (
-        <LoadingContainer>
-          <Spinner />
-          <div>로딩 중...</div>
-        </LoadingContainer>
-      ) : (
-        <FolderGrid>
-          {folders.map((folder) => (
-            <FolderApp
-              key={folder.id}
-              onClick={() => handleFolderClick(folder)}
-            >
-              <FolderIconWrapper>
-                <Folder 
-                  size={32} 
-                  color="white" 
-                  strokeWidth={2}
-                  style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }}
-                />
-              </FolderIconWrapper>
-              <FolderName>{folder.name}</FolderName>
-            </FolderApp>
-          ))}
-        </FolderGrid>
-      )}
+      <FolderGrid>
+        {folders.map((folder) => (
+          <FolderApp
+            key={folder.id}
+            onClick={() => handleFolderClick(folder)}
+          >
+            <FolderIconWrapper>
+              <Folder 
+                size={32} 
+                color="white" 
+                strokeWidth={2}
+                style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }}
+              />
+            </FolderIconWrapper>
+            <FolderName>{folder.name}</FolderName>
+          </FolderApp>
+        ))}
+      </FolderGrid>
 
       {showReservations && (
         <ReservationModal onClick={() => setShowReservations(false)}>
