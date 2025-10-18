@@ -771,6 +771,9 @@ export default function MediaGallery() {
                 />
               </FolderIconWrapper>
               <FolderName>{folder.name}</FolderName>
+              {folder.photo_count > 0 && (
+                <PhotoCount>{folder.photo_count}개 사진</PhotoCount>
+              )}
             </FolderApp>
           ))}
         </FolderGrid>
