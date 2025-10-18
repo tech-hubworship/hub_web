@@ -515,7 +515,8 @@ export default function PhotoDetail() {
   };
 
   const handleBackClick = () => {
-    router.push(`/media-gallery/${folderId}`);
+    // 브라우저 히스토리로 뒤로 가기
+    router.back();
   };
 
   const formatFileSize = (bytes?: number) => {

@@ -407,7 +407,8 @@ export default function FolderGallery() {
   };
 
   const handleBackClick = () => {
-    router.push('/media-gallery');
+    // 브라우저 히스토리로 뒤로 가기
+    router.back();
   };
 
   if (loading) {
@@ -450,9 +451,6 @@ export default function FolderGallery() {
         </BackButton>
         <FolderInfo>
           <FolderTitle>{folder?.name || '갤러리'}</FolderTitle>
-          {photos.length > 0 && (
-            <FolderSubtitle>{photos.length}개 사진</FolderSubtitle>
-          )}
         </FolderInfo>
         <div style={{ width: '44px' }} /> {/* 공간 확보 */}
       </Header>
