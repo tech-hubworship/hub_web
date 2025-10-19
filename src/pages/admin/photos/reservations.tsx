@@ -762,9 +762,28 @@ export default function PhotoReservations() {
       setCameraStream(stream);
       videoRef.current.srcObject = stream;
       
+      // 비디오 이벤트 리스너 추가 (디버깅용)
+      videoRef.current.onloadeddata = () => console.log('✓ 비디오 데이터 로드됨');
+      videoRef.current.oncanplay = () => console.log('✓ 비디오 재생 가능');
+      videoRef.current.onplaying = () => console.log('✓ 비디오 재생 중');
+      videoRef.current.onpause = () => console.warn('⚠️ 비디오 일시정지됨');
+      videoRef.current.onerror = (e) => console.error('❌ 비디오 오류:', e);
+      videoRef.current.onstalled = () => console.warn('⚠️ 비디오 정지됨');
+      
+      // 비디오 메타데이터 로드 대기
+      await new Promise((resolve) => {
+        videoRef.current!.onloadedmetadata = () => {
+          console.log('✓ 비디오 메타데이터 로드됨');
+          resolve(true);
+        };
+      });
+      
       // 비디오 재생
       await videoRef.current.play();
       console.log('비디오 재생 시작');
+      
+      // 비디오가 안정화될 때까지 대기
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       setCameraLoading(false);
       
@@ -772,8 +791,17 @@ export default function PhotoReservations() {
       const reader = new BrowserQRCodeReader();
       setQrReader(reader);
       
-      console.log('QR 스캔 시작');
-      startQRScanning(reader);
+      console.log('QR 스캔 시작 - 비디오 준비 완료');
+      
+      // 스캔 시작 전 한 번 더 대기
+      setTimeout(() => {
+        if (videoRef.current && videoRef.current.readyState >= 2) {
+          console.log('비디오 준비 상태 확인 완료, 스캔 시작');
+          startQRScanning(reader);
+        } else {
+          console.warn('비디오가 아직 준비되지 않음');
+        }
+      }, 300);
       
     } catch (error: any) {
       console.error('카메라 시작 오류:', error);
@@ -819,48 +847,91 @@ export default function PhotoReservations() {
     console.log('QR 스캔 루프 시작...');
     
     let isScanning = true;
+    let scanCount = 0;
+    
+    // 스캔 중지 함수 (외부에서 접근 가능하도록)
+    const stopScanning = () => {
+      isScanning = false;
+      console.log('스캔 루프 종료');
+    };
     
     // 연속 스캔 루프
     const scanLoop = () => {
-      if (!isScanning || !videoRef.current) {
-        console.log('스캔 중지됨');
+      if (!isScanning) {
+        console.log('스캔 중지됨 (isScanning=false)');
         return;
       }
       
-      reader.decodeFromVideoElement(videoRef.current)
-        .then((result) => {
-          if (result) {
-            const qrText = result.getText();
-            console.log('✅ QR 코드 감지:', qrText);
+      if (!videoRef.current) {
+        console.log('스캔 중지됨 (videoRef 없음)');
+        return;
+      }
+      
+      // 비디오가 재생 중인지 확인
+      if (videoRef.current.paused || videoRef.current.readyState < 2) {
+        console.log('비디오 준비 안됨, 재시도...');
+        if (isScanning) {
+          setTimeout(scanLoop, 500);
+        }
+        return;
+      }
+      
+      scanCount++;
+      if (scanCount % 10 === 0) {
+        console.log(`스캔 시도 중... (${scanCount}회)`);
+      }
+      
+      try {
+        reader.decodeFromVideoElement(videoRef.current)
+          .then((result) => {
+            if (!isScanning) return;
             
-            // 스캔 중지
-            isScanning = false;
-            reader.reset();
+            if (result) {
+              const qrText = result.getText();
+              console.log('✅ QR 코드 감지 성공:', qrText);
+              
+              // 스캔 중지
+              stopScanning();
+              
+              try {
+                reader.reset();
+              } catch (e) {
+                console.error('리더 리셋 오류:', e);
+              }
+              
+              // QR 코드 처리
+              processQRCode(qrText);
+            } else {
+              // QR 코드를 찾지 못했으면 다시 시도
+              if (isScanning) {
+                setTimeout(scanLoop, 300);
+              }
+            }
+          })
+          .catch((error) => {
+            if (!isScanning) return;
             
-            // QR 코드 처리
-            processQRCode(qrText);
-          } else {
-            // QR 코드를 찾지 못했으면 다시 시도
-            if (isScanning) {
-              setTimeout(scanLoop, 300);
+            // NotFoundException은 정상 (QR 코드가 화면에 없음)
+            if (error && error.name === 'NotFoundException') {
+              // 계속 스캔
+              if (isScanning) {
+                setTimeout(scanLoop, 300);
+              }
+            } else {
+              console.error('QR 스캔 오류:', error);
+              // 다른 오류도 계속 시도 (카메라는 켜진 상태 유지)
+              if (isScanning) {
+                setTimeout(scanLoop, 500);
+              }
             }
-          }
-        })
-        .catch((error) => {
-          // NotFoundException은 정상 (QR 코드가 화면에 없음)
-          if (error && error.name === 'NotFoundException') {
-            // 계속 스캔
-            if (isScanning) {
-              setTimeout(scanLoop, 300);
-            }
-          } else {
-            console.error('QR 스캔 오류:', error);
-            // 다른 오류도 계속 시도
-            if (isScanning) {
-              setTimeout(scanLoop, 500);
-            }
-          }
-        });
+          });
+      } catch (error) {
+        console.error('스캔 루프 예외:', error);
+        // 예외 발생해도 계속 시도
+        if (isScanning) {
+          setTimeout(scanLoop, 500);
+        }
+      }
     };
     
     // 스캔 시작
