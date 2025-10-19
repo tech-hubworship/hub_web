@@ -9,7 +9,7 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '@src/lib/supabase';
+import { supabaseAdmin } from '@src/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 
@@ -57,7 +57,7 @@ async function handleGet(
     return res.status(401).json({ error: '관리자 권한이 필요합니다.' });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('tech_inquiries')
     .select('*')
     .eq('id', id)
@@ -119,7 +119,7 @@ async function handlePatch(
     return res.status(400).json({ error: '업데이트할 내용이 없습니다.' });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('tech_inquiries')
     .update(updateData)
     .eq('id', id)
@@ -153,7 +153,7 @@ async function handleDelete(
     return res.status(401).json({ error: '관리자 권한이 필요합니다.' });
   }
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('tech_inquiries')
     .delete()
     .eq('id', id);

@@ -99,11 +99,11 @@ export default function AdminPage() {
                         </Link>
                     )}
                     
-                    {/* 테크팀 문의사항 - 모든 관리자에게 표시 */}
+                    {/* 문의사항 메뉴 - 모든 관리자에게 표시 */}
                     <Link href="/admin/tech-inquiries" passHref legacyBehavior>
                         <S.NavItem as="a">
                             <S.NavIcon>💬</S.NavIcon>
-                            {!sidebarCollapsed && <S.NavText>테크팀 문의사항</S.NavText>}
+                            {!sidebarCollapsed && <S.NavText>문의사항</S.NavText>}
                         </S.NavItem>
                     </Link>
                 </S.NavMenu>
@@ -191,13 +191,13 @@ export default function AdminPage() {
                             </Link>
                         )}
                         
-                        {/* 테크팀 문의사항 - 모든 관리자에게 표시 */}
+                        {/* 문의사항 카드 - 모든 관리자에게 표시 */}
                         <Link href="/admin/tech-inquiries" passHref legacyBehavior>
                             <S.DashboardCard as="a">
                                 <S.DashboardIcon className="dashboard-icon">💬</S.DashboardIcon>
-                                <S.DashboardTitle className="dashboard-title">테크팀 문의사항</S.DashboardTitle>
+                                <S.DashboardTitle className="dashboard-title">문의사항</S.DashboardTitle>
                                 <S.DashboardDescription className="dashboard-description">
-                                    버그 제보 및 사용자 문의 관리
+                                    사용자 문의 및 버그 리포트 관리
                                 </S.DashboardDescription>
                             </S.DashboardCard>
                         </Link>

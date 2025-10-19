@@ -8,7 +8,7 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '@src/lib/supabase';
+import { supabase, supabaseAdmin } from '@src/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 
@@ -61,7 +61,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   if (userIp) {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     
-    const { data: recentInquiries, error: checkError } = await supabase
+    const { data: recentInquiries, error: checkError } = await supabaseAdmin
       .from('tech_inquiries')
       .select('id')
       .eq('user_ip', userIp)
@@ -75,8 +75,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     }
   }
 
-  // 문의사항 저장
-  const { data, error } = await supabase
+  // 문의사항 저장 (supabaseAdmin 사용하여 RLS 우회)
+  const { data, error } = await supabaseAdmin
     .from('tech_inquiries')
     .insert({
       message: message.trim(),
@@ -124,7 +124,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 
   // 통계만 조회
   if (stats === 'true') {
-    const { data: allInquiries, error: statsError } = await supabase
+    const { data: allInquiries, error: statsError } = await supabaseAdmin
       .from('tech_inquiries')
       .select('*');
 
@@ -155,7 +155,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   }
 
   // 문의사항 목록 조회
-  let query = supabase
+  let query = supabaseAdmin
     .from('tech_inquiries')
     .select('*')
     .order('created_at', { ascending: false })
