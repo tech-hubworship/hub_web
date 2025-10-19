@@ -50,10 +50,10 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
             (function(j,ennifer) {
                 j['dmndata']=[];j['jenniferFront']=function(args){window.dmndata.push(args)};
                 j['dmnaid']=ennifer;j['dmnatime']=new Date();j['dmnanocookie']=false;j['dmnajennifer']='JENNIFER_FRONT@INTG';
-            }(window, '49032406'));
+            }(window, 'dde0c5d9'));
           `
         }} />
-        <Script id="jennifer-demian" src="https://d-collect.jennifersoft.com/49032406/demian.js" strategy="afterInteractive" />
+        <Script id="jennifer-demian" src="https://d-collect.jennifersoft.com/dde0c5d9/demian.js" strategy="afterInteractive" />
         <Global styles={global} />
         <QueryClientProvider client={queryClient}>
           <MotionConfig isValidProp={isValidProp}>
