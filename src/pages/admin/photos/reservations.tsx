@@ -780,28 +780,34 @@ export default function PhotoReservations() {
       
       // 비디오 재생
       await videoRef.current.play();
-      console.log('비디오 재생 시작');
+      console.log('✓ 비디오 재생 시작 명령 완료');
       
-      // 비디오가 안정화될 때까지 대기
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 비디오가 실제로 재생 중인지 확인
+      await new Promise((resolve) => {
+        const checkPlaying = () => {
+          if (videoRef.current && !videoRef.current.paused && videoRef.current.readyState >= 2) {
+            console.log('✓ 비디오 재생 확인됨 (readyState:', videoRef.current.readyState, ')');
+            resolve(true);
+          } else {
+            console.log('대기 중... (readyState:', videoRef.current?.readyState, ')');
+            setTimeout(checkPlaying, 100);
+          }
+        };
+        checkPlaying();
+      });
+      
+      // 추가 안정화 대기
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       setCameraLoading(false);
+      console.log('✓ 로딩 완료, 스캔 준비');
       
       // QR 코드 리더 초기화 및 스캔 시작
       const reader = new BrowserQRCodeReader();
       setQrReader(reader);
       
-      console.log('QR 스캔 시작 - 비디오 준비 완료');
-      
-      // 스캔 시작 전 한 번 더 대기
-      setTimeout(() => {
-        if (videoRef.current && videoRef.current.readyState >= 2) {
-          console.log('비디오 준비 상태 확인 완료, 스캔 시작');
-          startQRScanning(reader);
-        } else {
-          console.warn('비디오가 아직 준비되지 않음');
-        }
-      }, 300);
+      console.log('🔍 QR 스캔 시작...');
+      startQRScanning(reader);
       
     } catch (error: any) {
       console.error('카메라 시작 오류:', error);
