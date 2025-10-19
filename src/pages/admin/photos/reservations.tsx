@@ -187,6 +187,8 @@ const CameraVideo = styled.video`
   object-fit: cover;
   -webkit-transform: scaleX(1);
   transform: scaleX(1);
+  z-index: 1000;
+  background: #000;
 `;
 
 const CameraControls = styled.div`
@@ -760,44 +762,56 @@ export default function PhotoReservations() {
       
       // 스트림 저장 및 비디오 설정
       setCameraStream(stream);
-      videoRef.current.srcObject = stream;
+      
+      if (!videoRef.current) {
+        throw new Error('비디오 참조 손실');
+      }
+      
+      const video = videoRef.current;
+      video.srcObject = stream;
+      
+      console.log('✓ 비디오 스트림 설정 완료');
       
       // 비디오 이벤트 리스너 추가 (디버깅용)
-      videoRef.current.onloadeddata = () => console.log('✓ 비디오 데이터 로드됨');
-      videoRef.current.oncanplay = () => console.log('✓ 비디오 재생 가능');
-      videoRef.current.onplaying = () => console.log('✓ 비디오 재생 중');
-      videoRef.current.onpause = () => console.warn('⚠️ 비디오 일시정지됨');
-      videoRef.current.onerror = (e) => console.error('❌ 비디오 오류:', e);
-      videoRef.current.onstalled = () => console.warn('⚠️ 비디오 정지됨');
+      video.onloadeddata = () => console.log('✓ 비디오 데이터 로드됨');
+      video.oncanplay = () => console.log('✓ 비디오 재생 가능');
+      video.onplaying = () => console.log('✓ 비디오 재생 중');
+      video.onpause = () => console.warn('⚠️ 비디오 일시정지됨');
+      video.onerror = (e) => console.error('❌ 비디오 오류:', e);
+      video.onstalled = () => console.warn('⚠️ 비디오 정지됨');
       
       // 비디오 메타데이터 로드 대기
-      await new Promise((resolve) => {
-        videoRef.current!.onloadedmetadata = () => {
-          console.log('✓ 비디오 메타데이터 로드됨');
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('메타데이터 로드 타임아웃')), 5000);
+        video.onloadedmetadata = () => {
+          clearTimeout(timeout);
+          console.log('✓ 비디오 메타데이터 로드됨 (width:', video.videoWidth, 'height:', video.videoHeight, ')');
           resolve(true);
         };
       });
       
-      // 비디오 재생
-      await videoRef.current.play();
-      console.log('✓ 비디오 재생 시작 명령 완료');
-      
-      // 비디오가 실제로 재생 중인지 확인
-      await new Promise((resolve) => {
-        const checkPlaying = () => {
-          if (videoRef.current && !videoRef.current.paused && videoRef.current.readyState >= 2) {
-            console.log('✓ 비디오 재생 확인됨 (readyState:', videoRef.current.readyState, ')');
-            resolve(true);
-          } else {
-            console.log('대기 중... (readyState:', videoRef.current?.readyState, ')');
-            setTimeout(checkPlaying, 100);
-          }
+      // 비디오가 실제로 재생될 때까지 대기
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('비디오 재생 타임아웃')), 5000);
+        
+        video.onplaying = () => {
+          clearTimeout(timeout);
+          console.log('✓ 비디오 재생 확인됨 (readyState:', video.readyState, ')');
+          resolve(true);
         };
-        checkPlaying();
+        
+        // 재생 시작 (autoPlay가 작동하지 않을 경우를 위해)
+        if (video.paused) {
+          video.play().catch(err => {
+            console.error('재생 오류:', err);
+            clearTimeout(timeout);
+            reject(err);
+          });
+        }
       });
       
       // 추가 안정화 대기
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       setCameraLoading(false);
       console.log('✓ 로딩 완료, 스캔 준비');
@@ -1269,7 +1283,6 @@ export default function PhotoReservations() {
           )}
           <CameraVideo
             ref={videoRef}
-            autoPlay
             playsInline
             muted
           />
