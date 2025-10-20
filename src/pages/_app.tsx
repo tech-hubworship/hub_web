@@ -45,6 +45,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
           <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0,  maximum-scale=1" />
           <meta content="yes" name="apple-mobile-web-app-capable" />
         </Head>
+        {/* Jennifer Analytics 추적코드 */}
         <Script id="jennifer-script" strategy="afterInteractive" dangerouslySetInnerHTML={{
           __html: `
             (function(j,ennifer) {
@@ -53,7 +54,12 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
             }(window, 'dde0c5d9'));
           `
         }} />
-        <Script id="jennifer-demian" src="https://d-collect.jennifersoft.com/dde0c5d9/demian.js" strategy="afterInteractive" />
+        <Script 
+          id="jennifer-demian" 
+          src="https://d-collect.jennifersoft.com/dde0c5d9/demian.js" 
+          strategy="afterInteractive"
+          async
+        />
         <Global styles={global} />
         <QueryClientProvider client={queryClient}>
           <MotionConfig isValidProp={isValidProp}>

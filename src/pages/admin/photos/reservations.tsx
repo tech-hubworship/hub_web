@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import * as S from "@src/views/AdminPage/style";
 import styled from '@emotion/styled';
-import { BrowserQRCodeReader } from '@zxing/library';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface Reservation {
   id: number;
@@ -176,19 +176,6 @@ const CameraContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-`;
-
-const CameraVideo = styled.video`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  -webkit-transform: scaleX(1);
-  transform: scaleX(1);
-  z-index: 1000;
-  background: #000;
 `;
 
 const CameraControls = styled.div`
@@ -577,13 +564,9 @@ export default function PhotoReservations() {
   const [qrInput, setQrInput] = useState<string>('');
   const [scanning, setScanning] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [qrReader, setQrReader] = useState<BrowserQRCodeReader | null>(null);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [cameraLoading, setCameraLoading] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const qrScannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
     // 인증되지 않았거나, 사진팀 권한이 없는 경우 메인 페이지로 리디렉션
@@ -722,279 +705,58 @@ export default function PhotoReservations() {
     setSelectedReservation(null);
   };
 
-  // 카메라 시작
-  const startCamera = async () => {
-    console.log('카메라 시작 함수 호출됨');
-    
-    setCameraLoading(true);
-    
-    try {
-      // 먼저 모달 닫고 카메라 화면 표시
-      setShowQRModal(false);
-      
-      // DOM 업데이트를 위한 대기
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      setShowCamera(true);
-      
-      // 비디오 엘리먼트 준비 대기
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      if (!videoRef.current) {
-        throw new Error('비디오 엘리먼트가 준비되지 않았습니다.');
-      }
-      
-      console.log('비디오 엘리먼트 준비 완료');
-      
-      // 카메라 권한 요청 및 스트림 획득
-      const constraints = {
-        video: {
-          facingMode: 'environment', // 후면 카메라 우선
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      };
-      
-      console.log('카메라 권한 요청 중...');
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('카메라 스트림 획득 성공');
-      
-      // 스트림 저장 및 비디오 설정
-      setCameraStream(stream);
-      
-      if (!videoRef.current) {
-        throw new Error('비디오 참조 손실');
-      }
-      
-      const video = videoRef.current;
-      video.srcObject = stream;
-      
-      console.log('✓ 비디오 스트림 설정 완료');
-      
-      // 비디오 이벤트 리스너 추가 (디버깅용)
-      video.onloadeddata = () => console.log('✓ 비디오 데이터 로드됨');
-      video.oncanplay = () => console.log('✓ 비디오 재생 가능');
-      video.onplaying = () => console.log('✓ 비디오 재생 중');
-      video.onpause = () => console.warn('⚠️ 비디오 일시정지됨');
-      video.onerror = (e) => console.error('❌ 비디오 오류:', e);
-      video.onstalled = () => console.warn('⚠️ 비디오 정지됨');
-      
-      // 비디오 메타데이터 로드 대기
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('메타데이터 로드 타임아웃')), 5000);
-        video.onloadedmetadata = () => {
-          clearTimeout(timeout);
-          console.log('✓ 비디오 메타데이터 로드됨 (width:', video.videoWidth, 'height:', video.videoHeight, ')');
-          resolve(true);
-        };
-      });
-      
-      // 비디오가 실제로 재생될 때까지 대기
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('비디오 재생 타임아웃')), 5000);
-        
-        video.onplaying = () => {
-          clearTimeout(timeout);
-          console.log('✓ 비디오 재생 확인됨 (readyState:', video.readyState, ')');
-          resolve(true);
-        };
-        
-        // 재생 시작 (autoPlay가 작동하지 않을 경우를 위해)
-        if (video.paused) {
-          video.play().catch(err => {
-            console.error('재생 오류:', err);
-            clearTimeout(timeout);
-            reject(err);
-          });
-        }
-      });
-      
-      // 추가 안정화 대기
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setCameraLoading(false);
-      console.log('✓ 로딩 완료, 스캔 준비');
-      
-      // QR 코드 리더 초기화 및 스캔 시작
-      const reader = new BrowserQRCodeReader();
-      setQrReader(reader);
-      
-      console.log('🔍 QR 스캔 시작...');
-      startQRScanning(reader);
-      
-    } catch (error: any) {
-      console.error('카메라 시작 오류:', error);
-      
-      setCameraLoading(false);
-      
-      // 에러 발생 시 카메라 화면 닫고 모달 다시 표시
-      setShowCamera(false);
-      setShowQRModal(true);
-      
-      // 에러 메시지 생성
-      let errorMessage = '카메라를 시작할 수 없습니다.\n\n';
-      
-      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        errorMessage += '❌ 카메라 권한이 거부되었습니다.\n\n';
-        errorMessage += '📱 해결 방법:\n';
-        errorMessage += '1. 브라우저 주소창 옆의 자물쇠 아이콘 클릭\n';
-        errorMessage += '2. 카메라 권한을 "허용"으로 변경\n';
-        errorMessage += '3. 페이지 새로고침 후 다시 시도\n\n';
-        errorMessage += '💡 또는 아래에서 QR 데이터를 직접 입력하세요.';
-      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-        errorMessage += '❌ 카메라를 찾을 수 없습니다.\n\n';
-        errorMessage += '카메라가 연결되어 있는지 확인하거나\nQR 데이터를 직접 입력하세요.';
-      } else if (error.name === 'NotReadableError') {
-        errorMessage += '❌ 카메라가 이미 사용 중입니다.\n\n';
-        errorMessage += '다른 앱이나 탭에서 카메라를 사용 중일 수 있습니다.\n해당 앱을 종료하고 다시 시도하세요.';
-      } else {
-        errorMessage += `오류: ${error.message || '알 수 없는 오류'}\n\n`;
-        errorMessage += 'QR 데이터를 직접 입력하세요.';
-      }
-      
-      alert(errorMessage);
-    }
+  // QR 스캔 시작
+  const startCamera = () => {
+    setShowQRModal(false);
+    setShowCamera(true);
   };
 
-  // QR 코드 스캔 시작 (자동 스캔)
-  const startQRScanning = (reader: BrowserQRCodeReader) => {
-    if (!videoRef.current) {
-      console.error('비디오 엘리먼트가 없습니다.');
-      return;
-    }
-
-    console.log('QR 스캔 루프 시작...');
-    
-    let isScanning = true;
-    let scanCount = 0;
-    
-    // 스캔 중지 함수 (외부에서 접근 가능하도록)
-    const stopScanning = () => {
-      isScanning = false;
-      console.log('스캔 루프 종료');
-    };
-    
-    // 연속 스캔 루프
-    const scanLoop = () => {
-      if (!isScanning) {
-        console.log('스캔 중지됨 (isScanning=false)');
-        return;
-      }
-      
-      if (!videoRef.current) {
-        console.log('스캔 중지됨 (videoRef 없음)');
-        return;
-      }
-      
-      // 비디오가 재생 중인지 확인
-      if (videoRef.current.paused || videoRef.current.readyState < 2) {
-        console.log('비디오 준비 안됨, 재시도...');
-        if (isScanning) {
-          setTimeout(scanLoop, 500);
-        }
-        return;
-      }
-      
-      scanCount++;
-      if (scanCount % 10 === 0) {
-        console.log(`스캔 시도 중... (${scanCount}회)`);
-      }
-      
-      try {
-        reader.decodeFromVideoElement(videoRef.current)
-          .then((result) => {
-            if (!isScanning) return;
-            
-            if (result) {
-              const qrText = result.getText();
-              console.log('✅ QR 코드 감지 성공:', qrText);
-              
-              // 스캔 중지
-              stopScanning();
-              
-              try {
-                reader.reset();
-              } catch (e) {
-                console.error('리더 리셋 오류:', e);
-              }
-              
-              // QR 코드 처리
-              processQRCode(qrText);
-            } else {
-              // QR 코드를 찾지 못했으면 다시 시도
-              if (isScanning) {
-                setTimeout(scanLoop, 300);
-              }
-            }
-          })
-          .catch((error) => {
-            if (!isScanning) return;
-            
-            // NotFoundException은 정상 (QR 코드가 화면에 없음)
-            if (error && error.name === 'NotFoundException') {
-              // 계속 스캔
-              if (isScanning) {
-                setTimeout(scanLoop, 300);
-              }
-            } else {
-              console.error('QR 스캔 오류:', error);
-              // 다른 오류도 계속 시도 (카메라는 켜진 상태 유지)
-              if (isScanning) {
-                setTimeout(scanLoop, 500);
-              }
-            }
-          });
-      } catch (error) {
-        console.error('스캔 루프 예외:', error);
-        // 예외 발생해도 계속 시도
-        if (isScanning) {
-          setTimeout(scanLoop, 500);
-        }
-      }
-    };
-    
-    // 스캔 시작
-    scanLoop();
-  };
-
-  // 카메라 종료
+  // QR 스캔 종료
   const stopCamera = (returnToModal = false) => {
-    console.log('카메라 종료 중...');
-    
-    // QR 리더 정리
-    if (qrReader) {
-      try {
-        qrReader.reset();
-      } catch (e) {
-        console.error('QR 리더 리셋 오류:', e);
-      }
-      setQrReader(null);
-    }
-    
-    // 카메라 스트림 정리
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => {
-        track.stop();
-        console.log('트랙 중지:', track.kind);
-      });
-      setCameraStream(null);
-    }
-    
-    // 비디오 엘리먼트 정리
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+    // QR 스캐너 정리
+    if (qrScannerRef.current) {
+      qrScannerRef.current.clear().catch(err => console.error('QR 스캐너 정리 오류:', err));
+      qrScannerRef.current = null;
     }
     
     setShowCamera(false);
-    
-    // 모달로 돌아갈지 여부
     if (returnToModal) {
       setShowQRModal(true);
     }
-    
-    console.log('카메라 종료 완료');
   };
+
+  // QR 스캐너 초기화
+  useEffect(() => {
+    if (showCamera && !qrScannerRef.current) {
+      const scanner = new Html5QrcodeScanner(
+        'qr-reader',
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+        },
+        false
+      );
+
+      scanner.render(
+        (decodedText) => {
+          console.log('✅ QR 코드 감지:', decodedText);
+          processQRCode(decodedText);
+        },
+        (error) => {
+          // QR 코드가 화면에 없을 때의 에러는 무시
+        }
+      );
+
+      qrScannerRef.current = scanner;
+    }
+
+    return () => {
+      if (qrScannerRef.current) {
+        qrScannerRef.current.clear().catch(err => console.error('정리 오류:', err));
+      }
+    };
+  }, [showCamera]);
 
   // QR 코드 스캔 및 수령 완료 처리
   const processQRCode = async (qrString: string) => {
@@ -1045,7 +807,7 @@ export default function PhotoReservations() {
       if (response.ok) {
         alert(`${reservation.photos?.title || '사진'}의 수령이 완료되었습니다.`);
         await refreshData(); // 목록 새로고침
-        stopCamera(); // 카메라 종료
+        setShowCamera(false); // 카메라 종료
         setShowQRModal(false); // 모달 닫기
         setQrInput(''); // 입력 초기화
       } else {
@@ -1069,17 +831,6 @@ export default function PhotoReservations() {
   };
 
 
-  // 컴포넌트 언마운트 시 카메라 정리
-  useEffect(() => {
-    return () => {
-      if (qrReader) {
-        qrReader.reset();
-      }
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [cameraStream, qrReader]);
 
   // 로딩 중이거나 권한이 없는 경우
   if (status === 'loading' || !session?.user?.isAdmin || !session?.user?.roles?.includes('사진팀')) {
@@ -1269,24 +1020,22 @@ export default function PhotoReservations() {
       {/* 카메라 모달 */}
       {showCamera && (
         <CameraContainer>
-          {cameraLoading ? (
-            <ScanGuide>
-              <div style={{ fontSize: 18, marginBottom: 10 }}>📷 카메라 시작 중...</div>
-              <span style={{ fontSize: 14, opacity: 0.8 }}>잠시만 기다려주세요</span>
-            </ScanGuide>
-          ) : (
-            <ScanGuide>
-              QR 코드를 스캔 영역에 맞춰주세요
-              <br />
-              <span style={{ fontSize: 14, opacity: 0.8 }}>자동으로 인식됩니다</span>
-            </ScanGuide>
-          )}
-          <CameraVideo
-            ref={videoRef}
-            playsInline
-            muted
+          <ScanGuide>
+            QR 코드를 스캔 영역에 맞춰주세요
+            <br />
+            <span style={{ fontSize: 14, opacity: 0.8 }}>자동으로 인식됩니다</span>
+          </ScanGuide>
+          
+          {/* QR 리더가 렌더링될 영역 */}
+          <div 
+            id="qr-reader" 
+            style={{ 
+              width: '100%', 
+              maxWidth: '500px',
+              margin: '0 auto'
+            }}
           />
-          {!cameraLoading && <ScanOverlay />}
+          
           <CameraControls>
             <CameraButton onClick={() => stopCamera(true)} variant="danger">
               닫기
