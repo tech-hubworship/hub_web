@@ -8,8 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --ignore-path .gitignore .",
-    "format": "eslint --ignore-path .gitignore --fix . && prettier . --write",
-    "vercel-deploy": "next build && next export"
+    "format": "eslint --ignore-path .gitignore --fix . && prettier . --write"
   },
   "dependencies": {
     "@amplitude/analytics-browser": "^2.3.0",
@@ -120,7 +119,8 @@
   },
   "engines": {
     "npm": "please-use-pnpm",
-    "yarn": "please-use-pnpm"
+    "yarn": "please-use-pnpm",
+    "node": ">=20.0.0"
   },
   "pnpm": {
     "overrides": {
