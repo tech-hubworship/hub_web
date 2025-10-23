@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import * as S from "@src/views/AdminPage/style";
 import styled from '@emotion/styled';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { QrReader } from 'react-qr-reader';
 
 interface Reservation {
   id: number;
@@ -669,6 +669,103 @@ const SortIcon = styled.span<{ active?: boolean }>`
   transition: color 0.2s ease;
 `;
 
+const ScannedListModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+`;
+
+const ScannedListContent = styled.div`
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+`;
+
+const ScannedListHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+`;
+
+const ScannedListTitle = styled.h2`
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+`;
+
+const ScannedPhotoItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  background: #f9fafb;
+`;
+
+const ScannedPhotoImage = styled.img`
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid #e5e7eb;
+`;
+
+const ScannedPhotoInfo = styled.div`
+  flex: 1;
+`;
+
+const ScannedPhotoTitle = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+`;
+
+const ScannedPhotoDetails = styled.div`
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 2px;
+`;
+
+const CompleteButton = styled.button`
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 20px;
+  width: 100%;
+
+  &:hover {
+    background: #059669;
+    transform: translateY(-1px);
+  }
+`;
+
 export default function PhotoReservations() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -698,7 +795,8 @@ export default function PhotoReservations() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedReservations, setSelectedReservations] = useState<number[]>([]);
   const [batchMode, setBatchMode] = useState(false);
-  const qrScannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [scannedReservations, setScannedReservations] = useState<any[]>([]);
+  const [showScannedList, setShowScannedList] = useState(false);
 
   useEffect(() => {
     // 인증되지 않았거나, 사진팀 권한이 없는 경우 메인 페이지로 리디렉션
@@ -874,61 +972,16 @@ export default function PhotoReservations() {
     setSelectedReservation(null);
   };
 
-  // QR 스캔 시작
+  // QR 스캔 시작 (모달 없이 바로 카메라 실행)
   const startCamera = () => {
-    setShowQRModal(false);
     setShowCamera(true);
   };
 
   // QR 스캔 종료
-  const stopCamera = (returnToModal = false) => {
-    // QR 스캐너 정리
-    if (qrScannerRef.current) {
-      qrScannerRef.current.clear().catch(err => console.error('QR 스캐너 정리 오류:', err));
-      qrScannerRef.current = null;
-    }
-    
+  const stopCamera = () => {
     setShowCamera(false);
-    if (returnToModal) {
-      setShowQRModal(true);
-    }
   };
 
-  // QR 스캐너 초기화
-  useEffect(() => {
-    if (showCamera && !qrScannerRef.current) {
-      const scanner = new Html5QrcodeScanner(
-        'qr-reader',
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-          videoConstraints: {
-            facingMode: { exact: 'environment' } // 후면카메라 강제 사용
-          }
-        },
-        false
-      );
-
-      scanner.render(
-        (decodedText) => {
-          console.log('✅ QR 코드 감지:', decodedText);
-          processQRCode(decodedText);
-        },
-        (error) => {
-          // QR 코드가 화면에 없을 때의 에러는 무시
-        }
-      );
-
-      qrScannerRef.current = scanner;
-    }
-
-    return () => {
-      if (qrScannerRef.current) {
-        qrScannerRef.current.clear().catch(err => console.error('정리 오류:', err));
-      }
-    };
-  }, [showCamera]);
 
   // QR 코드 스캔 및 처리 (일괄 처리 지원)
   const processQRCode = async (qrString: string) => {
@@ -968,29 +1021,10 @@ export default function PhotoReservations() {
         return;
       }
 
-      // 수령 완료 처리
-      const response = await fetch('/api/admin/photos/reservations', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: qrData.reservationId,
-          status: '수령완료'
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert(`${reservation.photos?.title || '사진'}의 수령이 완료되었습니다.`);
-        await refreshData(); // 목록 새로고침
-        setShowCamera(false); // 카메라 종료
-        setShowQRModal(false); // 모달 닫기
-        setQrInput(''); // 입력 초기화
-      } else {
-        alert(data.error || '수령 완료 처리에 실패했습니다.');
-      }
+      // 스캔된 예약을 목록에 추가하고 사진 목록 표시
+      setScannedReservations([reservation]);
+      setShowScannedList(true);
+      setShowCamera(false);
     } catch (error) {
       console.error('QR 스캔 오류:', error);
       alert('QR 코드 처리 중 오류가 발생했습니다.');
@@ -1011,7 +1045,30 @@ export default function PhotoReservations() {
 
       console.log('일괄 처리 시작:', { reservationIds, status, userId });
 
-      // 일괄 업데이트 API 호출
+      // 해당 예약들을 찾아서 사진 목록에 표시
+      const foundReservations = reservations.filter(r => 
+        reservationIds.includes(r.id) && r.status === '예약완료'
+      );
+
+      if (foundReservations.length === 0) {
+        alert('교환 가능한 예약이 없습니다.');
+        return;
+      }
+
+      setScannedReservations(foundReservations);
+      setShowScannedList(true);
+      setShowCamera(false);
+    } catch (error) {
+      console.error('일괄 처리 오류:', error);
+      alert('일괄 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 스캔된 예약들 수령완료 처리
+  const handleCompleteDelivery = async () => {
+    try {
+      const reservationIds = scannedReservations.map(r => r.id);
+      
       const response = await fetch('/api/admin/photos/reservations', {
         method: 'POST',
         headers: {
@@ -1019,29 +1076,24 @@ export default function PhotoReservations() {
         },
         body: JSON.stringify({
           reservationIds,
-          status: status || '수령완료',
-          message: `일괄 처리됨 (사용자 ID: ${userId})`
+          status: '수령완료',
+          message: 'QR 코드로 수령 완료'
         }),
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        console.log('일괄 처리 성공:', result);
-        alert(`${result.updatedCount}개의 예약이 처리되었습니다!`);
-        
-        // 목록 새로고침
+        alert(`${result.updatedCount}개의 사진이 수령완료 처리되었습니다!`);
         await refreshData();
-        
-        // 카메라 종료
-        setShowCamera(false);
+        setShowScannedList(false);
+        setScannedReservations([]);
       } else {
-        console.error('일괄 처리 실패:', result);
-        alert(result.error || '일괄 처리에 실패했습니다.');
+        alert(result.error || '수령완료 처리에 실패했습니다.');
       }
     } catch (error) {
-      console.error('일괄 처리 오류:', error);
-      alert('일괄 처리 중 오류가 발생했습니다.');
+      console.error('수령완료 처리 오류:', error);
+      alert('수령완료 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -1206,6 +1258,7 @@ export default function PhotoReservations() {
   }
 
   return (
+    <>
     <S.AdminLayout>
       <S.Sidebar collapsed={sidebarCollapsed}>
         <S.SidebarHeader>
@@ -1295,7 +1348,7 @@ export default function PhotoReservations() {
       </StatsGrid>
 
       <div style={{ marginBottom: 24, display: 'flex', gap: '8px' }}>
-        <QRButton onClick={() => setShowQRModal(true)} disabled={scanning}>
+        <QRButton onClick={startCamera} disabled={scanning}>
           📷 QR 수령
         </QRButton>
         
@@ -1370,18 +1423,23 @@ export default function PhotoReservations() {
             <span style={{ fontSize: 14, opacity: 0.8 }}>자동으로 인식됩니다</span>
           </ScanGuide>
           
-          {/* QR 리더가 렌더링될 영역 */}
-          <div 
-            id="qr-reader" 
-            style={{ 
-              width: '100%', 
-              maxWidth: '500px',
-              margin: '0 auto'
-            }}
-          />
+          <div style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}>
+            <QrReader
+              onResult={(result: any, error: any) => {
+                if (result) {
+                  console.log('✅ QR 코드 감지:', result.getText());
+                  processQRCode(result.getText());
+                }
+                if (error) {
+                  console.log('QR 스캔 에러:', error);
+                }
+              }}
+              constraints={{ facingMode: 'environment' }}
+            />
+          </div>
           
           <CameraControls>
-            <CameraButton onClick={() => stopCamera(true)} variant="danger">
+            <CameraButton onClick={stopCamera} variant="danger">
               닫기
             </CameraButton>
           </CameraControls>
@@ -1688,5 +1746,50 @@ export default function PhotoReservations() {
         </S.ContentArea>
       </S.MainContent>
     </S.AdminLayout>
+
+    {/* 스캔된 사진 목록 모달 */}
+    {showScannedList && (
+      <ScannedListModal onClick={() => setShowScannedList(false)}>
+        <ScannedListContent onClick={(e) => e.stopPropagation()}>
+          <ScannedListHeader>
+            <ScannedListTitle>
+              사진예약 목록 ({scannedReservations.length}개)
+            </ScannedListTitle>
+            <CloseButton onClick={() => setShowScannedList(false)}>×</CloseButton>
+          </ScannedListHeader>
+          
+          {scannedReservations.map((reservation) => (
+            <ScannedPhotoItem key={reservation.id}>
+              <ScannedPhotoImage 
+                src={convertGoogleDriveUrl(reservation.photos.image_url)}
+                alt={reservation.photos.title}
+                onError={(e) => {
+                  e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MCAyMEMzMi4yNjggMjAgMjYgMjYuMjY4IDI2IDM0QzI2IDQxLjczMiAzMi4yNjggNDggNDAgNDhDNDcuNzMyIDQ4IDU0IDQxLjczMiA1NCAzNEM1NCAyNi4yNjggNDcuNzMyIDIwIDQwIDIwWiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNNDAgNTJDMjYuNzQ1IDUyIDE2IDQxLjI1NSAxNiAyOEgyMEMyMCAzOC40OTcgMjkuNTAzIDQ4IDQwIDQ4QzUwLjQ5NyA0OCA2MCAzOC40OTcgNjAgMjhINjRDNjQgNDEuMjU1IDUzLjI1NSA1MiA0MCA1MloiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+';
+                }}
+              />
+              <ScannedPhotoInfo>
+                <ScannedPhotoTitle>
+                  {reservation.photos.title || '제목 없음'}
+                </ScannedPhotoTitle>
+                <ScannedPhotoDetails>
+                  예약자: {reservation.user_name}
+                </ScannedPhotoDetails>
+                <ScannedPhotoDetails>
+                  폴더: {reservation.photos.photo_folders.name}
+                </ScannedPhotoDetails>
+                <ScannedPhotoDetails>
+                  예약일: {formatDate(reservation.created_at)}
+                </ScannedPhotoDetails>
+              </ScannedPhotoInfo>
+            </ScannedPhotoItem>
+          ))}
+          
+          <CompleteButton onClick={handleCompleteDelivery}>
+            ✓ 수령완료 처리 ({scannedReservations.length}개)
+          </CompleteButton>
+        </ScannedListContent>
+      </ScannedListModal>
+    )}
+    </>
   );
 }

@@ -296,18 +296,32 @@ const ReservationTitle = styled.h2`
 `;
 
 const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: #6b7280;
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid rgba(239, 68, 68, 0.3);
+  font-size: 14px;
+  font-weight: 600;
+  color: #dc2626;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 8px 16px;
+  border-radius: 12px;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 80px;
+  justify-content: center;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.1);
-    color: #374151;
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #b91c1c;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.2);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
   }
 `;
 
@@ -979,7 +993,8 @@ export default function MediaGallery() {
             <ReservationHeader>
               <ReservationTitle>내 예약 현황</ReservationTitle>
               <CloseButton onClick={() => setShowReservations(false)}>
-                <X size={20} strokeWidth={2.5} />
+                <X size={16} strokeWidth={2.5} />
+                닫기
               </CloseButton>
             </ReservationHeader>
             
@@ -1093,6 +1108,7 @@ export default function MediaGallery() {
               )}
             </QRInfo>
             <CloseButton onClick={() => setShowQRModal(false)}>
+              <X size={16} strokeWidth={2.5} />
               닫기
             </CloseButton>
           </QRContent>
