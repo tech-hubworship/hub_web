@@ -280,6 +280,48 @@ const FilterBar = styled.div`
   flex-wrap: wrap;
 `;
 
+const SortContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+  
+  @media (max-width: 768px) {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+`;
+
+const SortSelect = styled.select`
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  min-width: 120px;
+  
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+`;
+
+const SortButton = styled.button<{ active?: boolean }>`
+  padding: 8px 12px;
+  border: 1px solid ${props => props.active ? '#007bff' : '#ddd'};
+  border-radius: 6px;
+  background: ${props => props.active ? '#007bff' : 'white'};
+  color: ${props => props.active ? 'white' : '#333'};
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: ${props => props.active ? '#0056b3' : '#f8f9fa'};
+  }
+`;
+
 const FilterSelect = styled.select`
   padding: 8px 12px;
   border: 1px solid #d1d5db;
@@ -541,6 +583,92 @@ const ClickableRow = styled(TableRow)`
   }
 `;
 
+const CheckboxCell = styled.td`
+  padding: 12px;
+  text-align: center;
+  width: 50px;
+`;
+
+const Checkbox = styled.input`
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+`;
+
+const BatchActionBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid #e9ecef;
+`;
+
+const BatchButton = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  ${props => {
+    switch (props.variant) {
+      case 'primary':
+        return `
+          background: #007bff;
+          color: white;
+          &:hover { background: #0056b3; }
+        `;
+      case 'danger':
+        return `
+          background: #dc3545;
+          color: white;
+          &:hover { background: #c82333; }
+        `;
+      default:
+        return `
+          background: #6c757d;
+          color: white;
+          &:hover { background: #545b62; }
+        `;
+    }
+  }}
+  
+  &:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+`;
+
+const SortableHeader = styled.th<{ sortable?: boolean }>`
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  cursor: ${props => props.sortable ? 'pointer' : 'default'};
+  user-select: none;
+  transition: all 0.2s ease;
+  position: relative;
+
+  &:hover {
+    background: ${props => props.sortable ? '#f3f4f6' : '#f9fafb'};
+  }
+`;
+
+const SortIcon = styled.span<{ active?: boolean }>`
+  margin-left: 8px;
+  color: ${props => props.active ? '#3b82f6' : '#9ca3af'};
+  font-size: 12px;
+  transition: color 0.2s ease;
+`;
+
 export default function PhotoReservations() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -566,6 +694,10 @@ export default function PhotoReservations() {
   const [showCamera, setShowCamera] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [sortBy, setSortBy] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedReservations, setSelectedReservations] = useState<number[]>([]);
+  const [batchMode, setBatchMode] = useState(false);
   const qrScannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
@@ -611,7 +743,7 @@ export default function PhotoReservations() {
     loadReservations();
   }, []); // 의존성 배열이 비어있으므로, 컴포넌트가 마운트될 때 한 번만 실행됨
 
-  // 원본 데이터가 변경될 때마다 필터링을 다시 실행
+  // 원본 데이터가 변경될 때마다 필터링과 정렬을 다시 실행
   useEffect(() => {
     let filtered = reservations;
     
@@ -629,8 +761,45 @@ export default function PhotoReservations() {
       );
     }
     
+    // 정렬 적용
+    filtered.sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case 'created_at':
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        case 'user_name':
+          aValue = a.user_name || '';
+          bValue = b.user_name || '';
+          break;
+        case 'status':
+          aValue = a.status;
+          bValue = b.status;
+          break;
+        case 'photo_id':
+          aValue = a.photos.id;
+          bValue = b.photos.id;
+          break;
+        case 'folder':
+          aValue = a.photos.photo_folders.name || '';
+          bValue = b.photos.photo_folders.name || '';
+          break;
+        default:
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+    
     setFilteredReservations(filtered);
-  }, [statusFilter, searchQuery, reservations]); // 필터, 검색어, 원본 데이터가 바뀔 때만 실행됨
+  }, [statusFilter, searchQuery, reservations, sortBy, sortOrder]);
   
   // 상태 업데이트 후 목록을 새로고침 (예: 예약 상태 변경, QR 처리 후)
   const refreshData = async () => {
@@ -734,6 +903,9 @@ export default function PhotoReservations() {
           fps: 10,
           qrbox: { width: 250, height: 250 },
           aspectRatio: 1.0,
+          videoConstraints: {
+            facingMode: { exact: 'environment' } // 후면카메라 강제 사용
+          }
         },
         false
       );
@@ -758,7 +930,7 @@ export default function PhotoReservations() {
     };
   }, [showCamera]);
 
-  // QR 코드 스캔 및 수령 완료 처리
+  // QR 코드 스캔 및 처리 (일괄 처리 지원)
   const processQRCode = async (qrString: string) => {
     try {
       setScanning(true);
@@ -772,7 +944,13 @@ export default function PhotoReservations() {
         return;
       }
 
-      // 예약 ID 확인
+      // 일괄 처리 QR 코드인지 확인
+      if (qrData.type === 'batch_exchange') {
+        await processBatchQR(qrData);
+        return;
+      }
+
+      // 단일 예약 처리
       if (!qrData.reservationId) {
         alert('예약 ID가 포함되지 않은 QR 코드입니다.');
         return;
@@ -818,6 +996,163 @@ export default function PhotoReservations() {
       alert('QR 코드 처리 중 오류가 발생했습니다.');
     } finally {
       setScanning(false);
+    }
+  };
+
+  // 일괄 처리 QR 코드 처리
+  const processBatchQR = async (qrData: any) => {
+    try {
+      const { reservationIds, status, userId } = qrData;
+      
+      if (!reservationIds || !Array.isArray(reservationIds) || reservationIds.length === 0) {
+        alert('일괄 처리할 예약이 없습니다.');
+        return;
+      }
+
+      console.log('일괄 처리 시작:', { reservationIds, status, userId });
+
+      // 일괄 업데이트 API 호출
+      const response = await fetch('/api/admin/photos/reservations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reservationIds,
+          status: status || '수령완료',
+          message: `일괄 처리됨 (사용자 ID: ${userId})`
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log('일괄 처리 성공:', result);
+        alert(`${result.updatedCount}개의 예약이 처리되었습니다!`);
+        
+        // 목록 새로고침
+        await refreshData();
+        
+        // 카메라 종료
+        setShowCamera(false);
+      } else {
+        console.error('일괄 처리 실패:', result);
+        alert(result.error || '일괄 처리에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('일괄 처리 오류:', error);
+      alert('일괄 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 정렬 함수
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+  };
+
+  // 정렬 아이콘 렌더링
+  const renderSortIcon = (column: string) => {
+    if (sortBy !== column) {
+      return <SortIcon>↕</SortIcon>;
+    }
+    return <SortIcon active>{sortOrder === 'asc' ? '↑' : '↓'}</SortIcon>;
+  };
+
+  // 일괄 처리 관련 함수들
+  const handleSelectAll = () => {
+    if (selectedReservations.length === filteredReservations.length) {
+      setSelectedReservations([]);
+    } else {
+      setSelectedReservations(filteredReservations.map(r => r.id));
+    }
+  };
+
+  const handleSelectReservation = (reservationId: number) => {
+    setSelectedReservations(prev => 
+      prev.includes(reservationId) 
+        ? prev.filter(id => id !== reservationId)
+        : [...prev, reservationId]
+    );
+  };
+
+  const handleBatchComplete = async () => {
+    if (selectedReservations.length === 0) {
+      alert('처리할 예약을 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`${selectedReservations.length}개의 예약을 완료 처리하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/photos/reservations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reservationIds: selectedReservations,
+          status: '예약완료',
+          message: '일괄 완료 처리됨'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(`${result.updatedCount}개의 예약이 완료 처리되었습니다!`);
+        setSelectedReservations([]);
+        await refreshData();
+      } else {
+        alert(result.error || '일괄 처리에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('일괄 처리 오류:', error);
+      alert('일괄 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleBatchCancel = async () => {
+    if (selectedReservations.length === 0) {
+      alert('취소할 예약을 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`${selectedReservations.length}개의 예약을 취소하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/photos/reservations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reservationIds: selectedReservations,
+          status: '취소됨',
+          message: '일괄 취소 처리됨'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(`${result.updatedCount}개의 예약이 취소되었습니다!`);
+        setSelectedReservations([]);
+        await refreshData();
+      } else {
+        alert(result.error || '일괄 취소에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('일괄 취소 오류:', error);
+      alert('일괄 취소 중 오류가 발생했습니다.');
     }
   };
 
@@ -959,9 +1294,18 @@ export default function PhotoReservations() {
         </StatCard>
       </StatsGrid>
 
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 24, display: 'flex', gap: '8px' }}>
         <QRButton onClick={() => setShowQRModal(true)} disabled={scanning}>
           📷 QR 수령
+        </QRButton>
+        
+        <QRButton 
+          onClick={() => setBatchMode(!batchMode)}
+          style={{ 
+            background: batchMode ? '#dc3545' : '#6c757d'
+          }}
+        >
+          {batchMode ? '일괄처리 종료' : '일괄처리 모드'}
         </QRButton>
       </div>
 
@@ -1057,13 +1401,46 @@ export default function PhotoReservations() {
           <option value="수령완료">수령완료</option>
           <option value="취소됨">취소됨</option>
         </FilterSelect>
+        
         <SearchInput
           type="text"
           placeholder="이름 또는 이메일로 검색..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        
       </FilterBar>
+
+      {/* 일괄 처리 액션 바 */}
+      {batchMode && (
+        <BatchActionBar>
+          <Checkbox
+            type="checkbox"
+            checked={selectedReservations.length === filteredReservations.length && filteredReservations.length > 0}
+            onChange={handleSelectAll}
+          />
+          <span style={{ fontWeight: '600' }}>
+            전체 선택 ({selectedReservations.length}/{filteredReservations.length})
+          </span>
+          
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+            <BatchButton 
+              variant="primary"
+              onClick={handleBatchComplete}
+              disabled={selectedReservations.length === 0}
+            >
+              ✓ 완료 처리 ({selectedReservations.length})
+            </BatchButton>
+            <BatchButton 
+              variant="danger"
+              onClick={handleBatchCancel}
+              disabled={selectedReservations.length === 0}
+            >
+              ✕ 취소 처리 ({selectedReservations.length})
+            </BatchButton>
+          </div>
+        </BatchActionBar>
+      )}
 
       <TableContainer>
         {loading ? (
@@ -1076,18 +1453,53 @@ export default function PhotoReservations() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableHeader>상태</TableHeader>
-                <TableHeader>사진 제목</TableHeader>
-                <TableHeader>폴더</TableHeader>
-                <TableHeader>예약자</TableHeader>
-                <TableHeader>예약일시</TableHeader>
+                {batchMode && <TableHeader style={{ width: '50px' }}>선택</TableHeader>}
+                <SortableHeader 
+                  sortable 
+                  onClick={() => handleSort('status')}
+                >
+                  상태{renderSortIcon('status')}
+                </SortableHeader>
+                <SortableHeader 
+                  sortable 
+                  onClick={() => handleSort('photo_id')}
+                >
+                  사진 번호{renderSortIcon('photo_id')}
+                </SortableHeader>
+                <SortableHeader 
+                  sortable 
+                  onClick={() => handleSort('folder')}
+                >
+                  폴더{renderSortIcon('folder')}
+                </SortableHeader>
+                <SortableHeader 
+                  sortable 
+                  onClick={() => handleSort('user_name')}
+                >
+                  예약자{renderSortIcon('user_name')}
+                </SortableHeader>
+                <SortableHeader 
+                  sortable 
+                  onClick={() => handleSort('created_at')}
+                >
+                  예약일시{renderSortIcon('created_at')}
+                </SortableHeader>
                 <TableHeader>메시지</TableHeader>
                 <TableHeader style={{ textAlign: 'center' }}>작업</TableHeader>
               </TableRow>
             </TableHead>
             <tbody>
               {filteredReservations.map((reservation) => (
-                <ClickableRow key={reservation.id} onClick={() => handleRowClick(reservation)}>
+                <ClickableRow key={reservation.id} onClick={() => !batchMode && handleRowClick(reservation)}>
+                  {batchMode && (
+                    <CheckboxCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        type="checkbox"
+                        checked={selectedReservations.includes(reservation.id)}
+                        onChange={() => handleSelectReservation(reservation.id)}
+                      />
+                    </CheckboxCell>
+                  )}
                   <TableCell>
                     <StatusBadge status={reservation.status}>
                       {reservation.status}
@@ -1095,7 +1507,7 @@ export default function PhotoReservations() {
                   </TableCell>
                   <TableCell>
                     <ReservationTitle>
-                      {reservation.photos.title || '제목 없음'}
+                      #{reservation.photos.id}
                     </ReservationTitle>
                   </TableCell>
                   <TableCell>
@@ -1112,32 +1524,39 @@ export default function PhotoReservations() {
                     {reservation.message || '-'}
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <ActionButtons>
-                      {reservation.status === '예약중' && (
-                        <>
+                    {!batchMode && (
+                      <ActionButtons>
+                        {reservation.status === '예약중' && (
+                          <>
+                            <ActionButton 
+                              variant="complete"
+                              onClick={() => updateReservationStatus(reservation.id, '예약완료')}
+                            >
+                              ✓ 완료 처리
+                            </ActionButton>
+                            <ActionButton 
+                              variant="cancel"
+                              onClick={() => updateReservationStatus(reservation.id, '취소됨')}
+                            >
+                              ✕ 취소 처리
+                            </ActionButton>
+                          </>
+                        )}
+                        {reservation.status === '예약완료' && (
                           <ActionButton 
                             variant="complete"
-                            onClick={() => updateReservationStatus(reservation.id, '예약완료')}
+                            onClick={() => updateReservationStatus(reservation.id, '수령완료')}
                           >
-                            ✓ 완료 처리
+                            ✓ 수령완료
                           </ActionButton>
-                          <ActionButton 
-                            variant="cancel"
-                            onClick={() => updateReservationStatus(reservation.id, '취소됨')}
-                          >
-                            ✕ 취소 처리
-                          </ActionButton>
-                        </>
-                      )}
-                      {reservation.status === '예약완료' && (
-                        <ActionButton 
-                          variant="complete"
-                          onClick={() => updateReservationStatus(reservation.id, '수령완료')}
-                        >
-                          ✓ 수령완료
-                        </ActionButton>
-                      )}
-                    </ActionButtons>
+                        )}
+                      </ActionButtons>
+                    )}
+                    {batchMode && (
+                      <div style={{ textAlign: 'center', color: '#6b7280', fontSize: '12px' }}>
+                        일괄처리 모드
+                      </div>
+                    )}
                   </TableCell>
                 </ClickableRow>
               ))}

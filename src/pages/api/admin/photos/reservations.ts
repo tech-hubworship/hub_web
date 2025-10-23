@@ -56,6 +56,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return await getReservations(req, res);
       case 'PUT':
         return await updateReservation(req, res);
+      case 'POST':
+        return await batchUpdateReservations(req, res);
       default:
         return res.status(405).json({ error: '허용되지 않는 메서드입니다.' });
     }
@@ -183,5 +185,65 @@ async function updateReservation(req: NextApiRequest, res: NextApiResponse) {
   } catch (error) {
     console.error('예약 수정 오류:', error);
     return res.status(500).json({ error: '예약 수정 실패' });
+  }
+}
+
+// 여러 예약 일괄 처리 (QR 코드로)
+async function batchUpdateReservations(req: NextApiRequest, res: NextApiResponse) {
+  const { reservationIds, status, message } = req.body;
+
+  if (!reservationIds || !Array.isArray(reservationIds) || reservationIds.length === 0) {
+    return res.status(400).json({ error: 'reservationIds는 필수이며 배열이어야 합니다.' });
+  }
+
+  if (!status) {
+    return res.status(400).json({ error: 'status는 필수입니다.' });
+  }
+
+  try {
+    // 여러 예약을 한 번에 업데이트
+    const { data, error } = await supabaseClient
+      .from('photo_reservations')
+      .update({
+        status,
+        message: message || null,
+        updated_at: new Date().toISOString()
+      })
+      .in('id', reservationIds)
+      .select(`
+        id,
+        photo_id,
+        user_id,
+        user_name,
+        user_email,
+        status,
+        reservation_date,
+        message,
+        created_at,
+        updated_at,
+        photos!inner (
+          id,
+          title,
+          image_url,
+          photo_folders!inner (
+            id,
+            name
+          )
+        )
+      `);
+
+    if (error) {
+      console.error('일괄 예약 수정 오류:', error);
+      return res.status(500).json({ error: '일괄 예약 수정 실패' });
+    }
+
+    return res.status(200).json({ 
+      message: `${data.length}개의 예약 상태가 수정되었습니다.`,
+      reservations: data,
+      updatedCount: data.length
+    });
+  } catch (error) {
+    console.error('일괄 예약 수정 오류:', error);
+    return res.status(500).json({ error: '일괄 예약 수정 실패' });
   }
 }

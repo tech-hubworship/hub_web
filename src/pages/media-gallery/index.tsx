@@ -214,6 +214,21 @@ const DownloadButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  @media (min-width: 1024px) {
+    padding: 10px 18px;
+    font-size: 13px;
+    min-width: 100px;
+  }
+
+  @media (max-width: 768px) {
+    padding: 12px 20px;
+    font-size: 14px;
+    width: 100%;
+    max-width: 200px;
+  }
 
   &:hover {
     background: #2563eb;
@@ -246,11 +261,24 @@ const ReservationContent = styled.div`
   backdrop-filter: blur(20px);
   border-radius: 24px;
   padding: 32px;
-  max-width: 600px;
-  width: 100%;
-  max-height: 80vh;
+  max-width: 800px;
+  width: 90%;
+  max-height: 85vh;
   overflow-y: auto;
   border: 1px solid rgba(255, 255, 255, 0.3);
+  
+  @media (min-width: 1024px) {
+    max-width: 1000px;
+    width: 95%;
+    padding: 40px;
+  }
+  
+  @media (max-width: 768px) {
+    max-width: 95%;
+    width: 95%;
+    padding: 24px;
+    max-height: 90vh;
+  }
 `;
 
 const ReservationHeader = styled.div`
@@ -287,6 +315,10 @@ const ReservationList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
+  
+  @media (min-width: 1024px) {
+    gap: 20px;
+  }
 `;
 
 const ReservationItem = styled.div`
@@ -295,9 +327,26 @@ const ReservationItem = styled.div`
   border-radius: 16px;
   padding: 16px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   transition: all 0.2s ease-in-out;
+  min-width: 0;
+  width: 100%;
+
+  @media (min-width: 1024px) {
+    padding: 20px;
+    gap: 20px;
+    min-width: 400px;
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    padding: 16px;
+    min-width: 0;
+  }
 
   &:hover {
     transform: scale(1.02);
@@ -312,10 +361,26 @@ const ReservationThumbnail = styled.img`
   object-fit: cover;
   border: 2px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+
+  @media (min-width: 1024px) {
+    width: 100px;
+    height: 100px;
+  }
+
+  @media (max-width: 768px) {
+    width: 100px;
+    height: 100px;
+  }
 `;
 
 const ReservationInfo = styled.div`
   flex: 1;
+  min-width: 0; /* 텍스트 오버플로우 방지 */
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
 `;
 
 const ReservationPhotoTitle = styled.div`
@@ -323,11 +388,34 @@ const ReservationPhotoTitle = styled.div`
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 4px;
+  word-break: break-word;
+
+  @media (min-width: 1024px) {
+    font-size: 18px;
+    margin-bottom: 6px;
+  }
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
 `;
 
 const ReservationDetails = styled.div`
   font-size: 14px;
   color: #6b7280;
+  margin-bottom: 2px;
+  word-break: break-word;
+
+  @media (min-width: 1024px) {
+    font-size: 15px;
+    margin-bottom: 3px;
+  }
+
+  @media (max-width: 768px) {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
 `;
 
 const ReservationStatus = styled.div<{ status: string }>`
@@ -359,6 +447,21 @@ const CancelButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  @media (min-width: 1024px) {
+    padding: 10px 18px;
+    font-size: 13px;
+    min-width: 80px;
+  }
+
+  @media (max-width: 768px) {
+    padding: 12px 20px;
+    font-size: 14px;
+    width: 100%;
+    max-width: 200px;
+  }
 
   &:hover {
     background: #dc2626;
@@ -378,6 +481,21 @@ const ExchangeButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  @media (min-width: 1024px) {
+    padding: 10px 18px;
+    font-size: 13px;
+    min-width: 90px;
+  }
+
+  @media (max-width: 768px) {
+    padding: 12px 20px;
+    font-size: 14px;
+    width: 100%;
+    max-width: 200px;
+  }
 
   &:hover {
     background: #059669;
@@ -439,20 +557,64 @@ const QRInfo = styled.p`
   line-height: 1.5;
 `;
 
-const QRCloseButton = styled.button`
-  margin-top: 24px;
-  padding: 12px 24px;
-  background: #667eea;
+const BatchExchangeContainer = styled.div`
+  margin-bottom: 20px;
+  text-align: center;
+  padding: 20px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  max-width: 500px;
+  margin: 0 auto 20px auto;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+`;
+
+const BatchExchangeTitle = styled.div`
+  font-size: 16px;
+  color: #059669;
+  margin-bottom: 12px;
+  font-weight: 600;
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+`;
+
+const BatchExchangeButton = styled.button`
+  background: #10b981;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  font-size: 16px;
+  padding: 14px 28px;
+  border-radius: 10px;
   font-weight: 600;
-  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
   transition: all 0.2s ease;
+  width: 100%;
+  max-width: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  margin: 0 auto;
 
   &:hover {
-    background: #5a67d8;
+    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  }
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+    padding: 12px 24px;
+    max-width: 250px;
   }
 `;
 
@@ -610,6 +772,47 @@ export default function MediaGallery() {
     } catch (error) {
       console.error('QR 코드 생성 오류:', error);
       alert('QR 코드 생성 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 일괄 교환권 QR 코드 표시
+  const showBatchExchangeQR = async () => {
+    try {
+      // 예약완료 상태인 예약들만 필터링
+      const completedReservations = userReservations.filter(r => r.status === '예약완료');
+      
+      if (completedReservations.length === 0) {
+        alert('교환 가능한 예약이 없습니다.');
+        return;
+      }
+
+      // 일괄 처리 QR 코드 데이터 생성
+      const qrData = {
+        type: 'batch_exchange',
+        reservationIds: completedReservations.map(r => r.id),
+        status: '수령완료',
+        userId: session?.user?.id,
+        timestamp: Date.now(),
+        count: completedReservations.length
+      };
+      
+      const qrString = JSON.stringify(qrData);
+      
+      // QR 코드 생성
+      const qrCodeDataURL = await QRCode.toDataURL(qrString, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      setCurrentQRData(qrCodeDataURL);
+      setShowQRModal(true);
+    } catch (error) {
+      console.error('일괄 QR 코드 생성 오류:', error);
+      alert('일괄 QR 코드 생성 중 오류가 발생했습니다.');
     }
   };
 
@@ -780,6 +983,19 @@ export default function MediaGallery() {
               </CloseButton>
             </ReservationHeader>
             
+            {/* 일괄 교환권 버튼 */}
+            {userReservations.filter(r => r.status === '예약완료').length > 0 && (
+              <BatchExchangeContainer>
+                <BatchExchangeTitle>
+                  교환 가능한 사진: {userReservations.filter(r => r.status === '예약완료').length}개
+                </BatchExchangeTitle>
+                <BatchExchangeButton onClick={showBatchExchangeQR}>
+                  <QrCode size={20} strokeWidth={2.5} />
+                  일괄 교환권
+                </BatchExchangeButton>
+              </BatchExchangeContainer>
+            )}
+            
             {userReservations.length === 0 ? (
               <EmptyReservations>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
@@ -819,7 +1035,15 @@ export default function MediaGallery() {
                       </CancelButton>
                     )}
                     {reservation.status === '예약완료' && (
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                        justifyContent: 'flex-end',
+                        alignItems: 'center',
+                        minWidth: '200px',
+                        flex: '0 0 auto'
+                      }}>
                         <DownloadButton 
                           onClick={() => handleDownload(reservation)} 
                           disabled={downloading}
@@ -852,13 +1076,25 @@ export default function MediaGallery() {
               )}
             </QRCodeContainer>
             <QRInfo>
-              이 QR 코드를 관리자에게 보여주시면 사진을 수령하실 수 있습니다.
-              <br />
-              QR 코드는 한 번만 사용 가능합니다.
+              {currentQRData && currentQRData.includes('batch_exchange') ? (
+                <>
+                  이 QR 코드로 모든 교환 가능한 사진을 한 번에 수령하실 수 있습니다.
+                  <br />
+                  관리자에게 이 QR 코드를 보여주시면 모든 사진이 일괄 처리됩니다.
+                  <br />
+                  <strong>QR 코드는 한 번만 사용 가능합니다.</strong>
+                </>
+              ) : (
+                <>
+                  이 QR 코드를 관리자에게 보여주시면 사진을 수령하실 수 있습니다.
+                  <br />
+                  QR 코드는 한 번만 사용 가능합니다.
+                </>
+              )}
             </QRInfo>
-            <QRCloseButton onClick={() => setShowQRModal(false)}>
+            <CloseButton onClick={() => setShowQRModal(false)}>
               닫기
-            </QRCloseButton>
+            </CloseButton>
           </QRContent>
         </QRModal>
       )}
