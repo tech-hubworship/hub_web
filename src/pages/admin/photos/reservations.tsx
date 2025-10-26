@@ -176,41 +176,71 @@ const CameraContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+
+  /* QR Reader 비디오 전체화면 스타일 */
+  video {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: cover !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+  }
+
+  /* QR Reader 컨테이너 스타일 */
+  > div > div {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+  }
 `;
 
 const CameraControls = styled.div`
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 24px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  padding: 32px 24px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 50%, transparent 100%);
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 16px;
-  z-index: 1002;
+  z-index: 1003;
+  backdrop-filter: blur(10px);
 `;
 
 const CameraButton = styled.button<{ variant?: 'danger' }>`
-  padding: 16px 24px;
+  padding: 18px 32px;
   background: ${props => props.variant === 'danger' ? '#ef4444' : '#10b981'};
   color: white;
   border: none;
-  border-radius: 50px;
-  font-size: 16px;
-  font-weight: 600;
+  border-radius: 16px;
+  font-size: 18px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 120px;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 
   &:hover {
     background: ${props => props.variant === 'danger' ? '#dc2626' : '#059669'};
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 
   &:disabled {
     background: #9ca3af;
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
@@ -229,19 +259,30 @@ const ScanOverlay = styled.div`
 `;
 
 const ScanGuide = styled.div`
-  position: absolute;
-  top: 20px;
+  position: fixed;
+  top: 40px;
   left: 20px;
   right: 20px;
   text-align: center;
   color: white;
-  font-size: 16px;
-  font-weight: 600;
-  z-index: 1002;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-  background: rgba(0, 0, 0, 0.5);
-  padding: 16px;
-  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  z-index: 1003;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  span {
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    opacity: 0.9;
+    margin-top: 4px;
+  }
 `;
 
 const StatsGrid = styled.div`
@@ -1423,7 +1464,16 @@ export default function PhotoReservations() {
             <span style={{ fontSize: 14, opacity: 0.8 }}>자동으로 인식됩니다</span>
           </ScanGuide>
           
-          <div style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}>
+          <div style={{ 
+            width: '100%', 
+            height: '100%',
+            maxWidth: '100vw',
+            maxHeight: '100vh',
+            margin: '0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
             <QrReader
               onResult={(result: any, error: any) => {
                 if (result) {
@@ -1434,7 +1484,14 @@ export default function PhotoReservations() {
                   console.log('QR 스캔 에러:', error);
                 }
               }}
-              constraints={{ facingMode: 'environment' }}
+              constraints={{ 
+                facingMode: 'environment',
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+              }}
+              videoId="qr-reader-video"
+              ViewFinder={undefined}
+              containerStyle={{ width: '100%', height: '100%' }}
             />
           </div>
           
