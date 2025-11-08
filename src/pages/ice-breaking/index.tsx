@@ -1,223 +1,506 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import styled from '@emotion/styled';
 import { keyframes } from '@emotion/react';
 import dynamic from 'next/dynamic';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const Footer = dynamic(() => import('@src/components/Footer'), { ssr: true });
 
-// 카드 뒤집기 애니메이션
-const flipCard = keyframes`
+const spin = keyframes`
   0% {
-    transform: rotateY(0deg);
+    transform: rotate(0deg);
   }
   100% {
-    transform: rotateY(180deg);
-  }
-`;
-
-const float = keyframes`
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-20px);
+    transform: rotate(360deg);
   }
 `;
 
 const Container = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40px 20px;
+  background: linear-gradient(160deg, #f7f8fb 0%, #eff2f8 50%, #e0e7ff 100%);
+  padding: 44px 20px 72px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-      radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-    animation: ${float} 20s ease-in-out infinite;
-  }
+  overflow-x: hidden;
 `;
 
 const Title = styled.h1`
-  font-size: 48px;
-  font-weight: 900;
-  color: white;
+  font-size: 38px;
+  font-weight: 800;
+  color: #1f2a5c;
   text-align: center;
-  margin-bottom: 20px;
-  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  z-index: 1;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
 
   @media (max-width: 768px) {
-    font-size: 32px;
+    font-size: 26px;
   }
 `;
 
 const Subtitle = styled.p`
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 17px;
+  color: rgba(31, 42, 92, 0.7);
   text-align: center;
-  margin-bottom: 60px;
-  z-index: 1;
+  margin-bottom: 30px;
+  max-width: 460px;
 
   @media (max-width: 768px) {
-    font-size: 16px;
-    margin-bottom: 40px;
+    font-size: 14px;
+    margin-bottom: 22px;
   }
 `;
 
 const CardWrapper = styled.div`
+  position: relative;
   perspective: 1000px;
   width: 100%;
   max-width: 500px;
   margin: 0 auto;
   z-index: 1;
-`;
 
-const Card = styled.div<{ isFlipped: boolean; isClickable: boolean }>`
-  width: 100%;
-  aspect-ratio: 2 / 3;
-  position: relative;
-  transform-style: preserve-3d;
-  cursor: ${props => props.isClickable ? 'pointer' : 'default'};
-  transition: transform 0.6s ease-in-out;
-
-  transform: ${props => props.isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'};
-
-  &:hover {
-    transform: ${props => props.isClickable 
-      ? props.isFlipped ? 'rotateY(180deg) scale(1.02)' : 'rotateY(0deg) scale(1.02)'
-      : 'none'};
+  @media (max-width: 600px) {
+    padding: 0 6px;
   }
 `;
 
-const CardFace = styled.div<{ isBack?: boolean }>`
+const GuideButtonContainer = styled.div`
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+  padding-right: 12px;
+
+  @media (max-width: 768px) {
+    padding-right: 20px;
+  }
+`;
+
+const CardBase = styled.div<{ $isClickable: boolean }>`
+  width: 100%;
+  aspect-ratio: 1 / 1.45;
+  max-height: 560px;
+  position: relative;
+  transform-style: preserve-3d;
+  cursor: ${props => (props.$isClickable ? 'pointer' : 'default')};
+  pointer-events: ${props => (props.$isClickable ? 'auto' : 'none')};
+  border-radius: 28px;
+  box-shadow: 0 24px 60px rgba(28, 64, 152, 0.12);
+  will-change: transform;
+`;
+
+const Card = motion(CardBase);
+
+const CardFront = styled(motion.div)`
   position: absolute;
   width: 100%;
   height: 100%;
   backface-visibility: hidden;
-  border-radius: 24px;
+  border-radius: 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
-
-  ${props => props.isBack ? `
-    transform: rotateY(180deg);
-  ` : ''}
+  padding: 56px 48px;
+  pointer-events: none;
+  background: linear-gradient(140deg, #0066ff 0%, #388bff 50%, #74b0ff 100%);
+  color: #ffffff;
 `;
 
-const CardFront = styled(CardFace)`
-  background: white;
-  color: #333;
-`;
-
-const CardBack = styled.div`
+const CardBack = styled(motion.div)`
   position: absolute;
   width: 100%;
   height: 100%;
   backface-visibility: hidden;
-  border-radius: 24px;
+  border-radius: 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 40px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
-  background: white;
-  color: #333;
+  justify-content: center;
+  padding: 48px 40px;
+  pointer-events: none;
+  text-align: center;
+  background: #ffffff;
+  color: #1f2a5c;
   transform: rotateY(180deg);
+  box-shadow: inset 0 0 0 1px rgba(31, 42, 92, 0.06);
 `;
 
-const CardIcon = styled.div`
-  font-size: 100px;
-  margin-bottom: 30px;
-  animation: ${float} 3s ease-in-out infinite;
+const CardContent = styled.div`
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  text-align: center;
+`;
+
+const CardFooter = styled.div`
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+  padding-top: 16px;
+`;
+
+const CardFooterText = styled.p<{ $tone?: 'light' | 'dark' }>`
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: ${props => (props.$tone === 'light' ? 'rgba(255, 255, 255, 0.78)' : 'rgba(31, 42, 92, 0.65)')};
+  margin: 0;
+  padding: 0 12px 4px;
+  line-height: 1.5;
+  text-align: center;
+`;
+
+const CardIcon = styled(motion.div)`
+  font-size: 84px;
+  font-weight: 700;
+  margin-bottom: 32px;
+  line-height: 1;
+`;
+
+const CardBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 `;
 
 const CardText = styled.div`
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
   text-align: center;
-`;
-
-const CardHint = styled.div`
-  font-size: 14px;
-  font-weight: 400;
-  text-align: center;
-  margin-top: 20px;
-  opacity: 0.7;
+  line-height: 1.6;
 `;
 
 const QuestionText = styled.div`
   font-size: 22px;
   font-weight: 600;
   text-align: center;
-  line-height: 1.6;
+  line-height: 1.7;
   word-break: keep-all;
+  color: #0f1f4a;
 `;
 
+const CardLoadingState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+`;
 
-const SpinAgainButton = styled.button`
-  margin-top: 40px;
-  padding: 16px 40px;
-  background: rgba(239, 68, 68, 0.2);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(239, 68, 68, 0.3);
-  border-radius: 50px;
-  color: white;
-  font-size: 18px;
-  font-weight: 700;
+const CardLoadingSpinner = styled.div`
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 4px solid rgba(0, 102, 255, 0.18);
+  border-top-color: #0066ff;
+  animation: ${spin} 0.8s linear infinite;
+`;
+
+const GuideButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(31, 42, 92, 0.08);
+  color: #1f2a5c;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid rgba(31, 42, 92, 0.12);
   cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  z-index: 1;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.3);
-    border-color: rgba(239, 68, 68, 0.5);
-    transform: translateY(-3px);
-    box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3);
+    background: rgba(31, 42, 92, 0.12);
+    transform: translateY(-1px);
   }
+`;
 
-  &:active {
+const CardConnectionOverlay = styled(motion.div)`
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 3;
+`;
+
+const CardConnectionGlow = styled(motion.div)`
+  position: absolute;
+  inset: -10%;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 55%),
+    radial-gradient(circle at 80% 70%, rgba(116, 176, 255, 0.4) 0%, rgba(116, 176, 255, 0) 60%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 70%);
+  mix-blend-mode: screen;
+`;
+
+const CardConnectionBeam = styled(motion.div)`
+  position: absolute;
+  width: 140%;
+  height: 140%;
+  top: -20%;
+  left: -20%;
+  border-radius: 40px;
+  background: radial-gradient(circle, rgba(0, 102, 255, 0.15) 0%, rgba(0, 102, 255, 0) 70%);
+  mix-blend-mode: screen;
+`;
+
+const GuideIcon = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #0066ff;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+`;
+
+const GuideOverlayBase = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 15, 32, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+
+  @media (max-width: 600px) {
+    padding: 12px;
+  }
+`;
+
+const GuideOverlay = motion(GuideOverlayBase);
+
+const GuideModalBase = styled.div`
+  width: min(620px, 92vw);
+  max-height: min(640px, 92vh);
+  background: #ffffff;
+  border-radius: 32px;
+  padding: 32px 36px 28px;
+  box-shadow: 0 40px 80px rgba(15, 31, 74, 0.18);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  row-gap: 24px;
+  overflow: hidden;
+
+  @media (max-width: 600px) {
+    border-radius: 24px;
+    padding: 24px 20px 20px;
+    row-gap: 20px;
+  }
+`;
+
+const GuideModal = motion(GuideModalBase);
+
+const GuideHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+`;
+
+const GuideTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f1f4a;
+  margin: 0;
+
+  @media (max-width: 600px) {
+    font-size: 20px;
+  }
+`;
+
+const GuideList = styled.ol`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  padding-right: 6px;
+  flex: 1;
+
+  @media (max-width: 600px) {
+    gap: 16px;
+  }
+`;
+
+const GuideItem = styled.li`
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+
+  @media (max-width: 600px) {
+    gap: 12px;
+  }
+`;
+
+const GuideBadge = styled.span`
+  min-width: 28px;
+  height: 28px;
+  border-radius: 12px;
+  background: rgba(0, 102, 255, 0.1);
+  color: #0066ff;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+
+  @media (max-width: 600px) {
+    min-width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+`;
+
+const GuideContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const GuideHighlight = styled.p`
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f1f4a;
+  margin: 0;
+
+  @media (max-width: 600px) {
+    font-size: 15px;
+  }
+`;
+
+const GuideDescription = styled.p`
+  font-size: 15px;
+  color: rgba(15, 31, 74, 0.7);
+  margin: 0;
+  line-height: 1.55;
+
+  @media (max-width: 600px) {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+`;
+
+const CloseGuideButton = styled.button`
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f1f4a;
+  background: rgba(15, 31, 74, 0.08);
+  cursor: pointer;
+  transition: all 0.25s ease;
+
+  &:hover {
+    background: rgba(15, 31, 74, 0.12);
     transform: translateY(-1px);
   }
 
+  @media (max-width: 600px) {
+    font-size: 13px;
+    padding: 9px 16px;
+  }
+`;
+
+const SpinAgainButton = styled.button`
+  margin-top: 36px;
+  padding: 16px 32px;
+  background: #0f1f4a;
+  border: none;
+  border-radius: 20px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: -0.01em;
+
+  &:hover {
+    background: #152b5e;
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px rgba(15, 31, 74, 0.25);
+  }
+
+  &:active {
+    transform: translateY(0px);
+  }
+
   @media (max-width: 768px) {
-    padding: 14px 32px;
-    font-size: 16px;
+    padding: 14px 28px;
+    font-size: 15px;
   }
 `;
 
 const ErrorMessage = styled.div`
-  background: rgba(239, 68, 68, 0.9);
+  background: rgba(228, 65, 73, 0.9);
   color: white;
-  padding: 20px;
-  border-radius: 12px;
-  margin: 20px 0;
+  padding: 18px 24px;
+  border-radius: 16px;
+  margin: 28px 0 0;
   text-align: center;
-  font-size: 16px;
-  max-width: 500px;
-  z-index: 1;
+  font-size: 15px;
+  max-width: 520px;
 `;
 
+const GAME_NAME = '허브 커넥트 플레이';
+
+const GUIDE_STEPS = [
+  {
+    title: '🙏 나눔에 적극적으로 참여하기!',
+    description: '→ 오늘은 “서로를 알아가는 시간”이에요.\n적극적일수록 더 즐겁고 은혜도 깊어집니다☺️',
+  },
+  {
+    title: '카드 하나 뽑아보자!',
+    description: '→ 돌아가며 랜덤 카드를 클릭해서 열어주세요👉',
+  },
+  {
+    title: '질문은 반드시 ‘다른 사람에게’ 지목해서!',
+    description: '→ 이때, 이름을 불러서 지목하는 게 룰이에요!\n→ “현교님, 이 질문에 대답해주세요~”',
+  },
+  {
+    title: '📛 이름을 못 부르면 본인이 대답!',
+    description: '→ 오늘 안에 서로 이름 외우기 필수 💡',
+  },
+  {
+    title: '⏱️ 답변 시간은 30초~1분!',
+    description: '→ 시간 안에 못 끝내면? → 순 단톡방에 꼭 답변 말해주기❗️',
+  },
+  {
+    title: '💥 당황하면? “한 번 더 뒤집기” 찬스!',
+    description: '→ 질문 바꾼다고 피할 순 없지만, 웃음은 일단 지켜드림 😆',
+  },
+  {
+    title: '🎁 마무리는 은혜와 감사 타임으로',
+    description: '→ “오늘 가장 마음에 남았던 나눔은?” 한 줄씩 나누며 마칩니다🙏',
+  },
+];
 
 interface Question {
   id: number;
@@ -231,6 +514,10 @@ const IceBreakingPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string>('');
   const [drawnQuestions, setDrawnQuestions] = useState<number[]>([]);
+  const [showGuide, setShowGuide] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const connectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 세션 ID 생성 (브라우저 로컬 스토리지에 저장)
   useEffect(() => {
@@ -248,14 +535,39 @@ const IceBreakingPage = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!showGuide) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowGuide(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showGuide]);
+
+  useEffect(() => {
+    return () => {
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleCardClick = async () => {
-    if (isLoading) return;
+    if (isLoading || isConnecting) return;
     
     if (!isFlipped) {
-      // 카드가 앞면일 때 - 먼저 뒤집고 질문 가져오기
-      setIsFlipped(true);
-      setIsLoading(true);
+      // 카드가 앞면일 때 - 로딩이 완료되면 뒤집기
       setError(null);
+      setIsLoading(true);
+      setIsConnecting(true);
+
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+      }
 
       try {
         const response = await fetch('/api/ice-breaking/draw', {
@@ -280,16 +592,29 @@ const IceBreakingPage = () => {
           setDrawnQuestions([...drawnQuestions, data.question.id]);
           localStorage.setItem('ice_breaking_drawn', JSON.stringify([...drawnQuestions, data.question.id]));
           setIsLoading(false);
+          setIsFlipped(true);
+
+          connectTimeoutRef.current = setTimeout(() => {
+            setIsConnecting(false);
+            connectTimeoutRef.current = null;
+          }, 320);
         } else {
           throw new Error('더 이상 뽑을 질문이 없습니다!');
         }
       } catch (err: any) {
         setError(err.message);
         setIsLoading(false);
+        setIsConnecting(false);
       }
     } else {
       // 카드가 뒷면일 때 - 다시 앞면으로 돌리기
       setIsFlipped(false);
+      setIsConnecting(false);
+
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+        connectTimeoutRef.current = null;
+      }
     }
   };
 
@@ -300,6 +625,12 @@ const IceBreakingPage = () => {
     setDrawnQuestions([]);
     setCurrentQuestion(null);
     setIsFlipped(false);
+    setIsConnecting(false);
+
+    if (connectTimeoutRef.current) {
+      clearTimeout(connectTimeoutRef.current);
+      connectTimeoutRef.current = null;
+    }
     
     // 새로운 세션 생성
     const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -307,69 +638,161 @@ const IceBreakingPage = () => {
     localStorage.setItem('ice_breaking_session_id', newSessionId);
   };
 
+  const backFooterText = isLoading
+    ? '조금만 기다리면 새로운 질문이 펼쳐집니다'
+    : error
+      ? '다시 시도하거나 카드 초기화 후 이용해보세요'
+      : currentQuestion
+        ? '카드를 다시 터치하면 다음 질문을 만날 수 있어요'
+        : '첫 질문은 바로 이 자리에서 시작해요';
+
   return (
     <>
       <Head>
-        <title>아이스브레이킹 카드 | HUB Worship</title>
-        <meta name="description" content="교회 모임을 위한 아이스브레이킹 질문 카드 뽑기" />
+        <title>{`${GAME_NAME} | HUB Worship`}</title>
+        <meta name="description" content="허브 공동체를 더 가깝게 이어주는 랜덤 질문 플레이" />
       </Head>
       
       <Container>
-        <Title>아이스브레이킹 카드</Title>
-        <Subtitle>카드를 터치하면 랜덤한 질문이 나타납니다</Subtitle>
+        <Title>{GAME_NAME}</Title>
+        <Subtitle>허브 공동체를 더 가깝게 이어주는 랜덤 질문 플레이</Subtitle>
+
+        <GuideButtonContainer>
+          <GuideButton type="button" onClick={() => setShowGuide(true)} aria-label="게임 방법 보기">
+            <GuideIcon>?</GuideIcon>
+            게임 방법 보기
+          </GuideButton>
+        </GuideButtonContainer>
 
         <CardWrapper>
-          <Card 
-            isFlipped={isFlipped}
-            isClickable={!isLoading}
+          <Card
+            $isClickable={!isLoading && !isConnecting}
             onClick={handleCardClick}
+            initial={false}
+            animate={{ rotateY: isFlipped ? 180 : 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
+            whileHover={!isLoading && !isConnecting ? { scale: 1.02 } : undefined}
+            whileTap={!isLoading && !isConnecting ? { scale: 0.98 } : undefined}
           >
-            <CardFront>
-              <CardIcon>?</CardIcon>
-              <CardText>카드를 터치하세요!</CardText>
+            <CardFront
+              initial={false}
+              animate={{ opacity: isFlipped ? 0 : 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              <CardContent>
+                <CardBadge>랜덤 커넥션 카드</CardBadge>
+                <CardIcon
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  ?
+                </CardIcon>
+                <CardText>카드를 뒤집어 
+                  <br />
+                  새로운 나눔을 시작해요</CardText>
+              </CardContent>
+              <CardFooter>
+                <CardFooterText $tone="light">
+                  터치와 동시에 질문을 불러오고, 살짝 기다리면 카드가 열립니다
+                </CardFooterText>
+              </CardFooter>
+              <AnimatePresence>
+                {isConnecting && (
+                  <CardConnectionOverlay
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.35 }}
+                  >
+                    <CardConnectionGlow
+                      initial={{ scale: 0.85, opacity: 0.4 }}
+                      animate={{ scale: 1.05, opacity: 0.8 }}
+                      exit={{ scale: 1.15, opacity: 0 }}
+                      transition={{ duration: 0.45 }}
+                    />
+                    <CardConnectionBeam
+                      initial={{ rotate: -8, opacity: 0.25 }}
+                      animate={{ rotate: 6, opacity: 0.6 }}
+                      exit={{ rotate: 12, opacity: 0 }}
+                      transition={{ duration: 0.45 }}
+                    />
+                  </CardConnectionOverlay>
+                )}
+              </AnimatePresence>
             </CardFront>
-            <CardBack>
-              {isLoading ? (
-                <>
-                  <div></div>
-                  <CardText>질문을 가져오는 중...</CardText>
-                  <div></div>
-                </>
-              ) : error ? (
-                <>
-                  <div></div>
-                  <CardText style={{ color: '#fee' }}>{error}</CardText>
-                  <div></div>
-                </>
-              ) : currentQuestion ? (
-                <>
-                  <div></div>
-                  <QuestionText>
-                    {currentQuestion.question}
-                  </QuestionText>
-                  <CardHint>
-                    카드를 다시 터치하면 새로운 질문을 뽑을 수 있습니다
-                  </CardHint>
-                </>
-              ) : (
-                <>
-                  <div></div>
-                  <CardText>질문을 가져오는 중...</CardText>
-                  <div></div>
-                </>
-              )}
+            <CardBack
+              initial={false}
+              animate={{ opacity: isFlipped ? 1 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <CardContent>
+                {isLoading ? (
+                  <CardLoadingState>
+                    <CardLoadingSpinner />
+                    <CardText>카드를 준비하는 중이에요...</CardText>
+                  </CardLoadingState>
+                ) : error ? (
+                  <CardText style={{ color: '#d92a3d' }}>{error}</CardText>
+                ) : currentQuestion ? (
+                  <QuestionText>{currentQuestion.question}</QuestionText>
+                ) : (
+                  <CardText>카드를 뒤집으면 질문이 나타납니다</CardText>
+                )}
+              </CardContent>
+              <CardFooter>
+                <CardFooterText>{backFooterText}</CardFooterText>
+              </CardFooter>
             </CardBack>
           </Card>
         </CardWrapper>
 
+        {error && <ErrorMessage>{error}</ErrorMessage>}
+
         {drawnQuestions.length > 0 && (
-          <SpinAgainButton onClick={resetSession}>
-            세션 초기화 ({drawnQuestions.length}개 뽑음)
+          <SpinAgainButton type="button" onClick={resetSession}>
+            카드 초기화 · {drawnQuestions.length}개 공개됨
           </SpinAgainButton>
         )}
       </Container>
 
       <Footer />
+
+      <AnimatePresence>
+        {showGuide && (
+          <GuideOverlay
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowGuide(false)}
+          >
+            <GuideModal
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={event => event.stopPropagation()}
+            >
+              <GuideHeader>
+                <GuideTitle>게임 방법</GuideTitle>
+                <CloseGuideButton type="button" onClick={() => setShowGuide(false)}>닫기</CloseGuideButton>
+              </GuideHeader>
+              <GuideList>
+                {GUIDE_STEPS.map((step, index) => (
+                  <GuideItem key={step.title}>
+                    <GuideBadge>{index + 1}</GuideBadge>
+                    <GuideContent>
+                      <GuideHighlight>{step.title}</GuideHighlight>
+                      {step.description.split('\n').map(line => (
+                        <GuideDescription key={line}>{line}</GuideDescription>
+                      ))}
+                    </GuideContent>
+                  </GuideItem>
+                ))}
+              </GuideList>
+            </GuideModal>
+          </GuideOverlay>
+        )}
+      </AnimatePresence>
     </>
   );
 };
