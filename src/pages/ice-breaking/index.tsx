@@ -69,13 +69,15 @@ const CardWrapper = styled.div`
 
 const GuideButtonContainer = styled.div`
   width: 100%;
+  max-width: 500px;
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 12px;
-  padding-right: 12px;
+  margin: 0 auto 16px;
+  padding: 0 12px;
 
-  @media (max-width: 768px) {
-    padding-right: 20px;
+  @media (max-width: 600px) {
+    max-width: 100%;
+    padding: 0 6px;
   }
 `;
 
@@ -142,6 +144,15 @@ const CardContent = styled.div`
   text-align: center;
 `;
 
+const CardFrontContent = styled(CardContent)`
+  padding-top: 44px;
+
+  @media (max-width: 768px) {
+    padding-top: 32px;
+    gap: 18px;
+  }
+`;
+
 const CardFooter = styled.div`
   width: 100%;
   display: flex;
@@ -164,11 +175,14 @@ const CardFooterText = styled.p<{ $tone?: 'light' | 'dark' }>`
 const CardIcon = styled(motion.div)`
   font-size: 84px;
   font-weight: 700;
-  margin-bottom: 32px;
   line-height: 1;
 `;
 
 const CardBadge = styled.span`
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -285,30 +299,37 @@ const GuideOverlayBase = styled.div`
   justify-content: center;
   padding: 24px;
   z-index: 20;
+  overflow-y: auto;
 
   @media (max-width: 600px) {
-    padding: 12px;
+    padding: 16px;
+    align-items: center;
   }
 `;
 
 const GuideOverlay = motion(GuideOverlayBase);
 
 const GuideModalBase = styled.div`
-  width: min(620px, 92vw);
-  max-height: min(640px, 92vh);
+  width: min(480px, 90vw);
+  max-height: min(560px, 85vh);
   background: #ffffff;
-  border-radius: 32px;
-  padding: 32px 36px 28px;
-  box-shadow: 0 40px 80px rgba(15, 31, 74, 0.18);
-  display: grid;
-  grid-template-rows: auto 1fr;
-  row-gap: 24px;
+  border-radius: 28px;
+  padding: 28px 30px 28px;
+  box-shadow: 0 32px 72px rgba(15, 31, 74, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
   overflow: hidden;
+  min-height: 0;
 
   @media (max-width: 600px) {
-    border-radius: 24px;
-    padding: 24px 20px 20px;
-    row-gap: 20px;
+    width: min(360px, calc(100% - 48px));
+    max-height: 76vh;
+    margin: 22px auto;
+    border-radius: 18px;
+    padding: 16px 16px 18px;
+    gap: 12px;
   }
 `;
 
@@ -317,7 +338,7 @@ const GuideModal = motion(GuideModalBase);
 const GuideHeader = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 16px;
 `;
 
@@ -335,17 +356,56 @@ const GuideTitle = styled.h2`
 const GuideList = styled.ol`
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 16px 8px 24px;
   display: flex;
   flex-direction: column;
   gap: 18px;
   overflow-y: auto;
-  padding-right: 6px;
   flex: 1;
+  min-height: 0;
 
   @media (max-width: 600px) {
     gap: 16px;
+    padding: 14px 4px 20px;
   }
+`;
+
+const GuideContentArea = styled.div`
+  position: relative;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 24px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  &::before {
+    top: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 70%);
+  }
+
+  &::after {
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 70%);
+  }
+`;
+
+const GuideFooter = styled.div`
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
 `;
 
 const GuideItem = styled.li`
@@ -549,6 +609,21 @@ const IceBreakingPage = () => {
   }, [showGuide]);
 
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const { style } = document.body;
+    const previousOverflow = style.overflow;
+
+    if (showGuide) {
+      style.overflow = 'hidden';
+    }
+
+    return () => {
+      style.overflow = previousOverflow;
+    };
+  }, [showGuide]);
+
+  useEffect(() => {
     return () => {
       if (connectTimeoutRef.current) {
         clearTimeout(connectTimeoutRef.current);
@@ -679,7 +754,7 @@ const IceBreakingPage = () => {
               animate={{ opacity: isFlipped ? 0 : 1 }}
               transition={{ duration: 0.2 }}
             >
-              <CardContent>
+              <CardFrontContent>
                 <CardBadge>랜덤 커넥션 카드</CardBadge>
                 <CardIcon
                   animate={{ y: [0, -10, 0] }}
@@ -690,10 +765,10 @@ const IceBreakingPage = () => {
                 <CardText>카드를 뒤집어 
                   <br />
                   새로운 나눔을 시작해요</CardText>
-              </CardContent>
+              </CardFrontContent>
               <CardFooter>
                 <CardFooterText $tone="light">
-                  터치와 동시에 질문을 불러오고, 살짝 기다리면 카드가 열립니다
+                  터치후 살짝 기다리면 카드가 열립니다
                 </CardFooterText>
               </CardFooter>
               <AnimatePresence>
@@ -774,21 +849,25 @@ const IceBreakingPage = () => {
             >
               <GuideHeader>
                 <GuideTitle>게임 방법</GuideTitle>
-                <CloseGuideButton type="button" onClick={() => setShowGuide(false)}>닫기</CloseGuideButton>
               </GuideHeader>
-              <GuideList>
-                {GUIDE_STEPS.map((step, index) => (
-                  <GuideItem key={step.title}>
-                    <GuideBadge>{index + 1}</GuideBadge>
-                    <GuideContent>
-                      <GuideHighlight>{step.title}</GuideHighlight>
-                      {step.description.split('\n').map(line => (
-                        <GuideDescription key={line}>{line}</GuideDescription>
-                      ))}
-                    </GuideContent>
-                  </GuideItem>
-                ))}
-              </GuideList>
+              <GuideContentArea>
+                <GuideList>
+                  {GUIDE_STEPS.map((step, index) => (
+                    <GuideItem key={step.title}>
+                      <GuideBadge>{index + 1}</GuideBadge>
+                      <GuideContent>
+                        <GuideHighlight>{step.title}</GuideHighlight>
+                        {step.description.split('\n').map(line => (
+                          <GuideDescription key={line}>{line}</GuideDescription>
+                        ))}
+                      </GuideContent>
+                    </GuideItem>
+                  ))}
+                </GuideList>
+              </GuideContentArea>
+                <GuideFooter>
+                  <CloseGuideButton type="button" onClick={() => setShowGuide(false)}>닫기</CloseGuideButton>
+                </GuideFooter>
             </GuideModal>
           </GuideOverlay>
         )}
