@@ -102,6 +102,9 @@ const AdventPage = () => {
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [showMyMeditation, setShowMyMeditation] = useState(false);
+  const [commentsPage, setCommentsPage] = useState(1);
+  const [hasMoreComments, setHasMoreComments] = useState(false);
 
   const fetchPost = useCallback(async (date: string) => {
     try {
@@ -123,13 +126,18 @@ const AdventPage = () => {
     }
   }, []);
 
-  const fetchComments = useCallback(async (date: string) => {
+  const fetchComments = useCallback(async (date: string, page: number = 1) => {
     try {
-      const response = await fetch(`/api/advent/comments?date=${date}`);
+      const response = await fetch(`/api/advent/comments?date=${date}&page=${page}&limit=10`);
       const data = await response.json();
 
       if (response.ok) {
-        setComments(data.comments || []);
+        if (page === 1) {
+          setComments(data.comments || []);
+        } else {
+          setComments(prev => [...prev, ...(data.comments || [])]);
+        }
+        setHasMoreComments(data.hasMore || false);
       }
     } catch (err) {
       console.error('댓글 조회 오류:', err);
@@ -186,14 +194,22 @@ const AdventPage = () => {
     fetchPost(dateFromQuery);
   }, [router.isReady, router.query.date, router, fetchPost]);
 
-  // 사용자 묵상 가져오기 (로그인 상태 변경 시)
+  // post가 변경될 때마다 전체 묵상 가져오기
   useEffect(() => {
-    if (session?.user) {
+    if (post?.post_dt && !showMyMeditation) {
+      setCommentsPage(1);
+      fetchComments(post.post_dt, 1);
+    }
+  }, [post?.post_dt, showMyMeditation, fetchComments]);
+
+  // 사용자 묵상 가져오기 (내 묵상 보기 모드일 때)
+  useEffect(() => {
+    if (showMyMeditation && session?.user) {
       fetchUserComments();
-    } else {
+    } else if (showMyMeditation && !session?.user) {
       setComments([]);
     }
-  }, [session?.user, fetchUserComments]);
+  }, [showMyMeditation, session?.user, fetchUserComments]);
 
   // post가 변경될 때마다 이전 게시물 목록 업데이트
   useEffect(() => {
@@ -240,8 +256,13 @@ const AdventPage = () => {
 
       if (response.ok) {
         setCommentText('');
-        // 묵상 작성 후 사용자 묵상 목록 새로고침
-        fetchUserComments();
+        // 묵상 작성 후 현재 모드에 따라 새로고침
+        if (showMyMeditation) {
+          fetchUserComments();
+        } else {
+          setCommentsPage(1);
+          fetchComments(post.post_dt, 1);
+        }
       } else {
         alert(data.error || '댓글 작성에 실패했습니다.');
       }
@@ -250,7 +271,7 @@ const AdventPage = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [session?.user, commentText, post, router, fetchUserComments]);
+  }, [session?.user, commentText, post, router, showMyMeditation, fetchUserComments, fetchComments]);
 
   const handlePreviousVideoClick = (date: string) => {
     router.push(`/advent?date=${date}`);
@@ -304,8 +325,21 @@ const AdventPage = () => {
                 commentText={commentText}
                 submitting={submitting}
                 isLoggedIn={!!session?.user}
+                showMyMeditation={showMyMeditation}
+                hasMore={hasMoreComments}
                 onCommentTextChange={setCommentText}
                 onCommentSubmit={handleCommentSubmit}
+                onToggleMyMeditation={() => {
+                  setShowMyMeditation(!showMyMeditation);
+                  setCommentsPage(1);
+                }}
+                onLoadMore={() => {
+                  if (post?.post_dt && !showMyMeditation) {
+                    const nextPage = commentsPage + 1;
+                    setCommentsPage(nextPage);
+                    fetchComments(post.post_dt, nextPage);
+                  }
+                }}
               />
 
               {/* 5. 지난 묵상 영상 섹션 */}

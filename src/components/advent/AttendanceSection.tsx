@@ -366,6 +366,119 @@ const AdventLogoInIcon = styled.div`
   }
 `;
 
+const ViewAllButton = styled.button`
+  padding: 12px 24px;
+  background: transparent;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 24px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+`;
+
+const WeekSelectorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+`;
+
+const WeekSelectorHeader = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+`;
+
+const WeekSelectorTitle = styled.div`
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 16px;
+`;
+
+const WeekTabs = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  justify-content: center;
+  scrollbar-width: thin;
+  scrollbar-color: #CEB2FF transparent;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #CEB2FF;
+    border-radius: 3px;
+  }
+`;
+
+const WeekTab = styled.button<{ active: boolean }>`
+  padding: 12px 24px;
+  background: ${props => props.active ? '#CEB2FF' : 'transparent'};
+  color: ${props => props.active ? '#000000' : '#ffffff'};
+  border: 2px solid #CEB2FF;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover {
+    background: ${props => props.active ? '#CEB2FF' : 'rgba(206, 178, 255, 0.2)'};
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+`;
+
+const BackButton = styled.button`
+  padding: 12px 24px;
+  background: transparent;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 24px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+`;
+
 interface AttendanceSectionProps {
   currentDate: string;
   isLoggedIn: boolean;
@@ -386,6 +499,10 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   const [showTable, setShowTable] = useState(false);
   const [isClicking, setIsClicking] = useState(false);
   const [showLogo, setShowLogo] = useState(false);
+  const [showWeekView, setShowWeekView] = useState(false);
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  const [weekAttendanceMap, setWeekAttendanceMap] = useState<AttendanceMap>({});
+  const [loadingWeek, setLoadingWeek] = useState(false);
 
   const dayNumber = getDayNumber(currentDate);
 
@@ -423,6 +540,61 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     } catch (err) {
       console.error('출석 현황 조회 오류:', err);
     }
+  };
+
+  const fetchWeekAttendance = async (week: number) => {
+    try {
+      setLoadingWeek(true);
+      const response = await fetch(`/api/advent/attendance-by-week?week=${week}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setWeekAttendanceMap(data.attendance || {});
+      }
+    } catch (err) {
+      console.error('주차별 출석 조회 오류:', err);
+    } finally {
+      setLoadingWeek(false);
+    }
+  };
+
+  const handleViewAllClick = () => {
+    setShowWeekView(true);
+    const currentWeek = dayNumber ? Math.ceil(dayNumber / 7) : 1;
+    setSelectedWeek(currentWeek);
+    fetchWeekAttendance(currentWeek);
+  };
+
+  const handleBackToCurrent = () => {
+    setShowWeekView(false);
+    setSelectedWeek(null);
+    setWeekAttendanceMap({});
+  };
+
+  const handleWeekSelect = (week: number) => {
+    setSelectedWeek(week);
+    fetchWeekAttendance(week);
+  };
+
+  const renderWeekIcons = (startDay: number, endDay: number) => {
+    const days = Array.from({ length: endDay - startDay + 1 }, (_, i) => startDay + i);
+    const firstRowDays = days.slice(0, 4);
+    const secondRowDays = days.slice(4, 7);
+    
+    return (
+      <>
+        {firstRowDays.length > 0 && (
+          <IconRow>
+            {firstRowDays.map((day) => renderUnionIcon(day, weekAttendanceMap))}
+          </IconRow>
+        )}
+        {secondRowDays.length > 0 && (
+          <IconRow>
+            {secondRowDays.map((day) => renderUnionIcon(day, weekAttendanceMap))}
+          </IconRow>
+        )}
+      </>
+    );
   };
 
   const handleAttendanceClick = async () => {
@@ -489,9 +661,9 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     return day < dayNumber;
   };
 
-  const renderUnionIcon = (day: number) => {
-    const isAttended = isDayAttended(day);
-    const isPast = isPastDay(day);
+  const renderUnionIcon = (day: number, attendanceData: AttendanceMap = attendanceMap) => {
+    const isAttended = !!attendanceData[day];
+    const isPast = dayNumber ? day < dayNumber : false;
     const isToday = day === dayNumber;
     
     const borderColor = isAttended ? '#CEB2FF' : (isPast ? '#4B4B4B' : '#ffffff');
@@ -664,10 +836,47 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
                 </LogoContainer>
                 <CompletionText>{dayNumber}일차 출석완료</CompletionText>
               </CompletionHeader>
-              {showTable && (
-                <UnionGrid>
-                  {renderUnionIcons()}
-                </UnionGrid>
+              {showTable && !showWeekView && (
+                <>
+                  <UnionGrid>
+                    {renderUnionIcons()}
+                  </UnionGrid>
+                  <ViewAllButton onClick={handleViewAllClick}>
+                    전체 출석정보 보기
+                  </ViewAllButton>
+                </>
+              )}
+
+              {showTable && showWeekView && (
+                <WeekSelectorContainer>
+                  <WeekSelectorTitle>전체 출석정보</WeekSelectorTitle>
+                  
+                  <WeekTabs>
+                    {[1, 2, 3, 4].map((week) => (
+                      <WeekTab
+                        key={week}
+                        active={selectedWeek === week}
+                        onClick={() => handleWeekSelect(week)}
+                      >
+                        {week}주차
+                      </WeekTab>
+                    ))}
+                  </WeekTabs>
+
+                  {loadingWeek ? (
+                    <div style={{ textAlign: 'center', color: '#ffffff', padding: '40px' }}>
+                      로딩 중...
+                    </div>
+                  ) : selectedWeek ? (
+                    <UnionGrid>
+                      {renderWeekIcons((selectedWeek - 1) * 7 + 1, selectedWeek * 7)}
+                    </UnionGrid>
+                  ) : null}
+
+                  <BackButton onClick={handleBackToCurrent}>
+                    현재 주차 보기
+                  </BackButton>
+                </WeekSelectorContainer>
               )}
             </AttendanceComplete>
           )}

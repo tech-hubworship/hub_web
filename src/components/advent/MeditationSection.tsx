@@ -240,13 +240,77 @@ const EmptyState = styled.div`
   }
 `;
 
+const ButtonWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+`;
+
+const ToggleButton = styled.button<{ active: boolean }>`
+  padding: 12px 24px;
+  background: ${props => props.active ? '#CEB2FF' : 'transparent'};
+  color: ${props => props.active ? '#000000' : '#ffffff'};
+  border: 2px solid #CEB2FF;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${props => props.active ? '#CEB2FF' : 'rgba(206, 178, 255, 0.2)'};
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+`;
+
+const LoadMoreButton = styled.button`
+  padding: 12px 32px;
+  background: transparent;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 24px;
+  width: 100%;
+  max-width: 200px;
+  margin-left: auto;
+  margin-right: auto;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 24px;
+    font-size: 14px;
+  }
+`;
+
 interface MeditationSectionProps {
   comments: AdventComment[];
   commentText: string;
   submitting: boolean;
   isLoggedIn: boolean;
+  showMyMeditation: boolean;
+  hasMore: boolean;
   onCommentTextChange: (text: string) => void;
   onCommentSubmit: (e: React.FormEvent) => void;
+  onToggleMyMeditation: () => void;
+  onLoadMore: () => void;
 }
 
 export const MeditationSection: React.FC<MeditationSectionProps> = ({
@@ -254,8 +318,12 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
   commentText,
   submitting,
   isLoggedIn,
+  showMyMeditation,
+  hasMore,
   onCommentTextChange,
   onCommentSubmit,
+  onToggleMyMeditation,
+  onLoadMore,
 }) => {
   const router = useRouter();
 
@@ -280,6 +348,23 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
         
         <TitleText>이번 영상에 대해</TitleText>
         <SubtitleText>짧게 묵상을 나누어보세요.</SubtitleText>
+
+        {isLoggedIn && (
+          <ButtonWrapper>
+            <ToggleButton 
+              active={!showMyMeditation}
+              onClick={onToggleMyMeditation}
+            >
+              전체 묵상
+            </ToggleButton>
+            <ToggleButton 
+              active={showMyMeditation}
+              onClick={onToggleMyMeditation}
+            >
+              내 묵상 보기
+            </ToggleButton>
+          </ButtonWrapper>
+        )}
 
         {isLoggedIn ? (
           <CommentForm onSubmit={onCommentSubmit}>
@@ -318,7 +403,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
         <MeditationList>
           {comments.length === 0 ? (
             <EmptyState>
-              아직 묵상이 없습니다. 첫 번째 묵상을 나눠보세요!
+              {showMyMeditation ? '아직 작성한 묵상이 없습니다.' : '아직 묵상이 없습니다. 첫 번째 묵상을 나눠보세요!'}
             </EmptyState>
           ) : (
             comments.map((comment, index) => {
@@ -336,6 +421,12 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
             })
           )}
         </MeditationList>
+
+        {!showMyMeditation && hasMore && (
+          <LoadMoreButton onClick={onLoadMore}>
+            더보기
+          </LoadMoreButton>
+        )}
       </ContentWrapper>
     </SectionCard>
   );
