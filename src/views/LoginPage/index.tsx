@@ -43,12 +43,46 @@ export default function LoginPage() {
         const url = signupRole ? `/signup?role=${signupRole}` : "/signup";
         router.replace(url);
       } else {
+        // 기존 사용자인 경우 프로필 확인
+        checkProfileAndRedirect();
+      }
+    }
+  }, [status, session, router]);
+
+  const checkProfileAndRedirect = async () => {
+    try {
+      const response = await fetch('/api/user/profile');
+      if (!response.ok) {
+        // 프로필 조회 실패 시 기본 리다이렉트
+        const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/myinfo";
+        localStorage.removeItem(REDIRECT_KEY);
+        router.replace(redirectPath);
+        return;
+      }
+
+      const profile = await response.json();
+      
+      // 공동체가 "허브"이고 상태가 "활성"이고 그룹/셀이 비어있는 경우
+      if (
+        profile.community === '허브' &&
+        profile.status === '활성' &&
+        (!profile.group_id || !profile.cell_id)
+      ) {
+        // 정보 업데이트 페이지로 리다이렉트
+        router.replace('/update');
+      } else {
         const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/myinfo";
         localStorage.removeItem(REDIRECT_KEY);
         router.replace(redirectPath);
       }
+    } catch (error) {
+      console.error('프로필 확인 오류:', error);
+      // 오류 발생 시 기본 리다이렉트
+      const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/myinfo";
+      localStorage.removeItem(REDIRECT_KEY);
+      router.replace(redirectPath);
     }
-  }, [status, session, router]);
+  };
   
   const handleTitleClick = () => {
     if (clickTimer.current) {

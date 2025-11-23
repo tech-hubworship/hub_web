@@ -25,7 +25,7 @@ export default async function handler(
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select(`
-        name, email, birth_date, gender, community,
+        name, email, birth_date, gender, community, status,
         hub_groups!fk_group_id ( id, name ), 
         hub_cells!fk_cell_id ( id, name )
       `)
@@ -67,6 +67,7 @@ export default async function handler(
       birth_date: profile.birth_date,
       gender: profile.gender,
       community: profile.community,
+      status: profile.status,
 
       group_id: (profile.hub_groups as any)?.id || null,
       group_name: (profile.hub_groups as any)?.name || null,

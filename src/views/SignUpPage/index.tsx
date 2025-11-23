@@ -50,7 +50,7 @@ const isOldEnough = (dateString: string): boolean => {
 export default function SignUpPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { role } = router.query;
+  const { role, completeGroup } = router.query;
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -103,11 +103,14 @@ export default function SignUpPage() {
   // 세션 확인 및 렌더링 준비
   useEffect(() => {
     if (status === 'unauthenticated') router.replace('/login');
-    if (session && !session.user?.isNewUser) router.replace('/myinfo');
-    if (status === 'authenticated' && session.user?.isNewUser) {
+    // completeGroup 파라미터가 있으면 기존 사용자도 signup 페이지에 접근 가능
+    if (session && !session.user?.isNewUser && !completeGroup) {
+      router.replace('/myinfo');
+    }
+    if (status === 'authenticated' && (session.user?.isNewUser || completeGroup)) {
         setIsReady(true);
     }
-  }, [session, status, router]);
+  }, [session, status, router, completeGroup]);
 
   // 역할에 따른 자동 단계 이동 로직
   useEffect(() => {
@@ -119,6 +122,35 @@ export default function SignUpPage() {
         }
     }
   }, [step, role, isReady]);
+
+  // completeGroup 파라미터가 있으면 그룹/셀 입력 단계로 자동 이동
+  useEffect(() => {
+    if (isReady && completeGroup && step === 1) {
+      // 기존 사용자의 프로필 정보를 가져와서 formData에 설정
+      const fetchProfile = async () => {
+        try {
+          const response = await fetch('/api/user/profile');
+          if (response.ok) {
+            const profile = await response.json();
+            setFormData(prev => ({
+              ...prev,
+              name: profile.name || '',
+              birth_date: profile.birth_date || '',
+              gender: profile.gender || 'M',
+              community: profile.community || '허브',
+              group_id: profile.group_id || '',
+              cell_id: profile.cell_id || '',
+            }));
+            // 그룹/셀 입력 단계(step 7)로 이동
+            setStep(7);
+          }
+        } catch (err) {
+          console.error('프로필 조회 오류:', err);
+        }
+      };
+      fetchProfile();
+    }
+  }, [isReady, completeGroup, step]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -142,14 +174,23 @@ export default function SignUpPage() {
     e.preventDefault();
     setLoading(true); setError('');
     try {
+      // completeGroup이 있으면 그룹/셀 정보만 업데이트
+      const requestBody = completeGroup 
+        ? { 
+            ...formData, 
+            completeGroup: true,
+            // 이름과 성별은 기존 프로필에서 가져온 값 사용 (이미 formData에 설정됨)
+          }
+        : formData;
+      
       const response = await fetch('/api/auth/complete-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestBody),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
-      alert('회원가입이 완료되었습니다!');
+      alert(completeGroup ? '그룹/다락방 정보가 업데이트되었습니다!' : '회원가입이 완료되었습니다!');
       router.replace('/myinfo');
     } catch (err: any) {
       setError(err.message);
@@ -206,7 +247,12 @@ export default function SignUpPage() {
         );
       case 7:
         return (
-          <StepComponent title="소속 그룹을 선택해주세요" onBack={() => setStep(3)} onNext={() => setStep(8)} nextDisabled={!formData.group_id}>
+          <StepComponent 
+            title="소속 그룹을 선택해주세요" 
+            onBack={() => completeGroup ? router.replace('/myinfo') : setStep(3)} 
+            onNext={() => setStep(8)} 
+            nextDisabled={!formData.group_id}
+          >
             <S.Select name="group_id" value={formData.group_id} onChange={handleChange} required>
               <option value="">-- 그룹 선택 --</option>
               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -215,7 +261,15 @@ export default function SignUpPage() {
         );
       case 8:
         return (
-          <StepComponent title="소속 다락방을 선택해주세요" onBack={() => setStep(7)} onNext={() => setStep(6)} nextDisabled={!formData.cell_id}>
+          <StepComponent 
+            title="소속 다락방을 선택해주세요" 
+            onBack={() => setStep(7)} 
+            onNext={completeGroup ? undefined : () => setStep(6)} 
+            nextDisabled={!formData.cell_id}
+            finalStep={!!completeGroup}
+            onSubmit={completeGroup ? handleSubmit : undefined}
+            loading={completeGroup ? loading : false}
+          >
             <S.Select name="cell_id" value={formData.cell_id} onChange={handleChange} required>
               <option value="">-- 다락방 선택 --</option>
               {cells.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

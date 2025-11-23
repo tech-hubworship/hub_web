@@ -30,26 +30,49 @@ export default async function handler(
   const { 
     name, birth_date, gender, community, role,
     group_id, cell_id, 
-    responsible_group_id, responsible_cell_id 
+    responsible_group_id, responsible_cell_id,
+    completeGroup 
   } = req.body;
 
   // --- 1. 유효성 검사 ---
-  if (!name || !birth_date || !gender) {
+  // completeGroup이 있으면 이름/성별은 선택사항 (기존 프로필 정보 사용)
+  if (!completeGroup && (!name || !birth_date || !gender)) {
     return res.status(400).json({ message: '이름, 생년월일, 성별 정보는 필수입니다.' });
+  }
+
+  // completeGroup이 있으면 기존 프로필 정보를 가져와서 사용
+  let existingProfile = null;
+  if (completeGroup) {
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('name, birth_date, gender, community')
+      .eq('user_id', userId)
+      .single();
+    
+    if (profileError) {
+      return res.status(400).json({ message: '기존 프로필 정보를 찾을 수 없습니다.' });
+    }
+    existingProfile = profile;
   }
 
   try {
     // --- 2. 프로필 정보 구성 ---
+    // completeGroup이 있으면 기존 프로필 정보 사용, 없으면 요청 본문 사용
+    const finalName = completeGroup ? (existingProfile?.name || name) : name;
+    const finalBirthDate = completeGroup ? (existingProfile?.birth_date || birth_date) : birth_date;
+    const finalGender = completeGroup ? (existingProfile?.gender || gender) : gender;
+    const finalCommunity = completeGroup ? (existingProfile?.community || community) : community;
+    
     const profileDataToUpsert = {
         user_id: userId,
         email: session.user.email,
-        name,
-        birth_date,
-        gender,
-        community,
+        name: finalName,
+        birth_date: finalBirthDate,
+        gender: finalGender,
+        community: finalCommunity,
         status: (role && (ADMIN_ROLE_MAP[role] === 'MC' || ADMIN_ROLE_MAP[role] === '목회자')) ? '관리자' : '활성',
-        group_id: community === '허브' ? (parseInt(group_id, 10) || null) : null,
-        cell_id: community === '허브' ? (parseInt(cell_id, 10) || null) : null,
+        group_id: finalCommunity === '허브' ? (parseInt(group_id, 10) || null) : null,
+        cell_id: finalCommunity === '허브' ? (parseInt(cell_id, 10) || null) : null,
         info_last_updated_at: new Date().toISOString(),
     };
 
