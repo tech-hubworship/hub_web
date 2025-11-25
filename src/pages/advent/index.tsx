@@ -7,6 +7,7 @@ import { Header } from '@src/components/Header';
 import Footer from '@src/components/Footer';
 import { 
   IntroSection, 
+  EventInfoSection,
   VideoSection, 
   AttendanceSection, 
   MeditationSection, 
@@ -310,16 +311,19 @@ const AdventPage = () => {
               {/* 1. 인트로 섹션 */}
               <IntroSection post={post} />
 
-              {/* 2. 영상 섹션 */}
+              {/* 2. 이벤트 안내 섹션 */}
+              <EventInfoSection />
+
+              {/* 3. 영상 섹션 */}
               <VideoSection post={post} currentDate={currentDateStr} />
 
-              {/* 3. 출석 섹션 */}
+              {/* 4. 출석 섹션 */}
               <AttendanceSection 
                 currentDate={currentDateStr}
                 isLoggedIn={!!session?.user}
               />
 
-              {/* 4. 묵상 섹션 (댓글) */}
+              {/* 5. 묵상 섹션 (댓글) */}
               <MeditationSection
                 comments={comments}
                 commentText={commentText}
