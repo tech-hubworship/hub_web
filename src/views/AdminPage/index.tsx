@@ -98,6 +98,26 @@ export default function AdminPage() {
                             </S.NavItem>
                         </Link>
                     )}
+
+                    {/* '목회자' 권한이 있는 관리자에게만 보이는 대림절 메뉴 */}
+                    {roles.includes('목회자') && (
+                        <Link href="/admin/advent" passHref legacyBehavior>
+                            <S.NavItem as="a">
+                                <S.NavIcon>🎄</S.NavIcon>
+                                {!sidebarCollapsed && <S.NavText>대림절 관리</S.NavText>}
+                            </S.NavItem>
+                        </Link>
+                    )}
+
+                    {/* 대림절 출석 현황 메뉴 */}
+                    {roles.includes('목회자') && (
+                        <Link href="/admin/advent/attendance" passHref legacyBehavior>
+                            <S.NavItem as="a">
+                                <S.NavIcon>📅</S.NavIcon>
+                                {!sidebarCollapsed && <S.NavText>대림절 출석 현황</S.NavText>}
+                            </S.NavItem>
+                        </Link>
+                    )}
                     
                     {/* 문의사항 메뉴 - 모든 관리자에게 표시 */}
                     <Link href="/admin/tech-inquiries" passHref legacyBehavior>
@@ -187,6 +207,26 @@ export default function AdminPage() {
                                     <S.DashboardDescription className="dashboard-description">
                                         회의록 및 문서 관리
                                     </S.DashboardDescription>
+                                </S.DashboardCard>
+                            </Link>
+                        )}
+
+                        {roles.includes('목회자') && (
+                            <Link href="/admin/advent" passHref legacyBehavior>
+                                <S.DashboardCard as="a">
+                                    <S.DashboardIcon>🎄</S.DashboardIcon>
+                                    <S.DashboardTitle>대림절 관리</S.DashboardTitle>
+                                    <S.DashboardDescription>대림절 말씀/영상/콘텐츠 관리</S.DashboardDescription>
+                                </S.DashboardCard>
+                            </Link>
+                        )}
+
+                        {roles.includes('목회자') && (
+                            <Link href="/admin/advent/attendance" passHref legacyBehavior>
+                                <S.DashboardCard as="a">
+                                    <S.DashboardIcon>📅</S.DashboardIcon>
+                                    <S.DashboardTitle>대림절 출석 현황</S.DashboardTitle>
+                                    <S.DashboardDescription>대림절 출석 정보 및 통계</S.DashboardDescription>
                                 </S.DashboardCard>
                             </Link>
                         )}

@@ -97,10 +97,30 @@ export default function AdminAdventPage() {
               </Link>
             )}
 
-            <S.NavItem active>
-              <S.NavIcon>🎄</S.NavIcon>
-              {!sidebarCollapsed && <S.NavText>대림절 관리</S.NavText>}
-            </S.NavItem>
+            {roles.includes('목회자') && (
+            <Link href="/admin/advent" passHref legacyBehavior>
+              <S.NavItem
+                as="a"
+                active={router.pathname === '/admin/advent'}
+              >
+                <S.NavIcon>🎄</S.NavIcon>
+                {!sidebarCollapsed && <S.NavText>대림절 관리</S.NavText>}
+              </S.NavItem>
+            </Link>
+          )}
+
+          {roles.includes('목회자') && (
+            <Link href="/admin/advent/attendance" passHref legacyBehavior>
+              <S.NavItem
+                as="a"
+                active={router.pathname === '/admin/advent/attendance'}
+              >
+                <S.NavIcon>📅</S.NavIcon>
+                {!sidebarCollapsed && <S.NavText>대림절 출석 현황</S.NavText>}
+              </S.NavItem>
+            </Link>
+          )}
+
           </S.NavMenu>
         </S.Sidebar>
 
