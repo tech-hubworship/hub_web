@@ -7,6 +7,7 @@ import { Header } from '@src/components/Header';
 import Footer from '@src/components/Footer';
 import { 
   IntroSection, 
+  EventInfoSection,
   VideoSection, 
   AttendanceSection, 
   MeditationSection, 
@@ -105,6 +106,7 @@ const AdventPage = () => {
   const [showMyMeditation, setShowMyMeditation] = useState(false);
   const [commentsPage, setCommentsPage] = useState(1);
   const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [meditationSaved, setMeditationSaved] = useState(false);
 
   const fetchPost = useCallback(async (date: string) => {
     try {
@@ -191,6 +193,7 @@ const AdventPage = () => {
     }
     
     setSelectedDate(dateFromQuery);
+    setMeditationSaved(false); // 날짜 변경 시 묵상 저장 상태 초기화
     fetchPost(dateFromQuery);
   }, [router.isReady, router.query.date, router, fetchPost]);
 
@@ -219,23 +222,21 @@ const AdventPage = () => {
   }, [post?.post_dt, loading, fetchPreviousPosts]);
 
 
-  const handleCommentSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleCommentSubmit = useCallback(async (): Promise<boolean> => {
     if (!session?.user) {
       const currentPath = router.asPath;
       router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
-      return;
+      return false;
     }
 
     if (!commentText.trim()) {
-      alert('댓글을 입력해주세요.');
-      return;
+      alert('묵상을 입력해주세요.');
+      return false;
     }
 
     if (!post) {
       alert('게시물을 먼저 불러와주세요.');
-      return;
+      return false;
     }
 
     try {
@@ -256,22 +257,22 @@ const AdventPage = () => {
 
       if (response.ok) {
         setCommentText('');
-        // 묵상 작성 후 현재 모드에 따라 새로고침
-        if (showMyMeditation) {
-          fetchUserComments();
-        } else {
-          setCommentsPage(1);
-          fetchComments(post.post_dt, 1);
-        }
+        setMeditationSaved(true);
+        // 전체 묵상 새로고침
+        setCommentsPage(1);
+        fetchComments(post.post_dt, 1);
+        return true;
       } else {
-        alert(data.error || '댓글 작성에 실패했습니다.');
+        alert(data.error || '묵상 작성에 실패했습니다.');
+        return false;
       }
     } catch (err) {
-      alert('댓글 작성 중 오류가 발생했습니다.');
+      alert('묵상 작성 중 오류가 발생했습니다.');
+      return false;
     } finally {
       setSubmitting(false);
     }
-  }, [session?.user, commentText, post, router, showMyMeditation, fetchUserComments, fetchComments]);
+  }, [session?.user, commentText, post, router, fetchComments]);
 
   const handlePreviousVideoClick = (date: string) => {
     router.push(`/advent?date=${date}`);
@@ -310,25 +311,29 @@ const AdventPage = () => {
               {/* 1. 인트로 섹션 */}
               <IntroSection post={post} />
 
-              {/* 2. 영상 섹션 */}
+              {/* 2. 이벤트 안내 섹션 */}
+              <EventInfoSection />
+
+              {/* 3. 영상 섹션 */}
               <VideoSection post={post} currentDate={currentDateStr} />
 
-              {/* 3. 출석 섹션 */}
+              {/* 4. 출석 섹션 */}
               <AttendanceSection 
                 currentDate={currentDateStr}
                 isLoggedIn={!!session?.user}
-              />
-
-              {/* 4. 묵상 섹션 (댓글) */}
-              <MeditationSection
-                comments={comments}
                 commentText={commentText}
                 submitting={submitting}
+                meditationSaved={meditationSaved}
+                onCommentTextChange={setCommentText}
+                onCommentSubmit={handleCommentSubmit}
+              />
+
+              {/* 5. 묵상 섹션 (댓글) */}
+              <MeditationSection
+                comments={comments}
                 isLoggedIn={!!session?.user}
                 showMyMeditation={showMyMeditation}
                 hasMore={hasMoreComments}
-                onCommentTextChange={setCommentText}
-                onCommentSubmit={handleCommentSubmit}
                 onToggleMyMeditation={() => {
                   setShowMyMeditation(!showMyMeditation);
                   setCommentsPage(1);

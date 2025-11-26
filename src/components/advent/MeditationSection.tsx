@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useRouter } from 'next/router';
+import React from 'react';
 import styled from '@emotion/styled';
 import { AdventComment } from '@src/lib/advent/types';
 import { getDayNumber } from '@src/lib/advent/utils';
@@ -65,89 +64,6 @@ const SubtitleText = styled.div`
 
   @media (max-width: 768px) {
     font-size: 14px;
-  }
-`;
-
-const CommentForm = styled.form`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 32px;
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
-`;
-
-const CommentInput = styled.textarea`
-  width: 100%;
-  padding: 16px;
-  border: 2px solid #ffffff;
-  border-radius: 8px;
-  font-size: 16px;
-  resize: vertical;
-  min-height: 120px;
-  font-family: inherit;
-  background: #1a1a1a;
-  color: #ffffff;
-  max-length: 300;
-
-  &::placeholder {
-    color: #9ca3af;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: #CEB2FF;
-  }
-
-  &:disabled {
-    background: #2a2a2a;
-    border-color: #4B4B4B;
-    cursor: not-allowed;
-  }
-
-  @media (max-width: 768px) {
-    min-height: 100px;
-    font-size: 15px;
-    padding: 12px;
-  }
-`;
-
-const CharacterCount = styled.div`
-  font-size: 14px;
-  color: #9ca3af;
-  align-self: flex-end;
-  margin-top: -8px;
-`;
-
-const SubmitButton = styled.button`
-  padding: 16px 48px;
-  background: #ffffff;
-  color: #000000;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 160px;
-
-  &:hover {
-    background: #f0f0f0;
-    transform: translateY(-2px);
-  }
-
-  &:disabled {
-    background: #4B4B4B;
-    color: #9ca3af;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  @media (max-width: 768px) {
-    width: 100%;
-    padding: 14px 32px;
   }
 `;
 
@@ -302,43 +218,21 @@ const LoadMoreButton = styled.button`
 
 interface MeditationSectionProps {
   comments: AdventComment[];
-  commentText: string;
-  submitting: boolean;
   isLoggedIn: boolean;
   showMyMeditation: boolean;
   hasMore: boolean;
-  onCommentTextChange: (text: string) => void;
-  onCommentSubmit: (e: React.FormEvent) => void;
   onToggleMyMeditation: () => void;
   onLoadMore: () => void;
 }
 
 export const MeditationSection: React.FC<MeditationSectionProps> = ({
   comments,
-  commentText,
-  submitting,
   isLoggedIn,
   showMyMeditation,
   hasMore,
-  onCommentTextChange,
-  onCommentSubmit,
   onToggleMyMeditation,
   onLoadMore,
 }) => {
-  const router = useRouter();
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = e.target.value;
-    if (text.length <= 300) {
-      onCommentTextChange(text);
-    }
-  };
-
-  const handleLoginRedirect = () => {
-    const currentPath = router.asPath;
-    router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
-  };
-
   return (
     <SectionCard>
       <ContentWrapper>
@@ -346,8 +240,8 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
           <img src="/icons/chat1.svg" alt="chat icon" />
         </LogoWrapper>
         
-        <TitleText>이번 영상에 대해</TitleText>
-        <SubtitleText>짧게 묵상을 나누어보세요.</SubtitleText>
+        <TitleText>다른 지체들의 묵상</TitleText>
+        <SubtitleText>함께 나눈 묵상을 확인해보세요.</SubtitleText>
 
         {isLoggedIn && (
           <ButtonWrapper>
@@ -364,40 +258,6 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
               내 묵상 보기
             </ToggleButton>
           </ButtonWrapper>
-        )}
-
-        {isLoggedIn ? (
-          <CommentForm onSubmit={onCommentSubmit}>
-            <CommentInput
-              value={commentText}
-              onChange={handleTextChange}
-              placeholder="묵상을 입력해주세요..."
-              maxLength={300}
-            />
-            <CharacterCount>
-              {commentText.length}/300
-            </CharacterCount>
-            <SubmitButton type="submit" disabled={submitting || !commentText.trim()}>
-              {submitting ? '올리는 중...' : '묵상올리기'}
-            </SubmitButton>
-          </CommentForm>
-        ) : (
-          <CommentForm onSubmit={(e) => {
-            e.preventDefault();
-            handleLoginRedirect();
-          }}>
-            <CommentInput
-              placeholder="로그인이 필요합니다."
-              disabled
-            />
-            <CharacterCount>0/300</CharacterCount>
-            <SubmitButton 
-              type="button"
-              onClick={handleLoginRedirect}
-            >
-              로그인 필요
-            </SubmitButton>
-          </CommentForm>
         )}
 
         <MeditationList>

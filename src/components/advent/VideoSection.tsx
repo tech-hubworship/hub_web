@@ -27,26 +27,35 @@ const ContentWrapper = styled.div`
 `;
 
 const SectionTitle = styled.h2`
-  font-size: 32px;
-  font-weight: 700;
+  font-family: 'Wanted Sans', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
   color: #1f2937;
   margin-bottom: 8px;
+  line-height: 37px;
+  letter-spacing: -0.56px;
+  text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
 
   @media (max-width: 768px) {
-    font-size: 24px;
+    font-size: 28px;
+    line-height: 32px;
     margin-bottom: 6px;
   }
 `;
 
 const SectionSubtitle = styled.div`
-  font-size: 18px;
+  font-family: 'Wanted Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
   color: #6b7280;
-  margin-bottom: 24px;
+  line-height: 37px;
+  letter-spacing: -0.32px;
   text-align: center;
+  margin-bottom: 24px;
 
   @media (max-width: 768px) {
     font-size: 16px;
@@ -99,15 +108,19 @@ const YouTubeLink = styled.a`
   justify-content: center;
   gap: 8px;
   margin-top: 24px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #667eea;
+  font-family: 'Wanted Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 100%;
+  letter-spacing: -0.24px;
+  text-align: center;
+  color: #000000;
   text-decoration: none;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    color: #5568d3;
+    color: #333333;
     text-decoration: underline;
   }
 
@@ -174,9 +187,6 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
           </>
         )}
 
-        {post.content && (
-          <PostContent>{post.content.replace(/advent/gi, '').replace(/test/gi, '').trim()}</PostContent>
-        )}
       </ContentWrapper>
     </SectionCard>
   );

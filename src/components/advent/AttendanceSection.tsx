@@ -479,9 +479,110 @@ const BackButton = styled.button`
   }
 `;
 
+const MeditationForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  margin-bottom: 24px;
+  width: 100%;
+  max-width: 600px;
+`;
+
+const MeditationInput = styled.textarea`
+  width: 100%;
+  padding: 20px;
+  border: 2px solid #ffffff;
+  border-radius: 8px;
+  font-size: 16px;
+  resize: vertical;
+  min-height: 200px;
+  font-family: inherit;
+  background: #1a1a1a;
+  color: #ffffff;
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #CEB2FF;
+  }
+
+  &:disabled {
+    background: #2a2a2a;
+    border-color: #4B4B4B;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 768px) {
+    min-height: 160px;
+    font-size: 15px;
+    padding: 16px;
+  }
+`;
+
+const CharacterCount = styled.div`
+  font-size: 14px;
+  color: #9ca3af;
+  align-self: flex-end;
+  margin-top: -8px;
+`;
+
+const MeditationSubmitButton = styled.button`
+  padding: 14px 40px;
+  background: #ffffff;
+  color: #000000;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 140px;
+
+  &:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px);
+  }
+
+  &:disabled {
+    background: #4B4B4B;
+    color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+    padding: 12px 32px;
+  }
+`;
+
+const MeditationSavedText = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: #CEB2FF;
+  margin-bottom: 16px;
+`;
+
+const SectionTitle = styled.div`
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 16px;
+`;
+
 interface AttendanceSectionProps {
   currentDate: string;
   isLoggedIn: boolean;
+  commentText: string;
+  submitting: boolean;
+  meditationSaved: boolean;
+  onCommentTextChange: (text: string) => void;
+  onCommentSubmit: () => Promise<boolean>;
 }
 
 interface AttendanceMap {
@@ -491,6 +592,11 @@ interface AttendanceMap {
 export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   currentDate,
   isLoggedIn,
+  commentText,
+  submitting,
+  meditationSaved,
+  onCommentTextChange,
+  onCommentSubmit,
 }) => {
   const router = useRouter();
   const [attendanceChecked, setAttendanceChecked] = useState(false);
@@ -505,6 +611,23 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   const [loadingWeek, setLoadingWeek] = useState(false);
 
   const dayNumber = getDayNumber(currentDate);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    if (text.length <= 300) {
+      onCommentTextChange(text);
+    }
+  };
+
+  const handleMeditationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoggedIn) {
+      const currentPath = router.asPath;
+      router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+    await onCommentSubmit();
+  };
 
   useEffect(() => {
     if (isLoggedIn && currentDate) {
@@ -748,32 +871,25 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
       <SectionCard>
         <ContentWrapper>
           <AttendanceContent>
-            <UnionButtonWrapper>
-              <UnionButton 
-                onClick={handleAttendanceClick}
-                isLoading={false} 
-                isClicking={false}
+            <CompletionHeader>
+              <LogoContainer>
+                <img src="/icons/advent_logo.svg" alt="advent logo" />
+              </LogoContainer>
+              <CompletionText>묵상을 작성해주세요</CompletionText>
+            </CompletionHeader>
+            <MeditationForm onSubmit={handleMeditationSubmit}>
+              <MeditationInput
+                placeholder="로그인이 필요합니다."
+                disabled
+              />
+              <CharacterCount>0/300</CharacterCount>
+              <MeditationSubmitButton 
+                type="button"
+                onClick={handleMeditationSubmit}
               >
-                  <UnionSVGButton 
-                    width="180" 
-                    height="243" 
-                    viewBox="0 0 62 84" 
-                    fill="none" 
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                  <mask id="path-1-inside-1_login" fill="white">
-                    <path d="M30.9639 0C40.125 6.57003e-05 47.5573 7.3962 47.6182 16.543H61.9277V83.4736H0V16.543H14.3096C14.3705 7.39616 21.8027 0 30.9639 0Z"/>
-                  </mask>
-                  <path 
-                    d="M30.9639 0L30.9639 -1H30.9639V0ZM47.6182 16.543L46.6182 16.5496L46.6248 17.543H47.6182V16.543ZM61.9277 16.543H62.9277V15.543H61.9277V16.543ZM61.9277 83.4736V84.4736H62.9277V83.4736H61.9277ZM0 83.4736H-1V84.4736H0V83.4736ZM0 16.543V15.543H-1V16.543H0ZM14.3096 16.543V17.543H15.3029L15.3095 16.5496L14.3096 16.543ZM30.9639 0L30.9639 1C39.5748 1.00006 46.5609 7.95205 46.6182 16.5496L47.6182 16.543L48.6181 16.5363C48.5536 6.84035 40.6751 -0.99993 30.9639 -1L30.9639 0ZM47.6182 16.543V17.543H61.9277V16.543V15.543H47.6182V16.543ZM61.9277 16.543H60.9277V83.4736H61.9277H62.9277V16.543H61.9277ZM61.9277 83.4736V82.4736H0V83.4736V84.4736H61.9277V83.4736ZM0 83.4736H1V16.543H0H-1V83.4736H0ZM0 16.543V17.543H14.3096V16.543V15.543H0V16.543ZM14.3096 16.543L15.3095 16.5496C15.3668 7.952 22.3529 1 30.9639 1V0V-1C21.2525 -1 13.3741 6.84031 13.3096 16.5363L14.3096 16.543Z" 
-                    fill="#ffffff"
-                    mask="url(#path-1-inside-1_login)"
-                  />
-                </UnionSVGButton>
-                <ButtonDayNumber>{getDayNumber(currentDate) || '-'}</ButtonDayNumber>
-              </UnionButton>
-            </UnionButtonWrapper>
-            <ButtonLabel>눌러서 출석하기</ButtonLabel>
+                로그인 필요
+              </MeditationSubmitButton>
+            </MeditationForm>
           </AttendanceContent>
         </ContentWrapper>
       </SectionCard>
@@ -786,44 +902,77 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
         <AttendanceContent>
           {!attendanceChecked ? (
             <>
-              <UnionButtonWrapper>
-                <UnionButton 
-                  onClick={handleAttendanceClick}
-                  disabled={loading || !dayNumber}
-                  isLoading={loading}
-                  isClicking={isClicking}
-                >
-                  <UnionSVGButton 
-                    width="180" 
-                    height="243" 
-                    viewBox="0 0 62 84" 
-                    fill="none" 
-                    xmlns="http://www.w3.org/2000/svg"
-                    fillColor={isClicking ? '#CEB2FF' : undefined}
-                  >
-                    <mask id="path-1-inside-1_button" fill="white">
-                      <path d="M30.9639 0C40.125 6.57003e-05 47.5573 7.3962 47.6182 16.543H61.9277V83.4736H0V16.543H14.3096C14.3705 7.39616 21.8027 0 30.9639 0Z"/>
-                    </mask>
-                    {isClicking && (
-                      <path 
-                        className="icon-fill"
-                        d="M30.9639 0C40.125 6.57003e-05 47.5573 7.3962 47.6182 16.543H61.9277V83.4736H0V16.543H14.3096C14.3705 7.39616 21.8027 0 30.9639 0Z"
-                        mask="url(#path-1-inside-1_button)"
-                      />
-                    )}
-                    <path 
-                      className="icon-border"
-                      d="M30.9639 0L30.9639 -1H30.9639V0ZM47.6182 16.543L46.6182 16.5496L46.6248 17.543H47.6182V16.543ZM61.9277 16.543H62.9277V15.543H61.9277V16.543ZM61.9277 83.4736V84.4736H62.9277V83.4736H61.9277ZM0 83.4736H-1V84.4736H0V83.4736ZM0 16.543V15.543H-1V16.543H0ZM14.3096 16.543V17.543H15.3029L15.3095 16.5496L14.3096 16.543ZM30.9639 0L30.9639 1C39.5748 1.00006 46.5609 7.95205 46.6182 16.5496L47.6182 16.543L48.6181 16.5363C48.5536 6.84035 40.6751 -0.99993 30.9639 -1L30.9639 0ZM47.6182 16.543V17.543H61.9277V16.543V15.543H47.6182V16.543ZM61.9277 16.543H60.9277V83.4736H61.9277H62.9277V16.543H61.9277ZM61.9277 83.4736V82.4736H0V83.4736V84.4736H61.9277V83.4736ZM0 83.4736H1V16.543H0H-1V83.4736H0ZM0 16.543V17.543H14.3096V16.543V15.543H0V16.543ZM14.3096 16.543L15.3095 16.5496C15.3668 7.952 22.3529 1 30.9639 1V0V-1C21.2525 -1 13.3741 6.84031 13.3096 16.5363L14.3096 16.543Z" 
-                      mask="url(#path-1-inside-1_button)"
+              {/* 묵상이 저장되지 않았으면 묵상 입력 폼만 표시 */}
+              {!meditationSaved ? (
+                <>
+                  <CompletionHeader>
+                    <LogoContainer>
+                      <img src="/icons/advent_logo.svg" alt="advent logo" />
+                    </LogoContainer>
+                    <CompletionText>묵상을 작성해주세요</CompletionText>
+                  </CompletionHeader>
+                  <MeditationForm onSubmit={handleMeditationSubmit}>
+                    <MeditationInput
+                      value={commentText}
+                      onChange={handleTextChange}
+                      placeholder="오늘의 묵상을 입력해주세요..."
+                      maxLength={300}
                     />
-                  </UnionSVGButton>
-                  <ButtonDayNumber style={{ opacity: isClicking ? 0 : 1 }}>
-                    {dayNumber || '-'}
-                  </ButtonDayNumber>
-                  <ButtonLogo isVisible={showLogo} />
-                </UnionButton>
-              </UnionButtonWrapper>
-              <ButtonLabel>{loading ? '처리 중...' : dayNumber ? `눌러서 ${dayNumber}일차 출석하기` : '눌러서 출석하기'}</ButtonLabel>
+                    <CharacterCount>
+                      {commentText.length}/300
+                    </CharacterCount>
+                    <MeditationSubmitButton type="submit" disabled={submitting || !commentText.trim()}>
+                      {submitting ? '저장 중...' : '묵상 저장하기'}
+                    </MeditationSubmitButton>
+                  </MeditationForm>
+                </>
+              ) : (
+                <>
+                  <MeditationSavedText>✓ 묵상이 저장되었습니다</MeditationSavedText>
+
+                  <UnionButtonWrapper>
+                    <UnionButton 
+                      onClick={handleAttendanceClick}
+                      disabled={loading || !dayNumber}
+                      isLoading={loading}
+                      isClicking={isClicking}
+                    >
+                      <UnionSVGButton 
+                        width="180" 
+                        height="243" 
+                        viewBox="0 0 62 84" 
+                        fill="none" 
+                        xmlns="http://www.w3.org/2000/svg"
+                        fillColor={isClicking ? '#CEB2FF' : undefined}
+                      >
+                        <mask id="path-1-inside-1_button" fill="white">
+                          <path d="M30.9639 0C40.125 6.57003e-05 47.5573 7.3962 47.6182 16.543H61.9277V83.4736H0V16.543H14.3096C14.3705 7.39616 21.8027 0 30.9639 0Z"/>
+                        </mask>
+                        {isClicking && (
+                          <path 
+                            className="icon-fill"
+                            d="M30.9639 0C40.125 6.57003e-05 47.5573 7.3962 47.6182 16.543H61.9277V83.4736H0V16.543H14.3096C14.3705 7.39616 21.8027 0 30.9639 0Z"
+                            mask="url(#path-1-inside-1_button)"
+                          />
+                        )}
+                        <path 
+                          className="icon-border"
+                          d="M30.9639 0L30.9639 -1H30.9639V0ZM47.6182 16.543L46.6182 16.5496L46.6248 17.543H47.6182V16.543ZM61.9277 16.543H62.9277V15.543H61.9277V16.543ZM61.9277 83.4736V84.4736H62.9277V83.4736H61.9277ZM0 83.4736H-1V84.4736H0V83.4736ZM0 16.543V15.543H-1V16.543H0ZM14.3096 16.543V17.543H15.3029L15.3095 16.5496L14.3096 16.543ZM30.9639 0L30.9639 1C39.5748 1.00006 46.5609 7.95205 46.6182 16.5496L47.6182 16.543L48.6181 16.5363C48.5536 6.84035 40.6751 -0.99993 30.9639 -1L30.9639 0ZM47.6182 16.543V17.543H61.9277V16.543V15.543H47.6182V16.543ZM61.9277 16.543H60.9277V83.4736H61.9277H62.9277V16.543H61.9277ZM61.9277 83.4736V82.4736H0V83.4736V84.4736H61.9277V83.4736ZM0 83.4736H1V16.543H0H-1V83.4736H0ZM0 16.543V17.543H14.3096V16.543V15.543H0V16.543ZM14.3096 16.543L15.3095 16.5496C15.3668 7.952 22.3529 1 30.9639 1V0V-1C21.2525 -1 13.3741 6.84031 13.3096 16.5363L14.3096 16.543Z" 
+                          fill="#ffffff"
+                          mask="url(#path-1-inside-1_button)"
+                        />
+                      </UnionSVGButton>
+                      <ButtonDayNumber style={{ opacity: isClicking ? 0 : 1 }}>
+                        {dayNumber || '-'}
+                      </ButtonDayNumber>
+                      <ButtonLogo isVisible={showLogo} />
+                    </UnionButton>
+                  </UnionButtonWrapper>
+                  <ButtonLabel>
+                    {loading ? '처리 중...' : (dayNumber ? `눌러서 ${dayNumber}일차 출석하기` : '눌러서 출석하기')}
+                  </ButtonLabel>
+                </>
+              )}
             </>
           ) : (
             <AttendanceComplete>
