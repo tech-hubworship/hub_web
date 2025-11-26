@@ -156,6 +156,35 @@ const EmptyState = styled.div`
   }
 `;
 
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 20px;
+  grid-column: 1 / -1;
+  
+  img {
+    width: 48px;
+    height: 66px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 40px 16px;
+  }
+`;
+
 const ButtonWrapper = styled.div`
   display: flex;
   justify-content: center;
@@ -221,6 +250,7 @@ interface MeditationSectionProps {
   isLoggedIn: boolean;
   showMyMeditation: boolean;
   hasMore: boolean;
+  loading: boolean;
   onToggleMyMeditation: () => void;
   onLoadMore: () => void;
 }
@@ -230,6 +260,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
   isLoggedIn,
   showMyMeditation,
   hasMore,
+  loading,
   onToggleMyMeditation,
   onLoadMore,
 }) => {
@@ -261,7 +292,11 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
         )}
 
         <MeditationList>
-          {comments.length === 0 ? (
+          {loading ? (
+            <LoadingContainer>
+              <img src="/icons/advent_logo.svg" alt="loading" />
+            </LoadingContainer>
+          ) : comments.length === 0 ? (
             <EmptyState>
               {showMyMeditation ? '아직 작성한 묵상이 없습니다.' : '아직 묵상이 없습니다. 첫 번째 묵상을 나눠보세요!'}
             </EmptyState>

@@ -575,6 +575,30 @@ const SectionTitle = styled.div`
   margin-bottom: 16px;
 `;
 
+const LoadingLogo = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  
+  img {
+    width: 48px;
+    height: 66px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+  }
+`;
+
 interface AttendanceSectionProps {
   currentDate: string;
   isLoggedIn: boolean;
@@ -583,6 +607,7 @@ interface AttendanceSectionProps {
   meditationSaved: boolean;
   onCommentTextChange: (text: string) => void;
   onCommentSubmit: () => Promise<boolean>;
+  onMeditationSavedChange: (saved: boolean) => void;
 }
 
 interface AttendanceMap {
@@ -597,6 +622,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   meditationSaved,
   onCommentTextChange,
   onCommentSubmit,
+  onMeditationSavedChange,
 }) => {
   const router = useRouter();
   const [attendanceChecked, setAttendanceChecked] = useState(false);
@@ -609,8 +635,48 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [weekAttendanceMap, setWeekAttendanceMap] = useState<AttendanceMap>({});
   const [loadingWeek, setLoadingWeek] = useState(false);
+  const [checkingMeditation, setCheckingMeditation] = useState(true); // 초기값 true로 설정
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   const dayNumber = getDayNumber(currentDate);
+
+  // 해당 날짜의 묵상 작성 여부 확인
+  const checkExistingMeditation = async () => {
+    if (!isLoggedIn || !currentDate) {
+      setCheckingMeditation(false);
+      return;
+    }
+    
+    try {
+      setCheckingMeditation(true);
+      const response = await fetch(`/api/advent/user-comments?post_dt=${currentDate}&checkOnly=true`);
+      const data = await response.json();
+      
+      if (response.ok && data.hasMeditation) {
+        onMeditationSavedChange(true);
+      } else {
+        onMeditationSavedChange(false);
+      }
+    } catch (err) {
+      console.error('묵상 확인 오류:', err);
+    } finally {
+      setCheckingMeditation(false);
+      setInitialCheckDone(true);
+    }
+  };
+
+  // 출석 확인 후 묵상 확인
+  useEffect(() => {
+    if (isLoggedIn && currentDate && !initialCheckDone) {
+      checkExistingMeditation();
+    }
+  }, [isLoggedIn, currentDate, initialCheckDone]);
+  
+  // 날짜 변경 시 초기화
+  useEffect(() => {
+    setInitialCheckDone(false);
+    setCheckingMeditation(true);
+  }, [currentDate]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value;
@@ -902,8 +968,12 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
         <AttendanceContent>
           {!attendanceChecked ? (
             <>
-              {/* 묵상이 저장되지 않았으면 묵상 입력 폼만 표시 */}
-              {!meditationSaved ? (
+              {/* 묵상 확인 중일 때 로딩 표시 */}
+              {checkingMeditation ? (
+                <LoadingLogo>
+                  <img src="/icons/advent_logo.svg" alt="loading" />
+                </LoadingLogo>
+              ) : !meditationSaved ? (
                 <>
                   <CompletionHeader>
                     <LogoContainer>
@@ -969,7 +1039,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
                     </UnionButton>
                   </UnionButtonWrapper>
                   <ButtonLabel>
-                    {loading ? '처리 중...' : (dayNumber ? `눌러서 ${dayNumber}일차 출석하기` : '눌러서 출석하기')}
+                    {dayNumber ? `눌러서 ${dayNumber}일차 출석하기` : '눌러서 출석하기'}
                   </ButtonLabel>
                 </>
               )}
@@ -1013,9 +1083,9 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
                   </WeekTabs>
 
                   {loadingWeek ? (
-                    <div style={{ textAlign: 'center', color: '#ffffff', padding: '40px' }}>
-                      로딩 중...
-                    </div>
+                    <LoadingLogo>
+                      <img src="/icons/advent_logo.svg" alt="loading" />
+                    </LoadingLogo>
                   ) : selectedWeek ? (
                     <UnionGrid>
                       {renderWeekIcons((selectedWeek - 1) * 7 + 1, selectedWeek * 7)}

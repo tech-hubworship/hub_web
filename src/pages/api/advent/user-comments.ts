@@ -18,6 +18,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         userId = userId.substring(0, 100);
       }
 
+      const { post_dt, checkOnly } = req.query;
+
+      // 특정 날짜의 묵상 존재 여부만 확인하는 경우
+      if (checkOnly === 'true' && post_dt) {
+        const { data: existingComments, error: checkError } = await supabaseAdmin
+          .from('advent_comments')
+          .select('comment_id')
+          .eq('reg_id', userId)
+          .eq('post_dt', post_dt)
+          .limit(1);
+
+        if (checkError) {
+          console.error('묵상 확인 오류:', checkError);
+          return res.status(500).json({ error: '묵상 확인에 실패했습니다.' });
+        }
+
+        return res.status(200).json({ hasMeditation: existingComments && existingComments.length > 0 });
+      }
+
       // 사용자의 묵상들을 가져오면서 profiles 테이블과 조인하여 name 가져오기
       // Supabase에서 직접 조인은 외래키가 필요하므로, 
       // reg_id를 기준으로 profiles에서 name을 가져옴
@@ -25,6 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .from('advent_comments')
         .select('*')
         .eq('reg_id', userId)
+        .order('post_dt', { ascending: false })
         .order('reg_dt', { ascending: false });
 
       if (commentsError) {

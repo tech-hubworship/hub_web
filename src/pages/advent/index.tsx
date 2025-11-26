@@ -107,6 +107,7 @@ const AdventPage = () => {
   const [commentsPage, setCommentsPage] = useState(1);
   const [hasMoreComments, setHasMoreComments] = useState(false);
   const [meditationSaved, setMeditationSaved] = useState(false);
+  const [loadingComments, setLoadingComments] = useState(false);
 
   const fetchPost = useCallback(async (date: string) => {
     try {
@@ -128,8 +129,9 @@ const AdventPage = () => {
     }
   }, []);
 
-  const fetchComments = useCallback(async (date: string, page: number = 1) => {
+  const fetchComments = useCallback(async (date: string, page: number = 1, showLoading: boolean = false) => {
     try {
+      if (showLoading) setLoadingComments(true);
       const response = await fetch(`/api/advent/comments?date=${date}&page=${page}&limit=10`);
       const data = await response.json();
 
@@ -143,11 +145,14 @@ const AdventPage = () => {
       }
     } catch (err) {
       console.error('댓글 조회 오류:', err);
+    } finally {
+      if (showLoading) setLoadingComments(false);
     }
   }, []);
 
-  const fetchUserComments = useCallback(async () => {
+  const fetchUserComments = useCallback(async (showLoading: boolean = false) => {
     try {
+      if (showLoading) setLoadingComments(true);
       const response = await fetch('/api/advent/user-comments');
       const data = await response.json();
 
@@ -156,6 +161,8 @@ const AdventPage = () => {
       }
     } catch (err) {
       console.error('사용자 묵상 조회 오류:', err);
+    } finally {
+      if (showLoading) setLoadingComments(false);
     }
   }, []);
 
@@ -326,6 +333,7 @@ const AdventPage = () => {
                 meditationSaved={meditationSaved}
                 onCommentTextChange={setCommentText}
                 onCommentSubmit={handleCommentSubmit}
+                onMeditationSavedChange={setMeditationSaved}
               />
 
               {/* 5. 묵상 섹션 (댓글) */}
@@ -334,9 +342,19 @@ const AdventPage = () => {
                 isLoggedIn={!!session?.user}
                 showMyMeditation={showMyMeditation}
                 hasMore={hasMoreComments}
+                loading={loadingComments}
                 onToggleMyMeditation={() => {
-                  setShowMyMeditation(!showMyMeditation);
+                  const newShowMyMeditation = !showMyMeditation;
+                  setShowMyMeditation(newShowMyMeditation);
                   setCommentsPage(1);
+                  setComments([]); // 초기화
+                  
+                  // 새로운 데이터 가져오기
+                  if (newShowMyMeditation) {
+                    fetchUserComments(true);
+                  } else if (post?.post_dt) {
+                    fetchComments(post.post_dt, 1, true);
+                  }
                 }}
                 onLoadMore={() => {
                   if (post?.post_dt && !showMyMeditation) {

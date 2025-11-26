@@ -29,12 +29,14 @@ export default function LoginPage() {
   const [isVerifying, setIsVerifying] = useState(false);
 
 
+  // URL 파라미터에서 redirect 정보 가져오기 (router.isReady 확인)
   useEffect(() => {
-    // URL 파라미터에서 redirect 정보 가져오기
-    if (router.query.redirect) {
+    if (router.isReady && router.query.redirect) {
       localStorage.setItem(REDIRECT_KEY, router.query.redirect as string);
     }
+  }, [router.isReady, router.query.redirect]);
 
+  useEffect(() => {
     if (status === "authenticated") {
       const signupRole = sessionStorage.getItem(SIGNUP_ROLE_KEY);
       sessionStorage.removeItem(SIGNUP_ROLE_KEY); // 역할 정보 사용 후 즉시 삭제
@@ -133,7 +135,16 @@ export default function LoginPage() {
       
       setIsModalOpen(false);
       sessionStorage.setItem(SIGNUP_ROLE_KEY, selectedRole);
-      signIn('google', { prompt: 'select_account' });
+      
+      // redirect 값을 signIn 전에 다시 확인하여 저장
+      if (router.query.redirect) {
+        localStorage.setItem(REDIRECT_KEY, router.query.redirect as string);
+      }
+      
+      signIn('google', { 
+        prompt: 'select_account',
+        callbackUrl: '/login' + (router.query.redirect ? `?redirect=${encodeURIComponent(router.query.redirect as string)}` : '')
+      });
 
     } catch (err: any) {
       setModalError(err.message);
@@ -149,8 +160,18 @@ export default function LoginPage() {
     } else {
         sessionStorage.removeItem(SIGNUP_ROLE_KEY);
     }
+    
+    // redirect 값을 signIn 전에 다시 확인하여 저장
+    if (router.query.redirect) {
+      localStorage.setItem(REDIRECT_KEY, router.query.redirect as string);
+    }
+    
     // ⭐️ [핵심 수정] 일반 로그인 시에도 항상 계정 선택창 표시
-    signIn('google', { prompt: 'select_account' });
+    // callbackUrl을 현재 페이지로 지정하여 로그인 후 돌아오도록 함
+    signIn('google', { 
+      prompt: 'select_account',
+      callbackUrl: '/login' + (router.query.redirect ? `?redirect=${encodeURIComponent(router.query.redirect as string)}` : '')
+    });
   };
 
 
