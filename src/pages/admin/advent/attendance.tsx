@@ -11,8 +11,8 @@ interface AttendanceRecord {
   user_id: string;
   name: string;
   email: string;
-  group_name: string | null;
-  cell_name: string | null;
+  hub_groups: { id: number; name: string } | null;
+  hub_cells: { id: number; name: string } | null;
   attended: boolean;
   created_at: string | null;
 }
@@ -67,7 +67,7 @@ export default function AdminAdventAttendancePage() {
 
       if (response.ok) {
         setAttendanceList(data.list || []);
-        setTotalUsers(data.total || 0);
+        setTotalUsers(data.total_users || 0);
         setAttendedCount(data.attended || 0);
       } else {
         alert(data.error || '출석 현황을 불러오지 못했습니다.');
@@ -244,11 +244,17 @@ export default function AdminAdventAttendancePage() {
                   <S.TableRow key={u.user_id}>
                     <S.TableData>{u.name}</S.TableData>
                     <S.TableData>{u.email}</S.TableData>
-                    <S.TableData>{u.group_name || '-'}</S.TableData>
-                    <S.TableData>{u.cell_name || '-'}</S.TableData>
+
+                    {/* 그룹/셀 이름 객체에서 꺼내기 */}
+                    <S.TableData>{u.hub_groups?.name ?? '-'}</S.TableData>
+                    <S.TableData>{u.hub_cells?.name ?? '-'}</S.TableData>
+
+                    {/* 출석 여부 */}
                     <S.TableData style={{ color: u.attended ? '#10b981' : '#ef4444' }}>
                       {u.attended ? '● 출석' : '× 미출석'}
                     </S.TableData>
+
+                    {/* 출석 시간 */}
                     <S.TableData>
                       {u.created_at ? new Date(u.created_at).toLocaleString('ko-KR') : '-'}
                     </S.TableData>
@@ -257,6 +263,7 @@ export default function AdminAdventAttendancePage() {
               </tbody>
             </S.Table>
           </S.TableContainer>
+
         </L.ContentArea>
       </L.MainContent>
     </L.AdminLayout>
