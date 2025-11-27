@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@src/pages/api/auth/[...nextauth]';
 import { createClient } from '@supabase/supabase-js';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 
 // 서비스 키를 사용한 Supabase 클라이언트 (RLS 우회)
 const supabaseClient = createClient(
@@ -207,7 +208,7 @@ async function batchUpdateReservations(req: NextApiRequest, res: NextApiResponse
       .update({
         status,
         message: message || null,
-        updated_at: new Date().toISOString()
+        updated_at: getKoreanTimestamp()
       })
       .in('id', reservationIds)
       .select(`

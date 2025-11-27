@@ -17,9 +17,11 @@ interface AttendanceRecord {
 }
 
 export default function AttendanceContent() {
-  const [date, setDate] = useState(
-    new Date().toISOString().slice(0, 10).replace(/-/g, '')
-  );
+  const [date, setDate] = useState(() => {
+    const now = new Date();
+    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    return koreanTime.toISOString().slice(0, 10).replace(/-/g, '');
+  });
   const [search, setSearch] = useState('');
   const [groupId, setGroupId] = useState<number | ''>('');
   const [cellId, setCellId] = useState<number | ''>('');
@@ -227,7 +229,7 @@ export default function AttendanceContent() {
                 </S.TableData>
                 <S.TableData>
                   {u.created_at
-                    ? new Date(u.created_at).toLocaleString('ko-KR')
+                    ? new Date(u.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
                     : '-'}
                 </S.TableData>
               </S.TableRow>

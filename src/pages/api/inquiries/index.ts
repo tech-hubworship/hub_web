@@ -7,6 +7,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin, InquiryTable } from '@src/lib/supabase';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 
 // 문의사항 타입 정의 (Supabase 타입 사용)
 type Inquiry = InquiryTable;
@@ -65,7 +66,7 @@ export async function updateInquiryStatus(id: number, status: string): Promise<I
     .from('inquiries')
     .update({
       status,
-      updated_at: new Date().toISOString(),
+      updated_at: getKoreanTimestamp(),
     })
     .eq('id', id)
     .select()

@@ -323,6 +323,7 @@ export default function TechInquiriesAdminPage() {
                     </S.TableData>
                     <S.TableData>
                       {new Date(inquiry.created_at).toLocaleDateString('ko-KR', {
+                        timeZone: 'Asia/Seoul',
                         year: 'numeric',
                         month: '2-digit',
                         day: '2-digit',
@@ -403,14 +404,14 @@ export default function TechInquiriesAdminPage() {
                   <S.InfoRow>
                     <S.InfoLabel>등록일:</S.InfoLabel>
                     <S.InfoValue>
-                      {new Date(selectedInquiry.created_at).toLocaleString('ko-KR')}
+                      {new Date(selectedInquiry.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
                     </S.InfoValue>
                   </S.InfoRow>
                   {selectedInquiry.resolved_at && (
                     <S.InfoRow>
                       <S.InfoLabel>해결일:</S.InfoLabel>
                       <S.InfoValue>
-                        {new Date(selectedInquiry.resolved_at).toLocaleString('ko-KR')}
+                        {new Date(selectedInquiry.resolved_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
                       </S.InfoValue>
                     </S.InfoRow>
                   )}

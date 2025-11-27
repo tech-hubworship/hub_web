@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@src/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
@@ -44,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const userIds = Array.from(new Set((data || []).map(comment => comment.reg_id)));
       const { data: profiles } = await supabaseAdmin
         .from('profiles')
-        .select('user_id, name, community, hub_groups!fk_group_id(name), hub_cells!fk_cell_id(name)')
+        .select('user_id, name, community, group_id, cell_id, hub_groups!fk_group_id(name), hub_cells!fk_cell_id(name)')
         .in('user_id', userIds);
 
       // 이름 마스킹 함수 (예: "홍길동" -> "홍0동", "김철수" -> "김0수")
@@ -57,11 +58,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return name[0] + '0' + name[name.length - 1];
       };
 
+      // 제외할 그룹/셀 ID 목록
+      const excludeGroupIds = [7, 99];
+      const excludeCellIds = [26, 99];
+
       const profileMap = new Map();
       profiles?.forEach(profile => {
         const community = profile.community || '';
-        const groupName = (profile.hub_groups as any)?.name || '';
-        const cellName = (profile.hub_cells as any)?.name || '';
+        // 제외 대상 그룹/셀은 빈 문자열로 처리
+        const groupName = excludeGroupIds.includes(profile.group_id) ? '' : ((profile.hub_groups as any)?.name || '');
+        const cellName = excludeCellIds.includes(profile.cell_id) ? '' : ((profile.hub_cells as any)?.name || '');
         const maskedName = maskName(profile.name);
         
         // 소속 정보 (공동체/그룹/다락방)
@@ -124,7 +130,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (userId.length > 100) {
         userId = userId.substring(0, 100);
       }
-      const now = new Date().toISOString();
+      const now = getKoreanTimestamp();
 
       const { data, error } = await supabaseAdmin
         .from('advent_comments')

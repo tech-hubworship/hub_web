@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@src/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
@@ -39,8 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      // 출석 기록 생성
-      const now = new Date().toISOString();
+      // 출석 기록 생성 (한국 시간)
+      const now = getKoreanTimestamp();
       const { data, error } = await supabaseAdmin
         .from('advent_attendance')
         .insert({

@@ -529,6 +529,7 @@ export default function PhotoDetail() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ko-KR', {
+      timeZone: 'Asia/Seoul',
       year: 'numeric',
       month: 'long',
       day: 'numeric'

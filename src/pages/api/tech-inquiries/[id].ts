@@ -9,6 +9,7 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 import { supabaseAdmin } from '@src/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
@@ -100,7 +101,7 @@ async function handlePatch(
     updateData.status = status;
 
     if (status === 'resolved') {
-      updateData.resolved_at = new Date().toISOString();
+      updateData.resolved_at = getKoreanTimestamp();
     }
   }
 

@@ -1,6 +1,7 @@
 import { getSession } from 'next-auth/react';
 import { supabaseAdmin } from '@src/lib/supabase';
 import { NextApiRequest, NextApiResponse } from 'next';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 
 export default async function handler(
   req: NextApiRequest,
@@ -24,7 +25,7 @@ export default async function handler(
     const profileDataToUpdate = {
       group_id: group_id ? parseInt(group_id, 10) : null,
       cell_id: cell_id ? parseInt(cell_id, 10) : null,
-      info_last_updated_at: new Date().toISOString(),
+      info_last_updated_at: getKoreanTimestamp(),
     };
 
     const { data: profile, error: profileError } = await supabaseAdmin

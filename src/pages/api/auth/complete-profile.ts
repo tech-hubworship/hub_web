@@ -3,6 +3,7 @@
 import { getSession } from 'next-auth/react';
 import { supabaseAdmin } from '@src/lib/supabase';
 import { NextApiRequest, NextApiResponse } from 'next';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 
 // 프론트엔드 역할 이름과 DB의 'roles' 테이블 이름을 매핑합니다.
 const ADMIN_ROLE_MAP: { [key: string]: string } = {
@@ -73,7 +74,7 @@ export default async function handler(
         status: (role && (ADMIN_ROLE_MAP[role] === 'MC' || ADMIN_ROLE_MAP[role] === '목회자')) ? '관리자' : '활성',
         group_id: finalCommunity === '허브' ? (parseInt(group_id, 10) || null) : null,
         cell_id: finalCommunity === '허브' ? (parseInt(cell_id, 10) || null) : null,
-        info_last_updated_at: new Date().toISOString(),
+        info_last_updated_at: getKoreanTimestamp(),
     };
 
     const { data: profile, error: profileError } = await supabaseAdmin

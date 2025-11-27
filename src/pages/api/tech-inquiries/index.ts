@@ -8,6 +8,7 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 import { supabase, supabaseAdmin } from '@src/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
@@ -59,7 +60,10 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
 
   // 중복 제출 체크 (5분 내 동일 IP에서 동일 메시지)
   if (userIp) {
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    // 한국 시간 기준 5분 전
+    const now = new Date();
+    const koreanNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const fiveMinutesAgo = new Date(koreanNow.getTime() - 5 * 60 * 1000).toISOString().replace('Z', '');
     
     const { data: recentInquiries, error: checkError } = await supabaseAdmin
       .from('tech_inquiries')

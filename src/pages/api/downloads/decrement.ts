@@ -8,6 +8,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin, DownloadsTable } from '@src/lib/supabase';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 
 // 다운로드 정보 타입 정의
 interface DownloadInfo {
@@ -90,7 +91,7 @@ export async function decrementDownloadCount(): Promise<{ success: boolean; rema
       .from('downloads')
       .update({
         remaining_count: currentCount - 1,
-        updated_at: new Date().toISOString()
+        updated_at: getKoreanTimestamp()
       })
       .eq('key', 'wallpaper_downloads')
       .select('remaining_count')

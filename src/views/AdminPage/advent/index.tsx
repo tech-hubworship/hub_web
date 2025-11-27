@@ -129,8 +129,12 @@ export default function AdventPostsAdminPage() {
 
   const handleAdd = () => {
     setEditingPost(null);
+    // 한국 시간 기준 현재 날짜
+    const now = new Date();
+    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const koreanDateStr = koreanTime.toISOString().slice(0, 10).replace(/-/g, '');
     setFormData({
-      post_dt: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+      post_dt: koreanDateStr,
       title: '',
       content: '',
       video_url: '',
@@ -220,7 +224,7 @@ export default function AdventPostsAdminPage() {
                   </S.TableData>
                   <S.TableData>
                     <span style={{ color: '#64748b', fontSize: '13px' }}>
-                      {new Date(post.reg_dt).toLocaleDateString('ko-KR')}
+                      {new Date(post.reg_dt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
                     </span>
                   </S.TableData>
                   <S.TableData>

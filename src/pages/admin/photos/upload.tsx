@@ -511,7 +511,7 @@ export default function PhotoUploadPage() {
                                             {folder.photo_count}개 사진 • {folder.is_public ? '공개' : '비공개'}
                                         </FolderInfo>
                                         <FolderInfo style={{ marginTop: '4px', fontSize: '11px' }}>
-                                            {new Date(folder.created_at).toLocaleDateString()}
+                                            {new Date(folder.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
                                         </FolderInfo>
                                     </FolderItem>
                                 ))}

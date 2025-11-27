@@ -617,7 +617,7 @@ export default function UsersAdminPage() {
                     <S.Label>가입일</S.Label>
                     <S.Input
                       type="text"
-                      value={new Date(selectedUser.created_at).toLocaleDateString('ko-KR')}
+                      value={new Date(selectedUser.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
                       disabled
                     />
                   </S.FormGroup>

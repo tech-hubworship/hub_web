@@ -59,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // profiles 테이블에서 사용자 정보 조회 (공동체, 그룹, 셀, 이름)
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('name, community, hub_groups!fk_group_id(name), hub_cells!fk_cell_id(name)')
+        .select('name, community, group_id, cell_id, hub_groups!fk_group_id(name), hub_cells!fk_cell_id(name)')
         .eq('user_id', userId)
         .single();
 
@@ -73,13 +73,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return name[0] + '0' + name[name.length - 1];
       };
 
+      // 제외할 그룹/셀 ID 목록
+      const excludeGroupIds = [7, 99];
+      const excludeCellIds = [26, 99];
+
       // 이름과 소속 분리
       let maskedName = '익명';
       let affiliation = '';
       if (profile) {
         const community = profile.community || '';
-        const groupName = (profile.hub_groups as any)?.name || '';
-        const cellName = (profile.hub_cells as any)?.name || '';
+        // 제외 대상 그룹/셀은 빈 문자열로 처리
+        const groupName = excludeGroupIds.includes(profile.group_id) ? '' : ((profile.hub_groups as any)?.name || '');
+        const cellName = excludeCellIds.includes(profile.cell_id) ? '' : ((profile.hub_cells as any)?.name || '');
         maskedName = maskName(profile.name);
         
         const parts = [community, groupName, cellName].filter(Boolean);

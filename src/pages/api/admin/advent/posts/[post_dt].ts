@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@src/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../auth/[...nextauth]';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
@@ -50,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           video_url: video_url?.trim() || null,
           thumbnail_url: thumbnail_url?.trim() || null,
           mod_id: userId,
-          mod_dt: new Date().toISOString(),
+          mod_dt: getKoreanTimestamp(),
         })
         .eq('post_dt', post_dt)
         .select()

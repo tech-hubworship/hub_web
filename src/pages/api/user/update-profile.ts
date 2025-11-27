@@ -3,6 +3,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from 'next-auth/react';
 import { supabaseAdmin } from '@src/lib/supabase';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 
 // ⭐️ [핵심] 역할별 비밀번호 환경 변수를 매핑합니다.
 const PASSWORD_ENV_MAP: { [key: string]: string | undefined } = {
@@ -53,7 +54,7 @@ export default async function handler(
       status: ADMIN_ROLES_IN_DB.includes(role) ? '관리자' : '활성',
       group_id: parseInt(formData.group_id) || null,
       cell_id: parseInt(formData.cell_id) || null,
-      info_last_updated_at: new Date().toISOString(),
+      info_last_updated_at: getKoreanTimestamp(),
     };
     await supabaseAdmin.from('profiles').update(profileDataToUpdate).eq('user_id', userId);
 

@@ -1041,7 +1041,7 @@ export default function MediaGallery() {
                         📁 {reservation.photos?.photo_folders?.name || '알 수 없음'}
                       </ReservationDetails>
                       <ReservationDetails>
-                        📅 {new Date(reservation.created_at).toLocaleDateString('ko-KR')}
+                        📅 {new Date(reservation.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
                       </ReservationDetails>
                     </ReservationInfo>
                     {reservation.status === '예약중' && (

@@ -186,23 +186,26 @@ const AdventPage = () => {
     }
   }, []);
 
-  // URL 쿼리에서 date 가져오기
+  // 한국 시간 기준 현재 날짜 가져오기 (YYYYMMDD)
+  const getKoreanDate = (): string => {
+    const now = new Date();
+    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+    return koreanTime.toISOString().slice(0, 10).replace(/-/g, '');
+  };
+
+  // URL 쿼리에서 date 가져오기 (없으면 한국 시간 현재 날짜 사용)
   useEffect(() => {
     if (!router.isReady) return;
     
     const dateFromQuery = router.query.date as string;
     
-    // date 쿼리가 없으면 현재 날짜로 리다이렉트
-    if (!dateFromQuery) {
-      const currentDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      router.replace(`/advent?date=${currentDate}`).catch(console.error);
-      return;
-    }
+    // date 쿼리가 없으면 한국 시간 현재 날짜를 변수에 직접 세팅
+    const dateToUse = dateFromQuery || getKoreanDate();
     
-    setSelectedDate(dateFromQuery);
+    setSelectedDate(dateToUse);
     setMeditationSaved(false); // 날짜 변경 시 묵상 저장 상태 초기화
-    fetchPost(dateFromQuery);
-  }, [router.isReady, router.query.date, router, fetchPost]);
+    fetchPost(dateToUse);
+  }, [router.isReady, router.query.date, fetchPost]);
 
   // post가 변경될 때마다 전체 묵상 가져오기
   useEffect(() => {
@@ -285,8 +288,7 @@ const AdventPage = () => {
     router.push(`/advent?date=${date}`);
   };
 
-  const currentDateStr = router.query.date as string || 
-    new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const currentDateStr = router.query.date as string || getKoreanDate();
   const dateForInput = currentDateStr.length === 8
     ? `${currentDateStr.slice(0, 4)}-${currentDateStr.slice(4, 6)}-${currentDateStr.slice(6, 8)}`
     : '';

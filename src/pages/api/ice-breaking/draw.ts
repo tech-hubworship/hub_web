@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@src/lib/supabase';
+import { getKoreanTimestamp } from '@src/lib/utils/date';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -49,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .upsert({
         session_id: sessionId,
         question_ids: [...(drawnQuestions || []), selectedQuestion.id],
-        updated_at: new Date().toISOString()
+        updated_at: getKoreanTimestamp()
       }, {
         onConflict: 'session_id'
       });
