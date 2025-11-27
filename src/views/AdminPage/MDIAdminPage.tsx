@@ -14,6 +14,9 @@ import AttendanceContent from '@src/views/AdminPage/advent/AttendanceContent';
 import ManageContent from '@src/views/AdminPage/photos/ManageContent';
 import ReservationsContent from '@src/views/AdminPage/photos/ReservationsContent';
 import MenuManagementPage from '@src/views/AdminPage/menu-management';
+import BibleCardAdminPage from '@src/views/AdminPage/bible-card';
+import BibleCardPastorPage from '@src/views/AdminPage/bible-card/PastorPage';
+import BibleCardCompletePage from '@src/views/AdminPage/bible-card/CompletePage';
 
 // 메뉴 카드 설명
 const MENU_DESCRIPTIONS: Record<string, string> = {
@@ -27,6 +30,9 @@ const MENU_DESCRIPTIONS: Record<string, string> = {
   'advent': '대림절 콘텐츠를 관리할 수 있습니다.',
   'advent-posts': '대림절 말씀/영상/콘텐츠 관리',
   'advent-attendance': '대림절 출석 정보 및 통계',
+  'bible-card': '말씀카드 신청 현황 및 목회자 배정',
+  'bible-card-pastor': '배정된 지체들에게 말씀 작성',
+  'bible-card-complete': '완료된 말씀카드 관리 및 CSV 추출',
   'tech-inquiries': '사용자 문의 및 버그 리포트 관리',
   'menu-management': '관리자 메뉴와 권한을 설정합니다',
 };
@@ -130,6 +136,12 @@ export default function MDIAdminPage() {
         return <ManageContent />;
       case 'photos-reservations':
         return <ReservationsContent />;
+      case 'bible-card':
+        return <BibleCardAdminPage />;
+      case 'bible-card-pastor':
+        return <BibleCardPastorPage />;
+      case 'bible-card-complete':
+        return <BibleCardCompletePage />;
       case 'menu-management':
         return <MenuManagementPage />;
       default:
@@ -277,6 +289,40 @@ export default function MDIAdminPage() {
                   </>
                 )}
               </>
+            )}
+
+            {/* 말씀카드 관리 - MC 권한 */}
+            {roles.includes('MC') && (
+              <>
+                <S.NavItem
+                  active={activeTabId === 'bible-card'}
+                  onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'bible-card')!)}
+                >
+                  <S.NavIcon collapsed={sidebarCollapsed}>📜</S.NavIcon>
+                  {!sidebarCollapsed && <S.NavText>말씀카드 관리</S.NavText>}
+                </S.NavItem>
+                {!sidebarCollapsed && (
+                  <S.NavItem
+                    active={activeTabId === 'bible-card-complete'}
+                    onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'bible-card-complete')!)}
+                    isSubItem
+                  >
+                    <S.NavIcon collapsed={sidebarCollapsed}>✅</S.NavIcon>
+                    <S.NavText>완료 관리</S.NavText>
+                  </S.NavItem>
+                )}
+              </>
+            )}
+
+            {/* 말씀 작성 - 목회자 권한 */}
+            {roles.includes('목회자') && (
+              <S.NavItem
+                active={activeTabId === 'bible-card-pastor'}
+                onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'bible-card-pastor')!)}
+              >
+                <S.NavIcon collapsed={sidebarCollapsed}>✍️</S.NavIcon>
+                {!sidebarCollapsed && <S.NavText>말씀 작성</S.NavText>}
+              </S.NavItem>
             )}
 
             {/* 문의사항 - 모든 관리자 */}
