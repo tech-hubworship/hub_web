@@ -192,7 +192,7 @@ export default function AdminAdventAttendancePage() {
                   setCellId(''); // 🔥 그룹이 바뀌면 셀 초기화
                 }}
               >
-                <option value="">전체 그룹</option>
+                <option value="">전체</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
@@ -202,13 +202,13 @@ export default function AdminAdventAttendancePage() {
             </S.FormGroup>
 
             <S.FormGroup>
-              <S.Label>셀</S.Label>
+              <S.Label>다락방</S.Label>
               <S.Select
                 value={cellId}
                 onChange={(e) => setCellId(Number(e.target.value) || '')}
                 disabled={!groups.length} // 그룹 없으면 비활성화
               >
-                <option value="">전체 셀</option>
+                <option value="">전체</option>
                 {cells.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -244,7 +244,7 @@ export default function AdminAdventAttendancePage() {
                   <S.TableHead>이름</S.TableHead>
                   <S.TableHead>이메일</S.TableHead>
                   <S.TableHead>그룹</S.TableHead>
-                  <S.TableHead>셀</S.TableHead>
+                  <S.TableHead>다락방</S.TableHead>
                   <S.TableHead>출석 여부</S.TableHead>
                   <S.TableHead>출석 시각</S.TableHead>
                 </tr>
