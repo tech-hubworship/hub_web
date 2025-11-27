@@ -2,10 +2,13 @@
 
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import * as L from '@src/views/AdminPage/style';
 import * as S from '@src/views/AdminPage/advent/attendance-style';
 import Link from 'next/link';
+
+import { useGroups } from '@src/hooks/useGroups';
+import { useCells } from '@src/hooks/useCells';
 
 interface AttendanceRecord {
   user_id: string;
@@ -29,64 +32,79 @@ export default function AdminAdventAttendancePage() {
   const [date, setDate] = useState(
     new Date().toISOString().slice(0, 10).replace(/-/g, '')
   );
+
+  const [search, setSearch] = useState('');
+  const [groupId, setGroupId] = useState<number | ''>('');
+  const [cellId, setCellId] = useState<number | ''>('');
+
+  // 공통 훅 (그룹/다락방)
+  const { groups } = useGroups();
+  const { cells } = useCells(groupId);
+
   const [loading, setLoading] = useState(false);
+  const [originalList, setOriginalList] = useState<AttendanceRecord[]>([]);
   const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [attendedCount, setAttendedCount] = useState(0);
 
-  /**
-   * 권한 체크
-   */
+  // 권한 체크
   useEffect(() => {
     if (status === 'authenticated') {
       if (!session?.user?.isAdmin) {
-        alert('⛔️ 관리자만 접근할 수 있는 페이지입니다.');
+        alert('관리자만 접근 가능합니다.');
         router.replace('/');
       } else if (!roles.includes('목회자')) {
-        alert('⛔️ 목회자 권한이 필요합니다.');
+        alert('목회자 권한이 없습니다.');
         router.replace('/admin');
       }
     }
 
     if (status === 'unauthenticated') {
-      const currentPath = router.asPath;
-      router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+      router.replace('/login');
     }
-  }, [status, session, roles, router]);
+  }, [status, session]);
 
-  /**
-   * 출석 조회
-   */
+  // -------------------------
+  // API로 출석 데이터 Fetch
+  // -------------------------
   const fetchAttendance = async () => {
-    if (!date || date.length !== 8) return;
+    const query = new URLSearchParams({
+      date,
+      ...(search ? { search } : {}),
+      ...(groupId ? { group_id: String(groupId) } : {}),
+      ...(cellId ? { cell_id: String(cellId) } : {})
+    });
 
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/admin/advent/attendance?date=${date}`);
-      const data = await response.json();
+    setLoading(true);
+    const res = await fetch(`/api/admin/advent/attendance?${query}`);
+    const data = await res.json();
+    setLoading(false);
 
-      if (response.ok) {
-        setAttendanceList(data.list || []);
-        setTotalUsers(data.total_users || 0);
-        setAttendedCount(data.attended || 0);
-      } else {
-        alert(data.error || '출석 현황을 불러오지 못했습니다.');
-      }
-    } catch (err) {
-      console.error('출석 조회 오류:', err);
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      alert(data.error);
+      return;
     }
+
+    // 원본(전체) 데이터 저장
+    setOriginalList(data.list);
+
+    // 화면 표시 데이터 저장
+    setAttendanceList(data.list);
+    setTotalUsers(data.total_users);
+    setAttendedCount(data.attended);
   };
+
+  // 그룹 변경 시 다락방 초기화
+  useEffect(() => {
+    setCellId('');
+  }, [groupId]);
 
   useEffect(() => {
     fetchAttendance();
-  }, [date]);
+  }, [date, search, groupId, cellId]);
 
-  /**
-   * 로딩 화면
-   */
-  if (status === 'loading' || !session?.user?.isAdmin) {
+  // 로딩 화면
+  if (status === 'loading') {
     return (
       <L.AdminLayout>
         <L.LoadingContainer>
@@ -97,16 +115,63 @@ export default function AdminAdventAttendancePage() {
     );
   }
 
-  /**
-   * 실제 화면
-   */
+  // -------------------------
+  // 그룹·다락방 통계 계산
+  // -------------------------
+  const groupCellStats = useMemo(() => {
+    const stats: {
+      [groupId: string]: {
+        groupName: string;
+        cells: {
+          [cellId: string]: {
+            cellName: string;
+            total: number;
+            attended: number;
+          };
+        };
+      };
+    } = {};
+
+    originalList.forEach((u) => {
+      const gId = u.hub_groups?.id ?? 'none';
+      const gName = u.hub_groups?.name ?? '해당없음';
+
+      const cId = u.hub_cells?.id ?? 'none';
+      const cName = u.hub_cells?.name ?? '해당없음';
+
+      if (!stats[gId]) {
+        stats[gId] = {
+          groupName: gName,
+          cells: {},
+        };
+      }
+
+      if (!stats[gId].cells[cId]) {
+        stats[gId].cells[cId] = {
+          cellName: cName,
+          total: 0,
+          attended: 0,
+        };
+      }
+
+      stats[gId].cells[cId].total += 1;
+      if (u.attended) {
+        stats[gId].cells[cId].attended += 1;
+      }
+    });
+
+    return stats;
+  }, [originalList]);
+
   return (
     <L.AdminLayout>
-      {/* Sidebar */}
+
+      {/* --- Sidebar --- */}
       <L.SidebarOverlay
         visible={!sidebarCollapsed}
         onClick={() => setSidebarCollapsed(true)}
       />
+
       <L.Sidebar collapsed={sidebarCollapsed}>
         <L.SidebarHeader>
           <L.Logo>
@@ -124,42 +189,6 @@ export default function AdminAdventAttendancePage() {
               {!sidebarCollapsed && <L.NavText>대시보드</L.NavText>}
             </L.NavItem>
           </Link>
-
-          {roles.includes('MC') && (
-            <Link href="/admin/users" passHref legacyBehavior>
-              <L.NavItem as="a">
-                <L.NavIcon>👥</L.NavIcon>
-                {!sidebarCollapsed && <L.NavText>회원관리</L.NavText>}
-              </L.NavItem>
-            </Link>
-          )}
-
-          {roles.includes('사진팀') && (
-            <Link href="/admin/photos" passHref legacyBehavior>
-              <L.NavItem as="a">
-                <L.NavIcon>📷</L.NavIcon>
-                {!sidebarCollapsed && <L.NavText>사진팀 관리</L.NavText>}
-              </L.NavItem>
-            </Link>
-          )}
-
-          {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
-            <Link href="/admin/design" passHref legacyBehavior>
-              <L.NavItem as="a">
-                <L.NavIcon>🎨</L.NavIcon>
-                {!sidebarCollapsed && <L.NavText>디자인 관리</L.NavText>}
-              </L.NavItem>
-            </Link>
-          )}
-
-          {roles.includes('서기') && (
-            <Link href="/admin/secretary" passHref legacyBehavior>
-              <L.NavItem as="a">
-                <L.NavIcon>✍️</L.NavIcon>
-                {!sidebarCollapsed && <L.NavText>서기 관리</L.NavText>}
-              </L.NavItem>
-            </Link>
-          )}
 
           {roles.includes('목회자') && (
             <>
@@ -181,7 +210,7 @@ export default function AdminAdventAttendancePage() {
         </L.NavMenu>
       </L.Sidebar>
 
-      {/* 메인 */}
+      {/* --- Main Content --- */}
       <L.MainContent>
         <L.TopBar>
           <L.TopBarLeft>
@@ -193,47 +222,112 @@ export default function AdminAdventAttendancePage() {
               <L.Breadcrumb>관리자 페이지 / 대림절 출석 현황</L.Breadcrumb>
             </div>
           </L.TopBarLeft>
-
-          <L.TopBarRight>
-            <L.UserInfo>
-              <L.UserAvatar>{session.user.name?.charAt(0) || 'U'}</L.UserAvatar>
-              <L.UserDetails>
-                <L.UserName>{session.user.name}</L.UserName>
-                <L.UserRole>{roles.join(', ')}</L.UserRole>
-              </L.UserDetails>
-            </L.UserInfo>
-          </L.TopBarRight>
         </L.TopBar>
 
         <L.ContentArea>
-          {/* 날짜 선택 */}
-          <S.FormGroup>
-            <S.Label>날짜 선택</S.Label>
-            <S.Input
-              type="date"
-              value={`${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`}
-              onChange={(e) => setDate(e.target.value.replace(/-/g, ''))}
-            />
-          </S.FormGroup>
 
-          {/* 통계 */}
+          {/* 🔹 필터링 영역 */}
+          <S.FilterRow>
+            <S.FormGroup>
+              <S.Label>날짜</S.Label>
+              <S.Input
+                type="date"
+                value={`${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`}
+                onChange={(e) => setDate(e.target.value.replace(/-/g, ''))}
+              />
+            </S.FormGroup>
+
+            <S.FormGroup>
+              <S.Label>그룹</S.Label>
+              <S.Select
+                value={groupId}
+                onChange={(e) => {
+                  const val = Number(e.target.value) || '';
+                  setGroupId(val);
+                  setCellId('');
+                }}
+              >
+                <option value="">전체</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </S.Select>
+            </S.FormGroup>
+
+            <S.FormGroup>
+              <S.Label>다락방</S.Label>
+              <S.Select
+                value={cellId}
+                onChange={(e) => setCellId(Number(e.target.value) || '')}
+              >
+                <option value="">전체</option>
+                {cells.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </S.Select>
+            </S.FormGroup>
+
+            <S.FormGroup>
+              <S.Label>검색(이름/이메일)</S.Label>
+              <S.Input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </S.FormGroup>
+          </S.FilterRow>
+
+          {/* 🔹 전체 출석 통계 */}
           <S.WelcomeCard>
             <S.WelcomeTitle>출석 통계</S.WelcomeTitle>
             <S.WelcomeSubtitle>
               총 {totalUsers}명 중 {attendedCount}명 출석 (
-              {(totalUsers > 0 ? (attendedCount / totalUsers) * 100 : 0).toFixed(1)}%)
+              {(totalUsers ? (attendedCount / totalUsers) * 100 : 0).toFixed(1)}%)
             </S.WelcomeSubtitle>
           </S.WelcomeCard>
 
-          {/* 테이블 */}
-          <S.TableContainer>
+          {/* 🔹 그룹/다락방 통계표 */}
+          <S.TableContainer style={{ marginTop: '24px' }}>
+            <S.Table>
+              <S.TableHeader>
+                <tr>
+                  <S.TableHead>그룹</S.TableHead>
+                  <S.TableHead>다락방</S.TableHead>
+                  <S.TableHead>총 인원</S.TableHead>
+                  <S.TableHead>출석</S.TableHead>
+                  <S.TableHead>출석률</S.TableHead>
+                </tr>
+              </S.TableHeader>
+
+              <tbody>
+                {Object.entries(groupCellStats).map(([gid, group]) =>
+                  Object.entries(group.cells).map(([cid, cell]) => (
+                    <S.TableRow key={`${gid}-${cid}`}>
+                      <S.TableData>{group.groupName}</S.TableData>
+                      <S.TableData>{cell.cellName}</S.TableData>
+                      <S.TableData>{cell.total}</S.TableData>
+                      <S.TableData>{cell.attended}</S.TableData>
+                      <S.TableData>
+                        {cell.total
+                          ? ((cell.attended / cell.total) * 100).toFixed(1) + '%'
+                          : '-'}
+                      </S.TableData>
+                    </S.TableRow>
+                  ))
+                )}
+              </tbody>
+            </S.Table>
+          </S.TableContainer>
+
+          {/* 🔹 출석 상세 테이블 */}
+          <S.TableContainer style={{ marginTop: '24px' }}>
             <S.Table>
               <S.TableHeader>
                 <tr>
                   <S.TableHead>이름</S.TableHead>
                   <S.TableHead>이메일</S.TableHead>
                   <S.TableHead>그룹</S.TableHead>
-                  <S.TableHead>셀</S.TableHead>
+                  <S.TableHead>다락방</S.TableHead>
                   <S.TableHead>출석 여부</S.TableHead>
                   <S.TableHead>출석 시각</S.TableHead>
                 </tr>
@@ -244,19 +338,17 @@ export default function AdminAdventAttendancePage() {
                   <S.TableRow key={u.user_id}>
                     <S.TableData>{u.name}</S.TableData>
                     <S.TableData>{u.email}</S.TableData>
-
-                    {/* 그룹/셀 이름 객체에서 꺼내기 */}
                     <S.TableData>{u.hub_groups?.name ?? '-'}</S.TableData>
                     <S.TableData>{u.hub_cells?.name ?? '-'}</S.TableData>
 
-                    {/* 출석 여부 */}
                     <S.TableData style={{ color: u.attended ? '#10b981' : '#ef4444' }}>
                       {u.attended ? '● 출석' : '× 미출석'}
                     </S.TableData>
 
-                    {/* 출석 시간 */}
                     <S.TableData>
-                      {u.created_at ? new Date(u.created_at).toLocaleString('ko-KR') : '-'}
+                      {u.created_at
+                        ? new Date(u.created_at).toLocaleString('ko-KR')
+                        : '-'}
                     </S.TableData>
                   </S.TableRow>
                 ))}

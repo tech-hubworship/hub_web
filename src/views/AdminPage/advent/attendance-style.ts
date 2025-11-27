@@ -43,10 +43,10 @@ export const Subtitle = styled.p`
   margin: 0;
 `;
 
-/* 출석현황 – 날짜 선택 영역 */
 export const FormGroup = styled.div`
-  margin-bottom: 20px;
-  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0 20px
 `;
 
 export const Label = styled.label`
@@ -76,7 +76,7 @@ export const Input = styled.input`
 export const WelcomeCard = styled.div`
   background: #ffffff;
   padding: 24px;
-  margin: 0 24px 24px;
+  margin: 24px;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 
@@ -213,5 +213,36 @@ export const Spinner = styled.div`
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+  }
+`;
+
+export const Select = styled.select`
+  width: 200px;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+`;
+
+// 필터 전체를 가로로 묶을 Row
+export const FilterRow = styled.div`
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 0 24px;
+  flex-wrap: wrap; /* 가로 공간 부족하면 자동 줄바꿈 */
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 0 16px;
   }
 `;

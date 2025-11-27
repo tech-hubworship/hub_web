@@ -2,7 +2,6 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]';
 import { supabaseAdmin } from '@src/lib/supabase';
-import { use } from 'react';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -14,25 +13,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ error: '권한이 없습니다.' });
   }
 
-  const { date, search = '' } = req.query;
-  if (!date || typeof date !== 'string') {
-    return res.status(400).json({ error: 'date 파라미터가 필요합니다.' });
+  const { date, search = '', group_id, cell_id } = req.query;
+
+  if (!date || typeof date !== 'string' || date.length !== 8) {
+    return res.status(400).json({ error: '유효한 날짜가 필요합니다. (YYYYMMDD)' });
   }
 
   try {
     /** ------------------------------
      * 1) 출석자 목록 조회
-     * ------------------------------*/
+     * ------------------------------ */
     const { data: attendanceData } = await supabaseAdmin
       .from('advent_attendance')
       .select('user_id, reg_dt')
       .eq('post_dt', date);
 
-    const attendedUserIds = attendanceData?.map(a => a.user_id) || [];
+    const attendedUserIds = attendanceData?.map(a => a.user_id) ?? [];
 
     /** ------------------------------
-     * 2) profiles + group + cell 조인
-     * ------------------------------*/
+     * 2) profiles + group + cell JOIN
+     * ------------------------------ */
     let query = supabaseAdmin
       .from('profiles')
       .select(`
@@ -41,15 +41,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email,
         group_id,
         cell_id,
-        hub_groups:group_id(id, name),
-        hub_cells:cell_id(id, name)
+        hub_groups:group_id (id, name),
+        hub_cells:cell_id (id, name)
       `)
-      .not('group_id', 'is', null)     // group_id 있는 경우
-      .not('cell_id', 'is', null);     // cell_id 있는 경우
+      /** 🔥 null group/cell 제거 */
+      .not('group_id', 'is', null)
+      .not('cell_id', 'is', null);
 
-    // 검색어 있을 경우 적용
+    // 🔍 검색 필터
     if (search) {
       query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+    }
+
+    // 🔍 그룹 필터
+    if (group_id) {
+      query = query.eq('group_id', Number(group_id));
+    }
+
+    // 🔍 셀 필터
+    if (cell_id) {
+      query = query.eq('cell_id', Number(cell_id));
     }
 
     const { data: users, error } = await query;
@@ -63,30 +74,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const safeAttendance = attendanceData ?? [];
 
     /** ------------------------------
-     * 3) 출석 정보 매핑
-     * ------------------------------*/    
-    const list = safeUsers.map(user => ({
-      ...user,
-
-      attended: attendedUserIds.includes(user.user_id),
-      created_at:
-        safeAttendance.find(a => a.user_id === user.user_id)?.reg_dt || null,
+     * 3) 출석 여부 매핑
+     * ------------------------------ */
+    const list = safeUsers.map(u => ({
+      user_id: u.user_id,
+      name: u.name,
+      email: u.email,
+      hub_groups: u.hub_groups || null,
+      hub_cells: u.hub_cells || null,
+      attended: attendedUserIds.includes(u.user_id),
+      created_at: safeAttendance.find(a => a.user_id === u.user_id)?.reg_dt || null
     }));
-        console.log('Users fetched:', list);
-
 
     /** ------------------------------
      * 4) 통계 계산
-     * ------------------------------*/
-    const total = list.length;
+     * ------------------------------ */
+    const total_users = list.length;
     const attended = list.filter(u => u.attended).length;
+    const attendance_rate =
+      total_users > 0 ? Math.round((attended / total_users) * 100) : 0;
 
     return res.status(200).json({
       date,
-      total_users: total,
+      total_users,
       attended,
-      attendance_rate: total > 0 ? Math.round((attended / total) * 100) : 0,
-      list,
+      attendance_rate,
+      list
     });
   } catch (err) {
     console.error('attendance API error', err);
