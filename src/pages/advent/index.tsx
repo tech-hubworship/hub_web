@@ -105,9 +105,21 @@ const AdventPage = () => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [showMyMeditation, setShowMyMeditation] = useState(false);
   const [commentsPage, setCommentsPage] = useState(1);
-  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [totalComments, setTotalComments] = useState(0);
   const [meditationSaved, setMeditationSaved] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 화면 크기 감지
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const fetchPost = useCallback(async (date: string) => {
     try {
@@ -129,19 +141,15 @@ const AdventPage = () => {
     }
   }, []);
 
-  const fetchComments = useCallback(async (date: string, page: number = 1, showLoading: boolean = false) => {
+  const fetchComments = useCallback(async (date: string, page: number = 1, limit: number = 20, showLoading: boolean = false) => {
     try {
       if (showLoading) setLoadingComments(true);
-      const response = await fetch(`/api/advent/comments?date=${date}&page=${page}&limit=10`);
+      const response = await fetch(`/api/advent/comments?date=${date}&page=${page}&limit=${limit}`);
       const data = await response.json();
 
       if (response.ok) {
-        if (page === 1) {
-          setComments(data.comments || []);
-        } else {
-          setComments(prev => [...prev, ...(data.comments || [])]);
-        }
-        setHasMoreComments(data.hasMore || false);
+        setComments(data.comments || []);
+        setTotalComments(data.total || 0);
       }
     } catch (err) {
       console.error('댓글 조회 오류:', err);
@@ -207,13 +215,16 @@ const AdventPage = () => {
     fetchPost(dateToUse);
   }, [router.isReady, router.query.date, fetchPost]);
 
+  // 페이지당 아이템 수 (모바일: 5, PC: 10)
+  const itemsPerPage = isMobile ? 5 : 10;
+
   // post가 변경될 때마다 전체 묵상 가져오기
   useEffect(() => {
     if (post?.post_dt && !showMyMeditation) {
       setCommentsPage(1);
-      fetchComments(post.post_dt, 1);
+      fetchComments(post.post_dt, 1, itemsPerPage);
     }
-  }, [post?.post_dt, showMyMeditation, fetchComments]);
+  }, [post?.post_dt, showMyMeditation, fetchComments, itemsPerPage]);
 
   // 사용자 묵상 가져오기 (내 묵상 보기 모드일 때)
   useEffect(() => {
@@ -270,7 +281,7 @@ const AdventPage = () => {
         setMeditationSaved(true);
         // 전체 묵상 새로고침
         setCommentsPage(1);
-        fetchComments(post.post_dt, 1);
+        fetchComments(post.post_dt, 1, itemsPerPage);
         return true;
       } else {
         alert(data.error || '묵상 작성에 실패했습니다.');
@@ -341,9 +352,10 @@ const AdventPage = () => {
               {/* 5. 묵상 섹션 (댓글) */}
               <MeditationSection
                 comments={comments}
+                totalComments={totalComments}
+                currentPage={commentsPage}
                 isLoggedIn={!!session?.user}
                 showMyMeditation={showMyMeditation}
-                hasMore={hasMoreComments}
                 loading={loadingComments}
                 onToggleMyMeditation={() => {
                   const newShowMyMeditation = !showMyMeditation;
@@ -355,14 +367,13 @@ const AdventPage = () => {
                   if (newShowMyMeditation) {
                     fetchUserComments(true);
                   } else if (post?.post_dt) {
-                    fetchComments(post.post_dt, 1, true);
+                    fetchComments(post.post_dt, 1, itemsPerPage, true);
                   }
                 }}
-                onLoadMore={() => {
+                onPageChange={(page: number) => {
                   if (post?.post_dt && !showMyMeditation) {
-                    const nextPage = commentsPage + 1;
-                    setCommentsPage(nextPage);
-                    fetchComments(post.post_dt, nextPage);
+                    setCommentsPage(page);
+                    fetchComments(post.post_dt, page, itemsPerPage, true);
                   }
                 }}
               />

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { AdventComment } from '@src/lib/advent/types';
 import { getDayNumber } from '@src/lib/advent/utils';
@@ -88,18 +88,20 @@ const MeditationList = styled.div`
 
 const MeditationPostIt = styled.div<{ colorIndex: number }>`
   position: relative;
-  padding: 20px;
+  padding: 16px;
   border-radius: 8px;
-  min-height: 180px;
+  min-height: 140px;
+  max-height: 160px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   transition: transform 0.2s ease;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   text-align: left;
+  overflow: hidden;
 
   &:hover {
-    transform: scale(1.05);
+    transform: scale(1.03);
     z-index: 10;
   }
 
@@ -113,8 +115,9 @@ const MeditationPostIt = styled.div<{ colorIndex: number }>`
   }};
 
   @media (max-width: 768px) {
-    padding: 16px;
-    min-height: 160px;
+    padding: 12px;
+    min-height: 120px;
+    max-height: 140px;
   }
 `;
 
@@ -122,38 +125,57 @@ const MeditationHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  gap: 8px;
+  gap: 4px;
 `;
 
 const MeditationTitle = styled.div`
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
   color: #1a1a1a;
-  line-height: 1.5;
+  line-height: 1.4;
   text-align: left;
   flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    font-size: 12px;
+  }
 `;
 
 const MeditationAffiliation = styled.div`
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   color: #6b7280;
-  line-height: 1.5;
+  line-height: 1.4;
   text-align: right;
   word-break: keep-all;
+
+  @media (max-width: 768px) {
+    font-size: 10px;
+  }
 `;
 
 const MeditationContent = styled.div`
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
   color: #1a1a1a;
   white-space: pre-wrap;
   word-break: break-word;
   flex: 1;
   text-align: left;
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+`;
+
+const MoreIndicator = styled.span`
+  color: #6b7280;
+  font-weight: 500;
 `;
 
 const EmptyState = styled.div`
@@ -227,56 +249,226 @@ const ToggleButton = styled.button<{ active: boolean }>`
   }
 `;
 
-const LoadMoreButton = styled.button`
-  padding: 12px 32px;
-  background: transparent;
-  color: #ffffff;
-  border: 2px solid #ffffff;
+// 페이징 스타일
+const PaginationWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+`;
+
+const PageButton = styled.button<{ active?: boolean }>`
+  min-width: 40px;
+  height: 40px;
+  padding: 8px 12px;
+  background: ${props => props.active ? '#CEB2FF' : 'transparent'};
+  color: ${props => props.active ? '#000000' : '#ffffff'};
+  border: 2px solid ${props => props.active ? '#CEB2FF' : '#ffffff'};
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-top: 24px;
-  width: 100%;
-  max-width: 200px;
-  margin-left: auto;
-  margin-right: auto;
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
+  &:hover:not(:disabled) {
+    background: ${props => props.active ? '#CEB2FF' : 'rgba(255, 255, 255, 0.2)'};
   }
 
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 
   @media (max-width: 768px) {
-    padding: 10px 24px;
-    font-size: 14px;
+    min-width: 36px;
+    height: 36px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+`;
+
+const PageInfo = styled.span`
+  color: #ffffff;
+  font-size: 14px;
+  padding: 0 8px;
+
+  @media (max-width: 768px) {
+    font-size: 12px;
+  }
+`;
+
+// 모달 스타일
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+`;
+
+const ModalContent = styled.div<{ colorIndex: number }>`
+  position: relative;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+  background: ${props => {
+    const colors = ['#FFFFFF', '#EE9EEA', '#A479EE', '#CEB2FF'];
+    return colors[props.colorIndex % colors.length];
+  }};
+
+  @media (max-width: 768px) {
+    padding: 24px;
+    max-height: 70vh;
+  }
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+`;
+
+const ModalTitle = styled.div`
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.4;
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
+`;
+
+const ModalAffiliation = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  margin-top: 4px;
+`;
+
+const CloseButton = styled.button`
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px;
+  color: #1a1a1a;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.2);
+  }
+`;
+
+const ModalBody = styled.div`
+  font-size: 16px;
+  line-height: 1.8;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  word-break: break-word;
+
+  @media (max-width: 768px) {
+    font-size: 15px;
+    line-height: 1.7;
   }
 `;
 
 interface MeditationSectionProps {
   comments: AdventComment[];
+  totalComments: number;
+  currentPage: number;
   isLoggedIn: boolean;
   showMyMeditation: boolean;
-  hasMore: boolean;
   loading: boolean;
   onToggleMyMeditation: () => void;
-  onLoadMore: () => void;
+  onPageChange: (page: number) => void;
 }
 
 export const MeditationSection: React.FC<MeditationSectionProps> = ({
   comments,
+  totalComments,
+  currentPage,
   isLoggedIn,
   showMyMeditation,
-  hasMore,
   loading,
   onToggleMyMeditation,
-  onLoadMore,
+  onPageChange,
 }) => {
+  const [selectedComment, setSelectedComment] = useState<AdventComment | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 화면 크기 감지
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const itemsPerPage = isMobile ? 10 : 20;
+  const totalPages = Math.ceil(totalComments / itemsPerPage);
+
+  // 100자 제한 함수
+  const truncateContent = (content: string, maxLength: number = 100) => {
+    if (content.length <= maxLength) return content;
+    return content.slice(0, maxLength);
+  };
+
+  // 페이지 번호 배열 생성
+  const getPageNumbers = () => {
+    const pages: number[] = [];
+    const maxVisiblePages = isMobile ? 5 : 7;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      const half = Math.floor(maxVisiblePages / 2);
+      let start = currentPage - half;
+      let end = currentPage + half;
+
+      if (start < 1) {
+        start = 1;
+        end = maxVisiblePages;
+      }
+      if (end > totalPages) {
+        end = totalPages;
+        start = totalPages - maxVisiblePages + 1;
+      }
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+    return pages;
+  };
+
   return (
     <SectionCard>
       <ContentWrapper>
@@ -319,25 +511,86 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
               const userName = comment.user_name || '익명';
               const userAffiliation = comment.user_affiliation || '';
               const dayText = dayNumber ? `${dayNumber}일차 묵상` : '묵상';
+              const isLong = comment.content.length > 100;
+              // comment_id를 기반으로 색상 결정 (각 댓글마다 고유한 색상)
+              const colorIdx = comment.comment_id % 4;
+              
               return (
-                <MeditationPostIt key={comment.comment_id} colorIndex={index}>
+                <MeditationPostIt 
+                  key={comment.comment_id} 
+                  colorIndex={colorIdx}
+                  onClick={() => setSelectedComment(comment)}
+                >
                   <MeditationHeader>
                     <MeditationTitle>{userName}님의 {dayText}</MeditationTitle>
                     {userAffiliation && <MeditationAffiliation>{userAffiliation}</MeditationAffiliation>}
                   </MeditationHeader>
-                  <MeditationContent>{comment.content}</MeditationContent>
+                  <MeditationContent>
+                    {truncateContent(comment.content)}
+                    {isLong && <MoreIndicator>...</MoreIndicator>}
+                  </MeditationContent>
                 </MeditationPostIt>
               );
             })
           )}
         </MeditationList>
 
-        {!showMyMeditation && hasMore && (
-          <LoadMoreButton onClick={onLoadMore}>
-            더보기
-          </LoadMoreButton>
+        {/* 페이징 (내 묵상은 페이징 없음) */}
+        {!showMyMeditation && totalPages > 1 && (
+          <PaginationWrapper>
+            <PageButton 
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              ◀
+            </PageButton>
+            
+            {getPageNumbers().map(page => (
+              <PageButton
+                key={page}
+                active={page === currentPage}
+                onClick={() => onPageChange(page)}
+              >
+                {page}
+              </PageButton>
+            ))}
+            
+            <PageButton 
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              ▶
+            </PageButton>
+            
+            <PageInfo>
+              ({currentPage} / {totalPages})
+            </PageInfo>
+          </PaginationWrapper>
         )}
       </ContentWrapper>
+
+      {/* 모달 */}
+      {selectedComment && (
+        <ModalOverlay onClick={() => setSelectedComment(null)}>
+          <ModalContent 
+            colorIndex={selectedComment.comment_id % 4}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ModalHeader>
+              <div>
+                <ModalTitle>
+                  {selectedComment.user_name || '익명'}님의 {getDayNumber(selectedComment.post_dt) ? `${getDayNumber(selectedComment.post_dt)}일차 묵상` : '묵상'}
+                </ModalTitle>
+                {selectedComment.user_affiliation && (
+                  <ModalAffiliation>{selectedComment.user_affiliation}</ModalAffiliation>
+                )}
+              </div>
+              <CloseButton onClick={() => setSelectedComment(null)}>✕</CloseButton>
+            </ModalHeader>
+            <ModalBody>{selectedComment.content}</ModalBody>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </SectionCard>
   );
 };
