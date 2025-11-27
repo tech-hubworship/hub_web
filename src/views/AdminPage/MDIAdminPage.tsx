@@ -13,6 +13,7 @@ import AdventPostsAdminPage from '@src/views/AdminPage/advent';
 import AttendanceContent from '@src/views/AdminPage/advent/AttendanceContent';
 import ManageContent from '@src/views/AdminPage/photos/ManageContent';
 import ReservationsContent from '@src/views/AdminPage/photos/ReservationsContent';
+import MenuManagementPage from '@src/views/AdminPage/menu-management';
 
 // 메뉴 카드 설명
 const MENU_DESCRIPTIONS: Record<string, string> = {
@@ -23,9 +24,11 @@ const MENU_DESCRIPTIONS: Record<string, string> = {
   'photos-reservations': '사진 예약 현황을 확인하고 관리합니다',
   'design': '디자인 작업 관리 및 통계',
   'secretary': '회의록 및 문서 관리',
-  'advent': '대림절 말씀/영상/콘텐츠 관리',
+  'advent': '대림절 콘텐츠를 관리할 수 있습니다.',
+  'advent-posts': '대림절 말씀/영상/콘텐츠 관리',
   'advent-attendance': '대림절 출석 정보 및 통계',
   'tech-inquiries': '사용자 문의 및 버그 리포트 관리',
+  'menu-management': '관리자 메뉴와 권한을 설정합니다',
 };
 
 export default function MDIAdminPage() {
@@ -114,6 +117,12 @@ export default function MDIAdminPage() {
       case 'secretary':
         return <ComingSoonContent title="서기 관리" />;
       case 'advent':
+        return (
+          <AdventSubmenuContent 
+            onMenuClick={handleMenuClick}
+          />
+        );
+      case 'advent-posts':
         return <AdventPostsAdminPage />;
       case 'advent-attendance':
         return <AttendanceContent />;
@@ -121,6 +130,8 @@ export default function MDIAdminPage() {
         return <ManageContent />;
       case 'photos-reservations':
         return <ReservationsContent />;
+      case 'menu-management':
+        return <MenuManagementPage />;
       default:
         return <ComingSoonContent title={activeTabId} />;
     }
@@ -137,12 +148,20 @@ export default function MDIAdminPage() {
       {/* 사이드바 */}
       <S.MDISidebar collapsed={sidebarCollapsed}>
         <S.SidebarHeader>
-          <S.Logo>
-            <S.LogoIcon>⚡</S.LogoIcon>
-            {!sidebarCollapsed && <S.LogoText>HUB Admin</S.LogoText>}
-            <S.ToggleButton onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
-              {sidebarCollapsed ? '→' : '←'}
-            </S.ToggleButton>
+          <S.Logo style={{ justifyContent: sidebarCollapsed ? 'center' : 'space-between' }}>
+            {sidebarCollapsed ? (
+              <S.ToggleButton onClick={() => setSidebarCollapsed(false)}>
+                ☰
+              </S.ToggleButton>
+            ) : (
+              <>
+                <S.LogoIcon>⚡</S.LogoIcon>
+                <S.LogoText>HUB Admin</S.LogoText>
+                <S.ToggleButton onClick={() => setSidebarCollapsed(true)}>
+                  ←
+                </S.ToggleButton>
+              </>
+            )}
           </S.Logo>
         </S.SidebarHeader>
 
@@ -238,14 +257,24 @@ export default function MDIAdminPage() {
                 </S.NavItem>
                 {/* 대림절 하위 메뉴 */}
                 {!sidebarCollapsed && (
-                  <S.NavItem
-                    active={activeTabId === 'advent-attendance'}
-                    onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'advent-attendance')!)}
-                    isSubItem
-                  >
-                    <S.NavIcon collapsed={sidebarCollapsed}>📅</S.NavIcon>
-                    <S.NavText>대림절 출석 현황</S.NavText>
-                  </S.NavItem>
+                  <>
+                    <S.NavItem
+                      active={activeTabId === 'advent-posts'}
+                      onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'advent-posts')!)}
+                      isSubItem
+                    >
+                      <S.NavIcon collapsed={sidebarCollapsed}>📝</S.NavIcon>
+                      <S.NavText>게시글 관리</S.NavText>
+                    </S.NavItem>
+                    <S.NavItem
+                      active={activeTabId === 'advent-attendance'}
+                      onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'advent-attendance')!)}
+                      isSubItem
+                    >
+                      <S.NavIcon collapsed={sidebarCollapsed}>📅</S.NavIcon>
+                      <S.NavText>출석 현황</S.NavText>
+                    </S.NavItem>
+                  </>
                 )}
               </>
             )}
@@ -258,6 +287,17 @@ export default function MDIAdminPage() {
               <S.NavIcon collapsed={sidebarCollapsed}>💬</S.NavIcon>
               {!sidebarCollapsed && <S.NavText>문의사항</S.NavText>}
             </S.NavItem>
+
+            {/* 메뉴 관리 - MC 권한 */}
+            {roles.includes('MC') && (
+              <S.NavItem
+                active={activeTabId === 'menu-management'}
+                onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'menu-management')!)}
+              >
+                <S.NavIcon collapsed={sidebarCollapsed}>⚙️</S.NavIcon>
+                {!sidebarCollapsed && <S.NavText>메뉴 관리</S.NavText>}
+              </S.NavItem>
+            )}
           </S.NavGroup>
         </S.NavSection>
 
@@ -292,7 +332,8 @@ export default function MDIAdminPage() {
             >
               <S.TabIcon>{tab.icon}</S.TabIcon>
               <S.TabTitle>{tab.title}</S.TabTitle>
-              {openTabs.length > 1 && (
+              {/* 대시보드 탭은 닫기 버튼 표시 안함 */}
+              {tab.id !== 'dashboard' && (
                 <S.TabCloseButton onClick={(e) => handleTabClose(e, tab.id)}>
                   ×
                 </S.TabCloseButton>

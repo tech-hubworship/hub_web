@@ -78,6 +78,7 @@ export const Logo = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
 `;
 
 export const LogoIcon = styled.div`
@@ -101,22 +102,24 @@ export const LogoText = styled.h1`
 `;
 
 export const ToggleButton = styled.button`
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
-  width: 32px;
-  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.15);
     color: #ffffff;
+    transform: scale(1.05);
   }
 `;
 

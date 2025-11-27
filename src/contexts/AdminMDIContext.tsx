@@ -21,8 +21,10 @@ export const ADMIN_MENUS: TabInfo[] = [
   { id: 'design', title: '디자인 관리', icon: '🎨', path: '/admin/design', requiredRoles: ['디자인팀', '양육MC'] },
   { id: 'secretary', title: '서기 관리', icon: '✍️', path: '/admin/secretary', requiredRoles: ['서기'] },
   { id: 'advent', title: '대림절 관리', icon: '🎄', path: '/admin/advent', requiredRoles: ['목회자'] },
-  { id: 'advent-attendance', title: '대림절 출석 현황', icon: '📅', path: '/admin/advent/attendance', requiredRoles: ['목회자'] },
+  { id: 'advent-posts', title: '게시글 관리', icon: '📝', path: '/admin/advent/posts', requiredRoles: ['목회자'] },
+  { id: 'advent-attendance', title: '출석 현황', icon: '📅', path: '/admin/advent/attendance', requiredRoles: ['목회자'] },
   { id: 'tech-inquiries', title: '문의사항', icon: '💬', path: '/admin/tech-inquiries' },
+  { id: 'menu-management', title: '메뉴 관리', icon: '⚙️', path: '/admin/menu-management', requiredRoles: ['MC'] },
 ];
 
 interface MDIContextType {
