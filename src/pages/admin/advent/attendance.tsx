@@ -186,11 +186,17 @@ export default function AdminAdventAttendancePage() {
               <S.Label>그룹</S.Label>
               <S.Select
                 value={groupId}
-                onChange={(e) => setGroupId(Number(e.target.value) || '')}
+                onChange={(e) => {
+                  const selectedGroup = Number(e.target.value) || '';
+                  setGroupId(selectedGroup);
+                  setCellId(''); // 🔥 그룹이 바뀌면 셀 초기화
+                }}
               >
                 <option value="">전체 그룹</option>
                 {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
                 ))}
               </S.Select>
             </S.FormGroup>
@@ -200,10 +206,13 @@ export default function AdminAdventAttendancePage() {
               <S.Select
                 value={cellId}
                 onChange={(e) => setCellId(Number(e.target.value) || '')}
+                disabled={!groups.length} // 그룹 없으면 비활성화
               >
                 <option value="">전체 셀</option>
                 {cells.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </S.Select>
             </S.FormGroup>
