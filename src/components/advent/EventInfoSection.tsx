@@ -112,8 +112,7 @@ export const EventInfoSection: React.FC = () => {
 
         <DescriptionText>
           {`대림절 기간 동안 웹사이트에 올라오는 영상을 시청 후,
-하단에 '눌러서 n일차 출석하기' 로 출석하고,
-짧은 묵상을 올려주세요.`}
+짧은 묵상을 올린 뒤, 출석까지 완료해주세요.`}
         </DescriptionText>
 
         <GiftText>매일 출석 + 묵상을 올려주신 지체분들께 선물을 드립니다 :)</GiftText>

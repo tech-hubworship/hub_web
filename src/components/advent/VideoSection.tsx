@@ -141,8 +141,8 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
   const youtubeWatchUrl = getYouTubeWatchUrl(post.video_url);
 
   const handleYouTubeLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault(); // 현재 탭 변경 방지
     if (!youtubeWatchUrl) {
-      e.preventDefault();
       return;
     }
     window.open(youtubeWatchUrl, '_blank', 'noopener,noreferrer');

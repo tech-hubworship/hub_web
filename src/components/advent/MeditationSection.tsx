@@ -119,10 +119,13 @@ const MeditationPostIt = styled.div<{ colorIndex: number }>`
 `;
 
 const MeditationHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 12px;
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  text-align: left;
+  gap: 8px;
 `;
 
 const MeditationTitle = styled.div`
@@ -131,6 +134,16 @@ const MeditationTitle = styled.div`
   color: #1a1a1a;
   line-height: 1.5;
   text-align: left;
+  flex-shrink: 0;
+`;
+
+const MeditationAffiliation = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: #6b7280;
+  line-height: 1.5;
+  text-align: right;
+  word-break: keep-all;
 `;
 
 const MeditationContent = styled.div`
@@ -303,12 +316,14 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
           ) : (
             comments.map((comment, index) => {
               const dayNumber = getDayNumber(comment.post_dt);
-              const userName = comment.user_name || comment.reg_id;
+              const userName = comment.user_name || '익명';
+              const userAffiliation = comment.user_affiliation || '';
               const dayText = dayNumber ? `${dayNumber}일차 묵상` : '묵상';
               return (
                 <MeditationPostIt key={comment.comment_id} colorIndex={index}>
                   <MeditationHeader>
                     <MeditationTitle>{userName}님의 {dayText}</MeditationTitle>
+                    {userAffiliation && <MeditationAffiliation>{userAffiliation}</MeditationAffiliation>}
                   </MeditationHeader>
                   <MeditationContent>{comment.content}</MeditationContent>
                 </MeditationPostIt>

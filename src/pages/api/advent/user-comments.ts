@@ -56,17 +56,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ comments: [] });
       }
 
-      // profiles 테이블에서 사용자 이름 조회
+      // profiles 테이블에서 사용자 정보 조회 (공동체, 그룹, 셀, 이름)
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('name')
+        .select('name, community, hub_groups!fk_group_id(name), hub_cells!fk_cell_id(name)')
         .eq('user_id', userId)
         .single();
 
-      // 각 묵상에 user_name 추가
+      // 이름 마스킹 함수 (예: "홍길동" -> "홍0동", "김철수" -> "김0수")
+      const maskName = (name: string): string => {
+        if (!name || name.length < 2) return name || '익명';
+        if (name.length === 2) {
+          return name[0] + '0';
+        }
+        // 3글자 이상: 첫 글자 + 0 + 마지막 글자
+        return name[0] + '0' + name[name.length - 1];
+      };
+
+      // 이름과 소속 분리
+      let maskedName = '익명';
+      let affiliation = '';
+      if (profile) {
+        const community = profile.community || '';
+        const groupName = (profile.hub_groups as any)?.name || '';
+        const cellName = (profile.hub_cells as any)?.name || '';
+        maskedName = maskName(profile.name);
+        
+        const parts = [community, groupName, cellName].filter(Boolean);
+        affiliation = parts.join('/');
+      }
+
+      // 각 묵상에 user_name, user_affiliation 추가
       const commentsWithNames = comments.map((comment) => ({
         ...comment,
-        user_name: profile?.name || comment.reg_id, // name이 없으면 reg_id 사용
+        user_name: maskedName,
+        user_affiliation: affiliation,
       }));
 
       return res.status(200).json({ comments: commentsWithNames });

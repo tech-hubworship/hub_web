@@ -18,7 +18,8 @@ export interface AdventComment {
   reg_dt: string;
   mod_id: string;
   mod_dt: string;
-  user_name?: string; // profile 테이블에서 가져온 이름
+  user_name?: string; // profile 테이블에서 가져온 이름 (마스킹)
+  user_affiliation?: string; // 공동체/그룹/다락방
 }
 
 export interface PreviousPost {

@@ -40,23 +40,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: '댓글을 불러오는데 실패했습니다.' });
       }
 
-      // 각 댓글의 사용자 이름 조회
+      // 각 댓글의 사용자 정보 조회 (공동체, 그룹, 셀, 이름)
       const userIds = Array.from(new Set((data || []).map(comment => comment.reg_id)));
       const { data: profiles } = await supabaseAdmin
         .from('profiles')
-        .select('user_id, name')
+        .select('user_id, name, community, hub_groups!fk_group_id(name), hub_cells!fk_cell_id(name)')
         .in('user_id', userIds);
+
+      // 이름 마스킹 함수 (예: "홍길동" -> "홍0동", "김철수" -> "김0수")
+      const maskName = (name: string): string => {
+        if (!name || name.length < 2) return name || '익명';
+        if (name.length === 2) {
+          return name[0] + '0';
+        }
+        // 3글자 이상: 첫 글자 + 0 + 마지막 글자
+        return name[0] + '0' + name[name.length - 1];
+      };
 
       const profileMap = new Map();
       profiles?.forEach(profile => {
-        profileMap.set(profile.user_id, profile.name);
+        const community = profile.community || '';
+        const groupName = (profile.hub_groups as any)?.name || '';
+        const cellName = (profile.hub_cells as any)?.name || '';
+        const maskedName = maskName(profile.name);
+        
+        // 소속 정보 (공동체/그룹/다락방)
+        const parts = [community, groupName, cellName].filter(Boolean);
+        const affiliation = parts.join('/');
+        
+        profileMap.set(profile.user_id, {
+          name: maskedName,
+          affiliation: affiliation,
+        });
       });
 
-      // 댓글에 user_name 추가
-      const commentsWithNames = (data || []).map((comment) => ({
-        ...comment,
-        user_name: profileMap.get(comment.reg_id) || comment.reg_id,
-      }));
+      // 댓글에 user_name, user_affiliation 추가
+      const commentsWithNames = (data || []).map((comment) => {
+        const userInfo = profileMap.get(comment.reg_id);
+        return {
+          ...comment,
+          user_name: userInfo?.name || '익명',
+          user_affiliation: userInfo?.affiliation || '',
+        };
+      });
 
       return res.status(200).json({ 
         comments: commentsWithNames,
