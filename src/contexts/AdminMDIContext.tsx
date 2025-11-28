@@ -23,6 +23,9 @@ export const ADMIN_MENUS: TabInfo[] = [
   { id: 'advent', title: '대림절 관리', icon: '🎄', path: '/admin/advent', requiredRoles: ['목회자'] },
   { id: 'advent-posts', title: '게시글 관리', icon: '📝', path: '/admin/advent/posts', requiredRoles: ['목회자'] },
   { id: 'advent-attendance', title: '출석 현황', icon: '📅', path: '/admin/advent/attendance', requiredRoles: ['목회자'] },
+  { id: 'bible-card', title: '말씀카드 관리', icon: '📜', path: '/admin/bible-card', requiredRoles: ['MC'] },
+  { id: 'bible-card-pastor', title: '말씀 작성', icon: '✍️', path: '/admin/bible-card/pastor', requiredRoles: ['목회자'] },
+  { id: 'bible-card-complete', title: '완료 관리', icon: '✅', path: '/admin/bible-card/complete', requiredRoles: ['MC'] },
   { id: 'tech-inquiries', title: '문의사항', icon: '💬', path: '/admin/tech-inquiries' },
   { id: 'menu-management', title: '메뉴 관리', icon: '⚙️', path: '/admin/menu-management', requiredRoles: ['MC'] },
 ];

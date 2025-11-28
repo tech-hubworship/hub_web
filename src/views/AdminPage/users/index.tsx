@@ -57,7 +57,7 @@ const AVAILABLE_ROLES = [
 ];
 
 // 공동체 목록
-const COMMUNITIES = ['청1', '청2'];
+const COMMUNITIES = ['허브', '타공동체'];
 
 // 상태 목록
 const STATUS_OPTIONS = ['관리자', '일반', '휴면', '탈퇴'];

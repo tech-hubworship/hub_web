@@ -4,9 +4,9 @@ import { AdminMDIProvider } from '@src/contexts/AdminMDIContext';
 import MDIAdminPage from './MDIAdminPage';
 
 export default function AdminPageWrapper() {
-  return (
+        return (
     <AdminMDIProvider>
       <MDIAdminPage />
     </AdminMDIProvider>
-  );
+    );
 }
