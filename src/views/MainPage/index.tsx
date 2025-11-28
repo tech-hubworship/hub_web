@@ -201,12 +201,10 @@ const MainPage = memo(function MainPage() {
           <BibleCardPromotion />
         </LazyLoadSection>
 
-        <ContentWrapper>
-          {/* 콘텐츠 배너 섹션 */}
-          <LazyLoadSection id="content-section">
-            <ContentBanner />
-          </LazyLoadSection>
-        </ContentWrapper>
+        {/* 콘텐츠 배너 섹션 (전체 너비) */}
+        <LazyLoadSection id="content-section">
+          <ContentBanner />
+        </LazyLoadSection>
       </Container>
 
       <Footer />

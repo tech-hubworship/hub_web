@@ -1,7 +1,4 @@
 import styled from "@emotion/styled";
-import { colors } from "@sopt-makers/colors";
-import Image from "next/image";
-import IcDownScroll from "@src/assets/icons/ic_downScroll.svg";
 
 export const Container = styled.section`
   position: relative;
@@ -12,13 +9,9 @@ export const Container = styled.section`
   transition: height 0.3s ease;
   align-items: center;
   background-color: #000000;
-    @media (min-width: 58.75rem) {
-    width: 100%;
-   
-  }
+
   @media (min-width: 58.75rem) {
     width: 100%;
-    
     min-height: 413px;
   }
 `;
@@ -38,6 +31,8 @@ export const ContentWrapper = styled.article`
   flex-direction: column;
   align-items: center;
   width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
   position: relative;
   z-index: 2;
   padding-bottom: 5px;
@@ -45,15 +40,12 @@ export const ContentWrapper = styled.article`
   // justify-content: center;
 
   @media (min-width: 58.75rem) {
-    width: 100%;
-    padding-left: 20px;
-    padding-right: 20px;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+    padding-left: 0;
+    padding-right: 0;
   }
-
-  @media (max-width: 90rem) {
-  }
-
-
 `;
 
 export const ButtonContainer = styled.section`

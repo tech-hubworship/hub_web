@@ -4,6 +4,7 @@ export const LabelWrapper = styled.div`
   width: 300px;
   height: 111px;
   margin-bottom: 20px;
+  background-color: #000000;
   
 `;
 

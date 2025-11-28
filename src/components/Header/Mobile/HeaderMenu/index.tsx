@@ -48,30 +48,47 @@ function HeaderMenu({ isMenuShown, handleHeaderToggleButton }: HeaderMenuProps) 
     return router.pathname === href;
   };
 
+  // 메뉴 리스트를 필터링하고 변환
+  const displayMenuList = menuTapList
+    .filter(menuTap => {
+      // auth 속성이 있으면 로그인 상태 확인, 없으면 항상 표시
+      if (menuTap.auth) {
+        // 로그인하지 않은 경우 "내 정보"를 "로그인"으로 변환하기 위해 포함
+        if (menuTap.href === '/myinfo' && status !== 'authenticated') {
+          return true; // 로그인 메뉴로 변환하기 위해 포함
+        }
+        return status === 'authenticated';
+      }
+      return true;
+    })
+    .map(menuTap => {
+      // 로그인하지 않은 상태에서 "내 정보"를 "로그인"으로 변환
+      if (menuTap.href === '/myinfo' && status !== 'authenticated') {
+        return {
+          ...menuTap,
+          title: '로그인',
+          href: '/login',
+        };
+      }
+      return menuTap;
+    });
+
   return (
     <S.Root isMenuShown={isMenuShown}>
       <S.MenuWrap>
         <S.ContentsWrap>
           <S.MenuTitlesWrap>
-            {menuTapList
-              .filter(menuTap => {
-                // 내 페이지(/myinfo)만 표시
-                if (menuTap.href === '/myinfo') {
-                  return status === 'authenticated';
-                }
-                return false;
-              })
-              .map((menuTap) => (
-                <S.MenuTitle
-                  menuColor={menuTap.type}
-                  key={menuTap.title}
-                  isSelected={handleIsSelected(menuTap.href)}
-                >
-                  <a href={menuTap.href} onClick={(e) => handleNavigate(menuTap.href, e)}>
-                    {menuTap.title}
-                  </a>
-                </S.MenuTitle>
-              ))}
+            {displayMenuList.map((menuTap) => (
+              <S.MenuTitle
+                menuColor={menuTap.type}
+                key={menuTap.href}
+                isSelected={handleIsSelected(menuTap.href)}
+              >
+                <a href={menuTap.href} onClick={(e) => handleNavigate(menuTap.href, e)}>
+                  {menuTap.title}
+                </a>
+              </S.MenuTitle>
+            ))}
             <S.Background onClick={() => handleHeaderToggleButton()} />
           </S.MenuTitlesWrap>
         </S.ContentsWrap>
