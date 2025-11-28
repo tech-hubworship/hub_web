@@ -25,7 +25,6 @@ interface User {
 interface Group {
   id: number;
   name: string;
-  community?: string;
 }
 
 interface Cell {
@@ -60,7 +59,7 @@ const AVAILABLE_ROLES = [
 const COMMUNITIES = ['허브', '타공동체'];
 
 // 상태 목록
-const STATUS_OPTIONS = ['관리자', '일반', '휴면', '탈퇴'];
+const STATUS_OPTIONS = ['활성', '차단', '휴면', '새신자', '관리자'];
 
 export default function UsersAdminPage() {
   const queryClient = useQueryClient();
@@ -79,11 +78,11 @@ export default function UsersAdminPage() {
   const [filterCellId, setFilterCellId] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
-  // 회원 정보 수정 상태
+  // 회원 정보 수정 상태 (말씀카드와 동일하게 문자열로 관리)
   const [editFormData, setEditFormData] = useState({
     community: '',
-    group_id: '' as string | number,
-    cell_id: '' as string | number,
+    group_id: '',
+    cell_id: '',
     status: '',
   });
 
@@ -95,6 +94,17 @@ export default function UsersAdminPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // 타공동체 선택 시 그룹/다락방 초기화 (말씀카드와 동일)
+  useEffect(() => {
+    if (editFormData.community === '타공동체') {
+      setEditFormData(prev => ({
+        ...prev,
+        group_id: '',
+        cell_id: '',
+      }));
+    }
+  }, [editFormData.community]);
 
   // 사용자 목록 조회 (페이징)
   const { data: usersData, isLoading } = useQuery<PaginatedResponse>({
@@ -117,27 +127,54 @@ export default function UsersAdminPage() {
     },
   });
 
-  // 그룹 목록 조회
+  // 그룹 목록 조회 (hub_groups 테이블에는 community 컬럼이 없으므로 모든 그룹 반환)
   const { data: groups } = useQuery<Group[]>({
-    queryKey: ['admin-groups', filterCommunity],
+    queryKey: ['admin-groups'],
     queryFn: async () => {
-      const params = filterCommunity ? `?community=${filterCommunity}` : '';
-      const response = await fetch(`/api/admin/users/groups${params}`);
+      const response = await fetch(`/api/admin/users/groups`);
       if (!response.ok) throw new Error('그룹 목록을 가져오는 데 실패했습니다.');
       return response.json();
     },
   });
 
-  // 다락방 목록 조회
-  const { data: cells } = useQuery<Cell[]>({
-    queryKey: ['admin-cells', filterGroupId, editFormData.group_id],
+  // 수정 모달용 그룹 목록 조회 (허브 공동체일 때만)
+  const { data: editGroups } = useQuery<Group[]>({
+    queryKey: ['admin-edit-groups'],
     queryFn: async () => {
-      const groupId = filterGroupId || editFormData.group_id;
-      const params = groupId ? `?group_id=${groupId}` : '';
+      const response = await fetch(`/api/admin/users/groups`);
+      if (!response.ok) throw new Error('그룹 목록을 가져오는 데 실패했습니다.');
+      return response.json();
+    },
+    enabled: editFormData.community === '허브',
+  });
+
+  // 다락방 목록 조회 (그룹 선택 시에만)
+  const { data: cells } = useQuery<Cell[]>({
+    queryKey: ['admin-cells', editFormData.group_id],
+    queryFn: async () => {
+      const groupId = typeof editFormData.group_id === 'string' 
+        ? parseInt(editFormData.group_id) 
+        : editFormData.group_id;
+      if (!groupId) return [];
+      const params = `?group_id=${groupId}`;
       const response = await fetch(`/api/admin/users/cells${params}`);
       if (!response.ok) throw new Error('다락방 목록을 가져오는 데 실패했습니다.');
       return response.json();
     },
+    enabled: !!editFormData.group_id && editFormData.community === '허브',
+  });
+
+  // 필터용 다락방 목록 조회
+  const { data: filterCells } = useQuery<Cell[]>({
+    queryKey: ['admin-filter-cells', filterGroupId],
+    queryFn: async () => {
+      if (!filterGroupId) return [];
+      const params = `?group_id=${filterGroupId}`;
+      const response = await fetch(`/api/admin/users/cells${params}`);
+      if (!response.ok) throw new Error('다락방 목록을 가져오는 데 실패했습니다.');
+      return response.json();
+    },
+    enabled: !!filterGroupId,
   });
 
   // 권한 수정 뮤테이션
@@ -188,10 +225,11 @@ export default function UsersAdminPage() {
   const handleOpenModal = (user: User) => {
     setSelectedUser(user);
     setSelectedRoles(user.roles || []);
+    // 말씀카드 정보수정과 동일하게 데이터 설정
     setEditFormData({
       community: user.community || '',
-      group_id: user.group_id || '',
-      cell_id: user.cell_id || '',
+      group_id: user.group_id ? String(user.group_id) : '',
+      cell_id: user.cell_id ? String(user.cell_id) : '',
       status: user.status || '',
     });
     setIsModalOpen(true);
@@ -231,14 +269,20 @@ export default function UsersAdminPage() {
   // 사용자 정보 저장
   const handleSaveUser = () => {
     if (!selectedUser) return;
+    // 말씀카드 정보수정과 동일하게 타공동체면 group_id, cell_id를 null로
+    const submitData = {
+      community: editFormData.community || null,
+      group_id: editFormData.community === '타공동체' 
+        ? null 
+        : (editFormData.group_id ? parseInt(String(editFormData.group_id)) : null),
+      cell_id: editFormData.community === '타공동체' 
+        ? null 
+        : (editFormData.cell_id ? parseInt(String(editFormData.cell_id)) : null),
+      status: editFormData.status || null,
+    };
     updateUserMutation.mutate({
       userId: selectedUser.user_id,
-      data: {
-        community: editFormData.community || null,
-        group_id: editFormData.group_id || null,
-        cell_id: editFormData.cell_id || null,
-        status: editFormData.status || null,
-      },
+      data: submitData,
     });
   };
 
@@ -366,7 +410,7 @@ export default function UsersAdminPage() {
               style={{ width: '150px' }}
             >
               <option value="">전체</option>
-              {cells?.filter(c => !filterGroupId || c.group_id === parseInt(filterGroupId)).map(c => (
+              {filterCells?.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </S.Select>
@@ -383,7 +427,6 @@ export default function UsersAdminPage() {
               style={{ width: '120px' }}
             >
               <option value="">전체</option>
-              <option value="null">일반 사용자</option>
               {STATUS_OPTIONS.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
@@ -554,12 +597,16 @@ export default function UsersAdminPage() {
                     <S.Label>공동체</S.Label>
                     <S.Select
                       value={editFormData.community}
-                      onChange={(e) => setEditFormData(prev => ({
-                        ...prev,
-                        community: e.target.value,
-                        group_id: '',
-                        cell_id: '',
-                      }))}
+                      onChange={(e) => {
+                        const newCommunity = e.target.value;
+                        // 공동체 변경 시 그룹/다락방 초기화 (말씀카드와 동일)
+                        setEditFormData(prev => ({
+                          ...prev,
+                          community: newCommunity,
+                          group_id: '',
+                          cell_id: '',
+                        }));
+                      }}
                     >
                       <option value="">선택하세요</option>
                       {COMMUNITIES.map(c => (
@@ -567,37 +614,57 @@ export default function UsersAdminPage() {
                       ))}
                     </S.Select>
                   </S.FormGroup>
-                  <S.FormGroup>
-                    <S.Label>그룹</S.Label>
-                    <S.Select
-                      value={editFormData.group_id}
-                      onChange={(e) => setEditFormData(prev => ({
-                        ...prev,
-                        group_id: e.target.value ? parseInt(e.target.value) : '',
-                        cell_id: '',
-                      }))}
-                    >
-                      <option value="">선택하세요</option>
-                      {groups?.filter(g => !editFormData.community || g.community === editFormData.community).map(g => (
-                        <option key={g.id} value={g.id}>{g.name}</option>
-                      ))}
-                    </S.Select>
-                  </S.FormGroup>
-                  <S.FormGroup>
-                    <S.Label>다락방</S.Label>
-                    <S.Select
-                      value={editFormData.cell_id}
-                      onChange={(e) => setEditFormData(prev => ({
-                        ...prev,
-                        cell_id: e.target.value ? parseInt(e.target.value) : '',
-                      }))}
-                    >
-                      <option value="">선택하세요</option>
-                      {cells?.filter(c => !editFormData.group_id || c.group_id === editFormData.group_id).map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </S.Select>
-                  </S.FormGroup>
+                  {editFormData.community === '허브' && (
+                    <>
+                      <S.FormGroup>
+                        <S.Label>그룹</S.Label>
+                        <S.Select
+                          value={editFormData.group_id}
+                          onChange={(e) => {
+                            const newGroupId = e.target.value;
+                            setEditFormData(prev => ({
+                              ...prev,
+                              group_id: newGroupId,
+                              cell_id: '', // 그룹 변경 시 다락방 초기화
+                            }));
+                          }}
+                        >
+                          <option value="">선택하세요</option>
+                          {editGroups?.map(g => (
+                            <option key={g.id} value={g.id}>{g.name}</option>
+                          ))}
+                        </S.Select>
+                      </S.FormGroup>
+                      <S.FormGroup>
+                        <S.Label>다락방</S.Label>
+                        <S.Select
+                          value={editFormData.cell_id}
+                          onChange={(e) => setEditFormData(prev => ({
+                            ...prev,
+                            cell_id: e.target.value,
+                          }))}
+                          disabled={!editFormData.group_id}
+                        >
+                          <option value="">선택하세요</option>
+                          {cells?.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </S.Select>
+                      </S.FormGroup>
+                    </>
+                  )}
+                  {editFormData.community === '타공동체' && (
+                    <div style={{ 
+                      padding: '12px', 
+                      background: '#f0f9ff', 
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      color: '#0369a1',
+                      marginBottom: '16px'
+                    }}>
+                      타공동체 소속이시군요! 그룹/다락방 선택은 생략됩니다.
+                    </div>
+                  )}
                   <S.FormGroup>
                     <S.Label>상태</S.Label>
                     <S.Select
@@ -607,7 +674,7 @@ export default function UsersAdminPage() {
                         status: e.target.value,
                       }))}
                     >
-                      <option value="">일반 사용자</option>
+                      <option value="">선택하세요</option>
                       {STATUS_OPTIONS.map(s => (
                         <option key={s} value={s}>{s}</option>
                       ))}

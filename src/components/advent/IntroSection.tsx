@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import { AdventPost } from '@src/lib/advent/types';
 
 const SectionCard = styled.div`
-  background: #ffffff;
+  background: #724886;
   padding: 0;
   width: 100vw;
   margin-left: calc(-50vw + 50%);

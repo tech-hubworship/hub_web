@@ -667,7 +667,7 @@ const Step = styled.div<{ active: boolean; completed: boolean }>`
   font-weight: 600;
   font-size: 14px;
   transition: all 0.3s ease;
-  background: ${props => props.completed ? '#10b981' : props.active ? '#6366f1' : '#e2e8f0'};
+  background: ${props => props.completed ? '#707070' : props.active ? '#161616' : '#e2e8f0'};
   color: ${props => props.active || props.completed ? 'white' : '#94a3b8'};
 
   @media (max-width: 480px) {
@@ -680,7 +680,7 @@ const Step = styled.div<{ active: boolean; completed: boolean }>`
 const StepLine = styled.div<{ active: boolean }>`
   width: 40px;
   height: 3px;
-  background: ${props => props.active ? '#6366f1' : '#e2e8f0'};
+  background: ${props => props.active ? '#707070' : '#e2e8f0'};
   border-radius: 2px;
   transition: all 0.3s ease;
 
@@ -925,7 +925,7 @@ const NextButton = styled.button`
   flex: 2;
   padding: 16px;
   border: none;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: #FF1515;
   color: white;
   border-radius: 12px;
   font-size: 16px;
@@ -935,7 +935,7 @@ const NextButton = styled.button`
 
   &:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 16px rgba(255, 21, 21, 0.4);
   }
 
   &:disabled {
@@ -966,7 +966,7 @@ const CompleteButton = styled.button`
   width: 100%;
   padding: 16px;
   border: none;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: #FF1515;
   color: white;
   border-radius: 12px;
   font-size: 16px;
@@ -977,7 +977,7 @@ const CompleteButton = styled.button`
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 16px rgba(255, 21, 21, 0.4);
   }
 
   @media (max-width: 480px) {

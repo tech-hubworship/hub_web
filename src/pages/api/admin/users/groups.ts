@@ -21,20 +21,12 @@ export default async function handler(
       return res.status(403).json({ error: '권한이 없습니다.' });
     }
 
-    const { community } = req.query;
-
-    // 그룹 목록 조회
-    let query = supabaseAdmin
+    // 그룹 목록 조회 (hub_groups 테이블에는 community 컬럼이 없으므로 모든 그룹 반환)
+    const { data: groups, error } = await supabaseAdmin
       .from('hub_groups')
-      .select('id, name, community')
+      .select('id, name')
+      .eq('is_active', true)
       .order('name', { ascending: true });
-
-    // 공동체 필터
-    if (community && typeof community === 'string') {
-      query = query.eq('community', community);
-    }
-
-    const { data: groups, error } = await query;
 
     if (error) {
       console.error('Error fetching groups:', error);
