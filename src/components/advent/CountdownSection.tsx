@@ -197,7 +197,7 @@ export const CountdownSection: React.FC<CountdownSectionProps> = ({ targetDate }
     <SectionCard>
       <ContentWrapper>
         <Message>
-          출석하기와 묵상하기는 1일차에 오픈 됩니다.
+          묵상하기와 출석하기는 1차(11월 30일)에 오픈됩니다.
         </Message>
         
         <CountdownContainer>

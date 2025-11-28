@@ -53,12 +53,19 @@ export default function LoginPage() {
 
   const checkProfileAndRedirect = async () => {
     try {
+      // redirect 값을 먼저 확인 (localStorage 또는 router.query에서)
+      let redirectPath = localStorage.getItem(REDIRECT_KEY);
+      if (!redirectPath && router.isReady && router.query.redirect) {
+        redirectPath = router.query.redirect as string;
+        localStorage.setItem(REDIRECT_KEY, redirectPath);
+      }
+
       const response = await fetch('/api/user/profile');
       if (!response.ok) {
         // 프로필 조회 실패 시 기본 리다이렉트
-        const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/myinfo";
+        const finalRedirect = redirectPath || "/myinfo";
         localStorage.removeItem(REDIRECT_KEY);
-        router.replace(redirectPath);
+        router.replace(finalRedirect);
         return;
       }
 
@@ -72,17 +79,21 @@ export default function LoginPage() {
       const hasEmptyGroupCell = !profile.group_id || !profile.cell_id;
       
       if ((isHubActive || isAdmin) && hasEmptyGroupCell) {
-        // 정보 업데이트 페이지로 리다이렉트
+        // 정보 업데이트 페이지로 리다이렉트 (redirect 값은 localStorage에 유지)
+        // UpdatePage에서 업데이트 완료 후 redirect 값을 사용하여 원래 페이지로 돌아감
         router.replace('/update');
       } else {
-        const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/myinfo";
+        // redirect 값이 있으면 해당 페이지로, 없으면 myinfo로
+        const finalRedirect = redirectPath || "/myinfo";
         localStorage.removeItem(REDIRECT_KEY);
-        router.replace(redirectPath);
+        router.replace(finalRedirect);
       }
     } catch (error) {
       console.error('프로필 확인 오류:', error);
-      // 오류 발생 시 기본 리다이렉트
-      const redirectPath = localStorage.getItem(REDIRECT_KEY) || "/myinfo";
+      // 오류 발생 시 redirect 값 확인 후 리다이렉트
+      const redirectPath = localStorage.getItem(REDIRECT_KEY) || 
+                          (router.query.redirect as string) || 
+                          "/myinfo";
       localStorage.removeItem(REDIRECT_KEY);
       router.replace(redirectPath);
     }
@@ -139,14 +150,19 @@ export default function LoginPage() {
       sessionStorage.setItem(SIGNUP_ROLE_KEY, selectedRole);
       
       // redirect 값을 signIn 전에 다시 확인하여 저장
-      if (router.query.redirect) {
-        localStorage.setItem(REDIRECT_KEY, router.query.redirect as string);
+      if (router.isReady && router.query.redirect) {
+        const redirectValue = router.query.redirect as string;
+        localStorage.setItem(REDIRECT_KEY, redirectValue);
+        signIn('google', { 
+          prompt: 'select_account',
+          callbackUrl: '/login?redirect=' + encodeURIComponent(redirectValue)
+        });
+      } else {
+        signIn('google', { 
+          prompt: 'select_account',
+          callbackUrl: '/login'
+        });
       }
-      
-      signIn('google', { 
-        prompt: 'select_account',
-        callbackUrl: '/login' + (router.query.redirect ? `?redirect=${encodeURIComponent(router.query.redirect as string)}` : '')
-      });
 
     } catch (err: any) {
       setModalError(err.message);
@@ -164,16 +180,19 @@ export default function LoginPage() {
     }
     
     // redirect 값을 signIn 전에 다시 확인하여 저장
-    if (router.query.redirect) {
-      localStorage.setItem(REDIRECT_KEY, router.query.redirect as string);
+    if (router.isReady && router.query.redirect) {
+      const redirectValue = router.query.redirect as string;
+      localStorage.setItem(REDIRECT_KEY, redirectValue);
+      signIn('google', { 
+        prompt: 'select_account',
+        callbackUrl: '/login?redirect=' + encodeURIComponent(redirectValue)
+      });
+    } else {
+      signIn('google', { 
+        prompt: 'select_account',
+        callbackUrl: '/login'
+      });
     }
-    
-    // ⭐️ [핵심 수정] 일반 로그인 시에도 항상 계정 선택창 표시
-    // callbackUrl을 현재 페이지로 지정하여 로그인 후 돌아오도록 함
-    signIn('google', { 
-      prompt: 'select_account',
-      callbackUrl: '/login' + (router.query.redirect ? `?redirect=${encodeURIComponent(router.query.redirect as string)}` : '')
-    });
   };
 
 

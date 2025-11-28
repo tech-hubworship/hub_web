@@ -28,17 +28,17 @@ function DesktopHeader() {
 
   // 메뉴 리스트를 필터링하고 변환
   const displayMenuList = menuTapList
-    .filter(menuTap => {
+            .filter(menuTap => {
       // auth 속성이 있으면 로그인 상태 확인, 없으면 항상 표시
-      if (menuTap.auth) {
+              if (menuTap.auth) {
         // 로그인하지 않은 경우 "내 정보"를 "로그인"으로 변환하기 위해 포함
         if (menuTap.href === '/myinfo' && status !== 'authenticated') {
           return true; // 로그인 메뉴로 변환하기 위해 포함
         }
-        return status === 'authenticated';
-      }
-      return true;
-    })
+                return status === 'authenticated';
+              }
+              return true;
+            })
     .map(menuTap => {
       // 로그인하지 않은 상태에서 "내 정보"를 "로그인"으로 변환
       if (menuTap.href === '/myinfo' && status !== 'authenticated') {
@@ -54,18 +54,18 @@ function DesktopHeader() {
   return (
     <MenuTitlesWrapper>
       {displayMenuList.map((menuTap) => (
-        <MenuTitle
-          as="a"
-          href={menuTap.href}
-          menuColor={menuTap.type}
+              <MenuTitle
+                as="a"
+                href={menuTap.href}
+                menuColor={menuTap.type}
           key={menuTap.href}
-          isSelected={handleIsSelected(menuTap.href)}
-          onClick={(e) => handleNavigate(menuTap.href, e)}
-        >
-          {menuTap.title}
-        </MenuTitle>
-      ))}
-    </MenuTitlesWrapper>
+                isSelected={handleIsSelected(menuTap.href)}
+                onClick={(e) => handleNavigate(menuTap.href, e)}
+              >
+                {menuTap.title}
+              </MenuTitle>
+            ))}
+        </MenuTitlesWrapper>
   );
 }
 

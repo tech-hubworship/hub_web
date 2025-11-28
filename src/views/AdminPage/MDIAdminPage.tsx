@@ -14,6 +14,7 @@ import RolesAdminPage from '@src/views/AdminPage/roles';
 import TechInquiriesPage from '@src/views/AdminPage/tech-inquiries';
 import AdventPostsAdminPage from '@src/views/AdminPage/advent';
 import AttendanceContent from '@src/views/AdminPage/advent/AttendanceContent';
+import AdventStatsPage from '@src/views/AdminPage/advent/StatsContent';
 import ManageContent from '@src/views/AdminPage/photos/ManageContent';
 import ReservationsContent from '@src/views/AdminPage/photos/ReservationsContent';
 import MenuManagementPage from '@src/views/AdminPage/menu-management';
@@ -34,6 +35,7 @@ const MENU_DESCRIPTIONS: Record<string, string> = {
   'advent': '대림절 콘텐츠를 관리할 수 있습니다.',
   'advent-posts': '대림절 말씀/영상/콘텐츠 관리',
   'advent-attendance': '대림절 출석 정보 및 통계',
+  'advent-stats': '대림절 묵상+출석 통계 및 그래프',
   'bible-card': '말씀카드 신청 현황 및 목회자 배정',
   'bible-card-applications': '말씀카드 신청 현황 관리 및 목회자 배정',
   'bible-card-pastor': '배정된 지체들에게 말씀 작성',
@@ -193,6 +195,8 @@ export default function MDIAdminPage() {
         return <AdventPostsAdminPage />;
       case 'advent-attendance':
         return <AttendanceContent />;
+      case 'advent-stats':
+        return <AdventStatsPage />;
       case 'photos-manage':
         return <ManageContent />;
       case 'photos-reservations':

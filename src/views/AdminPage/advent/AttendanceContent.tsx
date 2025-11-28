@@ -26,8 +26,18 @@ export default function AttendanceContent() {
   const [groupId, setGroupId] = useState<number | ''>('');
   const [cellId, setCellId] = useState<number | ''>('');
 
+  // 실제 조회에 사용되는 필터 상태
+  const [appliedDate, setAppliedDate] = useState(() => {
+    const now = new Date();
+    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    return koreanTime.toISOString().slice(0, 10).replace(/-/g, '');
+  });
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedGroupId, setAppliedGroupId] = useState<number | ''>('');
+  const [appliedCellId, setAppliedCellId] = useState<number | ''>('');
+
   const { groups } = useGroups();
-  const { cells } = useCells(groupId);
+  const { cells } = useCells(appliedGroupId);
 
   const [loading, setLoading] = useState(false);
   const [originalList, setOriginalList] = useState<AttendanceRecord[]>([]);
@@ -37,10 +47,10 @@ export default function AttendanceContent() {
 
   const fetchAttendance = async () => {
     const query = new URLSearchParams({
-      date,
-      ...(search ? { search } : {}),
-      ...(groupId ? { group_id: String(groupId) } : {}),
-      ...(cellId ? { cell_id: String(cellId) } : {})
+      date: appliedDate,
+      ...(appliedSearch ? { search: appliedSearch } : {}),
+      ...(appliedGroupId ? { group_id: String(appliedGroupId) } : {}),
+      ...(appliedCellId ? { cell_id: String(appliedCellId) } : {})
     });
 
     setLoading(true);
@@ -59,13 +69,22 @@ export default function AttendanceContent() {
     setAttendedCount(data.attended);
   };
 
+  // 조회 버튼 클릭 핸들러
+  const handleSearch = () => {
+    setAppliedDate(date);
+    setAppliedSearch(search);
+    setAppliedGroupId(groupId);
+    setAppliedCellId(cellId);
+  };
+
   useEffect(() => {
     setCellId('');
   }, [groupId]);
 
+  // 초기 로드 시 자동 조회
   useEffect(() => {
     fetchAttendance();
-  }, [date, search, groupId, cellId]);
+  }, [appliedDate, appliedSearch, appliedGroupId, appliedCellId]);
 
   const groupCellStats = useMemo(() => {
     const stats: {
@@ -160,6 +179,12 @@ export default function AttendanceContent() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        </S.FormGroup>
+
+        <S.FormGroup>
+          <S.SearchButton onClick={handleSearch}>
+            🔍 조회하기
+          </S.SearchButton>
         </S.FormGroup>
       </S.FilterRow>
 

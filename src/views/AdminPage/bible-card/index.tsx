@@ -1,7 +1,7 @@
 // 파일 경로: src/views/AdminPage/bible-card/index.tsx
 // 말씀카드 관리 페이지 - 신청목록 & 목회자 배정 (팝업 방식)
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
 
@@ -61,6 +61,10 @@ export default function BibleCardAdminPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   
+  // 실제 조회에 사용되는 필터 상태
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState('');
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
+  
   // 팝업 상태
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -79,22 +83,36 @@ export default function BibleCardAdminPage() {
     },
   });
 
-  // 신청 목록 조회
+  // 조회 버튼 클릭 핸들러
+  const handleSearch = () => {
+    setAppliedStatusFilter(statusFilter);
+    setAppliedSearchQuery(searchQuery);
+    setCurrentPage(1);
+  };
+
+  // 신청 목록 조회 - applied 필터 사용
   const { data: applicationsData, isLoading } = useQuery({
-    queryKey: ['bible-card-applications', currentPage, statusFilter, searchQuery],
+    queryKey: ['bible-card-applications', currentPage, appliedStatusFilter, appliedSearchQuery],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: '20',
       });
-      if (statusFilter) params.append('status', statusFilter);
-      if (searchQuery) params.append('search', searchQuery);
+      if (appliedStatusFilter) params.append('status', appliedStatusFilter);
+      if (appliedSearchQuery) params.append('search', appliedSearchQuery);
       
       const response = await fetch(`/api/bible-card/admin/applications?${params}`);
       if (!response.ok) throw new Error('목록 조회 실패');
       return response.json();
     },
+    enabled: true, // 항상 활성화 (초기 로드 시에도 조회)
   });
+  
+  // 초기 로드 시 자동 조회 (한 번만)
+  useEffect(() => {
+    handleSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 최초 마운트 시에만 실행
 
   // 목회자 목록 조회
   const { data: pastors } = useQuery<Pastor[]>({
@@ -316,7 +334,7 @@ export default function BibleCardAdminPage() {
         <FilterGroup>
           <Select
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+            onChange={(e) => { setStatusFilter(e.target.value); }}
           >
             <option value="">전체 상태</option>
             <option value="pending">대기중</option>
@@ -328,8 +346,11 @@ export default function BibleCardAdminPage() {
             type="text"
             placeholder="이름으로 검색..."
             value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+            onChange={(e) => { setSearchQuery(e.target.value); }}
           />
+          <SearchButton onClick={handleSearch}>
+            🔍 조회하기
+          </SearchButton>
         </FilterGroup>
         <ActionButtons>
           <AssignByGroupButton
@@ -745,6 +766,29 @@ const SearchInput = styled.input`
   &:focus {
     outline: none;
     border-color: #6366f1;
+  }
+`;
+
+const SearchButton = styled.button`
+  padding: 10px 20px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 

@@ -101,7 +101,7 @@ export function Header() {
 
       {/* 모바일 헤더 메뉴 - 우측 끝 */}
       <MobileMenuWrapper>
-        <MobileHeader onMenuStateChange={handleMenuStateChange} />
+      <MobileHeader onMenuStateChange={handleMenuStateChange} />
       </MobileMenuWrapper>
     </S.Wrapper>
   );

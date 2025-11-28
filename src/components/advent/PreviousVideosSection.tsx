@@ -234,7 +234,7 @@ export const PreviousVideosSection: React.FC<PreviousVideosSectionProps> = ({
   loading,
   onVideoClick,
 }) => {
-  const YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/channel/UCDLQwbfNDWVq4Eh1phxy6zg';
+  const YOUTUBE_PLAYLIST_URL = 'https://www.youtube.com/playlist?list=PLoPlKRWMoWwOoqAvlzXibGmxsaCrJn2YB';
 
   return (
     <SectionCard>
@@ -243,7 +243,7 @@ export const PreviousVideosSection: React.FC<PreviousVideosSectionProps> = ({
         <span>다시볼수있어요</span>
       </SectionTitle>
       <YouTubeChannelButton 
-        href={YOUTUBE_CHANNEL_URL}
+        href={YOUTUBE_PLAYLIST_URL}
         target="_blank"
         rel="noopener noreferrer"
       >

@@ -207,6 +207,13 @@ export default function AdminAdventAttendancePage() {
                   {!sidebarCollapsed && <L.NavText>대림절 출석 현황</L.NavText>}
                 </L.NavItem>
               </Link>
+
+              <Link href="/admin/advent/stats" passHref legacyBehavior>
+                <L.NavItem as="a">
+                  <L.NavIcon>📊</L.NavIcon>
+                  {!sidebarCollapsed && <L.NavText>대림절 통계</L.NavText>}
+                </L.NavItem>
+              </Link>
             </>
           )}
         </L.NavMenu>

@@ -1,0 +1,257 @@
+import { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../auth/[...nextauth]';
+import { supabaseAdmin } from '@src/lib/supabase';
+import { getMenuIdFromPath, checkMenuPermission } from '@src/lib/utils/menu-permission';
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const session = await getServerSession(req, res, authOptions);
+    if (!session?.user?.isAdmin) {
+      return res.status(403).json({ error: '관리자만 접근할 수 있습니다.' });
+    }
+
+    // 메뉴 권한 확인
+    const menuId = getMenuIdFromPath(req.url || '/api/admin/advent/stats');
+    const permission = await checkMenuPermission(session.user.roles || [], menuId);
+    
+    if (!permission.hasPermission) {
+      return res.status(403).json({ error: permission.error || '권한이 없습니다.' });
+    }
+
+    // 오늘 날짜 (한국 시간 기준)
+    const now = new Date();
+    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const todayStr = koreanTime.toISOString().slice(0, 10).replace(/-/g, '');
+
+    // 오늘 묵상+출석한 사람 수
+    const { data: todayComments } = await supabaseAdmin
+      .from('advent_comments')
+      .select('reg_id')
+      .eq('post_dt', todayStr);
+
+    const { data: todayAttendance } = await supabaseAdmin
+      .from('advent_attendance')
+      .select('user_id')
+      .eq('post_dt', todayStr);
+
+    const todayCommentUserIds = new Set(todayComments?.map(c => c.reg_id) || []);
+    const todayAttendanceUserIds = new Set(todayAttendance?.map(a => a.user_id) || []);
+    
+    // 오늘 묵상과 출석을 모두 한 사람
+    const todayCompleted = Array.from(todayCommentUserIds).filter(
+      userId => todayAttendanceUserIds.has(userId)
+    ).length;
+    
+    // 오늘 묵상만 한 사람 (출석 안함)
+    const todayCommentOnly = Array.from(todayCommentUserIds).filter(
+      userId => !todayAttendanceUserIds.has(userId)
+    ).length;
+    
+    // 오늘 출석만 한 사람 (묵상 안함)
+    const todayAttendanceOnly = Array.from(todayAttendanceUserIds).filter(
+      userId => !todayCommentUserIds.has(userId)
+    ).length;
+
+    // 기간 설정 (2025-11-30 ~ 2025-12-25, 총 26일)
+    // 로컬 시간대를 사용하여 날짜 생성 (시간대 문제 방지)
+    const allDates: string[] = [];
+    const startDate = new Date(2025, 10, 30, 12, 0, 0); // 정오 시간으로 설정하여 시간대 문제 방지
+    const endDate = new Date(2025, 11, 25, 12, 0, 0); // 정오 시간으로 설정
+    
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      // 로컬 시간대 기준으로 날짜 문자열 생성
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}${month}${day}`;
+      allDates.push(dateStr);
+      
+      // 다음 날로 이동
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // 일차 계산 함수
+    const getDayNumber = (dateStr: string): number => {
+      const year = parseInt(dateStr.slice(0, 4), 10);
+      const month = parseInt(dateStr.slice(4, 6), 10) - 1;
+      const day = parseInt(dateStr.slice(6, 8), 10);
+      const currentDate = new Date(year, month, day);
+      const baseDate = new Date(2025, 10, 30);
+      const diffTime = currentDate.getTime() - baseDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays + 1;
+    };
+
+    // 각 날짜별로 묵상+출석 완료한 사람 수 조회
+    const dailyStats = await Promise.all(
+      allDates.map(async (dateStr) => {
+        const dayNumber = getDayNumber(dateStr);
+        
+        // 1일차 이상만 포함
+        if (dayNumber < 1) {
+          return null;
+        }
+
+        const { data: comments } = await supabaseAdmin
+          .from('advent_comments')
+          .select('reg_id')
+          .eq('post_dt', dateStr);
+
+        const { data: attendance } = await supabaseAdmin
+          .from('advent_attendance')
+          .select('user_id')
+          .eq('post_dt', dateStr);
+
+        const commentUserIds = new Set(comments?.map(c => c.reg_id) || []);
+        const attendanceUserIds = new Set(attendance?.map(a => a.user_id) || []);
+
+        // 묵상과 출석을 모두 한 사람
+        const completed = Array.from(commentUserIds).filter(
+          userId => attendanceUserIds.has(userId)
+        );
+        
+        // 묵상만 한 사람 (출석 안함)
+        const commentOnly = Array.from(commentUserIds).filter(
+          userId => !attendanceUserIds.has(userId)
+        );
+        
+        // 출석만 한 사람 (묵상 안함)
+        const attendanceOnly = Array.from(attendanceUserIds).filter(
+          userId => !commentUserIds.has(userId)
+        );
+
+        return {
+          date: dateStr,
+          dayNumber: dayNumber,
+          completed: completed.length,
+          commentOnly: commentOnly.length,
+          attendanceOnly: attendanceOnly.length,
+          commentCount: comments?.length || 0,
+          attendanceCount: attendance?.length || 0,
+        };
+      })
+    ).then(results => results.filter((r): r is NonNullable<typeof r> => r !== null));
+
+    // 누적 연속 완료 통계
+    // 각 사용자별로 연속 완료 일수 계산
+    const { data: allComments } = await supabaseAdmin
+      .from('advent_comments')
+      .select('reg_id, post_dt')
+      .in('post_dt', allDates)
+      .order('post_dt', { ascending: true });
+
+    const { data: allAttendance } = await supabaseAdmin
+      .from('advent_attendance')
+      .select('user_id, post_dt')
+      .in('post_dt', allDates)
+      .order('post_dt', { ascending: true });
+
+    // 사용자별 완료 날짜 집합 생성 (묵상과 출석을 모두 한 경우만 완료)
+    const userCommentDates: Record<string, Set<string>> = {};
+    const userAttendanceDates: Record<string, Set<string>> = {};
+    
+    allComments?.forEach(c => {
+      if (!userCommentDates[c.reg_id]) {
+        userCommentDates[c.reg_id] = new Set();
+      }
+      userCommentDates[c.reg_id].add(c.post_dt);
+    });
+
+    allAttendance?.forEach(a => {
+      if (!userAttendanceDates[a.user_id]) {
+        userAttendanceDates[a.user_id] = new Set();
+      }
+      userAttendanceDates[a.user_id].add(a.post_dt);
+    });
+
+    // 묵상과 출석을 모두 한 날짜만 완료로 간주
+    const userCompletedDates: Record<string, Set<string>> = {};
+    Object.keys(userCommentDates).forEach(userId => {
+      if (userAttendanceDates[userId]) {
+        userCompletedDates[userId] = new Set();
+        userCommentDates[userId].forEach(dateStr => {
+          if (userAttendanceDates[userId].has(dateStr)) {
+            userCompletedDates[userId].add(dateStr);
+          }
+        });
+      }
+    });
+
+    // 각 사용자별로 연속 완료 일수 계산
+    const userStreaks: number[] = [];
+    Object.entries(userCompletedDates).forEach(([userId, completedDates]) => {
+      let maxStreak = 0;
+      let currentStreak = 0;
+
+      allDates.forEach(dateStr => {
+        if (completedDates.has(dateStr)) {
+          currentStreak++;
+          maxStreak = Math.max(maxStreak, currentStreak);
+        } else {
+          currentStreak = 0;
+        }
+      });
+
+      if (maxStreak > 0) {
+        userStreaks.push(maxStreak);
+      }
+    });
+
+    // 연속 완료 일수별 통계
+    const streakStats: Record<number, number> = {};
+    userStreaks.forEach(streak => {
+      streakStats[streak] = (streakStats[streak] || 0) + 1;
+    });
+
+    // 누적 완료 통계 (1일차부터 N일차까지 완료한 사람 수)
+    const cumulativeStats = allDates
+      .map((dateStr, index) => {
+        const dayNumber = getDayNumber(dateStr);
+        
+        // 1일차 이상만 포함
+        if (dayNumber < 1) {
+          return null;
+        }
+
+        const datesUpToToday = allDates.slice(0, index + 1).filter(d => getDayNumber(d) >= 1);
+        const usersCompletedAll = Object.entries(userCompletedDates).filter(
+          ([userId, completedDates]) => {
+            return datesUpToToday.every(d => completedDates.has(d));
+          }
+        ).length;
+
+        return {
+          date: dateStr,
+          dayNumber: dayNumber,
+          cumulativeCompleted: usersCompletedAll,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    return res.status(200).json({
+      today: {
+        completed: todayCompleted,
+        commentOnly: todayCommentOnly,
+        attendanceOnly: todayAttendanceOnly,
+        commentCount: todayComments?.length || 0,
+        attendanceCount: todayAttendance?.length || 0,
+      },
+      daily: dailyStats,
+      streaks: streakStats,
+      cumulative: cumulativeStats,
+    });
+  } catch (error) {
+    console.error('통계 조회 오류:', error);
+    return res.status(500).json({ error: '통계 조회 중 오류가 발생했습니다.' });
+  }
+}
+

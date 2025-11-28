@@ -227,13 +227,13 @@ export default function AdventPromotion() {
   } | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  // 오픈 시간: 2025년 11월 29일 10시 (한국시간)
+  // 오픈 시간: 2025년 11월 29일 12시 (한국시간)
 
   useEffect(() => {
     const updateCountdown = () => {
-      // 오픈 시간: 2025년 11월 29일 10시 (한국시간, UTC+9)
+      // 오픈 시간: 2025년 11월 29일 12시 (한국시간, UTC+9)
       // ISO string with timezone은 자동으로 UTC로 변환됨
-      const openDate = new Date('2025-11-29T10:00:00+09:00');
+      const openDate = new Date('2025-11-29T12:00:00+09:00');
       
       // 현재 시간 (UTC 기준, Date 객체는 내부적으로 UTC로 저장됨)
       const now = new Date();

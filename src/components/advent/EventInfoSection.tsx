@@ -115,11 +115,12 @@ export const EventInfoSection: React.FC = () => {
 짧은 묵상을 올린 뒤, 출석까지 완료해주세요.`}
         </DescriptionText>
 
-        <GiftText>매일 출석 + 묵상을 올려주신 지체분들께 선물을 드립니다 :)</GiftText>
+        <GiftText>매일 묵상+출석을 올려주신 분들께 선물을 드립니다 :)</GiftText>
 
         <NoticeText>
           {`*1일차부터 이벤트 참여가 시작됩니다.
-*'눌러서 n일차 출석하기' 버튼을 꼭 눌러주셔야 출석이 인정됩니다.`}
+*묵상을 올리시면 '출석하기' 버튼이 나옵니다.
+*이 버튼까지 꼭 눌러주셔야 출석이 인정됩니다.`}
         </NoticeText>
       </ContentWrapper>
     </SectionCard>

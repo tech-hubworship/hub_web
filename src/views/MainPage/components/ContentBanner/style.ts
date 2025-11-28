@@ -9,7 +9,7 @@ export const Container = styled.section`
   transition: height 0.3s ease;
   align-items: center;
   background-color: #000000;
-
+   
   @media (min-width: 58.75rem) {
     width: 100%;
     min-height: 413px;

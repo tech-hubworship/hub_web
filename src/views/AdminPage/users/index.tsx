@@ -55,7 +55,7 @@ export default function UsersAdminPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'accounts' | 'permissions'>('accounts');
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState(''); // 실제 조회에 사용되는 검색어
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
@@ -67,6 +67,12 @@ export default function UsersAdminPage() {
   const [filterGroupId, setFilterGroupId] = useState('');
   const [filterCellId, setFilterCellId] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  
+  // 실제 조회에 사용되는 필터 상태
+  const [appliedFilterCommunity, setAppliedFilterCommunity] = useState('');
+  const [appliedFilterGroupId, setAppliedFilterGroupId] = useState('');
+  const [appliedFilterCellId, setAppliedFilterCellId] = useState('');
+  const [appliedFilterStatus, setAppliedFilterStatus] = useState('');
 
   // 권한 목록 조회 (DB에서)
   const { data: availableRoles } = useQuery<Array<{ id: number; name: string; description?: string | null }>>({
@@ -86,14 +92,21 @@ export default function UsersAdminPage() {
     status: '',
   });
 
-  // 검색어 디바운싱
+  // 조회 버튼 클릭 핸들러
+  const handleSearch = () => {
+    setAppliedSearch(searchQuery);
+    setAppliedFilterCommunity(filterCommunity);
+    setAppliedFilterGroupId(filterGroupId);
+    setAppliedFilterCellId(filterCellId);
+    setAppliedFilterStatus(filterStatus);
+    setCurrentPage(1);
+  };
+  
+  // 초기 로드 시 자동 조회 (한 번만)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setCurrentPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    handleSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 최초 마운트 시에만 실행
 
   // 타공동체 선택 시 그룹/다락방 초기화 (말씀카드와 동일)
   useEffect(() => {
@@ -106,25 +119,26 @@ export default function UsersAdminPage() {
     }
   }, [editFormData.community]);
 
-  // 사용자 목록 조회 (페이징)
+  // 사용자 목록 조회 (페이징) - applied 필터 사용
   const { data: usersData, isLoading } = useQuery<PaginatedResponse>({
-    queryKey: ['admin-users', debouncedSearch, currentPage, limit, filterCommunity, filterGroupId, filterCellId, filterStatus],
+    queryKey: ['admin-users', appliedSearch, currentPage, limit, appliedFilterCommunity, appliedFilterGroupId, appliedFilterCellId, appliedFilterStatus],
     queryFn: async () => {
       const params = new URLSearchParams({
-        search: debouncedSearch,
+        search: appliedSearch,
         page: currentPage.toString(),
         limit: limit.toString(),
       });
       
-      if (filterCommunity) params.append('community', filterCommunity);
-      if (filterGroupId) params.append('group_id', filterGroupId);
-      if (filterCellId) params.append('cell_id', filterCellId);
-      if (filterStatus) params.append('status', filterStatus);
+      if (appliedFilterCommunity) params.append('community', appliedFilterCommunity);
+      if (appliedFilterGroupId) params.append('group_id', appliedFilterGroupId);
+      if (appliedFilterCellId) params.append('cell_id', appliedFilterCellId);
+      if (appliedFilterStatus) params.append('status', appliedFilterStatus);
 
       const response = await fetch(`/api/admin/users?${params}`);
       if (!response.ok) throw new Error('사용자 목록을 가져오는 데 실패했습니다.');
       return response.json();
     },
+    enabled: true, // 항상 활성화 (초기 로드 시에도 조회)
   });
 
   // 그룹 목록 조회 (hub_groups 테이블에는 community 컬럼이 없으므로 모든 그룹 반환)
@@ -289,7 +303,16 @@ export default function UsersAdminPage() {
     setFilterCellId('');
     setFilterStatus('');
     setSearchQuery('');
+    setAppliedSearch('');
+    setAppliedFilterCommunity('');
+    setAppliedFilterGroupId('');
+    setAppliedFilterCellId('');
+    setAppliedFilterStatus('');
     setCurrentPage(1);
+    // 초기화 후 자동 조회
+    setTimeout(() => {
+      handleSearch();
+    }, 0);
   };
 
   const users = usersData?.data || [];
@@ -366,7 +389,6 @@ export default function UsersAdminPage() {
                 setFilterCommunity(e.target.value);
                 setFilterGroupId('');
                 setFilterCellId('');
-                setCurrentPage(1);
               }}
               style={{ width: '120px' }}
             >
@@ -384,7 +406,6 @@ export default function UsersAdminPage() {
               onChange={(e) => {
                 setFilterGroupId(e.target.value);
                 setFilterCellId('');
-                setCurrentPage(1);
               }}
               style={{ width: '150px' }}
             >
@@ -401,7 +422,6 @@ export default function UsersAdminPage() {
               value={filterCellId}
               onChange={(e) => {
                 setFilterCellId(e.target.value);
-                setCurrentPage(1);
               }}
               style={{ width: '150px' }}
             >
@@ -418,7 +438,6 @@ export default function UsersAdminPage() {
               value={filterStatus}
               onChange={(e) => {
                 setFilterStatus(e.target.value);
-                setCurrentPage(1);
               }}
               style={{ width: '120px' }}
             >
@@ -429,6 +448,10 @@ export default function UsersAdminPage() {
             </S.Select>
           </FilterGroup>
 
+          <SearchButton onClick={handleSearch}>
+            🔍 조회하기
+          </SearchButton>
+          
           <ResetButton onClick={handleResetFilters}>
             초기화
           </ResetButton>
@@ -804,6 +827,29 @@ const FilterLabel = styled.label`
   color: #64748b;
 `;
 
+const SearchButton = styled.button`
+  padding: 10px 20px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: fit-content;
+
+  &:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
 const ResetButton = styled.button`
   padding: 10px 16px;
   background: white;
@@ -813,6 +859,7 @@ const ResetButton = styled.button`
   color: #64748b;
   cursor: pointer;
   transition: all 0.2s ease;
+  height: fit-content;
 
   &:hover {
     background: #f1f5f9;

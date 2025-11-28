@@ -185,12 +185,12 @@ const MainPage = memo(function MainPage() {
         <LazyLoadSection id="banner-section" priority={true}>
           <Banner />
         </LazyLoadSection>
-
+        
         {/* 메인 콘텐츠 섹션 (전체 너비) */}
         <LazyLoadSection id="main-section" priority={true}>
           <Main />
         </LazyLoadSection>
-      
+    
         {/* 대림절 페이지 광고 섹션 - 두 번째 섹션 (전체 너비) */}
         <LazyLoadSection id="advent-promotion-section" priority={true}>
           <AdventPromotion />
@@ -200,7 +200,7 @@ const MainPage = memo(function MainPage() {
         <LazyLoadSection id="bible-card-promotion-section" priority={true}>
           <BibleCardPromotion />
         </LazyLoadSection>
-
+        
         {/* 콘텐츠 배너 섹션 (전체 너비) */}
         <LazyLoadSection id="content-section">
           <ContentBanner />

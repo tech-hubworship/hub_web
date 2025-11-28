@@ -28,6 +28,7 @@ export function getMenuIdFromPath(path: string): string | null {
     'advent/posts': 'advent-posts',
     'advent/posts/[post_dt]': 'advent-posts',
     'advent/attendance': 'advent-attendance',
+    'advent/stats': 'advent-stats',
     'design': 'design',
     'design/design-data': 'design',
     'design/survey-stats': 'design',

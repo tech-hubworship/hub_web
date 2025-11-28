@@ -129,6 +129,18 @@ export default function AdminAdventPage() {
             </Link>
           )}
 
+          {roles.includes('목회자') && (
+            <Link href="/admin/advent/stats" passHref legacyBehavior>
+              <S.NavItem
+                as="a"
+                active={router.pathname === '/admin/advent/stats'}
+              >
+                <S.NavIcon>📊</S.NavIcon>
+                {!sidebarCollapsed && <S.NavText>대림절 통계</S.NavText>}
+              </S.NavItem>
+            </Link>
+          )}
+
           </S.NavMenu>
         </S.Sidebar>
 

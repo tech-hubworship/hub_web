@@ -46,58 +46,58 @@ const UpdateModal = ({
   onClose: () => void;
   profileData: ProfileData;
 }) => {
-  const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState({
     name: profileData.name || '',
     birth_date: profileData.birth_date || '',
     community: profileData.community || '',
     group_id: profileData.group_id?.toString() || '',
     cell_id: profileData.cell_id?.toString() || '',
-  });
+    });
   const [groups, setGroups] = useState<Group[]>([]);
   const [cells, setCells] = useState<Cell[]>([]);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchGroups = async () => {
-      const res = await fetch('/api/signup/groups');
+    useEffect(() => {
+        const fetchGroups = async () => {
+            const res = await fetch('/api/signup/groups');
       if (res.ok) setGroups((await res.json()).data);
-    };
-    fetchGroups();
-  }, []);
+        };
+        fetchGroups();
+    }, []);
 
-  useEffect(() => {
+    useEffect(() => {
     const groupId = formData.group_id;
     if (groupId && formData.community === '허브') {
-      const fetchCells = async () => {
-        const res = await fetch(`/api/signup/cells?groupId=${groupId}`);
+            const fetchCells = async () => {
+                const res = await fetch(`/api/signup/cells?groupId=${groupId}`);
         if (res.ok) setCells((await res.json()).data);
-      };
-      fetchCells();
+            };
+            fetchCells();
     } else {
       setCells([]);
     }
   }, [formData.group_id, formData.community]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+        const { name, value } = e.target;
     const newFormData = { ...formData, [name]: value };
     
     // 그룹 변경 시 다락방 초기화
     if (name === 'group_id') {
-      newFormData.cell_id = '';
-    }
+            newFormData.cell_id = '';
+        }
     
-    setFormData(newFormData);
-  };
-
+        setFormData(newFormData);
+    };
+    
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+        e.preventDefault();
     setLoading(true);
     setError('');
 
-    try {
+        try {
       const updateData: any = {
         name: formData.name,
         birth_date: formData.birth_date,
@@ -113,30 +113,30 @@ const UpdateModal = ({
       }
 
       const res = await fetch('/api/auth/update-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
-      });
+            });
 
-      const data = await res.json();
+            const data = await res.json();
       if (!res.ok) throw new Error(data.message || '업데이트 실패');
 
-      alert('정보가 성공적으로 업데이트되었습니다.');
-      await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-      onClose();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+            alert('정보가 성공적으로 업데이트되었습니다.');
+            await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+            onClose();
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <S.ModalOverlay>
-      <S.ModalContent>
+    return (
+        <S.ModalOverlay>
+            <S.ModalContent>
         <S.ModalTitle>정보 수정</S.ModalTitle>
         <form onSubmit={handleSubmit}>
-          <S.InfoWrapper>
+                <S.InfoWrapper>
             <div>
               <S.Label>이름</S.Label>
               <S.Input
@@ -171,7 +171,7 @@ const UpdateModal = ({
                 <option value="">-- 공동체 선택 --</option>
                 <option value="허브">허브</option>
                 <option value="타공동체">타공동체</option>
-              </S.Select>
+                            </S.Select>
             </div>
 
             {formData.community === '허브' && (
@@ -205,21 +205,21 @@ const UpdateModal = ({
                   </S.Select>
                 </div>
               </>
-            )}
-          </S.InfoWrapper>
+                    )}
+                </S.InfoWrapper>
 
-          {error && <S.ErrorMessage>{error}</S.ErrorMessage>}
+                {error && <S.ErrorMessage>{error}</S.ErrorMessage>}
 
-          <S.ButtonWrapper>
+                <S.ButtonWrapper>
             <S.CancelButton type="button" onClick={onClose}>취소</S.CancelButton>
             <S.SubmitButton type="submit" disabled={loading}>
               {loading ? '저장 중...' : '저장'}
             </S.SubmitButton>
-          </S.ButtonWrapper>
+                </S.ButtonWrapper>
         </form>
-      </S.ModalContent>
-    </S.ModalOverlay>
-  );
+            </S.ModalContent>
+        </S.ModalOverlay>
+    );
 };
 
 export default function MyInfoPage() {

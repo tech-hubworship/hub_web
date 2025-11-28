@@ -167,7 +167,9 @@ export default function BibleCardApplyPage() {
   // 로그인 체크
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push(`/login?redirect=${encodeURIComponent('/bible-card')}`);
+      // 현재 경로를 redirect 파라미터로 전달
+      const currentPath = router.asPath || '/bible-card';
+      router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
     }
   }, [status, router]);
 
