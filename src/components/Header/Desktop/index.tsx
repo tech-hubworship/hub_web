@@ -13,11 +13,7 @@ import { useSession } from 'next-auth/react'; // ⭐️ 1. useSession을 import 
 
 function DesktopHeader() {
   const router = useRouter();
-  const { data: session, status } = useSession(); // ⭐️ 2. 세션 상태를 가져옵니다.
-
-  const handleClickLogo = () => {
-    router.push("/");
-  };
+  const { data: session, status } = useSession();
 
   const handleIsSelected = (href: string) => {
     return router.pathname === href;
@@ -31,37 +27,28 @@ function DesktopHeader() {
   };
 
   return (
-    <>
-      <Wrapper>
-        <CenterAligner>
-          <Logo onClick={handleClickLogo} />
-        </CenterAligner>
-        <MenuTitlesWrapper>
-          {menuTapList
-            // ⭐️ 3. [핵심] 메뉴 목록을 필터링합니다.
-            .filter(menuTap => {
-              // auth 속성이 true인 메뉴는, 로그인 상태(authenticated)일 때만 보여줍니다.
-              if (menuTap.auth) {
-                return status === 'authenticated';
-              }
-              // auth 속성이 없는 메뉴는 항상 보여줍니다.
-              return true;
-            })
-            .map((menuTap) => (
-              <MenuTitle
-                as="a"
-                href={menuTap.href}
-                menuColor={menuTap.type}
-                key={menuTap.title}
-                isSelected={handleIsSelected(menuTap.href)}
-                onClick={(e) => handleNavigate(menuTap.href, e)}
-              >
-                {menuTap.title}
-              </MenuTitle>
-            ))}
-        </MenuTitlesWrapper>
-      </Wrapper>
-    </>
+    <MenuTitlesWrapper>
+      {menuTapList
+        .filter(menuTap => {
+          // 내 페이지(/myinfo)만 표시
+          if (menuTap.href === '/myinfo') {
+            return status === 'authenticated';
+          }
+          return false;
+        })
+        .map((menuTap) => (
+          <MenuTitle
+            as="a"
+            href={menuTap.href}
+            menuColor={menuTap.type}
+            key={menuTap.title}
+            isSelected={handleIsSelected(menuTap.href)}
+            onClick={(e) => handleNavigate(menuTap.href, e)}
+          >
+            {menuTap.title}
+          </MenuTitle>
+        ))}
+    </MenuTitlesWrapper>
   );
 }
 
@@ -115,11 +102,11 @@ export const MenuTitlesWrapper = styled.div`
 `;
 
 export const MenuTitle = styled(Link)<MenuTitleProps>`
-  font-size: 18rem;
+  font-size: 18px;
   line-height: 36px;
   font-weight: ${({ isSelected }) => (isSelected ? '700' : '500')};
 
-  color: ${colors.white};
+  color: #000000;
   cursor: pointer;
   position: relative;
 
@@ -133,7 +120,7 @@ export const MenuTitle = styled(Link)<MenuTitleProps>`
       left: 0;
       width: 100%;
       border-bottom: ${({ menuColor }) =>
-        menuColor !== 'SPECIAL' ? `2px solid ${colors.white}` : 'none'};
+        menuColor !== 'SPECIAL' ? `2px solid #000000` : 'none'};
     }
   }
 

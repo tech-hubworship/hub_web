@@ -20,6 +20,15 @@ export default async function handler(
       return res.status(403).json({ error: '권한이 없습니다.' });
     }
 
+    // 메뉴 권한 확인
+    const { getMenuIdFromPath, checkMenuPermission } = await import('@src/lib/utils/menu-permission');
+    const menuId = getMenuIdFromPath(req.url || '/api/admin/users/roles');
+    const permission = await checkMenuPermission(session.user.roles || [], menuId);
+    
+    if (!permission.hasPermission) {
+      return res.status(403).json({ error: permission.error || '권한이 없습니다.' });
+    }
+
     const { userId, roles } = req.body;
 
     if (!userId || !Array.isArray(roles)) {
@@ -65,8 +74,8 @@ export default async function handler(
       }
     }
 
-    // 4. status 필드 업데이트 (권한이 있으면 관리자, 없으면 null)
-    const newStatus = roleData && roleData.length > 0 ? '관리자' : null;
+    // 4. status 필드 업데이트 (권한이 있으면 관리자, 없으면 활성)
+    const newStatus = roleData && roleData.length > 0 ? '관리자' : '활성';
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .update({ status: newStatus })

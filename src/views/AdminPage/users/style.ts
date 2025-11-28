@@ -441,6 +441,30 @@ export const Select = styled.select`
   }
 `;
 
+export const TextArea = styled.textarea`
+  width: 100%;
+  min-height: 100px;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &:disabled {
+    background: #f8fafc;
+    color: #94a3b8;
+    cursor: not-allowed;
+  }
+`;
+
 export const CheckboxGroup = styled.div`
   display: flex;
   flex-wrap: wrap;

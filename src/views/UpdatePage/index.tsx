@@ -9,7 +9,13 @@ export default function UpdatePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  const [userInfo, setUserInfo] = useState({
+    name: '',
+    birth_date: '',
+    gender: '',
+  });
   const [formData, setFormData] = useState({
+    community: '',
     group_id: '',
     cell_id: '',
   });
@@ -18,7 +24,8 @@ export default function UpdatePage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'group' | 'cell'>('group');
+  const [isEditingUserInfo, setIsEditingUserInfo] = useState(false);
+  const [currentStep, setCurrentStep] = useState<'userInfo' | 'community' | 'group' | 'cell'>('userInfo');
 
   // 그룹 목록 가져오기
   useEffect(() => {
@@ -72,18 +79,34 @@ export default function UpdatePage() {
 
           const profile = await response.json();
           
-          // 허브 활성 사용자가 아니거나 이미 그룹/셀이 있으면 myinfo로 리다이렉트
-          if (
-            profile.community !== '허브' ||
-            profile.status !== '활성' ||
-            (profile.group_id && profile.cell_id)
-          ) {
+          // 관리자 여부 확인
+          const isAdmin = session?.user?.isAdmin || profile.roles?.length > 0 || profile.status === '관리자';
+          
+          // 허브 활성 사용자 또는 관리자이고 그룹/셀이 비어있는 경우에만 업데이트 페이지 표시
+          const isHubActive = profile.community === '허브' && profile.status === '활성';
+          const hasEmptyGroupCell = !profile.group_id || !profile.cell_id;
+          
+          if (!isAdmin && (!isHubActive || !hasEmptyGroupCell)) {
             router.replace('/myinfo');
             return;
           }
 
-          // 기존 그룹/셀 정보가 있으면 formData에 설정
+          // 관리자는 그룹/셀이 비어있을 때만 업데이트 가능
+          if (isAdmin && !hasEmptyGroupCell) {
+            router.replace('/myinfo');
+            return;
+          }
+
+          // 사용자 정보 설정
+          setUserInfo({
+            name: profile.name || '',
+            birth_date: profile.birth_date || '',
+            gender: profile.gender || '',
+          });
+
+          // 기존 정보가 있으면 formData에 설정
           setFormData({
+            community: profile.community || '',
             group_id: profile.group_id || '',
             cell_id: profile.cell_id || '',
           });
@@ -103,6 +126,11 @@ export default function UpdatePage() {
     const { name, value } = e.target;
     const newFormData = { ...formData, [name]: value };
     
+    // 커뮤니티가 변경되면 그룹/셀 초기화
+    if (name === 'community') {
+      newFormData.group_id = '';
+      newFormData.cell_id = '';
+    }
     // 그룹이 변경되면 셀 초기화
     if (name === 'group_id') {
       newFormData.cell_id = '';
@@ -111,15 +139,75 @@ export default function UpdatePage() {
     setFormData(newFormData);
   };
 
+  const handleCommunityNext = () => {
+    if (formData.community) {
+      // 타공동체면 그룹/셀 선택 없이 바로 완료
+      if (formData.community === '타공동체') {
+        setCurrentStep('cell');
+      } else {
+        setCurrentStep('group');
+      }
+    }
+  };
+
   const handleGroupNext = () => {
     if (formData.group_id) {
       setCurrentStep('cell');
     }
   };
 
+  const handleUserInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setUserInfo(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveUserInfo = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/auth/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userInfo.name,
+          birth_date: userInfo.birth_date,
+          gender: userInfo.gender,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+
+      alert('사용자 정보가 수정되었습니다!');
+      setIsEditingUserInfo(false);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUserInfoNext = () => {
+    // 이름, 생일, 성별이 모두 있는지 확인
+    if (!userInfo.name || !userInfo.birth_date || !userInfo.gender) {
+      alert('이름, 생년월일, 성별을 모두 입력해주세요.');
+      return;
+    }
+    setCurrentStep('community');
+  };
+
   const handleBack = () => {
     if (currentStep === 'cell') {
-      setCurrentStep('group');
+      if (formData.community === '타공동체') {
+        setCurrentStep('community');
+      } else {
+        setCurrentStep('group');
+      }
+    } else if (currentStep === 'group') {
+      setCurrentStep('community');
+    } else if (currentStep === 'community') {
+      setCurrentStep('userInfo');
     } else {
       router.replace('/myinfo');
     }
@@ -135,8 +223,9 @@ export default function UpdatePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          group_id: formData.group_id,
-          cell_id: formData.cell_id,
+          community: formData.community,
+          group_id: formData.community === '타공동체' ? null : formData.group_id,
+          cell_id: formData.community === '타공동체' ? null : formData.cell_id,
         }),
       });
 
@@ -177,7 +266,127 @@ export default function UpdatePage() {
       </Head>
       <S.Wrapper>
         <S.Card>
-          {currentStep === 'group' ? (
+          {currentStep === 'userInfo' ? (
+            <>
+              <S.Title>사용자 정보 확인</S.Title>
+              <S.InputGroup>
+                {isEditingUserInfo ? (
+                <>
+                  <S.InputGroup>
+                    <S.Label>이름 *</S.Label>
+                    <S.Input
+                      type="text"
+                      name="name"
+                      value={userInfo.name}
+                      onChange={handleUserInfoChange}
+                      placeholder="이름을 입력하세요"
+                      required
+                    />
+                  </S.InputGroup>
+                  <S.InputGroup>
+                    <S.Label>생년월일 *</S.Label>
+                    <S.Input
+                      type="date"
+                      name="birth_date"
+                      value={userInfo.birth_date}
+                      onChange={handleUserInfoChange}
+                      required
+                    />
+                  </S.InputGroup>
+                  <S.InputGroup>
+                    <S.Label>성별 *</S.Label>
+                    <S.Select
+                      name="gender"
+                      value={userInfo.gender}
+                      onChange={handleUserInfoChange}
+                      required
+                    >
+                      <option value="">-- 성별 선택 --</option>
+                      <option value="남">남</option>
+                      <option value="여">여</option>
+                    </S.Select>
+                  </S.InputGroup>
+                  <S.ButtonWrapper style={{ marginTop: '16px' }}>
+                    <S.CancelButton onClick={() => {
+                      setIsEditingUserInfo(false);
+                      // 원래 정보 다시 불러오기
+                      fetch('/api/user/profile')
+                        .then(res => res.json())
+                        .then(profile => {
+                          setUserInfo({
+                            name: profile.name || '',
+                            birth_date: profile.birth_date || '',
+                            gender: profile.gender || '',
+                          });
+                        });
+                    }}>
+                      취소
+                    </S.CancelButton>
+                    <S.SubmitButton onClick={handleSaveUserInfo} disabled={loading}>
+                      {loading ? '저장 중...' : '저장'}
+                    </S.SubmitButton>
+                  </S.ButtonWrapper>
+                </>
+              ) : (
+                <>
+                  <S.InfoCard>
+                    <S.InfoRow>
+                      <S.InfoLabel>이름</S.InfoLabel>
+                      <S.InfoValue>{userInfo.name || '미입력'}</S.InfoValue>
+                    </S.InfoRow>
+                    <S.InfoRow>
+                      <S.InfoLabel>생년월일</S.InfoLabel>
+                      <S.InfoValue>{userInfo.birth_date || '미입력'}</S.InfoValue>
+                    </S.InfoRow>
+                    <S.InfoRow>
+                      <S.InfoLabel>성별</S.InfoLabel>
+                      <S.InfoValue>{userInfo.gender || '미입력'}</S.InfoValue>
+                    </S.InfoRow>
+                  </S.InfoCard>
+                  {(!userInfo.name || !userInfo.birth_date || !userInfo.gender) && (
+                    <S.WarningText>
+                      ⚠️ 정보가 누락되어 있습니다. 수정 버튼을 클릭하여 정보를 입력해주세요.
+                    </S.WarningText>
+                  )}
+                  <S.ButtonWrapper style={{ marginTop: '16px' }}>
+                    <S.CancelButton onClick={() => setIsEditingUserInfo(true)}>
+                      수정하기
+                    </S.CancelButton>
+                  </S.ButtonWrapper>
+                </>
+              )}
+              </S.InputGroup>
+              {!isEditingUserInfo && (
+                <S.ButtonWrapper>
+                  <S.CancelButton onClick={handleBack}>이전</S.CancelButton>
+                  <S.SubmitButton 
+                    onClick={handleUserInfoNext}
+                    disabled={!userInfo.name || !userInfo.birth_date || !userInfo.gender}
+                  >
+                    다음
+                  </S.SubmitButton>
+                </S.ButtonWrapper>
+              )}
+            </>
+          ) : currentStep === 'community' ? (
+            <S.StepComponent
+              title="소속 공동체를 선택해주세요"
+              onBack={handleBack}
+              onNext={handleCommunityNext}
+              nextDisabled={!formData.community}
+            >
+              <S.Select
+                name="community"
+                value={formData.community}
+                onChange={handleChange}
+                required
+              >
+                <option value="">-- 공동체 선택 --</option>
+                <option value="허브">허브</option>
+                <option value="타공동체">타공동체</option>
+              </S.Select>
+            </S.StepComponent>
+          ) : currentStep === 'group' ? (
             <S.StepComponent
               title="소속 그룹을 선택해주세요"
               onBack={handleBack}
@@ -200,26 +409,33 @@ export default function UpdatePage() {
             </S.StepComponent>
           ) : (
             <S.StepComponent
-              title="소속 다락방을 선택해주세요"
-              onBack={() => setCurrentStep('group')}
+              title={formData.community === '타공동체' ? '정보 업데이트 완료' : '소속 다락방을 선택해주세요'}
+              onBack={handleBack}
               onSubmit={handleSubmit}
               finalStep={true}
               loading={loading}
-              nextDisabled={!formData.cell_id}
+              nextDisabled={formData.community === '허브' && !formData.cell_id}
             >
-              <S.Select
-                name="cell_id"
-                value={formData.cell_id}
-                onChange={handleChange}
-                required
-              >
-                <option value="">-- 다락방 선택 --</option>
-                {cells.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </S.Select>
+              {formData.community === '타공동체' ? (
+                <S.InfoText>
+                  타공동체 소속이시군요!<br />
+                  그룹/다락방 선택은 생략됩니다.
+                </S.InfoText>
+              ) : (
+                <S.Select
+                  name="cell_id"
+                  value={formData.cell_id}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">-- 다락방 선택 --</option>
+                  {cells.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </S.Select>
+              )}
             </S.StepComponent>
           )}
           {error && <S.ErrorMessage>{error}</S.ErrorMessage>}

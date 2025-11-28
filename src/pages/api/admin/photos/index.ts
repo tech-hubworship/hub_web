@@ -17,6 +17,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: '인증이 필요합니다.' });
   }
 
+  // 메뉴 권한 확인 (관리자 권한 확인 후)
+  if (session?.user?.isAdmin) {
+    const { getMenuIdFromPath, checkMenuPermission } = await import('@src/lib/utils/menu-permission');
+    const menuId = getMenuIdFromPath(req.url || '/api/admin/photos');
+    const permission = await checkMenuPermission(session.user.roles || [], menuId);
+    
+    if (!permission.hasPermission) {
+      return res.status(403).json({ error: permission.error || '권한이 없습니다.' });
+    }
+  }
+
   try {
     switch (req.method) {
       case 'GET':

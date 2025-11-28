@@ -1,13 +1,16 @@
 // 파일 경로: src/views/AdminPage/MDIAdminPage.tsx
 
+import React from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAdminMDI, TabInfo, ADMIN_MENUS } from '@src/contexts/AdminMDIContext';
 import * as S from './mdi-style';
 
 // 동적으로 로드할 콘텐츠 컴포넌트들
 import UsersAdminPage from '@src/views/AdminPage/users';
+import RolesAdminPage from '@src/views/AdminPage/roles';
 import TechInquiriesPage from '@src/views/AdminPage/tech-inquiries';
 import AdventPostsAdminPage from '@src/views/AdminPage/advent';
 import AttendanceContent from '@src/views/AdminPage/advent/AttendanceContent';
@@ -22,6 +25,7 @@ import BibleCardCompletePage from '@src/views/AdminPage/bible-card/CompletePage'
 const MENU_DESCRIPTIONS: Record<string, string> = {
   'dashboard': 'HUB 관리자 대시보드에서 시스템을 관리할 수 있습니다.',
   'users': '계정관리 및 권한관리',
+  'roles': '시스템 권한(역할)을 관리합니다',
   'photos': '사진팀이 할 수 있는 업무를 선택해주세요.',
   'photos-manage': '사진을 업로드하고 수정, 삭제, 미리보기를 할 수 있습니다',
   'photos-reservations': '사진 예약 현황을 확인하고 관리합니다',
@@ -31,6 +35,7 @@ const MENU_DESCRIPTIONS: Record<string, string> = {
   'advent-posts': '대림절 말씀/영상/콘텐츠 관리',
   'advent-attendance': '대림절 출석 정보 및 통계',
   'bible-card': '말씀카드 신청 현황 및 목회자 배정',
+  'bible-card-applications': '말씀카드 신청 현황 관리 및 목회자 배정',
   'bible-card-pastor': '배정된 지체들에게 말씀 작성',
   'bible-card-complete': '완료된 말씀카드 관리 및 CSV 추출',
   'tech-inquiries': '사용자 문의 및 버그 리포트 관리',
@@ -64,6 +69,63 @@ export default function MDIAdminPage() {
     }
   }, [status, session, router]);
 
+  const roles = session?.user?.roles || [];
+
+  // DB에서 메뉴 목록 조회 (hooks는 항상 early return 이전에 호출되어야 함)
+  const { data: dbMenus } = useQuery<Array<{
+    id: number;
+    menu_id: string;
+    title: string;
+    icon: string;
+    path: string;
+    parent_id: number | null;
+    order_index: number;
+    is_active: boolean;
+    roles: string[];
+  }>>({
+    queryKey: ['admin-menus'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/menus');
+      if (!response.ok) throw new Error('메뉴 목록을 가져오는 데 실패했습니다.');
+      return response.json();
+    },
+    enabled: !!session?.user?.isAdmin,
+  });
+
+  // DB 메뉴를 TabInfo 형식으로 변환하고 권한 필터링 (hooks는 항상 early return 이전에 호출되어야 함)
+  const accessibleMenus = React.useMemo(() => {
+    if (!dbMenus) {
+      // DB 메뉴가 없으면 기본 ADMIN_MENUS 사용 (하위 호환성)
+      return getAccessibleMenus(roles);
+    }
+
+    // 활성화된 메뉴만 필터링
+    const activeMenus = dbMenus.filter(menu => menu.is_active);
+
+    // 사용자 권한과 메뉴 권한을 비교하여 접근 가능한 메뉴만 반환
+    return activeMenus
+      .filter(menu => {
+        // 권한이 설정되지 않은 메뉴는 모든 관리자에게 표시
+        if (!menu.roles || menu.roles.length === 0) {
+          return true;
+        }
+        // 사용자가 가진 권한 중 하나라도 메뉴 권한에 포함되면 표시
+        return menu.roles.some(menuRole => roles.includes(menuRole));
+      })
+      .map(menu => ({
+        id: menu.menu_id,
+        title: menu.title,
+        icon: menu.icon,
+        path: menu.path,
+        requiredRoles: menu.roles || [],
+      }))
+      .sort((a, b) => {
+        const menuA = dbMenus.find(m => m.menu_id === a.id);
+        const menuB = dbMenus.find(m => m.menu_id === b.id);
+        return (menuA?.order_index || 0) - (menuB?.order_index || 0);
+      });
+  }, [dbMenus, roles, getAccessibleMenus]);
+
   if (status === 'loading' || !session?.user?.isAdmin) {
     return (
       <S.LoadingContainer>
@@ -72,9 +134,6 @@ export default function MDIAdminPage() {
       </S.LoadingContainer>
     );
   }
-
-  const roles = session.user.roles || [];
-  const accessibleMenus = getAccessibleMenus(roles);
 
   // 메뉴 클릭 핸들러
   const handleMenuClick = (menu: TabInfo) => {
@@ -110,6 +169,8 @@ export default function MDIAdminPage() {
         );
       case 'users':
         return <UsersAdminPage />;
+      case 'roles':
+        return <RolesAdminPage />;
       case 'photos':
         return (
           <PhotosSubmenuContent 
@@ -137,6 +198,12 @@ export default function MDIAdminPage() {
       case 'photos-reservations':
         return <ReservationsContent />;
       case 'bible-card':
+        return (
+          <BibleCardSubmenuContent 
+            onMenuClick={handleMenuClick}
+          />
+        );
+      case 'bible-card-applications':
         return <BibleCardAdminPage />;
       case 'bible-card-pastor':
         return <BibleCardPastorPage />;
@@ -181,169 +248,85 @@ export default function MDIAdminPage() {
           <S.NavGroup>
             {!sidebarCollapsed && <S.NavGroupTitle>메뉴</S.NavGroupTitle>}
             
-            {/* 대시보드 */}
-            <S.NavItem
-              active={activeTabId === 'dashboard'}
-              onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'dashboard')!)}
-            >
-              <S.NavIcon collapsed={sidebarCollapsed}>🏠</S.NavIcon>
-              {!sidebarCollapsed && <S.NavText>대시보드</S.NavText>}
-            </S.NavItem>
+            {/* accessibleMenus를 기반으로 동적으로 메뉴 렌더링 */}
+            {accessibleMenus
+              .filter(menu => {
+                // 대시보드는 항상 표시
+                if (menu.id === 'dashboard') return true;
+                // 하위 메뉴는 별도 처리 (parent_id가 있는 메뉴는 하위 메뉴)
+                if (dbMenus) {
+                  const dbMenu = dbMenus.find(m => m.menu_id === menu.id);
+                  if (dbMenu?.parent_id) return false;
+                } else {
+                  // DB 메뉴가 없을 때는 기존 로직 사용
+                  if (menu.id.includes('-')) return false;
+                }
+                return true;
+              })
+              .map(menu => {
+                // 하위 메뉴 찾기 (DB에서 parent_id로 찾기)
+                let accessibleSubMenus: TabInfo[] = [];
+                if (dbMenus) {
+                  const dbMenu = dbMenus.find(m => m.menu_id === menu.id);
+                  if (dbMenu) {
+                    accessibleSubMenus = accessibleMenus
+                      .filter(subMenu => {
+                        const subDbMenu = dbMenus.find(m => m.menu_id === subMenu.id);
+                        return subDbMenu?.parent_id === dbMenu.id;
+                      })
+                      .sort((a, b) => {
+                        const menuA = dbMenus.find(m => m.menu_id === a.id);
+                        const menuB = dbMenus.find(m => m.menu_id === b.id);
+                        return (menuA?.order_index || 0) - (menuB?.order_index || 0);
+                      });
+                  }
+                } else {
+                  // DB 메뉴가 없을 때는 기존 하위 메뉴 로직 사용
+                  const subMenus: { [key: string]: string[] } = {
+                    'photos': ['photos-manage', 'photos-reservations'],
+                    'advent': ['advent-posts', 'advent-attendance'],
+                    'bible-card': ['bible-card-applications', 'bible-card-pastor', 'bible-card-complete'],
+                  };
+                  const hasSubMenus = subMenus[menu.id] && subMenus[menu.id].length > 0;
+                  if (hasSubMenus) {
+                    accessibleSubMenus = subMenus[menu.id]
+                      .filter(subId => accessibleMenus.some(m => m.id === subId))
+                      .map(subId => {
+                        const subMenu = ADMIN_MENUS.find(m => m.id === subId);
+                        return subMenu!;
+                      })
+                      .filter(Boolean);
+                  }
+                }
 
-            {/* 회원관리 - MC 권한 */}
-            {roles.includes('MC') && (
-              <S.NavItem
-                active={activeTabId === 'users'}
-                onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'users')!)}
-              >
-                <S.NavIcon collapsed={sidebarCollapsed}>👥</S.NavIcon>
-                {!sidebarCollapsed && <S.NavText>회원관리</S.NavText>}
-              </S.NavItem>
-            )}
-
-            {/* 사진팀 관리 - 사진팀 권한 */}
-            {roles.includes('사진팀') && (
-              <>
-                <S.NavItem
-                  active={activeTabId === 'photos'}
-                  onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'photos')!)}
-                >
-                  <S.NavIcon collapsed={sidebarCollapsed}>📷</S.NavIcon>
-                  {!sidebarCollapsed && <S.NavText>사진팀 관리</S.NavText>}
-                </S.NavItem>
-                {/* 사진팀 하위 메뉴 */}
-                {!sidebarCollapsed && (
-                  <>
+                return (
+                  <React.Fragment key={menu.id}>
                     <S.NavItem
-                      active={activeTabId === 'photos-manage'}
-                      onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'photos-manage')!)}
-                      isSubItem
+                      active={activeTabId === menu.id}
+                      onClick={() => handleMenuClick(menu)}
                     >
-                      <S.NavIcon collapsed={sidebarCollapsed}>📸</S.NavIcon>
-                      <S.NavText>사진 관리</S.NavText>
+                      <S.NavIcon collapsed={sidebarCollapsed}>{menu.icon}</S.NavIcon>
+                      {!sidebarCollapsed && <S.NavText>{menu.title}</S.NavText>}
                     </S.NavItem>
-                    <S.NavItem
-                      active={activeTabId === 'photos-reservations'}
-                      onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'photos-reservations')!)}
-                      isSubItem
-                    >
-                      <S.NavIcon collapsed={sidebarCollapsed}>📋</S.NavIcon>
-                      <S.NavText>예약 관리</S.NavText>
-                    </S.NavItem>
-                  </>
-                )}
-              </>
-            )}
-
-            {/* 디자인 관리 - 디자인팀/양육MC 권한 */}
-            {(roles.includes('디자인팀') || roles.includes('양육MC')) && (
-              <S.NavItem
-                active={activeTabId === 'design'}
-                onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'design')!)}
-              >
-                <S.NavIcon collapsed={sidebarCollapsed}>🎨</S.NavIcon>
-                {!sidebarCollapsed && <S.NavText>디자인 관리</S.NavText>}
-              </S.NavItem>
-            )}
-
-            {/* 서기 관리 - 서기 권한 */}
-            {roles.includes('서기') && (
-              <S.NavItem
-                active={activeTabId === 'secretary'}
-                onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'secretary')!)}
-              >
-                <S.NavIcon collapsed={sidebarCollapsed}>✍️</S.NavIcon>
-                {!sidebarCollapsed && <S.NavText>서기 관리</S.NavText>}
-              </S.NavItem>
-            )}
-
-            {/* 대림절 관리 - 목회자 권한 */}
-            {roles.includes('목회자') && (
-              <>
-                <S.NavItem
-                  active={activeTabId === 'advent'}
-                  onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'advent')!)}
-                >
-                  <S.NavIcon collapsed={sidebarCollapsed}>🎄</S.NavIcon>
-                  {!sidebarCollapsed && <S.NavText>대림절 관리</S.NavText>}
-                </S.NavItem>
-                {/* 대림절 하위 메뉴 */}
-                {!sidebarCollapsed && (
-                  <>
-                    <S.NavItem
-                      active={activeTabId === 'advent-posts'}
-                      onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'advent-posts')!)}
-                      isSubItem
-                    >
-                      <S.NavIcon collapsed={sidebarCollapsed}>📝</S.NavIcon>
-                      <S.NavText>게시글 관리</S.NavText>
-                    </S.NavItem>
-                    <S.NavItem
-                      active={activeTabId === 'advent-attendance'}
-                      onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'advent-attendance')!)}
-                      isSubItem
-                    >
-                      <S.NavIcon collapsed={sidebarCollapsed}>📅</S.NavIcon>
-                      <S.NavText>출석 현황</S.NavText>
-                    </S.NavItem>
-                  </>
-                )}
-              </>
-            )}
-
-            {/* 말씀카드 관리 - MC 권한 */}
-            {roles.includes('MC') && (
-              <>
-                <S.NavItem
-                  active={activeTabId === 'bible-card'}
-                  onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'bible-card')!)}
-                >
-                  <S.NavIcon collapsed={sidebarCollapsed}>📜</S.NavIcon>
-                  {!sidebarCollapsed && <S.NavText>말씀카드 관리</S.NavText>}
-                </S.NavItem>
-                {!sidebarCollapsed && (
-                  <S.NavItem
-                    active={activeTabId === 'bible-card-complete'}
-                    onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'bible-card-complete')!)}
-                    isSubItem
-                  >
-                    <S.NavIcon collapsed={sidebarCollapsed}>✅</S.NavIcon>
-                    <S.NavText>완료 관리</S.NavText>
-                  </S.NavItem>
-                )}
-              </>
-            )}
-
-            {/* 말씀 작성 - 목회자 권한 */}
-            {roles.includes('목회자') && (
-              <S.NavItem
-                active={activeTabId === 'bible-card-pastor'}
-                onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'bible-card-pastor')!)}
-              >
-                <S.NavIcon collapsed={sidebarCollapsed}>✍️</S.NavIcon>
-                {!sidebarCollapsed && <S.NavText>말씀 작성</S.NavText>}
-              </S.NavItem>
-            )}
-
-            {/* 문의사항 - 모든 관리자 */}
-            <S.NavItem
-              active={activeTabId === 'tech-inquiries'}
-              onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'tech-inquiries')!)}
-            >
-              <S.NavIcon collapsed={sidebarCollapsed}>💬</S.NavIcon>
-              {!sidebarCollapsed && <S.NavText>문의사항</S.NavText>}
-            </S.NavItem>
-
-            {/* 메뉴 관리 - MC 권한 */}
-            {roles.includes('MC') && (
-              <S.NavItem
-                active={activeTabId === 'menu-management'}
-                onClick={() => handleMenuClick(ADMIN_MENUS.find(m => m.id === 'menu-management')!)}
-              >
-                <S.NavIcon collapsed={sidebarCollapsed}>⚙️</S.NavIcon>
-                {!sidebarCollapsed && <S.NavText>메뉴 관리</S.NavText>}
-              </S.NavItem>
-            )}
+                    {/* 하위 메뉴 표시 */}
+                    {!sidebarCollapsed && accessibleSubMenus.length > 0 && (
+                      <>
+                        {accessibleSubMenus.map(subMenu => (
+                          <S.NavItem
+                            key={subMenu.id}
+                            active={activeTabId === subMenu.id}
+                            onClick={() => handleMenuClick(subMenu)}
+                            isSubItem
+                          >
+                            <S.NavIcon collapsed={sidebarCollapsed}>{subMenu.icon}</S.NavIcon>
+                            <S.NavText>{subMenu.title}</S.NavText>
+                          </S.NavItem>
+                        ))}
+                      </>
+                    )}
+                  </React.Fragment>
+                );
+              })}
           </S.NavGroup>
         </S.NavSection>
 
@@ -405,11 +388,15 @@ interface DashboardContentProps {
 }
 
 function DashboardContent({ session, accessibleMenus, onMenuClick }: DashboardContentProps) {
-  const menuItems = accessibleMenus.filter(m => 
-    m.id !== 'dashboard' && 
-    !m.path.includes('/admin/photos/') && 
-    !m.path.includes('/admin/advent/')
-  );
+  // 빠른 액세스에는 최상위 메뉴만 표시 (하위 메뉴 제외)
+  const menuItems = accessibleMenus.filter(m => {
+    if (m.id === 'dashboard') return false;
+    // 하위 메뉴는 제외 (parent_id가 있거나 경로에 하위 경로가 있는 경우)
+    if (m.path.includes('/admin/photos/') && m.path !== '/admin/photos') return false;
+    if (m.path.includes('/admin/advent/') && m.path !== '/admin/advent') return false;
+    if (m.path.includes('/admin/bible-card/') && m.path !== '/admin/bible-card') return false;
+    return true;
+  });
 
   return (
     <>
@@ -487,6 +474,36 @@ function AdventSubmenuContent({ onMenuClick }: SubmenuContentProps) {
 
       <S.MenuGrid>
         {adventMenus.map((menu) => (
+          <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
+            <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
+            <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
+            <S.MenuCardDescription>
+              {MENU_DESCRIPTIONS[menu.id] || '관리 메뉴'}
+            </S.MenuCardDescription>
+          </S.MenuCard>
+        ))}
+      </S.MenuGrid>
+    </>
+  );
+}
+
+// 말씀카드 서브메뉴 콘텐츠
+function BibleCardSubmenuContent({ onMenuClick }: SubmenuContentProps) {
+  const bibleCardMenus = ADMIN_MENUS.filter(m => 
+    m.path.includes('/admin/bible-card/') 
+  );
+
+  return (
+    <>
+      <S.DashboardWelcome>
+        <S.WelcomeTitle>말씀카드 관리 대시보드 📜</S.WelcomeTitle>
+        <S.WelcomeSubtitle>
+          말씀카드 신청 현황 및 관리를 할 수 있습니다.
+        </S.WelcomeSubtitle>
+      </S.DashboardWelcome>
+
+      <S.MenuGrid>
+        {bibleCardMenus.map((menu) => (
           <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
             <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
             <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>

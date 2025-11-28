@@ -43,17 +43,7 @@ interface PaginatedResponse {
   };
 }
 
-// 역할 목록
-const AVAILABLE_ROLES = [
-  '사진팀',
-  '디자인팀',
-  '양육MC',
-  '서기',
-  '목회자',
-  '그룹장',
-  '다락방장',
-  'MC'
-];
+// 역할 목록은 DB에서 조회
 
 // 공동체 목록
 const COMMUNITIES = ['허브', '타공동체'];
@@ -77,6 +67,16 @@ export default function UsersAdminPage() {
   const [filterGroupId, setFilterGroupId] = useState('');
   const [filterCellId, setFilterCellId] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+
+  // 권한 목록 조회 (DB에서)
+  const { data: availableRoles } = useQuery<Array<{ id: number; name: string; description?: string | null }>>({
+    queryKey: ['admin-roles'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/roles');
+      if (!response.ok) throw new Error('권한 목록을 가져오는 데 실패했습니다.');
+      return response.json();
+    },
+  });
 
   // 회원 정보 수정 상태 (말씀카드와 동일하게 문자열로 관리)
   const [editFormData, setEditFormData] = useState({
@@ -148,33 +148,29 @@ export default function UsersAdminPage() {
     enabled: editFormData.community === '허브',
   });
 
-  // 다락방 목록 조회 (그룹 선택 시에만)
+  // 다락방 목록 조회 (그룹 선택 여부와 관계없이 항상 전체 다락방 조회)
   const { data: cells } = useQuery<Cell[]>({
-    queryKey: ['admin-cells', editFormData.group_id],
+    queryKey: ['admin-cells'],
     queryFn: async () => {
-      const groupId = typeof editFormData.group_id === 'string' 
-        ? parseInt(editFormData.group_id) 
-        : editFormData.group_id;
-      if (!groupId) return [];
-      const params = `?group_id=${groupId}`;
-      const response = await fetch(`/api/admin/users/cells${params}`);
+      // 항상 전체 다락방 조회 (그룹 필터링 없음)
+      const response = await fetch(`/api/admin/users/cells`);
       if (!response.ok) throw new Error('다락방 목록을 가져오는 데 실패했습니다.');
       return response.json();
     },
-    enabled: !!editFormData.group_id && editFormData.community === '허브',
+    enabled: editFormData.community === '허브',
   });
 
-  // 필터용 다락방 목록 조회
+  // 필터용 다락방 목록 조회 (그룹 선택 없이도 전체 조회 가능)
   const { data: filterCells } = useQuery<Cell[]>({
     queryKey: ['admin-filter-cells', filterGroupId],
     queryFn: async () => {
-      if (!filterGroupId) return [];
-      const params = `?group_id=${filterGroupId}`;
+      // 그룹이 선택되어 있으면 해당 그룹의 다락방만, 없으면 전체 다락방 조회
+      const params = filterGroupId ? `?group_id=${filterGroupId}` : '';
       const response = await fetch(`/api/admin/users/cells${params}`);
       if (!response.ok) throw new Error('다락방 목록을 가져오는 데 실패했습니다.');
       return response.json();
     },
-    enabled: !!filterGroupId,
+    enabled: true, // 항상 활성화하여 그룹 선택 없이도 전체 다락방 조회 가능
   });
 
   // 권한 수정 뮤테이션
@@ -643,7 +639,6 @@ export default function UsersAdminPage() {
                             ...prev,
                             cell_id: e.target.value,
                           }))}
-                          disabled={!editFormData.group_id}
                         >
                           <option value="">선택하세요</option>
                           {cells?.map(c => (
@@ -720,18 +715,29 @@ export default function UsersAdminPage() {
                   </S.FormGroup>
                   <S.FormGroup>
                     <S.Label>권한 선택</S.Label>
-                    <S.CheckboxGroup>
-                      {AVAILABLE_ROLES.map((role) => (
-                        <S.CheckboxLabel key={role}>
+                    {!availableRoles || availableRoles.length === 0 ? (
+                      <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '6px', fontSize: '13px', color: '#64748b' }}>
+                        권한 목록을 불러오는 중...
+                      </div>
+                    ) : (
+                      <S.CheckboxGroup>
+                        {availableRoles.map((role) => (
+                          <S.CheckboxLabel key={role.id}>
                           <input
                             type="checkbox"
-                            checked={selectedRoles.includes(role)}
-                            onChange={() => handleToggleRole(role)}
+                            checked={selectedRoles.includes(role.name)}
+                            onChange={() => handleToggleRole(role.name)}
                           />
-                          {role}
+                          <span>{role.name}</span>
+                          {role.description && (
+                            <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '4px' }}>
+                              ({role.description})
+                            </span>
+                          )}
                         </S.CheckboxLabel>
                       ))}
-                    </S.CheckboxGroup>
+                      </S.CheckboxGroup>
+                    )}
                     {selectedRoles.length === 0 && selectedUser.roles && selectedUser.roles.length > 0 && (
                       <div style={{ 
                         marginTop: '12px', 

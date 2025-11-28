@@ -64,12 +64,14 @@ export default function LoginPage() {
 
       const profile = await response.json();
       
-      // 공동체가 "허브"이고 상태가 "활성"이고 그룹/셀이 비어있는 경우
-      if (
-        profile.community === '허브' &&
-        profile.status === '활성' &&
-        (!profile.group_id || !profile.cell_id)
-      ) {
+      // 관리자 여부 확인
+      const isAdmin = session?.user?.isAdmin || profile.roles?.length > 0 || profile.status === '관리자';
+      
+      // 허브 활성 사용자 또는 관리자이고 그룹/셀이 비어있는 경우
+      const isHubActive = profile.community === '허브' && profile.status === '활성';
+      const hasEmptyGroupCell = !profile.group_id || !profile.cell_id;
+      
+      if ((isHubActive || isAdmin) && hasEmptyGroupCell) {
         // 정보 업데이트 페이지로 리다이렉트
         router.replace('/update');
       } else {

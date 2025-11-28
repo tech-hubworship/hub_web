@@ -1,8 +1,9 @@
 // 파일 경로: src/views/AdminPage/menu-management/index.tsx
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
+import { ADMIN_MENUS } from '@src/contexts/AdminMDIContext';
 
 // 메뉴 타입 정의
 interface AdminMenu {
@@ -42,7 +43,7 @@ export default function MenuManagementPage() {
   });
 
   // 메뉴 목록 조회
-  const { data: menus, isLoading } = useQuery<AdminMenu[]>({
+  const { data: dbMenus, isLoading } = useQuery<AdminMenu[]>({
     queryKey: ['admin-menus'],
     queryFn: async () => {
       const response = await fetch('/api/admin/menus');
@@ -50,6 +51,29 @@ export default function MenuManagementPage() {
       return response.json();
     },
   });
+
+  // DB 메뉴와 기본 메뉴(ADMIN_MENUS)를 병합하여 표시
+  const menus = useMemo(() => {
+    if (!dbMenus) return [];
+    
+    const dbMenuIds = new Set(dbMenus.map(m => m.menu_id));
+    const defaultMenus: AdminMenu[] = ADMIN_MENUS
+      .filter(menu => !dbMenuIds.has(menu.id))
+      .map((menu, index) => ({
+        id: -1 - index, // 음수 ID로 구분 (DB에 없는 메뉴)
+        menu_id: menu.id,
+        title: menu.title,
+        icon: menu.icon,
+        path: menu.path,
+        parent_id: null,
+        order_index: 999 + index, // 기본 메뉴는 뒤에 배치
+        is_active: true,
+        description: '',
+        roles: menu.requiredRoles || [],
+      }));
+    
+    return [...dbMenus, ...defaultMenus].sort((a, b) => a.order_index - b.order_index);
+  }, [dbMenus]);
 
   // 역할 목록 조회
   const { data: roles } = useQuery<Role[]>({
@@ -120,19 +144,36 @@ export default function MenuManagementPage() {
 
   const handleOpenModal = (menu?: AdminMenu) => {
     if (menu) {
-      setSelectedMenu(menu);
-      setFormData({
-        menu_id: menu.menu_id,
-        title: menu.title,
-        icon: menu.icon || '',
-        path: menu.path,
-        parent_id: menu.parent_id,
-        order_index: menu.order_index,
-        description: menu.description || '',
-        is_active: menu.is_active,
-        roles: menu.roles || [],
-      });
-      setIsCreateMode(false);
+      // DB에 없는 메뉴(id가 음수)인 경우 생성 모드로 전환
+      if (menu.id < 0) {
+        setSelectedMenu(null);
+        setIsCreateMode(true);
+        setFormData({
+          menu_id: menu.menu_id,
+          title: menu.title,
+          icon: menu.icon || '',
+          path: menu.path,
+          parent_id: null,
+          order_index: menu.order_index,
+          description: menu.description || '',
+          is_active: menu.is_active,
+          roles: menu.roles || [],
+        });
+      } else {
+        setSelectedMenu(menu);
+        setIsCreateMode(false);
+        setFormData({
+          menu_id: menu.menu_id,
+          title: menu.title,
+          icon: menu.icon || '',
+          path: menu.path,
+          parent_id: menu.parent_id,
+          order_index: menu.order_index,
+          description: menu.description || '',
+          is_active: menu.is_active,
+          roles: menu.roles || [],
+        });
+      }
     } else {
       setSelectedMenu(null);
       setFormData({
@@ -177,6 +218,11 @@ export default function MenuManagementPage() {
   };
 
   const handleDelete = (menu: AdminMenu) => {
+    // DB에 없는 메뉴는 삭제할 수 없음
+    if (menu.id < 0) {
+      alert('DB에 등록되지 않은 기본 메뉴는 삭제할 수 없습니다.');
+      return;
+    }
     if (confirm(`"${menu.title}" 메뉴를 삭제하시겠습니까?`)) {
       deleteMenuMutation.mutate(menu.id);
     }
@@ -257,15 +303,17 @@ export default function MenuManagementPage() {
                   <TableData>
                     <ActionButtons>
                       <ActionButton onClick={() => handleOpenModal(menu)}>
-                        수정
+                        {menu.id < 0 ? 'DB에 추가' : '수정'}
                       </ActionButton>
-                      <ActionButton 
-                        danger 
-                        onClick={() => handleDelete(menu)}
-                        disabled={deleteMenuMutation.isPending}
-                      >
-                        삭제
-                      </ActionButton>
+                      {menu.id >= 0 && (
+                        <ActionButton 
+                          danger 
+                          onClick={() => handleDelete(menu)}
+                          disabled={deleteMenuMutation.isPending}
+                        >
+                          삭제
+                        </ActionButton>
+                      )}
                     </ActionButtons>
                   </TableData>
                 </TableRow>

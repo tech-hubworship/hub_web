@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { usePathname } from "next/navigation";
 import MobileHeader from "./Mobile";
+import DesktopMenu from "./Desktop";
 import { imgLogoHub } from "@src/assets/mainLogo";
 import { useRouter } from "next/router";
 import * as S from "./style";
@@ -86,15 +87,22 @@ export function Header() {
   };
 
   return (
-    <S.Wrapper opacity={isRootPath ? opacity : 1} isMenuOpen={isMenuOpen}>
+    <S.Wrapper opacity={1} isMenuOpen={isMenuOpen}>
       {/* 로고 - 클릭 시 홈페이지로 이동 */}
       <Logo
         onClick={handleLogoClick}
-        opacity={isRootPath ? opacity : 1}
+        opacity={1}
       />
 
-      {/* 모바일 헤더 메뉴 */}
-      <MobileHeader onMenuStateChange={handleMenuStateChange} />
+      {/* 데스크톱 헤더 메뉴 - 우측 끝 */}
+      <DesktopMenuWrapper>
+        <DesktopMenu />
+      </DesktopMenuWrapper>
+
+      {/* 모바일 헤더 메뉴 - 우측 끝 */}
+      <MobileMenuWrapper>
+        <MobileHeader onMenuStateChange={handleMenuStateChange} />
+      </MobileMenuWrapper>
     </S.Wrapper>
   );
 }
@@ -109,10 +117,49 @@ export function Header() {
 export const Logo = styled.button<{ opacity: number }>`
   width: 168.03px;
   height: 14.69px;
-  margin-left: 20px;
+  margin-left: 0;
   background: url(${imgLogoHub.src}) center no-repeat;
   background-size: 100% 100%;
   cursor: pointer;
   opacity: ${({ opacity }) => opacity};
   transition: opacity 0.3s ease;
+
+  @media (min-width: 58.75rem) {
+    width: 240px;
+    height: 21px;
+  }
+
+  @media (max-width: 47.9375rem) {
+    width: 160px;
+    height: 14px;
+    margin-left: 8px;
+  }
+`;
+
+const DesktopMenuWrapper = styled.div`
+  display: none;
+  margin-right: 20px;
+
+  @media (min-width: 58.75rem) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+  }
+`;
+
+const MobileMenuWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  margin-right: 0;
+
+  @media (max-width: 47.9375rem) {
+    margin-right: 8px;
+  }
+
+  @media (min-width: 58.75rem) {
+    display: none;
+  }
 `;

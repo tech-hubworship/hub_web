@@ -33,12 +33,12 @@ export default function BibleCardCompletePage() {
   const queryClient = useQueryClient();
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('completed');
+  const [statusFilter, setStatusFilter] = useState('');
   const [pastorFilter, setPastorFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [links, setLinks] = useState({ drive_link_1: '', drive_link_2: '' });
 
-  // 완료된 신청 목록 조회
+  // 완료된 신청 목록 조회 (completed, delivered 상태만)
   const { data: applicationsData, isLoading } = useQuery({
     queryKey: ['bible-card-completed', statusFilter, pastorFilter, currentPage],
     queryFn: async () => {
@@ -46,8 +46,24 @@ export default function BibleCardCompletePage() {
         page: currentPage.toString(),
         limit: '20',
       });
-      if (statusFilter) params.append('status', statusFilter);
-      if (pastorFilter) params.append('pastor_id', pastorFilter);
+      
+      // 완료 관리 페이지는 completed 또는 delivered 상태만 조회
+      // 상태 필터가 있으면 해당 상태만, 없으면 completed와 delivered 모두 조회
+      if (statusFilter && statusFilter.trim() !== '') {
+        // 특정 상태 필터링 (completed 또는 delivered만 허용)
+        const allowedStatuses = ['completed', 'delivered'];
+        if (allowedStatuses.includes(statusFilter.trim())) {
+          params.append('status', statusFilter.trim());
+        }
+      } else {
+        // 상태 필터가 없으면 completed와 delivered만 조회하기 위해 별도 처리
+        // API에서 여러 상태를 필터링할 수 있도록 수정 필요
+        params.append('statuses', 'completed,delivered');
+      }
+      
+      if (pastorFilter && pastorFilter.trim() !== '') {
+        params.append('pastor_id', pastorFilter.trim());
+      }
       
       const response = await fetch(`/api/bible-card/admin/applications?${params}`);
       if (!response.ok) throw new Error('조회 실패');

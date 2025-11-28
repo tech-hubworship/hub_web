@@ -24,6 +24,7 @@ export default async function handler(
       page = '1',
       limit = '20',
       status,
+      statuses, // 여러 상태를 쉼표로 구분 (예: 'completed,delivered')
       community,
       search,
       pastor_id,
@@ -38,8 +39,14 @@ export default async function handler(
       .from('bible_card_applications')
       .select('id', { count: 'exact', head: true });
 
-    if (status && typeof status === 'string') {
-      countQuery = countQuery.eq('status', status);
+    // 여러 상태 필터링 (statuses 파라미터)
+    if (statuses && typeof statuses === 'string' && statuses.trim() !== '') {
+      const statusArray = statuses.split(',').map(s => s.trim()).filter(s => s !== '');
+      if (statusArray.length > 0) {
+        countQuery = countQuery.in('status', statusArray);
+      }
+    } else if (status && typeof status === 'string' && status.trim() !== '') {
+      countQuery = countQuery.eq('status', status.trim());
     }
     if (community && typeof community === 'string') {
       countQuery = countQuery.eq('community', community);
@@ -62,12 +69,17 @@ export default async function handler(
         hub_cells:cell_id(id, name),
         pastor:assigned_pastor_id(user_id, name, email),
         user_profile:user_id(birth_date, gender)
-      `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limitNum - 1);
+      `);
 
-    if (status && typeof status === 'string') {
-      query = query.eq('status', status);
+    // 필터 적용 (range 전에 필터를 적용해야 함)
+    // 여러 상태 필터링 (statuses 파라미터)
+    if (statuses && typeof statuses === 'string' && statuses.trim() !== '') {
+      const statusArray = statuses.split(',').map(s => s.trim()).filter(s => s !== '');
+      if (statusArray.length > 0) {
+        query = query.in('status', statusArray);
+      }
+    } else if (status && typeof status === 'string' && status.trim() !== '') {
+      query = query.eq('status', status.trim());
     }
     if (community && typeof community === 'string') {
       query = query.eq('community', community);
@@ -79,11 +91,21 @@ export default async function handler(
       query = query.ilike('name', `%${search}%`);
     }
 
+    // 정렬 및 페이징 (필터 적용 후)
+    query = query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limitNum - 1);
+
     const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching applications:', error);
       return res.status(500).json({ error: '조회 중 오류가 발생했습니다.' });
+    }
+
+    // 디버깅: 상태 필터링 확인
+    if (status && typeof status === 'string' && status.trim() !== '') {
+      console.log(`[Bible Card Applications] Filtering by status: "${status}", Found ${data?.length || 0} records`);
     }
 
     // 데이터 정리

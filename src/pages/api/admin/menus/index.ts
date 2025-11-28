@@ -46,10 +46,13 @@ export default async function handler(
     }
 
     if (req.method === 'POST') {
-      // MC 권한 확인 (메뉴 생성은 MC만 가능)
+      // 메뉴 생성 권한 확인: MC 또는 마스터 권한 필요
       const userRoles = session.user.roles || [];
-      if (!userRoles.includes('MC')) {
-        return res.status(403).json({ error: 'MC 권한이 필요합니다.' });
+      const hasMC = userRoles.includes('MC');
+      const hasMaster = userRoles.includes('마스터');
+      
+      if (!hasMC && !hasMaster) {
+        return res.status(403).json({ error: 'MC 권한 또는 마스터 권한이 필요합니다.' });
       }
 
       const { menu_id, title, icon, path, parent_id, order_index, description, roles } = req.body;

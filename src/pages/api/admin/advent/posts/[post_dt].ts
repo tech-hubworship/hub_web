@@ -3,12 +3,21 @@ import { supabaseAdmin } from '@src/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../auth/[...nextauth]';
 import { getKoreanTimestamp } from '@src/lib/utils/date';
+import { getMenuIdFromPath, checkMenuPermission } from '@src/lib/utils/menu-permission';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
 
   if (!session?.user?.isAdmin) {
     return res.status(403).json({ error: '관리자만 접근할 수 있습니다.' });
+  }
+
+  // 메뉴 권한 확인
+  const menuId = getMenuIdFromPath(req.url || '/api/admin/advent/posts/[post_dt]');
+  const permission = await checkMenuPermission(session.user.roles || [], menuId);
+  
+  if (!permission.hasPermission) {
+    return res.status(403).json({ error: permission.error || '권한이 없습니다.' });
   }
 
   const { post_dt } = req.query;

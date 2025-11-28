@@ -16,17 +16,43 @@ export default async function handler(
       return res.status(403).json({ error: '권한이 없습니다.' });
     }
 
-    // MC 권한 확인
-    const userRoles = session.user.roles || [];
-    if (!userRoles.includes('MC')) {
-      return res.status(403).json({ error: 'MC 권한이 필요합니다.' });
-    }
-
     const { id } = req.query;
     const menuId = parseInt(id as string);
 
     if (isNaN(menuId)) {
       return res.status(400).json({ error: '유효하지 않은 메뉴 ID입니다.' });
+    }
+
+    // 메뉴 정보 조회 (권한 확인용)
+    const { data: menu, error: menuError } = await supabaseAdmin
+      .from('admin_menus')
+      .select(`
+        *,
+        admin_menu_roles(
+          role_id,
+          roles(id, name)
+        )
+      `)
+      .eq('id', menuId)
+      .single();
+
+    if (menuError || !menu) {
+      return res.status(404).json({ error: '메뉴를 찾을 수 없습니다.' });
+    }
+
+    // 메뉴에 설정된 권한 추출
+    const menuRoles = (menu.admin_menu_roles as any[])?.map((mr: any) => mr.roles?.name).filter(Boolean) || [];
+
+    // 권한 확인: MC 권한 또는 메뉴에 설정된 권한 중 하나라도 있으면 수정 가능
+    const userRoles = session.user.roles || [];
+    const hasMC = userRoles.includes('MC');
+    const hasMenuRole = menuRoles.length > 0 && menuRoles.some((role: string) => userRoles.includes(role));
+    const hasMasterRole = userRoles.includes('마스터'); // 마스터 권한은 모든 메뉴 수정 가능
+
+    if (!hasMC && !hasMenuRole && !hasMasterRole) {
+      return res.status(403).json({ 
+        error: '이 메뉴를 수정할 권한이 없습니다. MC 권한 또는 해당 메뉴에 설정된 권한이 필요합니다.' 
+      });
     }
 
     if (req.method === 'PUT') {

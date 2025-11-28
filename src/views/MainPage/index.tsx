@@ -5,16 +5,19 @@
  * - 지연 로딩(Lazy Loading)을 통한 성능 최적화
  * - 뷰포트 기반 컴포넌트 로딩으로 초기 로딩 시간 단축
  * - 동적 import를 통한 코드 분할
+ * - 반응형 디자인 (모바일, 태블릿, 웹 모두 지원)
  * 
  * @author HUB Development Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
-import PageLayout from "@src/components/common/PageLayout";
 import dynamic from 'next/dynamic';
 import { memo, ReactNode, useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import Head from 'next/head';
+import styled from '@emotion/styled';
+import { Header } from '@src/components/Header';
+import Footer from '@src/components/Footer';
 
 /**
  * 동적 컴포넌트 로딩 설정
@@ -31,6 +34,14 @@ const Banner = dynamic(() => import('./components/Banner'), {
 const Main = dynamic(() => import('./components/Main'), { 
   ssr: false,
   loading: () => <div style={{ minHeight: '52px', background: '#f8f9fa' }}></div>
+});
+const AdventPromotion = dynamic(() => import('./components/AdventPromotion'), { 
+  ssr: false,
+  loading: () => <div style={{ minHeight: '400px', background: '#724886' }}></div>
+});
+const BibleCardPromotion = dynamic(() => import('./components/BibleCardPromotion'), { 
+  ssr: false,
+  loading: () => <div style={{ minHeight: '400px', background: '#1a1a2e' }}></div>
 });
 const ContentBanner = dynamic(() => import('./components/ContentBanner'), { 
   ssr: false,
@@ -116,11 +127,41 @@ const LazyLoadSection = ({ children, id, priority = false }: LazyLoadSectionProp
   );
 };
 
+// ==================== Container & Wrapper ====================
+const Container = styled.div`
+  min-height: 100vh;
+  background: transparent;
+  padding: 80px 0 0;
+
+  @media (max-width: 1024px) {
+    padding: 70px 0 0;
+  }
+
+  @media (max-width: 768px) {
+    padding: 60px 0 0;
+  }
+`;
+
+const ContentWrapper = styled.div`
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px 0;
+
+  @media (max-width: 1024px) {
+    padding: 0 24px 0;
+  }
+
+  @media (max-width: 768px) {
+    padding: 0 16px 0;
+  }
+`;
+
 /**
  * MainPage 컴포넌트
  * 
  * HUB Worship 웹사이트의 메인 페이지를 렌더링합니다.
  * React.memo를 사용하여 불필요한 리렌더링을 방지합니다.
+ * 반응형 디자인으로 모든 디바이스에서 최적화된 경험을 제공합니다.
  */
 const MainPage = memo(function MainPage() {
 
@@ -128,6 +169,8 @@ const MainPage = memo(function MainPage() {
     <>
       {/* SEO 및 성능 최적화를 위한 메타 태그 */}
       <Head>
+        <title>HUB Worship</title>
+        <meta name="description" content="HUB Worship 공동체 웹사이트" />
         {/* Google Fonts 프리로드 및 프리커넥트 */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -135,42 +178,38 @@ const MainPage = memo(function MainPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Head>
       
-      <PageLayout>
-        {/* 배너 섹션 - 최우선 순위로 로드 */}
+      <Header />
+
+      <Container>
+        {/* 배너 섹션 - 최우선 순위로 로드 (전체 너비) */}
         <LazyLoadSection id="banner-section" priority={true}>
           <Banner />
         </LazyLoadSection>
-        
-        {/* 메인 콘텐츠 섹션 - 두 번째 우선순위 */}
+
+        {/* 메인 콘텐츠 섹션 (전체 너비) */}
         <LazyLoadSection id="main-section" priority={true}>
           <Main />
         </LazyLoadSection>
-    
-        {/* 미디어 갤러리 섹션 */}
-        <LazyLoadSection id="media-gallery-section">
-          <MediaGallery />
+      
+        {/* 대림절 페이지 광고 섹션 - 두 번째 섹션 (전체 너비) */}
+        <LazyLoadSection id="advent-promotion-section" priority={true}>
+          <AdventPromotion />
         </LazyLoadSection>
         
-        {/* 포스터 1 섹션 */}
-        <LazyLoadSection id="poster1-section">
-          <Poster1 />
+        {/* 말씀카드 페이지 광고 섹션 - 세 번째 섹션 (전체 너비) */}
+        <LazyLoadSection id="bible-card-promotion-section" priority={true}>
+          <BibleCardPromotion />
         </LazyLoadSection>
-        
-        {/* 포스터 2 섹션 */}
-        <LazyLoadSection id="poster2-section">
-          <Poster2 />
-        </LazyLoadSection>
-        
-        {/* 배경화면 다운로드 섹션 */}
-        {/* <LazyLoadSection id="wallpaper-section">
-          <WallpaperDownload />
-        </LazyLoadSection> */}
-        
-        {/* 콘텐츠 배너 섹션 */}
-        <LazyLoadSection id="content-section">
-          <ContentBanner />
-        </LazyLoadSection>
-      </PageLayout>
+
+        <ContentWrapper>
+          {/* 콘텐츠 배너 섹션 */}
+          <LazyLoadSection id="content-section">
+            <ContentBanner />
+          </LazyLoadSection>
+        </ContentWrapper>
+      </Container>
+
+      <Footer />
     </>
   );
 });

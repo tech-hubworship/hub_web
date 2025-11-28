@@ -27,13 +27,13 @@ function MobileHeader({ onMenuStateChange }: MobileHeaderProps) {
   return (
     <>
       <StyledHeader isMenuShown={isMenuShown === "open"}>
-        {/* <ToggleButton onClick={handleHeaderToggleButton}>
+        <ToggleButton onClick={handleHeaderToggleButton}>
           {isMenuShown === "open" ? (
-            <XButton width="30px" height="30px" />
+            <XButton width="24px" height="24px" />
           ) : (
-            <MenuBar width="18px" height="14px" />
+            <MenuBar width="24px" height="24px" />
           )}
-        </ToggleButton> */}
+        </ToggleButton>
         {/* <RecruitButton /> */}
       </StyledHeader>
       {isMenuShown === "open" && (
@@ -53,19 +53,24 @@ export const StyledHeader = styled.div<{ isMenuShown: boolean }>`
   gap: 18px;
   z-index: 10;
   background-color: ${({ isMenuShown }) => (isMenuShown ? "#FFFFFF" : "")};
-  padding: 0 20px;
+  padding: 0;
   height: 100%;
   transition: background-color 0.6s;
 `;
 
 export const ToggleButton = styled.button`
   position: relative;
-  width: 18px;
-  height: 14px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
   cursor: pointer;
   align-items: center;
   display: flex;
   justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
 `;
 
 export default MobileHeader;

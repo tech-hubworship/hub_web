@@ -21,12 +21,21 @@ export default async function handler(
       return res.status(403).json({ error: '권한이 없습니다.' });
     }
 
+    // 메뉴 권한 확인
+    const { getMenuIdFromPath, checkMenuPermission } = await import('@src/lib/utils/menu-permission');
+    const menuId = getMenuIdFromPath(req.url || '/api/admin/users/cells');
+    const permission = await checkMenuPermission(session.user.roles || [], menuId);
+    
+    if (!permission.hasPermission) {
+      return res.status(403).json({ error: permission.error || '권한이 없습니다.' });
+    }
+
     const { group_id } = req.query;
 
-    // 다락방 목록 조회
+    // 다락방 목록 조회 (is_active가 false인 다락방도 포함)
     let query = supabaseAdmin
       .from('hub_cells')
-      .select('id, name, group_id')
+      .select('id, name, group_id, is_active')
       .order('name', { ascending: true });
 
     // 그룹 필터

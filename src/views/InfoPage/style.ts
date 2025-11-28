@@ -70,16 +70,34 @@ export const ModalOverlay = styled.div`
   justify-content: center;
   z-index: 1000;
   animation: ${fadeIn} 0.3s ease;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: 40px;
+  }
 `;
 
 export const ModalContent = styled.div`
   background: #ffffff;
   padding: 32px;
   border-radius: 12px;
-  width: 90%;
+  width: 100%;
   max-width: 500px;
+  max-height: 90vh;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   animation: ${slideUp} 0.4s ease;
+  overflow-y: auto;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding: 24px 20px;
+    max-height: calc(100vh - 80px);
+    border-radius: 16px 16px 0 0;
+  }
 `;
 
 export const ModalTitle = styled.h2`
@@ -88,23 +106,60 @@ export const ModalTitle = styled.h2`
   color: #111;
   text-align: center;
   margin-bottom: 24px;
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
 `;
 
 export const Select = styled.select`
   width: 100%;
   height: 48px;
   padding: 0 16px;
+  padding-right: 40px;
   border: 1px solid #d7d7d7;
   border-radius: 6px;
   font-size: 16px;
   font-weight: 500;
   color: #000;
   background-color: white;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  cursor: pointer;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+  }
+
+  &:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  option {
+    padding: 12px;
+    font-size: 16px;
+    color: #000;
+    background-color: white;
+  }
+
+  @media (max-width: 768px) {
+    height: 44px;
+    font-size: 16px;
+    padding: 0 14px;
+    padding-right: 40px;
+    -webkit-appearance: none;
+    appearance: none;
   }
 `;
 
@@ -116,11 +171,18 @@ export const Input = styled.input`
   border-radius: 6px;
   font-size: 16px;
   color: #000;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+  }
+
+  @media (max-width: 768px) {
+    height: 44px;
+    font-size: 16px;
+    padding: 0 14px;
   }
 `;
 
@@ -129,6 +191,11 @@ export const ButtonWrapper = styled.div`
   display: flex;
   gap: 12px;
   margin-top: 24px;
+
+  @media (max-width: 768px) {
+    gap: 10px;
+    margin-top: 20px;
+  }
 `;
 
 export const CancelButton = styled.button`
@@ -142,9 +209,15 @@ export const CancelButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
+  box-sizing: border-box;
 
   &:hover {
     background-color: #e0e0e0;
+  }
+
+  @media (max-width: 768px) {
+    padding: 12px 0;
+    font-size: 15px;
   }
 `;
 
@@ -159,6 +232,7 @@ export const SubmitButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
+  box-sizing: border-box;
   
   &:disabled {
     background-color: #cccccc;
@@ -167,6 +241,11 @@ export const SubmitButton = styled.button`
 
   &:hover:not(:disabled) {
     background-color: #0056b3;
+  }
+
+  @media (max-width: 768px) {
+    padding: 12px 0;
+    font-size: 15px;
   }
 `;
 
@@ -417,6 +496,11 @@ export const InfoWrapper = styled.div`
   flex-direction: column;
   gap: 16px;
   margin-bottom: 20px;
+
+  @media (max-width: 768px) {
+    gap: 14px;
+    margin-bottom: 16px;
+  }
 `;
 
 export const Label = styled.label`
@@ -425,4 +509,9 @@ export const Label = styled.label`
   font-weight: 600;
   color: #333;
   margin-bottom: 8px;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
 `;

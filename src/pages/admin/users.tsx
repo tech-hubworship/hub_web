@@ -77,6 +77,13 @@ export default function AdminUsersPage() {
               {!sidebarCollapsed && <S.NavText>회원관리</S.NavText>}
             </S.NavItem>
 
+            <Link href="/admin/roles" passHref legacyBehavior>
+              <S.NavItem as="a">
+                <S.NavIcon>🔐</S.NavIcon>
+                {!sidebarCollapsed && <S.NavText>권한 관리</S.NavText>}
+              </S.NavItem>
+            </Link>
+
             {roles.includes('사진팀') && (
               <Link href="/admin/photos" passHref legacyBehavior>
                 <S.NavItem as="a">

@@ -4,6 +4,7 @@ import { menuTapList } from '../../constants/menuTapList';
 import { MenuState } from '../../types';
 import * as S from './style';
 import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/react';
 
 function useNoScroll(isMenuShown: MenuState) {
   useEffect(() => {
@@ -29,6 +30,7 @@ interface HeaderMenuProps {
 function HeaderMenu({ isMenuShown, handleHeaderToggleButton }: HeaderMenuProps) {
   useNoScroll(isMenuShown);
   const router = useRouter();
+  const { status } = useSession();
 
   // 페이지 이동 핸들러
   const handleNavigate = (href: string, e: React.MouseEvent) => {
@@ -51,17 +53,25 @@ function HeaderMenu({ isMenuShown, handleHeaderToggleButton }: HeaderMenuProps) 
       <S.MenuWrap>
         <S.ContentsWrap>
           <S.MenuTitlesWrap>
-            {menuTapList.map((menuTap) => (
-              <S.MenuTitle
-                menuColor={menuTap.type}
-                key={menuTap.title}
-                isSelected={handleIsSelected(menuTap.href)}
-              >
-                <a href={menuTap.href} onClick={(e) => handleNavigate(menuTap.href, e)}>
-                  {menuTap.title}
-                </a>
-              </S.MenuTitle>
-            ))}
+            {menuTapList
+              .filter(menuTap => {
+                // 내 페이지(/myinfo)만 표시
+                if (menuTap.href === '/myinfo') {
+                  return status === 'authenticated';
+                }
+                return false;
+              })
+              .map((menuTap) => (
+                <S.MenuTitle
+                  menuColor={menuTap.type}
+                  key={menuTap.title}
+                  isSelected={handleIsSelected(menuTap.href)}
+                >
+                  <a href={menuTap.href} onClick={(e) => handleNavigate(menuTap.href, e)}>
+                    {menuTap.title}
+                  </a>
+                </S.MenuTitle>
+              ))}
             <S.Background onClick={() => handleHeaderToggleButton()} />
           </S.MenuTitlesWrap>
         </S.ContentsWrap>

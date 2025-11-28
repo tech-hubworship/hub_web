@@ -24,11 +24,6 @@ export const Content = styled.main`
   justify-content: center;
   height: 100%;
   width: 100%;
-
-  @media (min-width: 58.75rem) {
-    width: 100%;
-    max-width: 600px;
-  }
 `;
 
 export const ContentWrapper = styled.article`
@@ -36,17 +31,6 @@ export const ContentWrapper = styled.article`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100vw;
+  width: 100%;
   position: relative;
-
-  @media (min-width: 58.75rem) {
-    width: 600px;
-    padding-left: 0;
-    padding-right: 0;
-  }
-
-  @media (max-width: 90rem) {
-  }
-
-
 `;

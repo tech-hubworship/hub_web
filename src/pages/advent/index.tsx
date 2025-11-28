@@ -11,9 +11,12 @@ import {
   VideoSection, 
   AttendanceSection, 
   MeditationSection, 
-  PreviousVideosSection 
+  PreviousVideosSection,
+  LoadingScreen,
+  CountdownSection
 } from '@src/components/advent';
 import { AdventPost, AdventComment, PreviousPost } from '@src/lib/advent/types';
+import { getDayNumber } from '@src/lib/advent/utils';
 
 // ==================== Container & Wrapper ====================
 const Container = styled.div`
@@ -304,6 +307,28 @@ const AdventPage = () => {
     ? `${currentDateStr.slice(0, 4)}-${currentDateStr.slice(4, 6)}-${currentDateStr.slice(6, 8)}`
     : '';
 
+  // 일차 계산
+  const dayNumber = getDayNumber(currentDateStr);
+  
+  // 1일차 시작 시간 계산 (2025년 11월 30일 00:00:00 한국 시간)
+  const getFirstDayTargetDate = (): Date => {
+    // 한국 시간 기준 2025년 11월 30일 00:00:00
+    // 브라우저의 로컬 시간대를 사용하여 한국 시간으로 생성
+    const year = 2025;
+    const month = 10; // 0-based (11월 = 10)
+    const day = 30;
+    const hour = 0;
+    const minute = 0;
+    const second = 0;
+    
+    // 로컬 시간대로 Date 객체 생성 (브라우저가 한국 시간대면 자동으로 맞춰짐)
+    const koreanDate = new Date(year, month, day, hour, minute, second);
+    return koreanDate;
+  };
+
+  const firstDayTargetDate = getFirstDayTargetDate();
+  const isDayZero = dayNumber === null || dayNumber <= 0;
+
   return (
     <>
       <Head>
@@ -311,11 +336,12 @@ const AdventPage = () => {
         <meta name="description" content="대림절 말씀과 나눔" />
       </Head>
 
+      {loading && <LoadingScreen />}
+
       <Header />
 
       <Container>
         <ContentWrapper>
-          {loading && <LoadingText>로딩 중...</LoadingText>}
           {error && <ErrorText>{error}</ErrorText>}
 
           {!loading && !error && !post && (
@@ -337,46 +363,56 @@ const AdventPage = () => {
               {/* 3. 영상 섹션 */}
               <VideoSection post={post} currentDate={currentDateStr} />
 
-              {/* 4. 출석 섹션 */}
-              <AttendanceSection 
-                currentDate={currentDateStr}
-                isLoggedIn={!!session?.user}
-                commentText={commentText}
-                submitting={submitting}
-                meditationSaved={meditationSaved}
-                onCommentTextChange={setCommentText}
-                onCommentSubmit={handleCommentSubmit}
-                onMeditationSavedChange={setMeditationSaved}
-              />
+              {/* 0일차일 때 카운트다운 표시 */}
+              {isDayZero && (
+                <CountdownSection targetDate={firstDayTargetDate} />
+              )}
 
-              {/* 5. 묵상 섹션 (댓글) */}
-              <MeditationSection
-                comments={comments}
-                totalComments={totalComments}
-                currentPage={commentsPage}
-                isLoggedIn={!!session?.user}
-                showMyMeditation={showMyMeditation}
-                loading={loadingComments}
-                onToggleMyMeditation={() => {
-                  const newShowMyMeditation = !showMyMeditation;
-                  setShowMyMeditation(newShowMyMeditation);
-                  setCommentsPage(1);
-                  setComments([]); // 초기화
-                  
-                  // 새로운 데이터 가져오기
-                  if (newShowMyMeditation) {
-                    fetchUserComments(true);
-                  } else if (post?.post_dt) {
-                    fetchComments(post.post_dt, 1, itemsPerPage, true);
-                  }
-                }}
-                onPageChange={(page: number) => {
-                  if (post?.post_dt && !showMyMeditation) {
-                    setCommentsPage(page);
-                    fetchComments(post.post_dt, page, itemsPerPage, true);
-                  }
-                }}
-              />
+              {/* 1일차 이상일 때만 출석 및 묵상 섹션 표시 */}
+              {!isDayZero && (
+                <>
+                  {/* 4. 출석 섹션 */}
+                  <AttendanceSection 
+                    currentDate={currentDateStr}
+                    isLoggedIn={!!session?.user}
+                    commentText={commentText}
+                    submitting={submitting}
+                    meditationSaved={meditationSaved}
+                    onCommentTextChange={setCommentText}
+                    onCommentSubmit={handleCommentSubmit}
+                    onMeditationSavedChange={setMeditationSaved}
+                  />
+
+                  {/* 5. 묵상 섹션 (댓글) */}
+                  <MeditationSection
+                    comments={comments}
+                    totalComments={totalComments}
+                    currentPage={commentsPage}
+                    isLoggedIn={!!session?.user}
+                    showMyMeditation={showMyMeditation}
+                    loading={loadingComments}
+                    onToggleMyMeditation={() => {
+                      const newShowMyMeditation = !showMyMeditation;
+                      setShowMyMeditation(newShowMyMeditation);
+                      setCommentsPage(1);
+                      setComments([]); // 초기화
+                      
+                      // 새로운 데이터 가져오기
+                      if (newShowMyMeditation) {
+                        fetchUserComments(true);
+                      } else if (post?.post_dt) {
+                        fetchComments(post.post_dt, 1, itemsPerPage, true);
+                      }
+                    }}
+                    onPageChange={(page: number) => {
+                      if (post?.post_dt && !showMyMeditation) {
+                        setCommentsPage(page);
+                        fetchComments(post.post_dt, page, itemsPerPage, true);
+                      }
+                    }}
+                  />
+                </>
+              )}
 
               {/* 5. 지난 묵상 영상 섹션 */}
               <PreviousVideosSection

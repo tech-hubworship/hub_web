@@ -64,7 +64,10 @@ export default function BibleCardAdminPage() {
   // 팝업 상태
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isGroupPastorModalOpen, setIsGroupPastorModalOpen] = useState(false);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  const [selectedGroupForPastor, setSelectedGroupForPastor] = useState<GroupWithPastor | null>(null);
+  const [selectedGroupPastorId, setSelectedGroupPastorId] = useState('');
 
   // 통계 조회
   const { data: stats } = useQuery<Stats>({
@@ -157,6 +160,33 @@ export default function BibleCardAdminPage() {
       queryClient.invalidateQueries({ queryKey: ['bible-card-applications'] });
       queryClient.invalidateQueries({ queryKey: ['bible-card-pastors'] });
       queryClient.invalidateQueries({ queryKey: ['bible-card-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['groups-with-pastors'] });
+      alert(data.message);
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
+
+  // 그룹별 목회자 지정 뮤테이션
+  const assignGroupPastorMutation = useMutation({
+    mutationFn: async ({ groupId, pastorId }: { groupId: number; pastorId: string | null }) => {
+      const response = await fetch('/api/bible-card/admin/group-pastor', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId, pastorId }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '목회자 지정 실패');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['groups-with-pastors'] });
+      setSelectedGroupForPastor(null);
+      setSelectedGroupPastorId('');
+      setIsGroupPastorModalOpen(false);
       alert(data.message);
     },
     onError: (error: Error) => {
@@ -320,7 +350,12 @@ export default function BibleCardAdminPage() {
 
       {/* 그룹별 담당 목회자 현황 */}
       <GroupPastorSection>
-        <SectionTitle>그룹별 담당 목회자</SectionTitle>
+        <SectionHeader>
+          <SectionTitle>그룹별 담당 목회자</SectionTitle>
+          <ManageButton onClick={() => setIsGroupPastorModalOpen(true)}>
+            ⚙️ 목회자 지정
+          </ManageButton>
+        </SectionHeader>
         <GroupGrid>
           {groupsWithPastors?.map((group) => (
             <GroupItem key={group.id} hasPastor={!!group.pastor_name}>
@@ -551,6 +586,64 @@ export default function BibleCardAdminPage() {
           </ModalContent>
         </Modal>
       )}
+
+      {/* 그룹별 목회자 지정 모달 */}
+      {isGroupPastorModalOpen && (
+        <Modal onClick={() => setIsGroupPastorModalOpen(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>그룹별 담당 목회자 지정</ModalTitle>
+              <CloseButton onClick={() => setIsGroupPastorModalOpen(false)}>×</CloseButton>
+            </ModalHeader>
+
+            <ModalBody>
+              <InfoBox>
+                <InfoIcon>📋</InfoIcon>
+                <InfoText>각 그룹에 담당 목회자를 지정하면 그룹별 자동 배정 시 해당 목회자에게 자동으로 배정됩니다.</InfoText>
+              </InfoBox>
+
+              <GroupPastorList>
+                {groupsWithPastors?.map((group) => (
+                  <GroupPastorItem key={group.id}>
+                    <GroupPastorItemHeader>
+                      <GroupPastorItemName>{group.name}</GroupPastorItemName>
+                      <GroupPastorItemCurrent>
+                        현재: {group.pastor_name || '미지정'}
+                      </GroupPastorItemCurrent>
+                    </GroupPastorItemHeader>
+                    <FormGroup>
+                      <Label>담당 목회자 선택</Label>
+                      <Select
+                        value={group.pastor_id || ''}
+                        onChange={(e) => {
+                          const pastorId = e.target.value || null;
+                          assignGroupPastorMutation.mutate({ 
+                            groupId: group.id, 
+                            pastorId 
+                          });
+                        }}
+                        disabled={assignGroupPastorMutation.isPending}
+                        fullWidth
+                      >
+                        <option value="">미지정</option>
+                        {pastors?.map((pastor) => (
+                          <option key={pastor.user_id} value={pastor.user_id}>
+                            {pastor.name} ({pastor.community || '-'})
+                          </option>
+                        ))}
+                      </Select>
+                    </FormGroup>
+                  </GroupPastorItem>
+                ))}
+              </GroupPastorList>
+            </ModalBody>
+
+            <ModalFooter>
+              <CancelButton onClick={() => setIsGroupPastorModalOpen(false)}>닫기</CancelButton>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      )}
     </Container>
   );
 }
@@ -730,6 +823,63 @@ const GroupName = styled.span`
 `;
 
 const GroupPastor = styled.span`
+  color: #64748b;
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+`;
+
+const ManageButton = styled.button`
+  padding: 8px 16px;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #4f46e5;
+    transform: translateY(-1px);
+  }
+`;
+
+const GroupPastorList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+`;
+
+const GroupPastorItem = styled.div`
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+`;
+
+const GroupPastorItemHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+`;
+
+const GroupPastorItemName = styled.span`
+  font-weight: 600;
+  font-size: 15px;
+  color: #1e293b;
+`;
+
+const GroupPastorItemCurrent = styled.span`
+  font-size: 13px;
   color: #64748b;
 `;
 

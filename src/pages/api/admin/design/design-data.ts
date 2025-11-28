@@ -20,11 +20,15 @@ export default async function handler(
     return res.status(403).json({ message: 'Forbidden: You are not an admin.' });
   }
 
-  // ⭐️ [핵심] 2. '디자인팀' 또는 '말씀카드' 역할을 가졌는지 확인
+  // 메뉴 권한 확인
+  const { getMenuIdFromPath, checkMenuPermission } = await import('@src/lib/utils/menu-permission');
   // @ts-ignore
   const userRoles = session.user.roles || [];
-  if (!userRoles.includes('디자인팀') && !userRoles.includes('말씀카드')) {
-    return res.status(403).json({ message: 'Forbidden: You do not have the Design Team role.' });
+  const menuId = getMenuIdFromPath(req.url || '/api/admin/design/design-data');
+  const permission = await checkMenuPermission(userRoles, menuId);
+  
+  if (!permission.hasPermission) {
+    return res.status(403).json({ message: permission.error || 'Forbidden: You do not have permission.' });
   }
 
   try {

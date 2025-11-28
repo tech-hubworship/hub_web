@@ -18,15 +18,32 @@ export default async function handler(
   }
 
   const userId = session.user.id;
-  const { group_id, cell_id } = req.body;
+  const { group_id, cell_id, community, name, birth_date, gender } = req.body;
 
   try {
-    // 프로필 정보 업데이트 (그룹/셀만)
-    const profileDataToUpdate = {
-      group_id: group_id ? parseInt(group_id, 10) : null,
-      cell_id: cell_id ? parseInt(cell_id, 10) : null,
+    // 프로필 정보 업데이트 (그룹/셀/커뮤니티)
+    const profileDataToUpdate: Record<string, any> = {
       info_last_updated_at: getKoreanTimestamp(),
     };
+
+    if (group_id !== undefined) {
+      profileDataToUpdate.group_id = group_id ? parseInt(group_id, 10) : null;
+    }
+    if (cell_id !== undefined) {
+      profileDataToUpdate.cell_id = cell_id ? parseInt(cell_id, 10) : null;
+    }
+    if (community !== undefined) {
+      profileDataToUpdate.community = community || null;
+    }
+    if (name !== undefined) {
+      profileDataToUpdate.name = name || null;
+    }
+    if (birth_date !== undefined) {
+      profileDataToUpdate.birth_date = birth_date || null;
+    }
+    if (gender !== undefined) {
+      profileDataToUpdate.gender = gender || null;
+    }
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
