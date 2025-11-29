@@ -93,6 +93,87 @@ const ErrorText = styled.div`
   }
 `;
 
+// ==================== Modal Styles ====================
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  padding: 20px;
+`;
+
+const ModalContent = styled.div`
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  text-align: center;
+
+  @media (max-width: 768px) {
+    padding: 24px;
+    max-width: 90%;
+  }
+`;
+
+const ModalTitle = styled.div`
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+  line-height: 1.5;
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
+`;
+
+const ModalMessage = styled.div`
+  font-size: 16px;
+  color: #4b5563;
+  line-height: 1.6;
+  white-space: pre-line;
+  margin-bottom: 24px;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
+`;
+
+const ModalButton = styled.button`
+  width: 100%;
+  padding: 14px 24px;
+  background: #724886;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #5d3a6b;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 768px) {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+`;
+
 // ==================== Main Component ====================
 const AdventPage = () => {
   const router = useRouter();
@@ -112,6 +193,7 @@ const AdventPage = () => {
   const [meditationSaved, setMeditationSaved] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showMeditationSavedModal, setShowMeditationSavedModal] = useState(false);
 
   // 화면 크기 감지
   useEffect(() => {
@@ -285,6 +367,8 @@ const AdventPage = () => {
         // 전체 묵상 새로고침
         setCommentsPage(1);
         fetchComments(post.post_dt, 1, itemsPerPage);
+        // 팝업 표시
+        setShowMeditationSavedModal(true);
         return true;
       } else {
         alert(data.error || '묵상 작성에 실패했습니다.');
@@ -426,6 +510,21 @@ const AdventPage = () => {
       </Container>
 
       <Footer />
+
+      {/* 묵상 저장 완료 모달 */}
+      {showMeditationSavedModal && (
+        <ModalOverlay onClick={() => setShowMeditationSavedModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalTitle>묵상저장이 완료되었습니다.</ModalTitle>
+            <ModalMessage>
+              {'출석하기'} 버튼을 꼭 눌러주셔야{'\n'}출석이 인정됩니다.
+            </ModalMessage>
+            <ModalButton onClick={() => setShowMeditationSavedModal(false)}>
+              확인
+            </ModalButton>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </>
   );
 };
