@@ -31,6 +31,16 @@ export const MDILayout = styled.div`
   display: flex;
   min-height: 100vh;
   background: #ffffff;
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
 `;
 
 // 사이드바
@@ -259,9 +269,16 @@ export const MDIMain = styled.main<{ sidebarCollapsed: boolean }>`
   display: flex;
   flex-direction: column;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
 
   @media (max-width: 768px) {
     margin-left: 0;
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 `;
 
@@ -273,13 +290,21 @@ export const TabBar = styled.div`
   border-bottom: 1px solid #e2e8f0;
   padding: 8px 16px 0;
   gap: 4px;
-  overflow-x: auto;
   position: sticky;
   top: 0;
   z-index: 100;
+  overflow-x: auto;
+  overflow-y: hidden;
 
   &::-webkit-scrollbar {
     height: 0;
+  }
+
+  @media (max-width: 768px) {
+    padding: 8px 8px 0;
+    gap: 4px;
+    overflow-x: hidden;
+    overflow-y: hidden;
   }
 `;
 
@@ -300,20 +325,37 @@ export const Tab = styled.div<{ active?: boolean }>`
     : '2px solid transparent'};
   margin-bottom: -1px;
   box-shadow: ${props => props.active ? '0 -2px 8px rgba(0, 0, 0, 0.05)' : 'none'};
+  flex-shrink: 0;
 
   &:hover {
     background: ${props => props.active ? '#ffffff' : '#f1f5f9'};
+  }
+
+  @media (max-width: 768px) {
+    padding: 8px;
+    gap: 0;
+    min-width: 44px;
+    justify-content: center;
   }
 `;
 
 export const TabIcon = styled.span`
   font-size: 16px;
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
 `;
 
 export const TabTitle = styled.span`
   font-size: 13px;
   font-weight: 500;
   color: #1e293b;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 export const TabCloseButton = styled.button`
@@ -330,10 +372,15 @@ export const TabCloseButton = styled.button`
   font-size: 14px;
   transition: all 0.2s ease;
   margin-left: 4px;
+  flex-shrink: 0;
 
   &:hover {
     background: #fee2e2;
     color: #ef4444;
+  }
+
+  @media (max-width: 768px) {
+    display: none;
   }
 `;
 
@@ -349,10 +396,14 @@ export const MobileMenuButton = styled.button`
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  margin-right: 12px;
+  margin-right: 8px;
+  flex-shrink: 0;
 
   @media (max-width: 768px) {
     display: flex;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
   }
 `;
 
@@ -361,11 +412,15 @@ export const ContentPanel = styled.div`
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
   animation: ${fadeIn} 0.3s ease;
   background: #ffffff;
+  width: 100%;
+  box-sizing: border-box;
 
   @media (max-width: 768px) {
     padding: 16px;
+    overflow-x: hidden;
   }
 `;
 

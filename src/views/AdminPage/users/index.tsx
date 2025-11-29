@@ -60,7 +60,7 @@ export default function UsersAdminPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(20);
+  const [limit, setLimit] = useState(20);
 
   // 필터 상태
   const [filterCommunity, setFilterCommunity] = useState('');
@@ -326,42 +326,7 @@ export default function UsersAdminPage() {
           <S.Title>👥 회원관리</S.Title>
           <S.Subtitle>사용자 계정 및 권한을 관리합니다</S.Subtitle>
         </S.HeaderLeft>
-        <S.SearchBar>
-          <S.SearchInput
-            type="text"
-            placeholder="이름, 이메일로 검색..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </S.SearchBar>
       </S.Header>
-
-      {/* 통계 카드 */}
-      <S.StatsGrid>
-        <S.StatCard>
-          <S.StatIcon>👥</S.StatIcon>
-          <S.StatContent>
-            <S.StatValue>{pagination?.total || 0}</S.StatValue>
-            <S.StatLabel>전체 사용자</S.StatLabel>
-          </S.StatContent>
-        </S.StatCard>
-        <S.StatCard>
-          <S.StatIcon>🔑</S.StatIcon>
-          <S.StatContent>
-            <S.StatValue>
-              {users?.filter(u => u.roles && u.roles.length > 0).length || 0}
-            </S.StatValue>
-            <S.StatLabel>현재 페이지 관리자</S.StatLabel>
-          </S.StatContent>
-        </S.StatCard>
-        <S.StatCard>
-          <S.StatIcon>📄</S.StatIcon>
-          <S.StatContent>
-            <S.StatValue>{pagination?.page || 1} / {pagination?.totalPages || 1}</S.StatValue>
-            <S.StatLabel>페이지</S.StatLabel>
-          </S.StatContent>
-        </S.StatCard>
-      </S.StatsGrid>
 
       <S.Container>
         <S.Tabs>
@@ -448,6 +413,22 @@ export default function UsersAdminPage() {
             </S.Select>
           </FilterGroup>
 
+          <FilterGroup style={{ flex: 1, maxWidth: '300px' }}>
+            <FilterLabel>검색</FilterLabel>
+            <S.SearchInput
+              type="text"
+              placeholder="이름, 이메일로 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch();
+                }
+              }}
+              style={{ width: '100%' }}
+            />
+          </FilterGroup>
+
           <SearchButton onClick={handleSearch}>
             🔍 조회하기
           </SearchButton>
@@ -464,6 +445,30 @@ export default function UsersAdminPage() {
           </S.LoadingState>
         ) : users && users.length > 0 ? (
           <>
+            {/* 목록 정보 및 페이지당 개수 설정 */}
+            <ListInfoBar>
+              <ListInfoText>
+                검색 결과: <strong>{pagination?.total || 0}건</strong>
+                {appliedSearch && ` (검색어: "${appliedSearch}")`}
+              </ListInfoText>
+              <LimitSelector>
+                <LimitLabel>페이지당 개수:</LimitLabel>
+                <S.Select
+                  value={limit}
+                  onChange={(e) => {
+                    setLimit(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  style={{ width: '100px', marginLeft: '8px' }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </S.Select>
+              </LimitSelector>
+            </ListInfoBar>
+
             <S.TableContainer>
               <S.Table>
                 <S.TableHeader>
@@ -865,4 +870,41 @@ const ResetButton = styled.button`
     background: #f1f5f9;
     color: #1e293b;
   }
+`;
+
+const ListInfoBar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+`;
+
+const ListInfoText = styled.div`
+  font-size: 14px;
+  color: #64748b;
+
+  strong {
+    color: #1e293b;
+    font-weight: 600;
+  }
+`;
+
+const LimitSelector = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+const LimitLabel = styled.label`
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
 `;

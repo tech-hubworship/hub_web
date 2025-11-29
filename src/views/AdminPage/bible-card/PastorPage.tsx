@@ -164,7 +164,7 @@ export default function BibleCardPastorPage() {
         </FilterSelect>
       </FilterBar>
 
-      {/* 목록 테이블 */}
+      {/* 목록 - 데스크톱 테이블 / 모바일 카드 */}
       {isLoading ? (
         <LoadingState>로딩 중...</LoadingState>
       ) : applications.length === 0 ? (
@@ -173,50 +173,79 @@ export default function BibleCardPastorPage() {
           <EmptyText>배정된 지체가 없습니다.</EmptyText>
         </EmptyState>
       ) : (
-        <TableContainer>
-          <Table>
-            <thead>
-              <tr>
-                <Th>이름</Th>
-                <Th>생년월일</Th>
-                <Th>성별</Th>
-                <Th>공동체</Th>
-                <Th>그룹</Th>
-                <Th>다락방</Th>
-                <Th>기도제목</Th>
-                <Th>상태</Th>
-                <Th>말씀</Th>
-                <Th>작성</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map((app: Application) => (
-                <Tr key={app.id} onClick={() => handleOpenModal(app)}>
-                  <Td><strong>{app.name}</strong></Td>
-                  <Td>{app.birth_date || '-'}</Td>
-                  <Td>{formatGender(app.gender)}</Td>
-                  <Td>{app.community || '-'}</Td>
-                  <Td>{app.group_name || '-'}</Td>
-                  <Td>{app.cell_name || '-'}</Td>
-                  <Td>
-                    <PrayerPreview>{app.prayer_request}</PrayerPreview>
-                  </Td>
-                  <Td>{getStatusBadge(app.status)}</Td>
-                  <Td>
-                    {app.bible_verse_reference ? (
-                      <BiblePreview>📖 {app.bible_verse_reference}</BiblePreview>
-                    ) : '-'}
-                  </Td>
-                  <Td>
-                    <ActionButton status={app.status}>
-                      {app.status === 'assigned' ? '작성' : '보기'}
-                    </ActionButton>
-                  </Td>
-                </Tr>
-              ))}
-            </tbody>
-          </Table>
-        </TableContainer>
+        <>
+          {/* 데스크톱 테이블 */}
+          <TableContainer>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>이름</Th>
+                  <Th>생년월일</Th>
+                  <Th>성별</Th>
+                  <Th>공동체</Th>
+                  <Th>그룹</Th>
+                  <Th>다락방</Th>
+                  <Th>기도제목</Th>
+                  <Th>상태</Th>
+                  <Th>말씀</Th>
+                  <Th>작성</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {applications.map((app: Application) => (
+                  <Tr key={app.id} onClick={() => handleOpenModal(app)}>
+                    <Td><strong>{app.name}</strong></Td>
+                    <Td>{app.birth_date || '-'}</Td>
+                    <Td>{formatGender(app.gender)}</Td>
+                    <Td>{app.community || '-'}</Td>
+                    <Td>{app.group_name || '-'}</Td>
+                    <Td>{app.cell_name || '-'}</Td>
+                    <Td>
+                      <PrayerPreview>{app.prayer_request}</PrayerPreview>
+                    </Td>
+                    <Td>{getStatusBadge(app.status)}</Td>
+                    <Td>
+                      {app.bible_verse_reference ? (
+                        <BiblePreview>📖 {app.bible_verse_reference}</BiblePreview>
+                      ) : '-'}
+                    </Td>
+                    <Td>
+                      <ActionButton status={app.status}>
+                        {app.status === 'assigned' ? '작성' : '보기'}
+                      </ActionButton>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableContainer>
+
+          {/* 모바일 목록 */}
+          <MobileList>
+            {applications.map((app: Application) => (
+              <MobileListItem key={app.id} onClick={() => handleOpenModal(app)}>
+                <MobileListLeft>
+                  <MobileListName>{app.name}</MobileListName>
+                  <MobileListInfo>
+                    {app.community || '-'} / {app.group_name || '-'} / {app.cell_name || '-'}
+                  </MobileListInfo>
+                  {app.prayer_request && (
+                    <MobileListPrayer>{app.prayer_request}</MobileListPrayer>
+                  )}
+                </MobileListLeft>
+                <MobileListRight>
+                  {getStatusBadge(app.status)}
+                  {app.bible_verse_reference && (
+                    <MobileListBible>📖 {app.bible_verse_reference}</MobileListBible>
+                  )}
+                  <ActionButton status={app.status}>
+                    {app.status === 'assigned' ? '작성' : '보기'}
+                  </ActionButton>
+                </MobileListRight>
+              </MobileListItem>
+            ))}
+          </MobileList>
+        </>
       )}
 
       {/* 페이지네이션 */}
@@ -357,25 +386,41 @@ export default function BibleCardPastorPage() {
 // Styled Components
 const Container = styled.div`
   padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 `;
 
 const Header = styled.div`
   margin-bottom: 24px;
+  width: 100%;
+  box-sizing: border-box;
 `;
 
-const HeaderContent = styled.div``;
+const HeaderContent = styled.div`
+  width: 100%;
+  box-sizing: border-box;
+`;
 
 const Title = styled.h1`
   font-size: 24px;
   font-weight: 700;
   color: #1e293b;
   margin: 0 0 4px 0;
+
+  @media (max-width: 768px) {
+    font-size: 20px;
+  }
 `;
 
 const Subtitle = styled.p`
   font-size: 14px;
   color: #64748b;
   margin: 0;
+
+  @media (max-width: 768px) {
+    font-size: 13px;
+  }
 `;
 
 const StatsGrid = styled.div`
@@ -383,9 +428,16 @@ const StatsGrid = styled.div`
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
 
   @media (max-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    overflow-x: hidden;
+    padding-bottom: 4px;
+    max-width: 100%;
   }
 `;
 
@@ -394,12 +446,25 @@ const StatCard = styled.div<{ color: string }>`
   padding: 16px;
   border-radius: 12px;
   text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding: 12px 8px;
+    width: 100%;
+    min-width: 0;
+  }
 `;
+
 
 const StatValue = styled.div`
   font-size: 28px;
   font-weight: 700;
   color: #1e293b;
+
+  @media (max-width: 768px) {
+    font-size: 24px;
+  }
 `;
 
 const StatLabel = styled.div`
@@ -410,6 +475,8 @@ const StatLabel = styled.div`
 
 const FilterBar = styled.div`
   margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
 `;
 
 const FilterSelect = styled.select`
@@ -418,6 +485,13 @@ const FilterSelect = styled.select`
   border-radius: 8px;
   font-size: 14px;
   min-width: 150px;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 16px; /* iOS 줌 방지 */
+  }
 `;
 
 const LoadingState = styled.div`
@@ -447,6 +521,10 @@ const TableContainer = styled.div`
   border: 1px solid #e2e8f0;
   overflow: hidden;
   overflow-x: auto;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const Table = styled.table`
@@ -507,9 +585,16 @@ const ActionButton = styled.button<{ status: string }>`
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 
   &:hover {
     opacity: 0.9;
+  }
+
+  @media (max-width: 768px) {
+    padding: 6px 10px;
+    font-size: 11px;
+    min-width: 50px;
   }
 `;
 
@@ -528,6 +613,17 @@ const Pagination = styled.div`
   align-items: center;
   gap: 8px;
   padding: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+    gap: 6px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
 `;
 
 const PageButton = styled.button`
@@ -536,10 +632,17 @@ const PageButton = styled.button`
   background: white;
   border-radius: 6px;
   cursor: pointer;
+  min-width: 44px; /* 터치 타겟 크기 */
+  min-height: 44px;
 
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 14px;
+    font-size: 16px;
   }
 `;
 
@@ -561,6 +664,17 @@ const Modal = styled.div`
   justify-content: center;
   z-index: 2000;
   padding: 20px;
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding: 0;
+    align-items: flex-end;
+    width: 100vw;
+    max-width: 100vw;
+  }
 `;
 
 const ModalContent = styled.div`
@@ -570,6 +684,17 @@ const ModalContent = styled.div`
   max-width: 560px;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    max-width: 100vw;
+    width: 100vw;
+    max-height: 95vh;
+    border-radius: 16px 16px 0 0;
+    margin-top: auto;
+    overflow-x: hidden;
+  }
 `;
 
 const ModalHeader = styled.div`
@@ -578,6 +703,14 @@ const ModalHeader = styled.div`
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid #e2e8f0;
+
+  @media (max-width: 768px) {
+    padding: 16px 20px;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
+  }
 `;
 
 const ModalTitle = styled.h2`
@@ -585,6 +718,10 @@ const ModalTitle = styled.h2`
   font-weight: 700;
   color: #1e293b;
   margin: 0;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
 `;
 
 const CloseButton = styled.button`
@@ -604,6 +741,10 @@ const CloseButton = styled.button`
 
 const ModalBody = styled.div`
   padding: 24px;
+
+  @media (max-width: 768px) {
+    padding: 20px;
+  }
 `;
 
 const InfoGrid = styled.div`
@@ -614,9 +755,22 @@ const InfoGrid = styled.div`
   background: #f8fafc;
   padding: 16px;
   border-radius: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 100%;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px;
+    width: 100%;
+    max-width: 100%;
+  }
 
   @media (max-width: 480px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
   }
 `;
 
@@ -657,6 +811,8 @@ const PrayerText = styled.div`
 
 const FormGroup = styled.div`
   margin-bottom: 16px;
+  width: 100%;
+  box-sizing: border-box;
 `;
 
 const Label = styled.label`
@@ -683,6 +839,11 @@ const Input = styled.input`
   &:disabled {
     background: #f8fafc;
   }
+
+  @media (max-width: 768px) {
+    padding: 14px;
+    font-size: 16px; /* iOS 줌 방지 */
+  }
 `;
 
 const Textarea = styled.textarea`
@@ -704,6 +865,11 @@ const Textarea = styled.textarea`
   &:disabled {
     background: #f8fafc;
   }
+
+  @media (max-width: 768px) {
+    padding: 14px;
+    font-size: 16px; /* iOS 줌 방지 */
+  }
 `;
 
 const ModalFooter = styled.div`
@@ -711,6 +877,15 @@ const ModalFooter = styled.div`
   gap: 12px;
   padding: 16px 24px;
   border-top: 1px solid #e2e8f0;
+
+  @media (max-width: 768px) {
+    padding: 16px 20px;
+    position: sticky;
+    bottom: 0;
+    background: white;
+    z-index: 1;
+    flex-direction: column-reverse;
+  }
 `;
 
 const CancelButton = styled.button`
@@ -759,4 +934,92 @@ const CompletedNote = styled.div`
   border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
+`;
+
+// 모바일 목록 스타일
+const MobileList = styled.div`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: block;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
+  }
+`;
+
+const MobileListItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: #f8fafc;
+  }
+`;
+
+const MobileListLeft = styled.div`
+  flex: 1;
+  min-width: 0;
+  margin-right: 12px;
+  overflow: hidden;
+  max-width: calc(100% - 100px);
+`;
+
+const MobileListName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+`;
+
+const MobileListInfo = styled.div`
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+`;
+
+const MobileListPrayer = styled.div`
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+`;
+
+const MobileListRight = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  min-width: 80px;
+  max-width: 100px;
+`;
+
+const MobileListBible = styled.div`
+  font-size: 11px;
+  color: #6366f1;
+  font-weight: 500;
+  white-space: nowrap;
 `;
