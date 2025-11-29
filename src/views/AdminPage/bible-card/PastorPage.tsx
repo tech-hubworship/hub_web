@@ -1,7 +1,7 @@
 // 파일 경로: src/views/AdminPage/bible-card/PastorPage.tsx
 // 목회자 전용 페이지 - 배정된 지체 목록 & 말씀 입력
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
 
@@ -34,23 +34,6 @@ export default function BibleCardPastorPage() {
     bible_verse: '',
     pastor_message: '',
   });
-
-  // 성경 구절 선택 상태
-  const [selectedBook, setSelectedBook] = useState<string>('');
-  const [selectedBookShort, setSelectedBookShort] = useState<string>('');
-  const [selectedChapter, setSelectedChapter] = useState<number | ''>('');
-  const [selectedVerse, setSelectedVerse] = useState<number | ''>('');
-
-  // 로드된 옵션들
-  const [books, setBooks] = useState<Array<{full_name: string, short_name: string}>>([]);
-  const [chapters, setChapters] = useState<number[]>([]);
-  const [verses, setVerses] = useState<number[]>([]);
-
-  // 로딩 상태
-  const [isLoadingBooks, setIsLoadingBooks] = useState(false);
-  const [isLoadingChapters, setIsLoadingChapters] = useState(false);
-  const [isLoadingVerses, setIsLoadingVerses] = useState(false);
-  const [isLoadingText, setIsLoadingText] = useState(false);
 
   // 배정된 지체 목록 조회
   const { data: assignedData, isLoading } = useQuery({
@@ -96,176 +79,8 @@ export default function BibleCardPastorPage() {
   const stats = assignedData?.stats;
   const pagination = assignedData?.pagination;
 
-  // 책 목록 로드 (컴포넌트 마운트 시)
-  useEffect(() => {
-    const fetchBooks = async () => {
-      setIsLoadingBooks(true);
-      try {
-        const response = await fetch('/api/bible-card/pastor/bible?type=books');
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || '책 목록 조회 실패');
-        }
-        const data = await response.json();
-        console.log('[PastorPage] 책 목록 로드 성공:', data.length, '개');
-        console.log('[PastorPage] 첫 5개 책:', data.slice(0, 5));
-        setBooks(data);
-      } catch (error) {
-        console.error('책 목록 로드 실패:', error);
-      } finally {
-        setIsLoadingBooks(false);
-      }
-    };
-    fetchBooks();
-  }, []);
-
-  // 기존 구절 파싱 함수
-  const parseReference = (reference: string) => {
-    const match = reference.match(/^(.+?)\s+(\d+):(\d+)$/);
-    if (!match) return null;
-    return {
-      book: match[1].trim(),
-      chapter: parseInt(match[2], 10),
-      verse: parseInt(match[3], 10),
-    };
-  };
-
-  // 책 선택 핸들러
-  const handleBookChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const bookFullName = e.target.value;
-    const book = books.find(b => b.full_name === bookFullName);
-    
-    setSelectedBook(bookFullName);
-    setSelectedBookShort(book?.short_name || '');
-    setSelectedChapter('');
-    setSelectedVerse('');
-    setChapters([]);
-    setVerses([]);
-    
-    if (book?.short_name) {
-      setIsLoadingChapters(true);
-      try {
-        const response = await fetch(
-          `/api/bible-card/pastor/bible?type=chapters&book=${encodeURIComponent(book.short_name)}`
-        );
-        if (!response.ok) throw new Error('장 목록 조회 실패');
-        const data = await response.json();
-        setChapters(data.chapters);
-      } catch (error) {
-        console.error('장 목록 로드 실패:', error);
-        alert('장 목록을 불러올 수 없습니다.');
-      } finally {
-        setIsLoadingChapters(false);
-      }
-    }
-  };
-
-  // 장 선택 핸들러
-  const handleChapterChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const chapter = e.target.value ? parseInt(e.target.value) : '';
-    setSelectedChapter(chapter);
-    setSelectedVerse('');
-    setVerses([]);
-    
-    if (selectedBookShort && chapter) {
-      setIsLoadingVerses(true);
-      try {
-        const response = await fetch(
-          `/api/bible-card/pastor/bible?type=verses&book=${encodeURIComponent(selectedBookShort)}&chapter=${chapter}`
-        );
-        if (!response.ok) throw new Error('절 목록 조회 실패');
-        const data = await response.json();
-        setVerses(data.verses);
-      } catch (error) {
-        console.error('절 목록 로드 실패:', error);
-        alert('절 목록을 불러올 수 없습니다.');
-      } finally {
-        setIsLoadingVerses(false);
-      }
-    }
-  };
-
-  // 절 선택 핸들러
-  const handleVerseChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const verse = e.target.value ? parseInt(e.target.value) : '';
-    setSelectedVerse(verse);
-    
-    if (selectedBookShort && selectedChapter && verse) {
-      setIsLoadingText(true);
-      try {
-        const response = await fetch(
-          `/api/bible-card/pastor/bible?type=text&book=${encodeURIComponent(selectedBookShort)}&chapter=${selectedChapter}&verse=${verse}`
-        );
-        if (!response.ok) throw new Error('본문 조회 실패');
-        const data = await response.json();
-        
-        // 자동 입력!
-        setFormData(prev => ({
-          ...prev,
-          bible_verse_reference: data.reference,
-          bible_verse: data.text,
-        }));
-      } catch (error) {
-        console.error('본문 로드 실패:', error);
-        alert('본문을 불러올 수 없습니다.');
-      } finally {
-        setIsLoadingText(false);
-      }
-    }
-  };
-
-  const handleOpenModal = async (app: Application) => {
+  const handleOpenModal = (app: Application) => {
     setSelectedApp(app);
-    
-    // 초기화
-    setSelectedBook('');
-    setSelectedBookShort('');
-    setSelectedChapter('');
-    setSelectedVerse('');
-    setChapters([]);
-    setVerses([]);
-    
-    // 기존에 저장된 구절이 있으면 복원
-    if (app.bible_verse_reference) {
-      const parsed = parseReference(app.bible_verse_reference);
-      if (parsed && books.length > 0) {
-        const book = books.find(b => b.full_name === parsed.book);
-        if (book) {
-          setSelectedBook(book.full_name);
-          setSelectedBookShort(book.short_name);
-          
-          // 장 목록 로드
-          setIsLoadingChapters(true);
-          try {
-            const chaptersRes = await fetch(
-              `/api/bible-card/pastor/bible?type=chapters&book=${encodeURIComponent(book.short_name)}`
-            );
-            if (chaptersRes.ok) {
-              const chaptersData = await chaptersRes.json();
-              setChapters(chaptersData.chapters);
-              setSelectedChapter(parsed.chapter);
-              
-              // 절 목록 로드
-              setIsLoadingVerses(true);
-              const versesRes = await fetch(
-                `/api/bible-card/pastor/bible?type=verses&book=${encodeURIComponent(book.short_name)}&chapter=${parsed.chapter}`
-              );
-              if (versesRes.ok) {
-                const versesData = await versesRes.json();
-                setVerses(versesData.verses);
-                setSelectedVerse(parsed.verse);
-              }
-            }
-          } catch (error) {
-            console.error('기존 구절 복원 실패:', error);
-          } finally {
-            setIsLoadingChapters(false);
-            setIsLoadingVerses(false);
-          }
-        }
-      }
-    }
-    
     setFormData({
       bible_verse_reference: app.bible_verse_reference || '',
       bible_verse: app.bible_verse || '',
@@ -277,13 +92,6 @@ export default function BibleCardPastorPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedApp(null);
-    // 선택 상태 초기화
-    setSelectedBook('');
-    setSelectedBookShort('');
-    setSelectedChapter('');
-    setSelectedVerse('');
-    setChapters([]);
-    setVerses([]);
   };
 
   const handleSubmit = () => {
@@ -516,60 +324,13 @@ export default function BibleCardPastorPage() {
 
               <FormGroup>
                 <Label>성경 구절 *</Label>
-                <BibleSelectorRow>
-                  <Select
-                    value={selectedBook}
-                    onChange={handleBookChange}
-                    disabled={selectedApp.status !== 'assigned' || isLoadingBooks}
-                  >
-                    <option value="">책 선택</option>
-                    {books.map(book => (
-                      <option key={book.full_name} value={book.full_name}>
-                        {book.full_name}
-                      </option>
-                    ))}
-                  </Select>
-
-                  <Select
-                    value={selectedChapter}
-                    onChange={handleChapterChange}
-                    disabled={!selectedBook || isLoadingChapters || selectedApp.status !== 'assigned'}
-                  >
-                    <option value="">장 선택</option>
-                    {isLoadingChapters ? (
-                      <option disabled>로딩 중...</option>
-                    ) : (
-                      chapters.map(ch => (
-                        <option key={ch} value={ch}>{ch}장</option>
-                      ))
-                    )}
-                  </Select>
-
-                  <Select
-                    value={selectedVerse}
-                    onChange={handleVerseChange}
-                    disabled={!selectedChapter || isLoadingVerses || selectedApp.status !== 'assigned'}
-                  >
-                    <option value="">절 선택</option>
-                    {isLoadingVerses ? (
-                      <option disabled>로딩 중...</option>
-                    ) : (
-                      verses.map(v => (
-                        <option key={v} value={v}>{v}절</option>
-                      ))
-                    )}
-                  </Select>
-                </BibleSelectorRow>
-
-                {isLoadingText && (
-                  <LoadingText>본문을 불러오는 중...</LoadingText>
-                )}
-
-                {selectedBook && selectedChapter && selectedVerse && !isLoadingText && (
-                  <VerseReference>
-                    {selectedBook} {selectedChapter}:{selectedVerse}
-                  </VerseReference>
-                )}
+                <Input
+                  type="text"
+                  placeholder="예: 요한복음 3:16"
+                  value={formData.bible_verse_reference}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bible_verse_reference: e.target.value }))}
+                  disabled={selectedApp.status !== 'assigned'}
+                />
               </FormGroup>
 
               <FormGroup>
@@ -899,11 +660,10 @@ const Modal = styled.div`
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   z-index: 2000;
   padding: 20px;
-  overflow-y: auto;
   width: 100vw;
   max-width: 100vw;
   overflow-x: hidden;
@@ -922,13 +682,10 @@ const ModalContent = styled.div`
   border-radius: 16px;
   width: 100%;
   max-width: 560px;
-  max-height: calc(90vh - 40px);
-  margin-top: 5vh;
-  margin-bottom: 5vh;
+  max-height: 90vh;
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
-  position: relative;
 
   @media (max-width: 768px) {
     max-width: 100vw;
@@ -1064,67 +821,6 @@ const Label = styled.label`
   font-weight: 600;
   color: #334155;
   margin-bottom: 6px;
-`;
-
-const BibleSelectorRow = styled.div`
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
-`;
-
-const Select = styled.select`
-  flex: 1;
-  padding: 10px 14px;
-  padding-right: 32px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 14px;
-  background: white;
-  color: #1e293b;
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 16px;
-
-  &:disabled {
-    background-color: #f1f5f9;
-    color: #94a3b8;
-    cursor: not-allowed;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  }
-
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-
-  &:hover:not(:disabled) {
-    border-color: #cbd5e1;
-  }
-`;
-
-const LoadingText = styled.div`
-  padding: 8px 0;
-  color: #64748b;
-  font-size: 14px;
-  text-align: center;
-`;
-
-const VerseReference = styled.div`
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: #f1f5f9;
-  border-radius: 8px;
-  color: #1e293b;
-  font-size: 14px;
-  font-weight: 500;
 `;
 
 const Input = styled.input`
