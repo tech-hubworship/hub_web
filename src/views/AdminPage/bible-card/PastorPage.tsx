@@ -320,6 +320,7 @@ export default function BibleCardPastorPage() {
     setIsModalOpen(false);
     setSelectedApp(null);
     // 선택 상태 초기화
+    setSelectedTestament('');
     setSelectedBook('');
     setSelectedBookShort('');
     setSelectedChapter('');
