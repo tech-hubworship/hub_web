@@ -1,4 +1,5 @@
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { Check, ChevronsUpDown } from "lucide-react"
 import styled from "@emotion/styled"
 import { css } from "@emotion/react"
@@ -6,7 +7,7 @@ import { css } from "@emotion/react"
 const ComboboxContainer = styled.div<{ $isOpen?: boolean }>`
   position: relative;
   width: 100%;
-  z-index: ${({ $isOpen }) => ($isOpen ? 1002 : 'auto')};
+  z-index: ${({ $isOpen }) => ($isOpen ? 9999 : 'auto')};
 `
 
 const ComboboxButton = styled.button<{ $isOpen?: boolean; $disabled?: boolean }>`
@@ -73,12 +74,12 @@ const ComboboxIcon = styled(ChevronsUpDown)`
   flex-shrink: 0;
 `
 
-const ComboboxPopover = styled.div<{ $isOpen: boolean }>`
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 1001;
+const ComboboxPopover = styled.div<{ $isOpen: boolean; $top: number; $left: number; $width: number }>`
+  position: fixed;
+  top: ${({ $top }) => $top}px;
+  left: ${({ $left }) => $left}px;
+  width: ${({ $width }) => $width}px;
+  z-index: 9999;
   background: white;
   border: 1px solid #d7d7d7;
   border-radius: 6px;
@@ -180,6 +181,7 @@ export function Combobox({
 }: ComboboxProps) {
   const [isOpen, setIsOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
+  const [popoverPosition, setPopoverPosition] = React.useState({ top: 0, left: 0, width: 0 })
   const containerRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
@@ -192,11 +194,42 @@ export function Combobox({
     )
   }, [options, searchValue, searchable])
 
+  // 포지션 계산
+  React.useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const updatePosition = () => {
+        if (containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect()
+          const scrollY = window.scrollY || window.pageYOffset
+          const scrollX = window.scrollX || window.pageXOffset
+          
+          setPopoverPosition({
+            top: rect.bottom + scrollY + 4,
+            left: rect.left + scrollX,
+            width: rect.width,
+          })
+        }
+      }
+      
+      updatePosition()
+      
+      // 스크롤이나 리사이즈 시 위치 업데이트
+      window.addEventListener('scroll', updatePosition, true)
+      window.addEventListener('resize', updatePosition)
+      
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true)
+        window.removeEventListener('resize', updatePosition)
+      }
+    }
+  }, [isOpen])
+
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
+        !containerRef.current.contains(event.target as Node) &&
+        !(event.target as Element)?.closest('[data-combobox-popover]')
       ) {
         setIsOpen(false)
         setSearchValue("")
@@ -207,36 +240,6 @@ export function Combobox({
       document.addEventListener("mousedown", handleClickOutside)
       setTimeout(() => {
         inputRef.current?.focus()
-        
-        // 콤보박스가 열릴 때 해당 요소가 보이도록 스크롤
-        if (containerRef.current) {
-          const rect = containerRef.current.getBoundingClientRect()
-          const viewportHeight = window.innerHeight
-          const popoverHeight = 300 // max-height
-          
-          // 콤보박스가 화면 하단에 있고, 드롭다운이 화면 밖으로 나갈 경우
-          if (rect.bottom + popoverHeight > viewportHeight) {
-            // 부모 스크롤 컨테이너 찾기
-            let scrollContainer = containerRef.current.parentElement
-            while (scrollContainer) {
-              const style = window.getComputedStyle(scrollContainer)
-              if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
-                // 스크롤 컨테이너를 찾았으면 해당 요소가 보이도록 스크롤
-                const containerRect = scrollContainer.getBoundingClientRect()
-                const scrollTop = scrollContainer.scrollTop
-                const elementTop = rect.top - containerRect.top + scrollTop
-                const scrollOffset = elementTop - scrollTop - 20 // 20px 여유 공간
-                
-                scrollContainer.scrollTo({
-                  top: Math.max(0, scrollOffset),
-                  behavior: 'smooth'
-                })
-                break
-              }
-              scrollContainer = scrollContainer.parentElement
-            }
-          }
-        }
       }, 0)
     }
 
@@ -258,55 +261,67 @@ export function Combobox({
     }
   }
 
-  return (
-    <ComboboxContainer ref={containerRef} $isOpen={isOpen}>
-      <input type="hidden" name={name} value={value || ""} required={required} />
-      <ComboboxButton
-        type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        disabled={disabled}
-        $isOpen={isOpen}
-        onKeyDown={handleKeyDown}
-      >
-        <ComboboxValue $placeholder={!selectedOption}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </ComboboxValue>
-        <ComboboxIcon />
-      </ComboboxButton>
-      <ComboboxPopover $isOpen={isOpen}>
-        {searchable && (
-          <ComboboxInput
-            ref={inputRef}
-            type="text"
-            placeholder="검색..."
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && filteredOptions.length === 1) {
-                handleSelect(filteredOptions[0].value)
-              }
-            }}
-          />
+  const popoverContent = isOpen ? (
+    <ComboboxPopover
+      data-combobox-popover
+      $isOpen={isOpen}
+      $top={popoverPosition.top}
+      $left={popoverPosition.left}
+      $width={popoverPosition.width}
+    >
+      {searchable && (
+        <ComboboxInput
+          ref={inputRef}
+          type="text"
+          placeholder="검색..."
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && filteredOptions.length === 1) {
+              handleSelect(filteredOptions[0].value)
+            }
+          }}
+        />
+      )}
+      <ComboboxList>
+        {filteredOptions.length === 0 ? (
+          <EmptyState>결과가 없습니다</EmptyState>
+        ) : (
+          filteredOptions.map((option) => (
+            <ComboboxItem
+              key={option.value}
+              type="button"
+              onClick={() => handleSelect(option.value)}
+              $isSelected={option.value === value}
+            >
+              {option.value === value && <CheckIcon />}
+              {option.label}
+            </ComboboxItem>
+          ))
         )}
-        <ComboboxList>
-          {filteredOptions.length === 0 ? (
-            <EmptyState>결과가 없습니다</EmptyState>
-          ) : (
-            filteredOptions.map((option) => (
-              <ComboboxItem
-                key={option.value}
-                type="button"
-                onClick={() => handleSelect(option.value)}
-                $isSelected={option.value === value}
-              >
-                {option.value === value && <CheckIcon />}
-                {option.label}
-              </ComboboxItem>
-            ))
-          )}
-        </ComboboxList>
-      </ComboboxPopover>
-    </ComboboxContainer>
+      </ComboboxList>
+    </ComboboxPopover>
+  ) : null
+
+  return (
+    <>
+      <ComboboxContainer ref={containerRef} $isOpen={isOpen}>
+        <input type="hidden" name={name} value={value || ""} required={required} />
+        <ComboboxButton
+          type="button"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
+          $isOpen={isOpen}
+          onKeyDown={handleKeyDown}
+        >
+          <ComboboxValue $placeholder={!selectedOption}>
+            {selectedOption ? selectedOption.label : placeholder}
+          </ComboboxValue>
+          <ComboboxIcon />
+        </ComboboxButton>
+      </ComboboxContainer>
+      {typeof document !== 'undefined' && createPortal(popoverContent, document.body)}
+    </>
   )
 }
 
