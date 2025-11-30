@@ -28,6 +28,9 @@ export default function BibleCardPastorPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // 실시간 업데이트 상태
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   const [formData, setFormData] = useState({
     bible_verse_reference: '',
@@ -66,6 +69,7 @@ export default function BibleCardPastorPage() {
       if (!response.ok) throw new Error('조회 실패');
       return response.json();
     },
+    refetchInterval: autoRefresh ? 30000 : false, // 실시간 업데이트 토글
   });
 
   // 말씀 입력 뮤테이션
@@ -354,6 +358,12 @@ export default function BibleCardPastorPage() {
           <option value="completed">작성 완료</option>
           <option value="delivered">전달 완료</option>
         </FilterSelect>
+        <AutoRefreshButton 
+          active={autoRefresh}
+          onClick={() => setAutoRefresh(!autoRefresh)}
+        >
+          {autoRefresh ? '🔄 실시간 ON' : '⏸️ 실시간 OFF'}
+        </AutoRefreshButton>
       </FilterBar>
 
       {/* 목록 - 데스크톱 테이블 / 모바일 카드 */}
@@ -716,6 +726,14 @@ const FilterBar = styled.div`
   margin-bottom: 20px;
   width: 100%;
   box-sizing: border-box;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 10px;
+  }
 `;
 
 const FilterSelect = styled.select`
@@ -724,12 +742,37 @@ const FilterSelect = styled.select`
   border-radius: 8px;
   font-size: 14px;
   min-width: 150px;
-  width: 100%;
+  flex: 1;
 
   @media (max-width: 768px) {
     width: 100%;
     padding: 12px 14px;
     font-size: 16px; /* iOS 줌 방지 */
+  }
+`;
+
+const AutoRefreshButton = styled.button<{ active: boolean }>`
+  padding: 10px 16px;
+  background: ${props => props.active ? '#10b981' : 'white'};
+  border: 1px solid ${props => props.active ? '#10b981' : '#e2e8f0'};
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${props => props.active ? 'white' : '#64748b'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: ${props => props.active ? '#059669' : '#f1f5f9'};
+    border-color: ${props => props.active ? '#059669' : '#cbd5e1'};
+    color: ${props => props.active ? 'white' : '#1e293b'};
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+    font-size: 12px;
+    padding: 8px 12px;
   }
 `;
 
@@ -1004,14 +1047,8 @@ const InfoGrid = styled.div`
 
   @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    padding: 12px;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px;
     width: 100%;
     max-width: 100%;
   }

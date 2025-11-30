@@ -73,6 +73,9 @@ export default function UsersAdminPage() {
   const [appliedFilterGroupId, setAppliedFilterGroupId] = useState('');
   const [appliedFilterCellId, setAppliedFilterCellId] = useState('');
   const [appliedFilterStatus, setAppliedFilterStatus] = useState('');
+  
+  // 실시간 업데이트 상태
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   // 권한 목록 조회 (DB에서)
   const { data: availableRoles } = useQuery<Array<{ id: number; name: string; description?: string | null }>>({
@@ -100,6 +103,8 @@ export default function UsersAdminPage() {
     setAppliedFilterCellId(filterCellId);
     setAppliedFilterStatus(filterStatus);
     setCurrentPage(1);
+    // 조회 버튼 클릭 시 강제 새로고침 (필터가 모두 "전체"일 때도 조회 가능)
+    queryClient.invalidateQueries({ queryKey: ['admin-users'] });
   };
   
   // 초기 로드 시 자동 조회 (한 번만)
@@ -139,6 +144,7 @@ export default function UsersAdminPage() {
       return response.json();
     },
     enabled: true, // 항상 활성화 (초기 로드 시에도 조회)
+    refetchInterval: autoRefresh ? 30000 : false, // 실시간 업데이트 토글
   });
 
   // 그룹 목록 조회 (hub_groups 테이블에는 community 컬럼이 없으므로 모든 그룹 반환)
@@ -436,6 +442,13 @@ export default function UsersAdminPage() {
           <ResetButton onClick={handleResetFilters}>
             초기화
           </ResetButton>
+
+          <AutoRefreshButton 
+            active={autoRefresh}
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            {autoRefresh ? '🔄 실시간 업데이트 ON' : '⏸️ 실시간 업데이트 OFF'}
+          </AutoRefreshButton>
         </FilterSection>
 
         {isLoading ? (
@@ -869,6 +882,31 @@ const ResetButton = styled.button`
   &:hover {
     background: #f1f5f9;
     color: #1e293b;
+  }
+`;
+
+const AutoRefreshButton = styled.button<{ active: boolean }>`
+  padding: 10px 16px;
+  background: ${props => props.active ? '#10b981' : 'white'};
+  border: 1px solid ${props => props.active ? '#10b981' : '#e2e8f0'};
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${props => props.active ? 'white' : '#64748b'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: fit-content;
+  white-space: nowrap;
+
+  &:hover {
+    background: ${props => props.active ? '#059669' : '#f1f5f9'};
+    border-color: ${props => props.active ? '#059669' : '#cbd5e1'};
+    color: ${props => props.active ? 'white' : '#1e293b'};
+  }
+
+  @media (max-width: 768px) {
+    font-size: 12px;
+    padding: 8px 12px;
   }
 `;
 

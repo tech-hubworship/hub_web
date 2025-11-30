@@ -65,6 +65,9 @@ export default function BibleCardAdminPage() {
   const [appliedStatusFilter, setAppliedStatusFilter] = useState('');
   const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
   
+  // 실시간 업데이트 상태
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  
   // 팝업 상태
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -81,6 +84,7 @@ export default function BibleCardAdminPage() {
       if (!response.ok) throw new Error('통계 조회 실패');
       return response.json();
     },
+    refetchInterval: autoRefresh ? 30000 : false, // 실시간 업데이트 토글
   });
 
   // 조회 버튼 클릭 핸들러
@@ -88,6 +92,8 @@ export default function BibleCardAdminPage() {
     setAppliedStatusFilter(statusFilter);
     setAppliedSearchQuery(searchQuery);
     setCurrentPage(1);
+    // 조회 버튼 클릭 시 강제 새로고침 (필터가 모두 "전체"일 때도 조회 가능)
+    queryClient.invalidateQueries({ queryKey: ['bible-card-applications'] });
   };
 
   // 신청 목록 조회 - applied 필터 사용
@@ -106,6 +112,7 @@ export default function BibleCardAdminPage() {
       return response.json();
     },
     enabled: true, // 항상 활성화 (초기 로드 시에도 조회)
+    refetchInterval: autoRefresh ? 30000 : false, // 실시간 업데이트 토글
   });
   
   // 초기 로드 시 자동 조회 (한 번만)
@@ -351,6 +358,12 @@ export default function BibleCardAdminPage() {
           <SearchButton onClick={handleSearch}>
             🔍 조회하기
           </SearchButton>
+          <AutoRefreshButton 
+            active={autoRefresh}
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            {autoRefresh ? '🔄 실시간 ON' : '⏸️ 실시간 OFF'}
+          </AutoRefreshButton>
         </FilterGroup>
         <ActionButtons>
           <AssignByGroupButton
@@ -672,31 +685,58 @@ export default function BibleCardAdminPage() {
 // Styled Components
 const Container = styled.div`
   padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 `;
 
 const Header = styled.div`
   margin-bottom: 24px;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    margin-bottom: 20px;
+  }
 `;
 
-const HeaderLeft = styled.div``;
+const HeaderLeft = styled.div`
+  width: 100%;
+  box-sizing: border-box;
+`;
 
 const Title = styled.h1`
   font-size: 24px;
   font-weight: 700;
   color: #1e293b;
   margin: 0 0 4px 0;
+
+  @media (max-width: 768px) {
+    font-size: 20px;
+  }
 `;
 
 const Subtitle = styled.p`
   font-size: 14px;
   color: #64748b;
   margin: 0;
+
+  @media (max-width: 768px) {
+    font-size: 13px;
+  }
 `;
 
 const StatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
   margin-bottom: 24px;
 `;
 
@@ -789,6 +829,30 @@ const SearchButton = styled.button`
 
   &:active {
     transform: translateY(0);
+  }
+`;
+
+const AutoRefreshButton = styled.button<{ active: boolean }>`
+  padding: 10px 16px;
+  background: ${props => props.active ? '#10b981' : 'white'};
+  border: 1px solid ${props => props.active ? '#10b981' : '#e2e8f0'};
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${props => props.active ? 'white' : '#64748b'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: ${props => props.active ? '#059669' : '#f1f5f9'};
+    border-color: ${props => props.active ? '#059669' : '#cbd5e1'};
+    color: ${props => props.active ? 'white' : '#1e293b'};
+  }
+
+  @media (max-width: 768px) {
+    font-size: 12px;
+    padding: 8px 12px;
   }
 `;
 
@@ -1039,6 +1103,15 @@ const Modal = styled.div`
   justify-content: center;
   z-index: 2000;
   padding: 20px;
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding: 0;
+    align-items: flex-end;
+  }
 `;
 
 const ModalContent = styled.div`
@@ -1048,6 +1121,16 @@ const ModalContent = styled.div`
   max-width: 540px;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    max-width: 100vw;
+    width: 100vw;
+    max-height: 95vh;
+    border-radius: 16px 16px 0 0;
+    margin-top: auto;
+  }
 `;
 
 const ModalHeader = styled.div`
@@ -1056,6 +1139,16 @@ const ModalHeader = styled.div`
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding: 16px 20px;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
+  }
 `;
 
 const ModalTitle = styled.h2`
@@ -1063,6 +1156,10 @@ const ModalTitle = styled.h2`
   font-weight: 700;
   color: #1e293b;
   margin: 0;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
 `;
 
 const CloseButton = styled.button`
@@ -1082,6 +1179,12 @@ const CloseButton = styled.button`
 
 const ModalBody = styled.div`
   padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding: 20px;
+  }
 `;
 
 const ModalFooter = styled.div`
@@ -1089,6 +1192,17 @@ const ModalFooter = styled.div`
   gap: 12px;
   padding: 16px 24px;
   border-top: 1px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding: 16px 20px;
+    position: sticky;
+    bottom: 0;
+    background: white;
+    z-index: 1;
+    flex-direction: column-reverse;
+  }
 `;
 
 const InfoBox = styled.div`
@@ -1220,9 +1334,12 @@ const DetailGrid = styled.div`
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
 
-  @media (max-width: 480px) {
+  @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 `;
 

@@ -270,3 +270,28 @@ export const SearchButton = styled.button`
     transform: translateY(0);
   }
 `;
+
+export const AutoRefreshButton = styled.button<{ active: boolean }>`
+  padding: 10px 16px;
+  background: ${props => props.active ? '#10b981' : 'white'};
+  border: 1px solid ${props => props.active ? '#10b981' : '#e2e8f0'};
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${props => props.active ? 'white' : '#64748b'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  height: fit-content;
+
+  &:hover {
+    background: ${props => props.active ? '#059669' : '#f1f5f9'};
+    border-color: ${props => props.active ? '#059669' : '#cbd5e1'};
+    color: ${props => props.active ? 'white' : '#1e293b'};
+  }
+
+  @media (max-width: 768px) {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+`;

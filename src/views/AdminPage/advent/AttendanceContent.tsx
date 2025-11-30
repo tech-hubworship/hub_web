@@ -35,6 +35,9 @@ export default function AttendanceContent() {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [appliedGroupId, setAppliedGroupId] = useState<number | ''>('');
   const [appliedCellId, setAppliedCellId] = useState<number | ''>('');
+  
+  // 실시간 업데이트 상태
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   const { groups } = useGroups();
   const { cells } = useCells(appliedGroupId);
@@ -75,6 +78,8 @@ export default function AttendanceContent() {
     setAppliedSearch(search);
     setAppliedGroupId(groupId);
     setAppliedCellId(cellId);
+    // 조회 버튼 클릭 시 즉시 조회 (필터가 모두 "전체"일 때도 조회 가능)
+    fetchAttendance();
   };
 
   useEffect(() => {
@@ -85,6 +90,16 @@ export default function AttendanceContent() {
   useEffect(() => {
     fetchAttendance();
   }, [appliedDate, appliedSearch, appliedGroupId, appliedCellId]);
+
+  // 실시간 업데이트 (30초마다 자동 새로고침) - 토글 가능
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      fetchAttendance();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, appliedDate, appliedSearch, appliedGroupId, appliedCellId]);
 
   const groupCellStats = useMemo(() => {
     const stats: {
@@ -185,6 +200,15 @@ export default function AttendanceContent() {
           <S.SearchButton onClick={handleSearch}>
             🔍 조회하기
           </S.SearchButton>
+        </S.FormGroup>
+        
+        <S.FormGroup>
+          <S.AutoRefreshButton 
+            active={autoRefresh}
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            {autoRefresh ? '🔄 실시간 ON' : '⏸️ 실시간 OFF'}
+          </S.AutoRefreshButton>
         </S.FormGroup>
       </S.FilterRow>
 

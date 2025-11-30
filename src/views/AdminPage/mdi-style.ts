@@ -380,7 +380,12 @@ export const TabCloseButton = styled.button`
   }
 
   @media (max-width: 768px) {
-    display: none;
+    width: 20px;
+    height: 20px;
+    font-size: 16px;
+    margin-left: 6px;
+    min-width: 20px;
+    min-height: 20px;
   }
 `;
 
@@ -432,6 +437,14 @@ export const DashboardWelcome = styled.div`
   margin-bottom: 32px;
   animation: ${slideIn} 0.4s ease;
   box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding: 24px 20px;
+    margin-bottom: 24px;
+    border-radius: 16px;
+  }
 `;
 
 export const WelcomeTitle = styled.h2`
@@ -439,12 +452,21 @@ export const WelcomeTitle = styled.h2`
   font-weight: 700;
   color: #ffffff;
   margin: 0 0 8px 0;
+
+  @media (max-width: 768px) {
+    font-size: 22px;
+    margin: 0 0 6px 0;
+  }
 `;
 
 export const WelcomeSubtitle = styled.p`
   font-size: 16px;
   color: rgba(255, 255, 255, 0.9);
   margin: 0;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
 `;
 
 // 메뉴 카드 그리드
@@ -452,6 +474,19 @@ export const MenuGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 0;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
 `;
 
 export const MenuCard = styled.div`
@@ -465,6 +500,8 @@ export const MenuCard = styled.div`
   position: relative;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  box-sizing: border-box;
 
   &::before {
     content: '';
@@ -488,11 +525,42 @@ export const MenuCard = styled.div`
       transform: scaleY(1);
     }
   }
+
+  &:active {
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 768px) {
+    padding: 16px 12px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    &:active {
+      transform: scale(0.98);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    }
+  }
 `;
 
 export const MenuCardIcon = styled.div`
   font-size: 36px;
   margin-bottom: 16px;
+
+  @media (max-width: 768px) {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
 `;
 
 export const MenuCardTitle = styled.h3`
@@ -500,6 +568,12 @@ export const MenuCardTitle = styled.h3`
   font-weight: 600;
   color: #1e293b;
   margin: 0 0 8px 0;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+    margin: 0 0 4px 0;
+    font-weight: 600;
+  }
 `;
 
 export const MenuCardDescription = styled.p`
@@ -507,6 +581,10 @@ export const MenuCardDescription = styled.p`
   color: #64748b;
   margin: 0;
   line-height: 1.5;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 // 로딩 상태
@@ -601,5 +679,13 @@ export const SectionTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+    margin: 0 0 16px 0;
+    gap: 6px;
+  }
 `;
 
