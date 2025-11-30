@@ -84,6 +84,7 @@ export default async function handler(
 
       return res.status(200).json(
         uniqueBooks.map((item) => ({
+          id: item.id,
           full_name: item.full_name,
           short_name: item.short_name,
         }))
