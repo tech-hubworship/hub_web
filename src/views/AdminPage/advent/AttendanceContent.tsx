@@ -12,8 +12,10 @@ interface AttendanceRecord {
   email: string;
   hub_groups: { id: number; name: string } | null;
   hub_cells: { id: number; name: string } | null;
+  has_meditation: boolean;
   attended: boolean;
-  created_at: string | null;
+  meditation_created_at: string | null;
+  attendance_created_at: string | null;
 }
 
 export default function AttendanceContent() {
@@ -43,10 +45,9 @@ export default function AttendanceContent() {
   const { cells } = useCells(appliedGroupId);
 
   const [loading, setLoading] = useState(false);
-  const [originalList, setOriginalList] = useState<AttendanceRecord[]>([]);
   const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([]);
-  const [totalUsers, setTotalUsers] = useState(0);
   const [attendedCount, setAttendedCount] = useState(0);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
   const fetchAttendance = async () => {
     const query = new URLSearchParams({
@@ -66,9 +67,7 @@ export default function AttendanceContent() {
       return;
     }
 
-    setOriginalList(data.list);
     setAttendanceList(data.list);
-    setTotalUsers(data.total_users);
     setAttendedCount(data.attended);
   };
 
@@ -101,40 +100,54 @@ export default function AttendanceContent() {
     return () => clearInterval(interval);
   }, [autoRefresh, appliedDate, appliedSearch, appliedGroupId, appliedCellId]);
 
-  const groupCellStats = useMemo(() => {
-    const stats: {
-      [groupId: string]: {
-        groupName: string;
-        cells: {
-          [cellId: string]: {
-            cellName: string;
-            total: number;
-            attended: number;
-          };
-        };
-      };
-    } = {};
+  // 출석 처리 핸들러
+  const handleMarkAttendance = async (userId: string) => {
+    if (!confirm('출석 처리하시겠습니까?')) {
+      return;
+    }
 
-    originalList.forEach((u) => {
-      const gId = u.hub_groups?.id ?? 'none';
-      const gName = u.hub_groups?.name ?? '해당없음';
-      const cId = u.hub_cells?.id ?? 'none';
-      const cName = u.hub_cells?.name ?? '해당없음';
+    setUpdatingUserId(userId);
+    try {
+      const res = await fetch('/api/admin/advent/attendance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          post_dt: appliedDate,
+        }),
+      });
 
-      if (!stats[gId]) {
-        stats[gId] = { groupName: gName, cells: {} };
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || '출석 처리에 실패했습니다.');
+        return;
       }
-      if (!stats[gId].cells[cId]) {
-        stats[gId].cells[cId] = { cellName: cName, total: 0, attended: 0 };
-      }
-      stats[gId].cells[cId].total += 1;
-      if (u.attended) {
-        stats[gId].cells[cId].attended += 1;
-      }
+
+      // 성공 시 목록 새로고침
+      await fetchAttendance();
+    } catch (error) {
+      console.error('출석 처리 오류:', error);
+      alert('출석 처리 중 오류가 발생했습니다.');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  // 묵상 시간 기준 최신순 정렬
+  const sortedAttendanceList = useMemo(() => {
+    return [...attendanceList].sort((a, b) => {
+      // 묵상 시간이 없는 경우 맨 뒤로
+      if (!a.meditation_created_at && !b.meditation_created_at) return 0;
+      if (!a.meditation_created_at) return 1;
+      if (!b.meditation_created_at) return -1;
+      
+      // 최신순 (내림차순)
+      return new Date(b.meditation_created_at).getTime() - new Date(a.meditation_created_at).getTime();
     });
-
-    return stats;
-  }, [originalList]);
+  }, [attendanceList]);
 
   if (loading) {
     return (
@@ -212,47 +225,6 @@ export default function AttendanceContent() {
         </S.FormGroup>
       </S.FilterRow>
 
-      {/* 전체 출석 통계 */}
-      <S.WelcomeCard>
-        <S.WelcomeTitle>📅 출석 통계</S.WelcomeTitle>
-        <S.WelcomeSubtitle>
-          총 {totalUsers}명 중 {attendedCount}명 출석 (
-          {(totalUsers ? (attendedCount / totalUsers) * 100 : 0).toFixed(1)}%)
-        </S.WelcomeSubtitle>
-      </S.WelcomeCard>
-
-      {/* 그룹/다락방 통계표 */}
-      <S.TableContainer style={{ marginTop: '24px' }}>
-        <S.Table>
-          <S.TableHeader>
-            <tr>
-              <S.TableHead>그룹</S.TableHead>
-              <S.TableHead>다락방</S.TableHead>
-              <S.TableHead>총 인원</S.TableHead>
-              <S.TableHead>출석</S.TableHead>
-              <S.TableHead>출석률</S.TableHead>
-            </tr>
-          </S.TableHeader>
-          <tbody>
-            {Object.entries(groupCellStats).map(([gid, group]) =>
-              Object.entries(group.cells).map(([cid, cell]) => (
-                <S.TableRow key={`${gid}-${cid}`}>
-                  <S.TableData>{group.groupName}</S.TableData>
-                  <S.TableData>{cell.cellName}</S.TableData>
-                  <S.TableData>{cell.total}</S.TableData>
-                  <S.TableData>{cell.attended}</S.TableData>
-                  <S.TableData>
-                    {cell.total
-                      ? ((cell.attended / cell.total) * 100).toFixed(1) + '%'
-                      : '-'}
-                  </S.TableData>
-                </S.TableRow>
-              ))
-            )}
-          </tbody>
-        </S.Table>
-      </S.TableContainer>
-
       {/* 출석 상세 테이블 */}
       <S.TableContainer style={{ marginTop: '24px' }}>
         <S.Table>
@@ -262,23 +234,47 @@ export default function AttendanceContent() {
               <S.TableHead>이메일</S.TableHead>
               <S.TableHead>그룹</S.TableHead>
               <S.TableHead>다락방</S.TableHead>
+              <S.TableHead>묵상 여부</S.TableHead>
               <S.TableHead>출석 여부</S.TableHead>
+              <S.TableHead>묵상 시각</S.TableHead>
               <S.TableHead>출석 시각</S.TableHead>
             </tr>
           </S.TableHeader>
           <tbody>
-            {attendanceList.map((u) => (
+            {sortedAttendanceList.map((u) => (
               <S.TableRow key={u.user_id}>
                 <S.TableData>{u.name}</S.TableData>
                 <S.TableData>{u.email}</S.TableData>
                 <S.TableData>{u.hub_groups?.name ?? '-'}</S.TableData>
                 <S.TableData>{u.hub_cells?.name ?? '-'}</S.TableData>
-                <S.TableData style={{ color: u.attended ? '#10b981' : '#ef4444' }}>
-                  {u.attended ? '● 출석' : '× 미출석'}
+
+                <S.TableData style={{ color: u.has_meditation ? '#10b981' : '#ef4444' }}>
+                  {u.has_meditation ? '● 완료' : '× 미작성'}
                 </S.TableData>
+
+                <S.TableData style={{ color: u.attended ? '#10b981' : '#ef4444' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{u.attended ? '● 출석' : '× 미출석'}</span>
+                    {!u.attended && (
+                      <S.AttendanceButton
+                        onClick={() => handleMarkAttendance(u.user_id)}
+                        disabled={updatingUserId === u.user_id}
+                      >
+                        {updatingUserId === u.user_id ? '처리 중...' : '출석 처리'}
+                      </S.AttendanceButton>
+                    )}
+                  </div>
+                </S.TableData>
+
                 <S.TableData>
-                  {u.created_at
-                    ? new Date(u.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+                  {u.meditation_created_at
+                    ? new Date(u.meditation_created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+                    : '-'}
+                </S.TableData>
+
+                <S.TableData>
+                  {u.attendance_created_at
+                    ? new Date(u.attendance_created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
                     : '-'}
                 </S.TableData>
               </S.TableRow>

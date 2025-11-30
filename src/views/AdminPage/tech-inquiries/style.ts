@@ -48,6 +48,82 @@ export const FilterBar = styled.div`
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+  margin-bottom: 16px;
+`;
+
+export const SearchInput = styled.input`
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  min-width: 250px;
+  transition: all 0.2s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  
+  @media (max-width: 768px) {
+    min-width: 100%;
+    margin-bottom: 12px;
+  }
+`;
+
+export const TypeFilterBar = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 0 24px;
+  
+  @media (max-width: 768px) {
+    padding: 0 16px;
+  }
+`;
+
+export const FilterLabel = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  margin-right: 4px;
+`;
+
+export const SearchResultInfo = styled.div`
+  padding: 12px 24px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin: 0 24px 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: #475569;
+  
+  @media (max-width: 768px) {
+    margin: 0 16px 16px 16px;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+`;
+
+export const ClearSearchButton = styled.button`
+  padding: 6px 12px;
+  background: #e2e8f0;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #cbd5e1;
+    color: #1e293b;
+  }
 `;
 
 export const FilterButton = styled.button<{ active: boolean }>`
@@ -503,5 +579,12 @@ export const MessageBox = styled.div`
   white-space: pre-wrap;
   word-break: break-word;
   margin: 12px 0;
+`;
+
+export const HelpText = styled.div`
+  margin-top: 8px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
 `;
 

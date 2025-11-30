@@ -36,7 +36,7 @@ export default async function handler(
 }
 
 /**
- * 새로운 문의사항 등록 (익명 허용)
+ * 새로운 문의사항 등록 (익명 허용, 로그인 사용자 정보 저장)
  */
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   const { message, inquiryType = 'general', pageUrl } = req.body;
@@ -50,6 +50,67 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ error: '메시지는 5000자를 초과할 수 없습니다.' });
   }
 
+  // 로그인된 사용자 정보 확인
+  const session = await getServerSession(req, res, authOptions);
+  
+  if (!session?.user?.id) {
+    return res.status(401).json({ 
+      error: '문의사항을 제출하려면 로그인이 필요합니다.' 
+    });
+  }
+
+  // profiles 테이블에서 실제 user_id 조회 (session.user.id는 Google ID이므로 profiles의 user_id 사용)
+  let userId: string | null = null;
+  let userEmail: string | null = null;
+  let userName: string | null = null;
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .select('user_id, email, name')
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error('프로필 조회 오류:', profileError);
+    return res.status(500).json({ 
+      error: '사용자 정보를 불러오는데 실패했습니다.' 
+    });
+  }
+
+  // 프로필이 없으면 생성 시도
+  if (!profile) {
+    const { data: newProfile, error: createError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        user_id: session.user.id,
+        email: session.user.email || null,
+        name: session.user.name || null,
+      })
+      .select('user_id, email, name')
+      .single();
+
+    if (createError) {
+      console.error('프로필 생성 오류:', createError);
+      return res.status(500).json({ 
+        error: '사용자 프로필 생성에 실패했습니다.' 
+      });
+    }
+
+    userId = newProfile.user_id;
+    userEmail = newProfile.email;
+    userName = newProfile.name;
+  } else {
+    userId = profile.user_id;
+    userEmail = profile.email;
+    userName = profile.name;
+  }
+
+  if (!userId) {
+    return res.status(500).json({ 
+      error: '사용자 ID를 확인할 수 없습니다.' 
+    });
+  }
+
   // 사용자 정보 수집
   const userAgent = req.headers['user-agent'] || null;
   const userIp = 
@@ -58,25 +119,37 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     req.socket.remoteAddress ||
     null;
 
-  // 중복 제출 체크 (5분 내 동일 IP에서 동일 메시지)
-  if (userIp) {
-    // 한국 시간 기준 5분 전
-    const now = new Date();
-    const koreanNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-    const fiveMinutesAgo = new Date(koreanNow.getTime() - 5 * 60 * 1000).toISOString().replace('Z', '');
-    
-    const { data: recentInquiries, error: checkError } = await supabaseAdmin
-      .from('tech_inquiries')
-      .select('id')
-      .eq('user_ip', userIp)
-      .eq('message', message.trim())
-      .gte('created_at', fiveMinutesAgo);
+  // 중복 제출 체크 (5분 내 동일 IP 또는 동일 사용자에서 동일 메시지)
+  const now = new Date();
+  const koreanNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  const fiveMinutesAgo = new Date(koreanNow.getTime() - 5 * 60 * 1000).toISOString().replace('Z', '');
+  
+  let duplicateCheck = supabaseAdmin
+    .from('tech_inquiries')
+    .select('id')
+    .eq('message', message.trim())
+    .gte('created_at', fiveMinutesAgo);
 
-    if (!checkError && recentInquiries && recentInquiries.length > 0) {
-      return res.status(429).json({ 
-        error: '동일한 문의사항을 이미 제출하셨습니다. 잠시 후 다시 시도해주세요.' 
-      });
-    }
+  // 로그인된 사용자는 user_id로, 익명 사용자는 IP로 체크
+  if (userId) {
+    duplicateCheck = duplicateCheck.eq('user_id', userId);
+  } else if (userIp) {
+    duplicateCheck = duplicateCheck.eq('user_ip', userIp);
+  }
+
+  const { data: recentInquiries, error: checkError } = await duplicateCheck;
+
+  if (!checkError && recentInquiries && recentInquiries.length > 0) {
+    return res.status(429).json({ 
+      error: '동일한 문의사항을 이미 제출하셨습니다. 잠시 후 다시 시도해주세요.' 
+    });
+  }
+
+  // 로그인 확인 (로그인된 사용자만 문의 제출 가능)
+  if (!userId) {
+    return res.status(401).json({ 
+      error: '문의사항을 제출하려면 로그인이 필요합니다.' 
+    });
   }
 
   // 문의사항 저장 (supabaseAdmin 사용하여 RLS 우회)
@@ -88,7 +161,11 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
       user_agent: userAgent,
       user_ip: userIp,
       page_url: pageUrl || null,
-      status: 'new'
+      status: 'new',
+      // 로그인된 사용자 정보 저장 (필수)
+      user_id: userId,
+      user_email: userEmail,
+      user_name: userName
     })
     .select()
     .single();

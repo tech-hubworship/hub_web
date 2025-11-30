@@ -128,6 +128,19 @@ const OriginFooter: FC = () => {
                   <St.SuccessIcon>✓</St.SuccessIcon>
                   <div>제출완료되었습니다</div>
                   <div>감사합니다.</div>
+                  <St.FeedbackLink>
+                    <St.FeedbackLinkText>
+                      관리자 피드백은 "내 문의사항" 페이지에서 확인하실 수 있습니다.
+                    </St.FeedbackLinkText>
+                    <St.FeedbackLinkButton
+                      onClick={() => {
+                        router.push('/tech-inquiry-feedback');
+                        setIsModalOpen(false);
+                      }}
+                    >
+                      내 문의사항 확인하기
+                    </St.FeedbackLinkButton>
+                  </St.FeedbackLink>
                 </St.SuccessMessage>
               ) : (
                 <>

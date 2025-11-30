@@ -297,3 +297,61 @@ export const LoadingText = styled.p`
   font-weight: 500;
   color: #666;
 `;
+
+export const FeedbackLink = styled.div`
+  margin-top: 24px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  text-align: center;
+  width: 100%;
+`;
+
+export const FeedbackLinkTitle = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+  margin-bottom: 8px;
+`;
+
+export const FeedbackLinkText = styled.div`
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 12px;
+  line-height: 1.5;
+`;
+
+export const FeedbackLinkButton = styled.button`
+  background-color: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+export const FeedbackLinkUrl = styled.div`
+  font-size: 11px;
+  color: #999;
+  word-break: break-all;
+  padding: 8px;
+  background-color: #fff;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  font-family: monospace;
+`;

@@ -90,7 +90,7 @@ async function handlePatch(
     return res.status(401).json({ error: '관리자 권한이 필요합니다.' });
   }
 
-  const { status, adminNote, inquiryType } = req.body;
+  const { status, adminNote, inquiryType, adminResponse } = req.body;
 
   const updateData: any = {};
 
@@ -107,6 +107,23 @@ async function handlePatch(
 
   if (adminNote !== undefined) {
     updateData.admin_note = adminNote;
+  }
+
+  // 사용자에게 보이는 피드백 추가
+  if (adminResponse !== undefined) {
+    if (adminResponse && adminResponse.trim().length > 5000) {
+      return res.status(400).json({ error: '피드백은 5000자를 초과할 수 없습니다.' });
+    }
+    updateData.admin_response = adminResponse ? adminResponse.trim() : null;
+    // 피드백이 작성되면 시간 기록
+    if (adminResponse && adminResponse.trim().length > 0) {
+      updateData.response_at = getKoreanTimestamp();
+      // 향후 관리자 ID 저장 기능을 위해 주석 처리
+      // updateData.response_by = session.user.id;
+    } else {
+      // 피드백이 삭제되면 시간도 초기화
+      updateData.response_at = null;
+    }
   }
 
   if (inquiryType) {

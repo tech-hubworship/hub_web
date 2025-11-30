@@ -128,6 +128,21 @@ export default function MDIAdminPage() {
       });
   }, [dbMenus, roles, getAccessibleMenus]);
 
+  // URL 쿼리 파라미터로 탭 자동 열기
+  useEffect(() => {
+    if (status !== 'authenticated' || !session?.user?.isAdmin) return;
+    
+    const tabId = router.query.tab as string | undefined;
+    if (tabId) {
+      const menu = accessibleMenus.find(m => m.id === tabId);
+      if (menu && activeTabId !== tabId) {
+        openTab(menu);
+        // 쿼리 파라미터 제거 (깔끔한 URL 유지)
+        router.replace('/admin', undefined, { shallow: true });
+      }
+    }
+  }, [router.query.tab, accessibleMenus, status, session, activeTabId, openTab, router]);
+
   if (status === 'loading' || !session?.user?.isAdmin) {
     return (
       <S.LoadingContainer>

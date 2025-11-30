@@ -15,6 +15,11 @@ interface TechInquiry {
   user_ip?: string;
   page_url?: string;
   admin_note?: string;
+  admin_response?: string;
+  response_at?: string;
+  user_id?: string;
+  user_email?: string;
+  user_name?: string;
   created_at: string;
   resolved_at?: string;
 }
@@ -58,11 +63,14 @@ const STATUS_COLORS: Record<string, 'blue' | 'yellow' | 'green' | 'red'> = {
 export default function TechInquiriesAdminPage() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedInquiry, setSelectedInquiry] = useState<TechInquiry | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editStatus, setEditStatus] = useState<string>('');
   const [editType, setEditType] = useState<string>('');
   const [adminNote, setAdminNote] = useState<string>('');
+  const [adminResponse, setAdminResponse] = useState<string>('');
 
   // 통계 조회
   const { data: stats } = useQuery<InquiryStats>({
@@ -76,17 +84,46 @@ export default function TechInquiriesAdminPage() {
   });
 
   // 문의사항 목록 조회
-  const { data: inquiries, isLoading } = useQuery<TechInquiry[]>({
-    queryKey: ['tech-inquiries', statusFilter],
+  const { data: allInquiries, isLoading } = useQuery<TechInquiry[]>({
+    queryKey: ['tech-inquiries', 'all'],
     queryFn: async () => {
       const response = await fetch(
-        `/api/tech-inquiries?status=${statusFilter}&limit=100&offset=0`
+        `/api/tech-inquiries?status=all&limit=1000&offset=0`
       );
       if (!response.ok) throw new Error('문의사항 목록을 가져오는 데 실패했습니다.');
       const result = await response.json();
-      return result.data;
+      return result.data || [];
     },
   });
+
+  // 필터링 및 검색 적용
+  const inquiries = allInquiries?.filter((inquiry) => {
+    // 상태 필터
+    if (statusFilter !== 'all' && inquiry.status !== statusFilter) {
+      return false;
+    }
+    
+    // 유형 필터
+    if (typeFilter !== 'all' && inquiry.inquiry_type !== typeFilter) {
+      return false;
+    }
+    
+    // 검색어 필터 (메시지 내용, 사용자 정보 검색)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const messageMatch = inquiry.message?.toLowerCase().includes(query);
+      const adminNoteMatch = inquiry.admin_note?.toLowerCase().includes(query);
+      const adminResponseMatch = inquiry.admin_response?.toLowerCase().includes(query);
+      const userNameMatch = inquiry.user_name?.toLowerCase().includes(query);
+      const userEmailMatch = inquiry.user_email?.toLowerCase().includes(query);
+      
+      if (!messageMatch && !adminNoteMatch && !adminResponseMatch && !userNameMatch && !userEmailMatch) {
+        return false;
+      }
+    }
+    
+    return true;
+  }) || [];
 
   // 문의사항 수정 뮤테이션
   const updateInquiryMutation = useMutation({
@@ -95,16 +132,18 @@ export default function TechInquiriesAdminPage() {
       status,
       adminNote,
       inquiryType,
+      adminResponse,
     }: {
       id: number;
       status?: string;
       adminNote?: string;
       inquiryType?: string;
+      adminResponse?: string;
     }) => {
       const response = await fetch(`/api/tech-inquiries/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, adminNote, inquiryType }),
+        body: JSON.stringify({ status, adminNote, inquiryType, adminResponse }),
       });
       if (!response.ok) throw new Error('문의사항 수정에 실패했습니다.');
       return response.json();
@@ -148,6 +187,7 @@ export default function TechInquiriesAdminPage() {
     setEditStatus(inquiry.status);
     setEditType(inquiry.inquiry_type);
     setAdminNote(inquiry.admin_note || '');
+    setAdminResponse(inquiry.admin_response || '');
     setIsModalOpen(true);
   };
 
@@ -158,6 +198,7 @@ export default function TechInquiriesAdminPage() {
     setEditStatus('');
     setEditType('');
     setAdminNote('');
+    setAdminResponse('');
   };
 
   // 문의사항 저장
@@ -169,6 +210,7 @@ export default function TechInquiriesAdminPage() {
       status: editStatus,
       adminNote: adminNote,
       inquiryType: editType,
+      adminResponse: adminResponse,
     });
   };
 
@@ -192,6 +234,12 @@ export default function TechInquiriesAdminPage() {
           <S.Subtitle>사용자 문의 및 버그 리포트를 관리합니다</S.Subtitle>
         </S.HeaderLeft>
         <S.FilterBar>
+          <S.SearchInput
+            type="text"
+            placeholder="검색 (메시지, 메모, 피드백 내용)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
           <S.FilterButton
             active={statusFilter === 'all'}
             onClick={() => setStatusFilter('all')}
@@ -216,7 +264,56 @@ export default function TechInquiriesAdminPage() {
           >
             해결됨
           </S.FilterButton>
+          <S.FilterButton
+            active={statusFilter === 'closed'}
+            onClick={() => setStatusFilter('closed')}
+          >
+            종료
+          </S.FilterButton>
         </S.FilterBar>
+        
+        <S.TypeFilterBar>
+          <S.FilterLabel>유형:</S.FilterLabel>
+          <S.FilterButton
+            active={typeFilter === 'all'}
+            onClick={() => setTypeFilter('all')}
+          >
+            전체
+          </S.FilterButton>
+          <S.FilterButton
+            active={typeFilter === 'bug'}
+            onClick={() => setTypeFilter('bug')}
+          >
+            버그
+          </S.FilterButton>
+          <S.FilterButton
+            active={typeFilter === 'inquiry'}
+            onClick={() => setTypeFilter('inquiry')}
+          >
+            문의
+          </S.FilterButton>
+          <S.FilterButton
+            active={typeFilter === 'suggestion'}
+            onClick={() => setTypeFilter('suggestion')}
+          >
+            제안
+          </S.FilterButton>
+          <S.FilterButton
+            active={typeFilter === 'general'}
+            onClick={() => setTypeFilter('general')}
+          >
+            일반
+          </S.FilterButton>
+        </S.TypeFilterBar>
+        
+        {searchQuery && (
+          <S.SearchResultInfo>
+            검색 결과: {inquiries.length}개
+            <S.ClearSearchButton onClick={() => setSearchQuery('')}>
+              검색 초기화
+            </S.ClearSearchButton>
+          </S.SearchResultInfo>
+        )}
       </S.Header>
 
       {/* 통계 카드 */}
@@ -306,6 +403,11 @@ export default function TechInquiriesAdminPage() {
                       <S.Badge color="purple">
                         {INQUIRY_TYPE_LABELS[inquiry.inquiry_type]}
                       </S.Badge>
+                      {inquiry.user_name && (
+                        <S.Badge color="blue" style={{ marginLeft: '8px', fontSize: '10px' }}>
+                          로그인
+                        </S.Badge>
+                      )}
                     </S.TableData>
                     <S.TableData
                       style={{
@@ -314,8 +416,14 @@ export default function TechInquiriesAdminPage() {
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                       }}
+                      title={inquiry.message}
                     >
                       {inquiry.message}
+                      {inquiry.admin_response && (
+                        <S.Badge color="green" style={{ marginLeft: '8px', fontSize: '10px' }}>
+                          답변완료
+                        </S.Badge>
+                      )}
                     </S.TableData>
                     <S.TableData>
                       <S.Badge color={STATUS_COLORS[inquiry.status]}>
@@ -396,12 +504,35 @@ export default function TechInquiriesAdminPage() {
               </S.FormGroup>
 
               <S.FormGroup>
-                <S.Label>관리자 메모</S.Label>
+                <S.Label>관리자 메모 (내부용)</S.Label>
                 <S.TextArea
                   value={adminNote}
                   onChange={(e) => setAdminNote(e.target.value)}
-                  placeholder="관리자 메모를 입력하세요..."
+                  placeholder="관리자 메모를 입력하세요 (사용자에게 보이지 않음)..."
+                  style={{ minHeight: '100px' }}
                 />
+              </S.FormGroup>
+
+              <S.FormGroup>
+                <S.Label>
+                  사용자 피드백 (사용자에게 보이는 답변) 
+                  {selectedInquiry.admin_response && (
+                    <S.Badge color="green" style={{ marginLeft: '8px' }}>
+                      답변 완료
+                    </S.Badge>
+                  )}
+                </S.Label>
+                <S.TextArea
+                  value={adminResponse}
+                  onChange={(e) => setAdminResponse(e.target.value)}
+                  placeholder="사용자에게 보여질 피드백/답변을 입력하세요..."
+                  style={{ minHeight: '150px' }}
+                />
+                {selectedInquiry.user_id && (
+                  <S.HelpText>
+                    💡 로그인된 사용자는 "내 문의사항" 페이지에서 피드백을 확인할 수 있습니다.
+                  </S.HelpText>
+                )}
               </S.FormGroup>
 
               <S.FormGroup>
@@ -421,6 +552,24 @@ export default function TechInquiriesAdminPage() {
                       </S.InfoValue>
                     </S.InfoRow>
                   )}
+                  {selectedInquiry.response_at && (
+                    <S.InfoRow>
+                      <S.InfoLabel>피드백 작성일:</S.InfoLabel>
+                      <S.InfoValue>
+                        {new Date(selectedInquiry.response_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+                      </S.InfoValue>
+                    </S.InfoRow>
+                  )}
+                  {selectedInquiry.admin_response && (
+                    <S.InfoRow>
+                      <S.InfoLabel>사용자 피드백:</S.InfoLabel>
+                      <S.InfoValue>
+                        <S.MessageBox style={{ marginTop: '8px' }}>
+                          {selectedInquiry.admin_response}
+                        </S.MessageBox>
+                      </S.InfoValue>
+                    </S.InfoRow>
+                  )}
                   {selectedInquiry.page_url && (
                     <S.InfoRow>
                       <S.InfoLabel>페이지 URL:</S.InfoLabel>
@@ -431,6 +580,31 @@ export default function TechInquiriesAdminPage() {
                     <S.InfoRow>
                       <S.InfoLabel>IP:</S.InfoLabel>
                       <S.InfoValue>{selectedInquiry.user_ip}</S.InfoValue>
+                    </S.InfoRow>
+                  )}
+                  {selectedInquiry.user_name && (
+                    <S.InfoRow>
+                      <S.InfoLabel>사용자 이름:</S.InfoLabel>
+                      <S.InfoValue>{selectedInquiry.user_name}</S.InfoValue>
+                    </S.InfoRow>
+                  )}
+                  {selectedInquiry.user_email && (
+                    <S.InfoRow>
+                      <S.InfoLabel>사용자 이메일:</S.InfoLabel>
+                      <S.InfoValue>{selectedInquiry.user_email}</S.InfoValue>
+                    </S.InfoRow>
+                  )}
+                  {selectedInquiry.user_id && (
+                    <S.InfoRow>
+                      <S.InfoLabel>사용자 ID:</S.InfoLabel>
+                      <S.InfoValue
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: '12px',
+                        }}
+                      >
+                        {selectedInquiry.user_id}
+                      </S.InfoValue>
                     </S.InfoRow>
                   )}
                   {selectedInquiry.user_agent && (

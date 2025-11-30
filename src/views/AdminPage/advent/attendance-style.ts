@@ -295,3 +295,33 @@ export const AutoRefreshButton = styled.button<{ active: boolean }>`
     padding: 8px 12px;
   }
 `;
+
+export const AttendanceButton = styled.button`
+  padding: 6px 12px;
+  background: #10b981;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+`;

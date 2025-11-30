@@ -42,6 +42,8 @@ export default function BibleCardApplyPage() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false); // 수정 모드 상태
+  const [isPrayerEditMode, setIsPrayerEditMode] = useState(false); // 기도제목 수정 모드 상태
+  const [prayerRequest, setPrayerRequest] = useState(''); // 기도제목 수정용 상태
   const [formData, setFormData] = useState({
     name: '',
     birth_date: '',
@@ -139,6 +141,30 @@ export default function BibleCardApplyPage() {
     },
   });
 
+  // 기도제목 수정 뮤테이션
+  const updatePrayerMutation = useMutation({
+    mutationFn: async (prayer: string) => {
+      const response = await fetch('/api/bible-card/update-prayer', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prayer_request: prayer }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '수정 실패');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-bible-card'] });
+      setIsPrayerEditMode(false);
+      alert('기도제목이 수정되었습니다.');
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
+
   // 프로필 정보로 폼 초기화
   useEffect(() => {
     if (profileData && !myApplication?.hasApplication) {
@@ -197,6 +223,33 @@ export default function BibleCardApplyPage() {
   // 이미 신청한 경우 - 조회 모드
   if (myApplication?.hasApplication) {
     const app = myApplication.application;
+    const canEditPrayer = app.status === 'pending'; // pending 상태일 때만 수정 가능
+    
+    // 기도제목 수정 모드 진입 시 초기값 설정
+    const handleStartEditPrayer = () => {
+      setPrayerRequest(app.prayer_request);
+      setIsPrayerEditMode(true);
+    };
+
+    // 기도제목 수정 취소
+    const handleCancelEditPrayer = () => {
+      setIsPrayerEditMode(false);
+      setPrayerRequest('');
+    };
+
+    // 기도제목 수정 저장
+    const handleSavePrayer = () => {
+      if (!prayerRequest.trim()) {
+        alert('기도제목을 입력해주세요.');
+        return;
+      }
+      if (prayerRequest.length > 1000) {
+        alert('기도제목은 1000자 이내로 작성해주세요.');
+        return;
+      }
+      updatePrayerMutation.mutate(prayerRequest);
+    };
+
     return (
       <>
         <Head>
@@ -244,8 +297,38 @@ export default function BibleCardApplyPage() {
               </InfoSection>
 
               <PrayerSection>
-                <PrayerLabel>📖 나의 기도제목</PrayerLabel>
-                <PrayerContent>{app.prayer_request}</PrayerContent>
+                <PrayerHeader>
+                  <PrayerLabel>📖 나의 기도제목</PrayerLabel>
+                  {canEditPrayer && !isPrayerEditMode && (
+                    <EditPrayerButton onClick={handleStartEditPrayer}>
+                      ✏️ 수정
+                    </EditPrayerButton>
+                  )}
+                </PrayerHeader>
+                {isPrayerEditMode ? (
+                  <>
+                    <Textarea
+                      value={prayerRequest}
+                      onChange={(e) => setPrayerRequest(e.target.value)}
+                      placeholder="기도제목을 작성해주세요..."
+                      rows={6}
+                    />
+                    <CharCount>{prayerRequest.length}/1000</CharCount>
+                    <PrayerButtonGroup>
+                      <CancelButton onClick={handleCancelEditPrayer}>
+                        취소
+                      </CancelButton>
+                      <NextButton 
+                        onClick={handleSavePrayer}
+                        disabled={updatePrayerMutation.isPending}
+                      >
+                        {updatePrayerMutation.isPending ? '저장 중...' : '저장'}
+                      </NextButton>
+                    </PrayerButtonGroup>
+                  </>
+                ) : (
+                  <PrayerContent>{app.prayer_request}</PrayerContent>
+                )}
               </PrayerSection>
             </Card>
           </ContentWrapper>
@@ -1153,15 +1236,46 @@ const PrayerSection = styled.div`
   }
 `;
 
+const PrayerHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+
+  @media (max-width: 480px) {
+    margin-bottom: 10px;
+  }
+`;
+
 const PrayerLabel = styled.div`
   font-weight: 600;
   color: #92400e;
-  margin-bottom: 12px;
   font-size: 14px;
 
   @media (max-width: 480px) {
     font-size: 13px;
-    margin-bottom: 10px;
+  }
+`;
+
+const EditPrayerButton = styled.button`
+  padding: 8px 16px;
+  border: 1px solid #92400e;
+  background: white;
+  color: #92400e;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #92400e;
+    color: white;
+  }
+
+  @media (max-width: 480px) {
+    padding: 6px 12px;
+    font-size: 12px;
   }
 `;
 
@@ -1174,6 +1288,18 @@ const PrayerContent = styled.div`
   @media (max-width: 480px) {
     font-size: 13px;
     line-height: 1.6;
+  }
+`;
+
+const PrayerButtonGroup = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+
+  @media (max-width: 480px) {
+    gap: 10px;
+    margin-top: 12px;
+    flex-direction: column;
   }
 `;
 
