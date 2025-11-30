@@ -39,14 +39,13 @@ export default function BibleCardPastorPage() {
   });
 
   // 성경 구절 선택 상태
-  const [selectedTestament, setSelectedTestament] = useState<'구약' | '신약' | ''>('');
   const [selectedBook, setSelectedBook] = useState<string>('');
   const [selectedBookShort, setSelectedBookShort] = useState<string>('');
   const [selectedChapter, setSelectedChapter] = useState<number | ''>('');
   const [selectedVerse, setSelectedVerse] = useState<number | ''>('');
 
   // 로드된 옵션들
-  const [books, setBooks] = useState<Array<{id: number, full_name: string, short_name: string}>>([]);
+  const [books, setBooks] = useState<Array<{full_name: string, short_name: string}>>([]);
   const [chapters, setChapters] = useState<number[]>([]);
   const [verses, setVerses] = useState<number[]>([]);
 
@@ -219,44 +218,10 @@ export default function BibleCardPastorPage() {
     }
   };
 
-  // 구약 책 목록 (39권)
-  const oldTestamentBooks = [
-    '창세기', '출애굽기', '레위기', '민수기', '신명기', '여호수아', '사사기', '룻기',
-    '사무엘상', '사무엘하', '열왕기상', '열왕기하', '역대상', '역대하', '에스라', '느헤미야',
-    '에스더', '욥기', '시편', '잠언', '전도서', '아가', '이사야', '예레미야', '예레미야애가',
-    '에스겔', '다니엘', '호세아', '요엘', '아모스', '오바댜', '요나', '미가', '나훔',
-    '하박국', '스바냐', '학개', '스가랴', '말라기'
-  ];
-
-  // 구약/신약 필터링된 책 목록
-  const filteredBooks = selectedTestament 
-    ? books.filter(book => {
-        if (selectedTestament === '구약') {
-          return oldTestamentBooks.includes(book.full_name);
-        } else {
-          return !oldTestamentBooks.includes(book.full_name);
-        }
-      })
-    : books;
-
-  // 구약/신약 선택 핸들러
-  const handleTestamentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const testament = e.target.value as '구약' | '신약' | '';
-    setSelectedTestament(testament);
-    // 구약/신약 변경 시 책 선택 초기화
-    setSelectedBook('');
-    setSelectedBookShort('');
-    setSelectedChapter('');
-    setSelectedVerse('');
-    setChapters([]);
-    setVerses([]);
-  };
-
   const handleOpenModal = async (app: Application) => {
     setSelectedApp(app);
     
     // 초기화
-    setSelectedTestament('');
     setSelectedBook('');
     setSelectedBookShort('');
     setSelectedChapter('');
@@ -270,9 +235,6 @@ export default function BibleCardPastorPage() {
       if (parsed && books.length > 0) {
         const book = books.find(b => b.full_name === parsed.book);
         if (book) {
-          // 구약/신약 자동 설정
-          const isOldTestament = oldTestamentBooks.includes(book.full_name);
-          setSelectedTestament(isOldTestament ? '구약' : '신약');
           setSelectedBook(book.full_name);
           setSelectedBookShort(book.short_name);
           
@@ -320,7 +282,6 @@ export default function BibleCardPastorPage() {
     setIsModalOpen(false);
     setSelectedApp(null);
     // 선택 상태 초기화
-    setSelectedTestament('');
     setSelectedBook('');
     setSelectedBookShort('');
     setSelectedChapter('');
@@ -537,12 +498,12 @@ export default function BibleCardPastorPage() {
                   <InfoValue>{selectedApp.name}</InfoValue>
                 </InfoItem>
                 <InfoItem>
-                  <InfoLabel>성별</InfoLabel>
-                  <InfoValue>{formatGender(selectedApp.gender)}</InfoValue>
-                </InfoItem>
-                <InfoItem>
                   <InfoLabel>생년월일</InfoLabel>
                   <InfoValue>{selectedApp.birth_date || '-'}</InfoValue>
+                </InfoItem>
+                <InfoItem>
+                  <InfoLabel>성별</InfoLabel>
+                  <InfoValue>{formatGender(selectedApp.gender)}</InfoValue>
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>공동체</InfoLabel>
@@ -567,29 +528,18 @@ export default function BibleCardPastorPage() {
                 <Label>성경 구절 *</Label>
                 <BibleSelectorRow>
                   <Select
-                    value={selectedTestament}
-                    onChange={handleTestamentChange}
-                    disabled={selectedApp.status !== 'assigned'}
-                    style={{ minWidth: '120px' }}
-                  >
-                    <option value="">구약/신약</option>
-                    <option value="구약">구약</option>
-                    <option value="신약">신약</option>
-                  </Select>
-                  <Select
                     value={selectedBook}
                     onChange={handleBookChange}
-                    disabled={selectedApp.status !== 'assigned' || isLoadingBooks || !selectedTestament}
+                    disabled={selectedApp.status !== 'assigned' || isLoadingBooks}
                   >
                     <option value="">책 선택</option>
-                    {filteredBooks.map(book => (
+                    {books.map(book => (
                       <option key={book.full_name} value={book.full_name}>
                         {book.full_name}
                       </option>
                     ))}
                   </Select>
-                </BibleSelectorRow>
-                <BibleSelectorRow>
+
                   <Select
                     value={selectedChapter}
                     onChange={handleChapterChange}
@@ -1097,50 +1047,25 @@ const InfoGrid = styled.div`
 
   @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    padding: 12px;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  @media (max-width: 480px) {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    padding: 10px;
+    gap: 12px;
+    padding: 16px;
     width: 100%;
     max-width: 100%;
   }
 `;
 
-const InfoItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  min-height: 44px;
-  justify-content: center;
-`;
+const InfoItem = styled.div``;
 
 const InfoLabel = styled.div`
   font-size: 11px;
   color: #64748b;
-  margin-bottom: 4px;
-  line-height: 1.4;
-  
-  @media (max-width: 480px) {
-    font-size: 10px;
-    margin-bottom: 3px;
-  }
+  margin-bottom: 2px;
 `;
 
 const InfoValue = styled.div`
   font-size: 13px;
   font-weight: 600;
   color: #1e293b;
-  line-height: 1.4;
-  word-break: break-word;
-  
-  @media (max-width: 480px) {
-    font-size: 12px;
-  }
 `;
 
 const PrayerBox = styled.div`
