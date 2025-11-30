@@ -614,6 +614,9 @@ const Card = styled.div`
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
   padding: 32px;
   animation: ${fadeIn} 0.5s ease;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
 
   @media (max-width: 768px) {
     padding: 28px 24px;
@@ -621,8 +624,9 @@ const Card = styled.div`
   }
 
   @media (max-width: 480px) {
-    padding: 24px 18px;
+    padding: 24px 16px;
     border-radius: 16px;
+    min-width: 0;
   }
 `;
 
@@ -726,6 +730,9 @@ const StepDescription = styled.p`
 
 const FormGroup = styled.div`
   margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 
   @media (max-width: 480px) {
     margin-bottom: 16px;
@@ -753,6 +760,7 @@ const Input = styled.input`
   font-size: 16px;
   transition: all 0.2s ease;
   box-sizing: border-box;
+  max-width: 100%;
 
   &:focus {
     outline: none;
@@ -760,10 +768,37 @@ const Input = styled.input`
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
   }
 
+  /* date input 모바일 스타일 개선 */
+  &[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    
+    /* iOS Safari에서 date input이 영역을 벗어나지 않도록 */
+    &::-webkit-calendar-picker-indicator {
+      margin-left: auto;
+      padding: 0;
+      cursor: pointer;
+    }
+  }
+
   @media (max-width: 480px) {
     padding: 12px 14px;
     font-size: 16px;
     border-radius: 10px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    
+    /* 모바일에서 date input이 컨테이너를 벗어나지 않도록 */
+    &[type="date"] {
+      padding-right: 12px;
+      
+      &::-webkit-calendar-picker-indicator {
+        width: 20px;
+        height: 20px;
+        margin-left: auto;
+      }
+    }
   }
 `;
 
