@@ -1096,6 +1096,10 @@ const InfoGrid = styled.div`
 
   @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
+<<<<<<< HEAD
+    gap: 12px;
+    padding: 16px;
+=======
     gap: 10px;
     padding: 12px;
     width: 100%;
@@ -1106,6 +1110,7 @@ const InfoGrid = styled.div`
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     padding: 10px;
+>>>>>>> da68371a775e6b85e559084add8b28cc8ccdc339
     width: 100%;
     max-width: 100%;
   }
