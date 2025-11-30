@@ -176,6 +176,8 @@ export default function MDIAdminPage() {
       case 'photos':
         return (
           <PhotosSubmenuContent 
+            session={session}
+            accessibleMenus={accessibleMenus}
             onMenuClick={handleMenuClick}
           />
         );
@@ -188,6 +190,8 @@ export default function MDIAdminPage() {
       case 'advent':
         return (
           <AdventSubmenuContent 
+            session={session}
+            accessibleMenus={accessibleMenus}
             onMenuClick={handleMenuClick}
           />
         );
@@ -204,6 +208,8 @@ export default function MDIAdminPage() {
       case 'bible-card':
         return (
           <BibleCardSubmenuContent 
+            session={session}
+            accessibleMenus={accessibleMenus}
             onMenuClick={handleMenuClick}
           />
         );
@@ -392,9 +398,19 @@ interface DashboardContentProps {
 }
 
 function DashboardContent({ session, accessibleMenus, onMenuClick }: DashboardContentProps) {
-  // 빠른 액세스에는 최상위 메뉴만 표시 (하위 메뉴 제외)
+  const roles = session?.user?.roles || [];
+  
+  // 빠른 액세스에는 최상위 메뉴만 표시 (하위 메뉴 제외) + 권한 필터링
   const menuItems = accessibleMenus.filter(m => {
+    // 대시보드는 제외
     if (m.id === 'dashboard') return false;
+    
+    // 권한 필터링: requiredRoles가 있으면 사용자가 해당 권한을 가져야 함
+    if (m.requiredRoles && m.requiredRoles.length > 0) {
+      const hasPermission = m.requiredRoles.some(role => roles.includes(role));
+      if (!hasPermission) return false;
+    }
+    
     // 하위 메뉴는 제외 (parent_id가 있거나 경로에 하위 경로가 있는 경우)
     if (m.path.includes('/admin/photos/') && m.path !== '/admin/photos') return false;
     if (m.path.includes('/admin/advent/') && m.path !== '/admin/advent') return false;
@@ -429,13 +445,27 @@ function DashboardContent({ session, accessibleMenus, onMenuClick }: DashboardCo
 
 // 사진팀 서브메뉴 콘텐츠
 interface SubmenuContentProps {
+  session?: any;
+  accessibleMenus?: TabInfo[];
   onMenuClick: (menu: TabInfo) => void;
 }
 
-function PhotosSubmenuContent({ onMenuClick }: SubmenuContentProps) {
-  const photosMenus = ADMIN_MENUS.filter(m => 
-    m.path.includes('/admin/photos/') 
-  );
+function PhotosSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
+  const roles = session?.user?.roles || [];
+  
+  // accessibleMenus에서 사진팀 관련 메뉴만 필터링 + 권한 필터링
+  const photosMenus = (accessibleMenus || []).filter(m => {
+    // 사진팀 관련 경로만
+    if (!m.path.includes('/admin/photos/')) return false;
+    
+    // 권한 필터링: requiredRoles가 있으면 사용자가 해당 권한을 가져야 함
+    if (m.requiredRoles && m.requiredRoles.length > 0) {
+      const hasPermission = m.requiredRoles.some(role => roles.includes(role));
+      if (!hasPermission) return false;
+    }
+    
+    return true;
+  });
 
   return (
     <>
@@ -446,6 +476,7 @@ function PhotosSubmenuContent({ onMenuClick }: SubmenuContentProps) {
         </S.WelcomeSubtitle>
       </S.DashboardWelcome>
 
+      <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
       <S.MenuGrid>
         {photosMenus.map((menu) => (
           <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
@@ -462,10 +493,22 @@ function PhotosSubmenuContent({ onMenuClick }: SubmenuContentProps) {
 }
 
 // 대림절 서브메뉴 콘텐츠
-function AdventSubmenuContent({ onMenuClick }: SubmenuContentProps) {
-  const adventMenus = ADMIN_MENUS.filter(m => 
-    m.path.includes('/admin/advent/') 
-  );
+function AdventSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
+  const roles = session?.user?.roles || [];
+  
+  // accessibleMenus에서 대림절 관련 메뉴만 필터링 + 권한 필터링
+  const adventMenus = (accessibleMenus || []).filter(m => {
+    // 대림절 관련 경로만
+    if (!m.path.includes('/admin/advent/')) return false;
+    
+    // 권한 필터링: requiredRoles가 있으면 사용자가 해당 권한을 가져야 함
+    if (m.requiredRoles && m.requiredRoles.length > 0) {
+      const hasPermission = m.requiredRoles.some(role => roles.includes(role));
+      if (!hasPermission) return false;
+    }
+    
+    return true;
+  });
 
   return (
     <>
@@ -476,6 +519,7 @@ function AdventSubmenuContent({ onMenuClick }: SubmenuContentProps) {
         </S.WelcomeSubtitle>
       </S.DashboardWelcome>
 
+      <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
       <S.MenuGrid>
         {adventMenus.map((menu) => (
           <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
@@ -492,10 +536,22 @@ function AdventSubmenuContent({ onMenuClick }: SubmenuContentProps) {
 }
 
 // 말씀카드 서브메뉴 콘텐츠
-function BibleCardSubmenuContent({ onMenuClick }: SubmenuContentProps) {
-  const bibleCardMenus = ADMIN_MENUS.filter(m => 
-    m.path.includes('/admin/bible-card/') 
-  );
+function BibleCardSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
+  const roles = session?.user?.roles || [];
+  
+  // accessibleMenus에서 말씀카드 관련 메뉴만 필터링 + 권한 필터링
+  const bibleCardMenus = (accessibleMenus || []).filter(m => {
+    // 말씀카드 관련 경로만
+    if (!m.path.includes('/admin/bible-card/')) return false;
+    
+    // 권한 필터링: requiredRoles가 있으면 사용자가 해당 권한을 가져야 함
+    if (m.requiredRoles && m.requiredRoles.length > 0) {
+      const hasPermission = m.requiredRoles.some(role => roles.includes(role));
+      if (!hasPermission) return false;
+    }
+    
+    return true;
+  });
 
   return (
     <>
@@ -506,6 +562,7 @@ function BibleCardSubmenuContent({ onMenuClick }: SubmenuContentProps) {
         </S.WelcomeSubtitle>
       </S.DashboardWelcome>
 
+      <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
       <S.MenuGrid>
         {bibleCardMenus.map((menu) => (
           <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>

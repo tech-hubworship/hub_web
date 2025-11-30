@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
+import { Combobox } from '@src/components/ui/combobox';
 
 interface Application {
   id: number;
@@ -159,27 +160,30 @@ export default function BibleCardCompletePage() {
       {/* 필터 */}
       <FilterSection>
         <FilterGroup>
-          <Select
+          <Combobox
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-          >
-            <option value="">전체 상태</option>
-            <option value="completed">작성 완료</option>
-            <option value="delivered">전달 완료</option>
-          </Select>
+            onChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}
+            options={[
+              { value: '', label: '전체 상태' },
+              { value: 'completed', label: '작성 완료' },
+              { value: 'delivered', label: '전달 완료' },
+            ]}
+            placeholder="전체 상태"
+          />
         </FilterGroup>
         <FilterGroup>
-          <Select
+          <Combobox
             value={pastorFilter}
-            onChange={(e) => { setPastorFilter(e.target.value); setCurrentPage(1); }}
-          >
-            <option value="">전체 목회자</option>
-            {pastors?.map((pastor) => (
-              <option key={pastor.user_id} value={pastor.user_id}>
-                {pastor.name}
-              </option>
-            ))}
-          </Select>
+            onChange={(value) => { setPastorFilter(value); setCurrentPage(1); }}
+            options={[
+              { value: '', label: '전체 목회자' },
+              ...(pastors?.map((pastor) => ({
+                value: pastor.user_id,
+                label: pastor.name
+              })) || []),
+            ]}
+            placeholder="전체 목회자"
+          />
         </FilterGroup>
       </FilterSection>
 

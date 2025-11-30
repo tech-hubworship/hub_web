@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as S from './style';
+import { Combobox } from '@src/components/ui/combobox';
 
 // 문의사항 타입 정의
 interface TechInquiry {
@@ -368,12 +369,17 @@ export default function TechInquiriesAdminPage() {
 
               <S.FormGroup>
                 <S.Label>문의 유형</S.Label>
-                <S.Select value={editType} onChange={(e) => setEditType(e.target.value)}>
-                  <option value="general">일반</option>
-                  <option value="bug">버그</option>
-                  <option value="inquiry">문의</option>
-                  <option value="suggestion">제안</option>
-                </S.Select>
+                <Combobox
+                  value={editType}
+                  onChange={(value) => setEditType(value)}
+                  options={[
+                    { value: 'general', label: '일반' },
+                    { value: 'bug', label: '버그' },
+                    { value: 'inquiry', label: '문의' },
+                    { value: 'suggestion', label: '제안' },
+                  ]}
+                  placeholder="문의 유형 선택"
+                />
               </S.FormGroup>
 
               <S.FormGroup>

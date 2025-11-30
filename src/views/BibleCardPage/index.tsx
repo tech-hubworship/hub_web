@@ -10,6 +10,7 @@ import styled from '@emotion/styled';
 import { keyframes } from '@emotion/react';
 import { Header } from '@src/components/Header';
 import Footer from '@src/components/Footer';
+import { Combobox } from '@src/components/ui/combobox';
 
 interface Group {
   id: number;
@@ -400,66 +401,69 @@ export default function BibleCardApplyPage() {
 
                 <FormGroup>
                   <Label>성별</Label>
-                  <Select
+                  <Combobox
                     value={formData.gender}
-                    onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
-                  >
-                    <option value="">선택하세요</option>
-                    <option value="M">남성</option>
-                    <option value="F">여성</option>
-                  </Select>
+                    onChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}
+                    options={[
+                      { value: '', label: '선택하세요' },
+                      { value: 'M', label: '남성' },
+                      { value: 'F', label: '여성' },
+                    ]}
+                    placeholder="선택하세요"
+                  />
                 </FormGroup>
 
                 <FormGroup>
                   <Label>공동체 *</Label>
-                  <Select
+                  <Combobox
                     value={formData.community}
-                    onChange={(e) => setFormData(prev => ({ 
+                    onChange={(value) => setFormData(prev => ({ 
                       ...prev, 
-                      community: e.target.value,
+                      community: value,
                     }))}
-                  >
-                    <option value="">선택하세요</option>
-                    {COMMUNITIES.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </Select>
+                    options={[
+                      { value: '', label: '선택하세요' },
+                      ...COMMUNITIES.map(c => ({ value: c, label: c })),
+                    ]}
+                    placeholder="선택하세요"
+                    required
+                  />
                 </FormGroup>
 
                 {isHub && (
                   <>
                     <FormGroup>
                       <Label>그룹</Label>
-                      <Select
-                        value={formData.group_id}
-                        onChange={(e) => setFormData(prev => ({ 
+                      <Combobox
+                        value={formData.group_id?.toString() || ''}
+                        onChange={(value) => setFormData(prev => ({ 
                           ...prev, 
-                          group_id: e.target.value ? parseInt(e.target.value) : '',
+                          group_id: value ? parseInt(value) : '',
                           cell_id: '',
                         }))}
-                      >
-                        <option value="">선택하세요</option>
-                        {(groups || []).map(g => (
-                          <option key={g.id} value={g.id}>{g.name}</option>
-                        ))}
-                      </Select>
+                        options={[
+                          { value: '', label: '선택하세요' },
+                          ...(groups || []).map(g => ({ value: g.id.toString(), label: g.name })),
+                        ]}
+                        placeholder="선택하세요"
+                      />
                     </FormGroup>
 
                     <FormGroup>
                       <Label>다락방</Label>
-                      <Select
-                        value={formData.cell_id}
-                        onChange={(e) => setFormData(prev => ({ 
+                      <Combobox
+                        value={formData.cell_id?.toString() || ''}
+                        onChange={(value) => setFormData(prev => ({ 
                           ...prev, 
-                          cell_id: e.target.value ? parseInt(e.target.value) : '',
+                          cell_id: value ? parseInt(value) : '',
                         }))}
+                        options={[
+                          { value: '', label: '선택하세요' },
+                          ...(cells || []).map(c => ({ value: c.id.toString(), label: c.name })),
+                        ]}
+                        placeholder="선택하세요"
                         disabled={!formData.group_id}
-                      >
-                        <option value="">선택하세요</option>
-                        {(cells || []).map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </Select>
+                      />
                     </FormGroup>
                   </>
                 )}

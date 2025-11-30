@@ -20,15 +20,6 @@ export default async function handler(
       return res.status(403).json({ error: '권한이 없습니다.' });
     }
 
-    // 메뉴 권한 확인
-    const { getMenuIdFromPath, checkMenuPermission } = await import('@src/lib/utils/menu-permission');
-    const menuId = getMenuIdFromPath(req.url || '/api/admin/users/update');
-    const permission = await checkMenuPermission(session.user.roles || [], menuId);
-    
-    if (!permission.hasPermission) {
-      return res.status(403).json({ error: permission.error || '권한이 없습니다.' });
-    }
-
     const { userId, community, group_id, cell_id, status } = req.body;
 
     if (!userId) {

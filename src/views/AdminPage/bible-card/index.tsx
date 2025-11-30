@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
+import { Combobox } from '@src/components/ui/combobox';
 
 interface Application {
   id: number;
@@ -339,16 +340,18 @@ export default function BibleCardAdminPage() {
       {/* 필터 & 액션 버튼 */}
       <FilterSection>
         <FilterGroup>
-          <Select
+          <Combobox
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); }}
-          >
-            <option value="">전체 상태</option>
-            <option value="pending">대기중</option>
-            <option value="assigned">배정됨</option>
-            <option value="completed">완료</option>
-            <option value="delivered">전달완료</option>
-          </Select>
+            onChange={(value) => { setStatusFilter(value); }}
+            options={[
+              { value: '', label: '전체 상태' },
+              { value: 'pending', label: '대기중' },
+              { value: 'assigned', label: '배정됨' },
+              { value: 'completed', label: '완료' },
+              { value: 'delivered', label: '전달완료' },
+            ]}
+            placeholder="전체 상태"
+          />
           <SearchInput
             type="text"
             placeholder="이름으로 검색..."
@@ -506,18 +509,18 @@ export default function BibleCardAdminPage() {
 
               <FormGroup>
                 <Label>목회자 선택</Label>
-                <Select
+                <Combobox
                   value={selectedPastorId}
-                  onChange={(e) => setSelectedPastorId(e.target.value)}
-                  fullWidth
-                >
-                  <option value="">목회자를 선택하세요</option>
-                  {pastors?.map((pastor) => (
-                    <option key={pastor.user_id} value={pastor.user_id}>
-                      {pastor.name} ({pastor.community || '-'}) - 배정: {pastor.assigned_count}명
-                    </option>
-                  ))}
-                </Select>
+                  onChange={(value) => setSelectedPastorId(value)}
+                  options={[
+                    { value: '', label: '목회자를 선택하세요' },
+                    ...(pastors?.map((pastor) => ({
+                      value: pastor.user_id,
+                      label: `${pastor.name} (${pastor.community || '-'}) - 배정: ${pastor.assigned_count}명`
+                    })) || []),
+                  ]}
+                  placeholder="목회자를 선택하세요"
+                />
               </FormGroup>
 
               <PastorListInModal>

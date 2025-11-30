@@ -7,6 +7,7 @@ import Head from "next/head";
 import PageLayout from "@src/components/common/PageLayout";
 import * as S from "@src/views/LoginPage/style";
 import { FaGoogle } from "react-icons/fa";
+import { Combobox } from '@src/components/ui/combobox';
 
 const REDIRECT_KEY = "login_redirect";
 const SIGNUP_ROLE_KEY = "signup_role";
@@ -116,8 +117,7 @@ export default function LoginPage() {
     }, 1000);
   };
 
-  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const role = e.target.value;
+  const handleRoleChange = (role: string) => {
     setSelectedRole(role);
 
     if (ADMIN_ROLES.includes(role)) {
@@ -214,10 +214,15 @@ export default function LoginPage() {
 
           {specialMode && (
             <S.RoleSelectWrapper>
-              <S.Select value={selectedRole} onChange={handleRoleChange}>
-                <option value="">-- 역할 선택 (선택사항) --</option>
-                {ROLES.map(role => <option key={role} value={role}>{role}</option>)}
-              </S.Select>
+              <Combobox
+                value={selectedRole}
+                onChange={handleRoleChange}
+                options={[
+                  { value: '', label: '-- 역할 선택 (선택사항) --' },
+                  ...ROLES.map(role => ({ value: role, label: role })),
+                ]}
+                placeholder="-- 역할 선택 (선택사항) --"
+              />
             </S.RoleSelectWrapper>
           )}
           

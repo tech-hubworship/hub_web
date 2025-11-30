@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
+import { Combobox } from '@src/components/ui/combobox';
 
 interface Application {
   id: number;
@@ -136,8 +137,7 @@ export default function BibleCardPastorPage() {
   };
 
   // 책 선택 핸들러
-  const handleBookChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const bookFullName = e.target.value;
+  const handleBookChange = async (bookFullName: string) => {
     const book = books.find(b => b.full_name === bookFullName);
     
     setSelectedBook(bookFullName);
@@ -166,8 +166,8 @@ export default function BibleCardPastorPage() {
   };
 
   // 장 선택 핸들러
-  const handleChapterChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const chapter = e.target.value ? parseInt(e.target.value) : '';
+  const handleChapterChange = async (chapterValue: string) => {
+    const chapter = chapterValue ? parseInt(chapterValue) : '';
     setSelectedChapter(chapter);
     setSelectedVerse('');
     setVerses([]);
@@ -191,8 +191,8 @@ export default function BibleCardPastorPage() {
   };
 
   // 절 선택 핸들러
-  const handleVerseChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const verse = e.target.value ? parseInt(e.target.value) : '';
+  const handleVerseChange = async (verseValue: string) => {
+    const verse = verseValue ? parseInt(verseValue) : '';
     setSelectedVerse(verse);
     
     if (selectedBookShort && selectedChapter && verse) {
@@ -240,9 +240,9 @@ export default function BibleCardPastorPage() {
     : books;
 
   // 구약/신약 선택 핸들러
-  const handleTestamentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const testament = e.target.value as '구약' | '신약' | '';
-    setSelectedTestament(testament);
+  const handleTestamentChange = (testament: string) => {
+    const testamentValue = testament as '구약' | '신약' | '';
+    setSelectedTestament(testamentValue);
     // 구약/신약 변경 시 책 선택 초기화
     setSelectedBook('');
     setSelectedBookShort('');
@@ -388,15 +388,17 @@ export default function BibleCardPastorPage() {
 
       {/* 필터 */}
       <FilterBar>
-        <FilterSelect
+        <Combobox
           value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-        >
-          <option value="">전체</option>
-          <option value="assigned">작성 대기</option>
-          <option value="completed">작성 완료</option>
-          <option value="delivered">전달 완료</option>
-        </FilterSelect>
+          onChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}
+          options={[
+            { value: '', label: '전체' },
+            { value: 'assigned', label: '작성 대기' },
+            { value: 'completed', label: '작성 완료' },
+            { value: 'delivered', label: '전달 완료' },
+          ]}
+          placeholder="전체"
+        />
         <AutoRefreshButton 
           active={autoRefresh}
           onClick={() => setAutoRefresh(!autoRefresh)}
@@ -566,59 +568,63 @@ export default function BibleCardPastorPage() {
               <FormGroup>
                 <Label>성경 구절 *</Label>
                 <BibleSelectorRow>
-                  <Select
-                    value={selectedTestament}
-                    onChange={handleTestamentChange}
-                    disabled={selectedApp.status !== 'assigned'}
-                    style={{ minWidth: '120px' }}
-                  >
-                    <option value="">구약/신약</option>
-                    <option value="구약">구약</option>
-                    <option value="신약">신약</option>
-                  </Select>
-                  <Select
-                    value={selectedBook}
-                    onChange={handleBookChange}
-                    disabled={selectedApp.status !== 'assigned' || isLoadingBooks || !selectedTestament}
-                  >
-                    <option value="">책 선택</option>
-                    {filteredBooks.map(book => (
-                      <option key={book.full_name} value={book.full_name}>
-                        {book.full_name}
-                      </option>
-                    ))}
-                  </Select>
+                  <div style={{ flex: 1, minWidth: '120px' }}>
+                    <Combobox
+                      value={selectedTestament}
+                      onChange={handleTestamentChange}
+                      disabled={selectedApp.status !== 'assigned'}
+                      options={[
+                        { value: '', label: '구약/신약' },
+                        { value: '구약', label: '구약' },
+                        { value: '신약', label: '신약' },
+                      ]}
+                      placeholder="구약/신약"
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <Combobox
+                      value={selectedBook}
+                      onChange={handleBookChange}
+                      disabled={selectedApp.status !== 'assigned' || isLoadingBooks || !selectedTestament}
+                      options={[
+                        { value: '', label: '책 선택' },
+                        ...filteredBooks.map(book => ({ value: book.full_name, label: book.full_name })),
+                      ]}
+                      placeholder="책 선택"
+                    />
+                  </div>
                 </BibleSelectorRow>
                 <BibleSelectorRow>
-                  <Select
-                    value={selectedChapter}
-                    onChange={handleChapterChange}
-                    disabled={!selectedBook || isLoadingChapters || selectedApp.status !== 'assigned'}
-                  >
-                    <option value="">장 선택</option>
-                    {isLoadingChapters ? (
-                      <option disabled>로딩 중...</option>
-                    ) : (
-                      chapters.map(ch => (
-                        <option key={ch} value={ch}>{ch}장</option>
-                      ))
-                    )}
-                  </Select>
-
-                  <Select
-                    value={selectedVerse}
-                    onChange={handleVerseChange}
-                    disabled={!selectedChapter || isLoadingVerses || selectedApp.status !== 'assigned'}
-                  >
-                    <option value="">절 선택</option>
-                    {isLoadingVerses ? (
-                      <option disabled>로딩 중...</option>
-                    ) : (
-                      verses.map(v => (
-                        <option key={v} value={v}>{v}절</option>
-                      ))
-                    )}
-                  </Select>
+                  <div style={{ flex: 1 }}>
+                    <Combobox
+                      value={selectedChapter?.toString() || ''}
+                      onChange={handleChapterChange}
+                      disabled={!selectedBook || isLoadingChapters || selectedApp.status !== 'assigned'}
+                      options={[
+                        { value: '', label: '장 선택' },
+                        ...(isLoadingChapters 
+                          ? [{ value: '', label: '로딩 중...' }]
+                          : chapters.map(ch => ({ value: ch.toString(), label: `${ch}장` }))
+                        ),
+                      ]}
+                      placeholder="장 선택"
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <Combobox
+                      value={selectedVerse?.toString() || ''}
+                      onChange={handleVerseChange}
+                      disabled={!selectedChapter || isLoadingVerses || selectedApp.status !== 'assigned'}
+                      options={[
+                        { value: '', label: '절 선택' },
+                        ...(isLoadingVerses 
+                          ? [{ value: '', label: '로딩 중...' }]
+                          : verses.map(v => ({ value: v.toString(), label: `${v}절` }))
+                        ),
+                      ]}
+                      placeholder="절 선택"
+                    />
+                  </div>
                 </BibleSelectorRow>
 
                 {isLoadingText && (

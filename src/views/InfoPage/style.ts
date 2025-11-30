@@ -40,6 +40,8 @@ export const ErrorMessage = styled.p`
   text-align: center;
   width: 100%;
   margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
 `;
 
 export const LoadingText = styled.p`
@@ -73,11 +75,12 @@ export const ModalOverlay = styled.div`
   padding: 20px;
   box-sizing: border-box;
   overflow-y: auto;
+  overflow-x: hidden;
 
   @media (max-width: 768px) {
-    padding: 16px;
-    align-items: flex-start;
-    padding-top: 40px;
+    padding: 20px 16px;
+    align-items: center;
+    justify-content: center;
   }
 `;
 
@@ -87,16 +90,24 @@ export const ModalContent = styled.div`
   border-radius: 12px;
   width: 100%;
   max-width: 500px;
-  max-height: 90vh;
+  max-height: 85vh;
+  min-height: 400px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   animation: ${slideUp} 0.4s ease;
   overflow-y: auto;
+  overflow-x: hidden;
   box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin: auto;
 
   @media (max-width: 768px) {
     padding: 24px 20px;
-    max-height: calc(100vh - 80px);
-    border-radius: 16px 16px 0 0;
+    max-height: 85vh;
+    min-height: auto;
+    border-radius: 12px;
+    margin: 20px auto;
   }
 `;
 
@@ -191,6 +202,8 @@ export const ButtonWrapper = styled.div`
   display: flex;
   gap: 12px;
   margin-top: 24px;
+  position: relative;
+  z-index: 1;
 
   @media (max-width: 768px) {
     gap: 10px;
@@ -496,10 +509,19 @@ export const InfoWrapper = styled.div`
   flex-direction: column;
   gap: 16px;
   margin-bottom: 20px;
+  min-height: fit-content;
+  padding-bottom: 20px;
+  position: relative;
 
   @media (max-width: 768px) {
     gap: 14px;
     margin-bottom: 16px;
+    padding-bottom: 16px;
+  }
+
+  > div {
+    position: relative;
+    scroll-margin-top: 20px;
   }
 `;
 

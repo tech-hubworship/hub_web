@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
 import { ADMIN_MENUS } from '@src/contexts/AdminMDIContext';
+import { Combobox } from '@src/components/ui/combobox';
 
 // 메뉴 타입 정의
 interface AdminMenu {
@@ -389,20 +390,21 @@ export default function MenuManagementPage() {
 
             <FormGroup>
               <Label>상위 메뉴</Label>
-              <Select
-                value={formData.parent_id || ''}
-                onChange={(e) => setFormData(prev => ({ 
+              <Combobox
+                value={formData.parent_id?.toString() || ''}
+                onChange={(value) => setFormData(prev => ({ 
                   ...prev, 
-                  parent_id: e.target.value ? parseInt(e.target.value) : null 
+                  parent_id: value ? parseInt(value) : null 
                 }))}
-              >
-                <option value="">없음 (최상위 메뉴)</option>
-                {parentMenuOptions.map((menu) => (
-                  <option key={menu.id} value={menu.id}>
-                    {menu.icon} {menu.title}
-                  </option>
-                ))}
-              </Select>
+                options={[
+                  { value: '', label: '없음 (최상위 메뉴)' },
+                  ...parentMenuOptions.map((menu) => ({
+                    value: menu.id.toString(),
+                    label: `${menu.icon} ${menu.title}`
+                  })),
+                ]}
+                placeholder="없음 (최상위 메뉴)"
+              />
             </FormGroup>
 
             <FormGroup>

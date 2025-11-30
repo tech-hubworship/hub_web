@@ -21,15 +21,6 @@ export default async function handler(
       return res.status(403).json({ error: '권한이 없습니다.' });
     }
 
-    // 메뉴 권한 확인
-    const { getMenuIdFromPath, checkMenuPermission } = await import('@src/lib/utils/menu-permission');
-    const menuId = getMenuIdFromPath(req.url || '/api/admin/users/groups');
-    const permission = await checkMenuPermission(session.user.roles || [], menuId);
-    
-    if (!permission.hasPermission) {
-      return res.status(403).json({ error: permission.error || '권한이 없습니다.' });
-    }
-
     // 그룹 목록 조회 (hub_groups 테이블에는 community 컬럼이 없으므로 모든 그룹 반환)
     // is_active가 false인 그룹도 포함하여 조회
     const { data: groups, error } = await supabaseAdmin

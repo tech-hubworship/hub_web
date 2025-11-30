@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as S from './style';
+import { Combobox } from '@src/components/ui/combobox';
 
 // 사용자 타입 정의
 interface User {
@@ -354,69 +355,65 @@ export default function UsersAdminPage() {
         <FilterSection>
           <FilterGroup>
             <FilterLabel>공동체</FilterLabel>
-            <S.Select
+            <Combobox
               value={filterCommunity}
-              onChange={(e) => {
-                setFilterCommunity(e.target.value);
+              onChange={(value) => {
+                setFilterCommunity(value);
                 setFilterGroupId('');
                 setFilterCellId('');
               }}
-              style={{ width: '120px' }}
-            >
-              <option value="">전체</option>
-              {COMMUNITIES.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </S.Select>
+              options={[
+                { value: '', label: '전체' },
+                ...COMMUNITIES.map(c => ({ value: c, label: c })),
+              ]}
+              placeholder="전체"
+            />
           </FilterGroup>
 
           <FilterGroup>
             <FilterLabel>그룹</FilterLabel>
-            <S.Select
+            <Combobox
               value={filterGroupId}
-              onChange={(e) => {
-                setFilterGroupId(e.target.value);
+              onChange={(value) => {
+                setFilterGroupId(value);
                 setFilterCellId('');
               }}
-              style={{ width: '150px' }}
-            >
-              <option value="">전체</option>
-              {groups?.map(g => (
-                <option key={g.id} value={g.id}>{g.name}</option>
-              ))}
-            </S.Select>
+              options={[
+                { value: '', label: '전체' },
+                ...(groups?.map(g => ({ value: g.id.toString(), label: g.name })) || []),
+              ]}
+              placeholder="전체"
+            />
           </FilterGroup>
 
           <FilterGroup>
             <FilterLabel>다락방</FilterLabel>
-            <S.Select
+            <Combobox
               value={filterCellId}
-              onChange={(e) => {
-                setFilterCellId(e.target.value);
+              onChange={(value) => {
+                setFilterCellId(value);
               }}
-              style={{ width: '150px' }}
-            >
-              <option value="">전체</option>
-              {filterCells?.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </S.Select>
+              options={[
+                { value: '', label: '전체' },
+                ...(filterCells?.map(c => ({ value: c.id.toString(), label: c.name })) || []),
+              ]}
+              placeholder="전체"
+            />
           </FilterGroup>
 
           <FilterGroup>
             <FilterLabel>상태</FilterLabel>
-            <S.Select
+            <Combobox
               value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
+              onChange={(value) => {
+                setFilterStatus(value);
               }}
-              style={{ width: '120px' }}
-            >
-              <option value="">전체</option>
-              {STATUS_OPTIONS.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </S.Select>
+              options={[
+                { value: '', label: '전체' },
+                ...STATUS_OPTIONS.map(s => ({ value: s, label: s })),
+              ]}
+              placeholder="전체"
+            />
           </FilterGroup>
 
           <FilterGroup style={{ flex: 1, maxWidth: '300px' }}>
@@ -466,19 +463,20 @@ export default function UsersAdminPage() {
               </ListInfoText>
               <LimitSelector>
                 <LimitLabel>페이지당 개수:</LimitLabel>
-                <S.Select
-                  value={limit}
-                  onChange={(e) => {
-                    setLimit(Number(e.target.value));
+                <Combobox
+                  value={limit.toString()}
+                  onChange={(value) => {
+                    setLimit(Number(value));
                     setCurrentPage(1);
                   }}
-                  style={{ width: '100px', marginLeft: '8px' }}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </S.Select>
+                  options={[
+                    { value: '10', label: '10' },
+                    { value: '20', label: '20' },
+                    { value: '50', label: '50' },
+                    { value: '100', label: '100' },
+                  ]}
+                  placeholder="20"
+                />
               </LimitSelector>
             </ListInfoBar>
 
@@ -632,10 +630,9 @@ export default function UsersAdminPage() {
                   </S.FormGroup>
                   <S.FormGroup>
                     <S.Label>공동체</S.Label>
-                    <S.Select
+                    <Combobox
                       value={editFormData.community}
-                      onChange={(e) => {
-                        const newCommunity = e.target.value;
+                      onChange={(newCommunity) => {
                         // 공동체 변경 시 그룹/다락방 초기화 (말씀카드와 동일)
                         setEditFormData(prev => ({
                           ...prev,
@@ -644,48 +641,47 @@ export default function UsersAdminPage() {
                           cell_id: '',
                         }));
                       }}
-                    >
-                      <option value="">선택하세요</option>
-                      {COMMUNITIES.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </S.Select>
+                      options={[
+                        { value: '', label: '선택하세요' },
+                        ...COMMUNITIES.map(c => ({ value: c, label: c })),
+                      ]}
+                      placeholder="선택하세요"
+                    />
                   </S.FormGroup>
                   {editFormData.community === '허브' && (
                     <>
                       <S.FormGroup>
                         <S.Label>그룹</S.Label>
-                        <S.Select
+                        <Combobox
                           value={editFormData.group_id}
-                          onChange={(e) => {
-                            const newGroupId = e.target.value;
+                          onChange={(newGroupId) => {
                             setEditFormData(prev => ({
                               ...prev,
                               group_id: newGroupId,
                               cell_id: '', // 그룹 변경 시 다락방 초기화
                             }));
                           }}
-                        >
-                          <option value="">선택하세요</option>
-                          {editGroups?.map(g => (
-                            <option key={g.id} value={g.id}>{g.name}</option>
-                          ))}
-                        </S.Select>
+                          options={[
+                            { value: '', label: '선택하세요' },
+                            ...(editGroups?.map(g => ({ value: g.id.toString(), label: g.name })) || []),
+                          ]}
+                          placeholder="선택하세요"
+                        />
                       </S.FormGroup>
                       <S.FormGroup>
                         <S.Label>다락방</S.Label>
-                        <S.Select
+                        <Combobox
                           value={editFormData.cell_id}
-                          onChange={(e) => setEditFormData(prev => ({
+                          onChange={(value) => setEditFormData(prev => ({
                             ...prev,
-                            cell_id: e.target.value,
+                            cell_id: value,
                           }))}
-                        >
-                          <option value="">선택하세요</option>
-                          {cells?.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </S.Select>
+                          options={[
+                            { value: '', label: '선택하세요' },
+                            ...(cells?.map(c => ({ value: c.id.toString(), label: c.name })) || []),
+                          ]}
+                          placeholder="선택하세요"
+                        />
                       </S.FormGroup>
                     </>
                   )}
@@ -703,18 +699,18 @@ export default function UsersAdminPage() {
                   )}
                   <S.FormGroup>
                     <S.Label>상태</S.Label>
-                    <S.Select
+                    <Combobox
                       value={editFormData.status}
-                      onChange={(e) => setEditFormData(prev => ({
+                      onChange={(value) => setEditFormData(prev => ({
                         ...prev,
-                        status: e.target.value,
+                        status: value,
                       }))}
-                    >
-                      <option value="">선택하세요</option>
-                      {STATUS_OPTIONS.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </S.Select>
+                      options={[
+                        { value: '', label: '선택하세요' },
+                        ...STATUS_OPTIONS.map(s => ({ value: s, label: s })),
+                      ]}
+                      placeholder="선택하세요"
+                    />
                   </S.FormGroup>
                   <S.FormGroup>
                     <S.Label>가입일</S.Label>

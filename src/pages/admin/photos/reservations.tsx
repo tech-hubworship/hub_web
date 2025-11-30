@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import * as S from "@src/views/AdminPage/style";
 import styled from '@emotion/styled';
 import { QrReader } from 'react-qr-reader';
+import { Combobox } from '@src/components/ui/combobox';
 
 interface Reservation {
   id: number;
@@ -1507,16 +1508,18 @@ export default function PhotoReservations() {
       <div style={{ height: 20 }} />
 
       <FilterBar>
-        <FilterSelect 
-          value={statusFilter} 
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="all">전체 상태</option>
-          <option value="예약중">예약중</option>
-          <option value="예약완료">예약완료</option>
-          <option value="수령완료">수령완료</option>
-          <option value="취소됨">취소됨</option>
-        </FilterSelect>
+        <Combobox
+          value={statusFilter}
+          onChange={(value) => setStatusFilter(value)}
+          options={[
+            { value: 'all', label: '전체 상태' },
+            { value: '예약중', label: '예약중' },
+            { value: '예약완료', label: '예약완료' },
+            { value: '수령완료', label: '수령완료' },
+            { value: '취소됨', label: '취소됨' },
+          ]}
+          placeholder="전체 상태"
+        />
         
         <SearchInput
           type="text"

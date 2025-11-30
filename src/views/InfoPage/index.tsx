@@ -7,6 +7,7 @@ import Head from "next/head";
 import * as S from "@src/views/InfoPage/style";
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Combobox } from '@src/components/ui/combobox';
 
 // --- 타입 정의 및 상수 ---
 interface ProfileData {
@@ -80,8 +81,13 @@ const UpdateModal = ({
     }
   }, [formData.group_id, formData.community]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
+    const newFormData = { ...formData, [name]: value };
+        setFormData(newFormData);
+    };
+
+    const handleComboboxChange = (name: string, value: string) => {
     const newFormData = { ...formData, [name]: value };
     
     // 그룹 변경 시 다락방 초기화
@@ -162,47 +168,49 @@ const UpdateModal = ({
 
             <div>
               <S.Label>공동체</S.Label>
-              <S.Select
+              <Combobox
                 name="community"
                 value={formData.community}
-                onChange={handleChange}
+                onChange={(value) => handleComboboxChange('community', value)}
+                options={[
+                  { value: '', label: '-- 공동체 선택 --' },
+                  { value: '허브', label: '허브' },
+                  { value: '타공동체', label: '타공동체' },
+                ]}
+                placeholder="-- 공동체 선택 --"
                 required
-              >
-                <option value="">-- 공동체 선택 --</option>
-                <option value="허브">허브</option>
-                <option value="타공동체">타공동체</option>
-                            </S.Select>
+              />
             </div>
 
             {formData.community === '허브' && (
               <>
                 <div>
                   <S.Label>그룹</S.Label>
-                  <S.Select
+                  <Combobox
                     name="group_id"
                     value={formData.group_id}
-                    onChange={handleChange}
-                  >
-                    <option value="">-- 그룹 선택 --</option>
-                    {groups.map(g => (
-                      <option key={g.id} value={g.id}>{g.name}</option>
-                    ))}
-                  </S.Select>
+                    onChange={(value) => handleComboboxChange('group_id', value)}
+                    options={[
+                      { value: '', label: '-- 그룹 선택 --' },
+                      ...groups.map(g => ({ value: g.id.toString(), label: g.name })),
+                    ]}
+                    placeholder="-- 그룹 선택 --"
+                  />
                 </div>
 
                 <div>
                   <S.Label>다락방</S.Label>
-                  <S.Select
+                  <Combobox
                     name="cell_id"
                     value={formData.cell_id}
-                    onChange={handleChange}
+                    onChange={(value) => handleComboboxChange('cell_id', value)}
+                    options={[
+                      { value: '', label: '-- 다락방 선택 --' },
+                      ...cells.map(c => ({ value: c.id.toString(), label: c.name })),
+                    ]}
+                    placeholder="-- 다락방 선택 --"
                     disabled={!formData.group_id}
-                  >
-                    <option value="">-- 다락방 선택 --</option>
-                    {cells.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </S.Select>
+                  />
                 </div>
               </>
                     )}

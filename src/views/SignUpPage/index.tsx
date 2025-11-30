@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import PageLayout from '@src/components/common/PageLayout';
 import * as S from './style';
+import { Combobox } from '@src/components/ui/combobox';
 
 // 각 단계별 컴포넌트
 const StepComponent = ({ title, children, onBack, onNext, nextDisabled, finalStep=false, onSubmit, loading=false }: any) => (
@@ -220,29 +221,59 @@ export default function SignUpPage() {
         if (role) return null; // 역할이 있으면 상단 useEffect가 처리하므로 렌더링 안 함
         return (
             <StepComponent title="소속 공동체를 선택해주세요" onBack={() => setStep(2)} onNext={() => formData.community === '타공동체' ? setStep(6) : setStep(7)} nextDisabled={!formData.community}>
-              <S.Select name="community" value={formData.community} onChange={handleChange} required>
-                <option value="">-- 공동체 선택 --</option>
-                <option value="허브">허브</option>
-                <option value="타공동체">타공동체</option>
-              </S.Select>
+              <Combobox
+                name="community"
+                value={formData.community}
+                onChange={(value) => {
+                  const e = { target: { name: 'community', value } } as React.ChangeEvent<HTMLInputElement>;
+                  handleChange(e);
+                }}
+                options={[
+                  { value: '', label: '-- 공동체 선택 --' },
+                  { value: '허브', label: '허브' },
+                  { value: '타공동체', label: '타공동체' },
+                ]}
+                placeholder="-- 공동체 선택 --"
+                required
+              />
             </StepComponent>
         );
       case 4:
         return (
           <StepComponent title="담당하실 그룹을 선택해주세요" onBack={() => setStep(2)} onNext={() => role === ROLES.CELL_LEADER ? setStep(5) : setStep(6)} nextDisabled={!formData.responsible_group_id}>
-            <S.Select name="responsible_group_id" value={formData.responsible_group_id} onChange={handleChange} required>
-              <option value="">-- 담당 그룹 선택 --</option>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </S.Select>
+            <Combobox
+              name="responsible_group_id"
+              value={formData.responsible_group_id}
+              onChange={(value) => {
+                const e = { target: { name: 'responsible_group_id', value } } as React.ChangeEvent<HTMLInputElement>;
+                handleChange(e);
+              }}
+              options={[
+                { value: '', label: '-- 담당 그룹 선택 --' },
+                ...groups.map(g => ({ value: g.id.toString(), label: g.name })),
+              ]}
+              placeholder="-- 담당 그룹 선택 --"
+              required
+            />
           </StepComponent>
         );
       case 5:
         return (
           <StepComponent title="담당하실 다락방을 선택해주세요" onBack={() => setStep(4)} onNext={() => setStep(6)} nextDisabled={!formData.responsible_cell_id}>
-            <S.Select name="responsible_cell_id" value={formData.responsible_cell_id} onChange={handleChange} required>
-              <option value="">-- 담당 다락방 선택 --</option>
-              {cells.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </S.Select>
+            <Combobox
+              name="responsible_cell_id"
+              value={formData.responsible_cell_id}
+              onChange={(value) => {
+                const e = { target: { name: 'responsible_cell_id', value } } as React.ChangeEvent<HTMLInputElement>;
+                handleChange(e);
+              }}
+              options={[
+                { value: '', label: '-- 담당 다락방 선택 --' },
+                ...cells.map(c => ({ value: c.id.toString(), label: c.name })),
+              ]}
+              placeholder="-- 담당 다락방 선택 --"
+              required
+            />
           </StepComponent>
         );
       case 7:
@@ -253,10 +284,20 @@ export default function SignUpPage() {
             onNext={() => setStep(8)} 
             nextDisabled={!formData.group_id}
           >
-            <S.Select name="group_id" value={formData.group_id} onChange={handleChange} required>
-              <option value="">-- 그룹 선택 --</option>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </S.Select>
+            <Combobox
+              name="group_id"
+              value={formData.group_id}
+              onChange={(value) => {
+                const e = { target: { name: 'group_id', value } } as React.ChangeEvent<HTMLInputElement>;
+                handleChange(e);
+              }}
+              options={[
+                { value: '', label: '-- 그룹 선택 --' },
+                ...groups.map(g => ({ value: g.id.toString(), label: g.name })),
+              ]}
+              placeholder="-- 그룹 선택 --"
+              required
+            />
           </StepComponent>
         );
       case 8:
@@ -270,10 +311,20 @@ export default function SignUpPage() {
             onSubmit={completeGroup ? handleSubmit : undefined}
             loading={completeGroup ? loading : false}
           >
-            <S.Select name="cell_id" value={formData.cell_id} onChange={handleChange} required>
-              <option value="">-- 다락방 선택 --</option>
-              {cells.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </S.Select>
+            <Combobox
+              name="cell_id"
+              value={formData.cell_id}
+              onChange={(value) => {
+                const e = { target: { name: 'cell_id', value } } as React.ChangeEvent<HTMLInputElement>;
+                handleChange(e);
+              }}
+              options={[
+                { value: '', label: '-- 다락방 선택 --' },
+                ...cells.map(c => ({ value: c.id.toString(), label: c.name })),
+              ]}
+              placeholder="-- 다락방 선택 --"
+              required
+            />
           </StepComponent>
         );
       case 6:
@@ -289,9 +340,20 @@ export default function SignUpPage() {
         }
         return (
           <StepComponent title="성별을 선택해주세요" onBack={handleBackFromGender} finalStep={true} onSubmit={handleSubmit} loading={loading}>
-            <S.Select name="gender" value={formData.gender} onChange={handleChange} required>
-              <option value="M">남성</option><option value="F">여성</option>
-            </S.Select>
+            <Combobox
+              name="gender"
+              value={formData.gender}
+              onChange={(value) => {
+                const e = { target: { name: 'gender', value } } as React.ChangeEvent<HTMLInputElement>;
+                handleChange(e);
+              }}
+              options={[
+                { value: 'M', label: '남성' },
+                { value: 'F', label: '여성' },
+              ]}
+              placeholder="성별 선택"
+              required
+            />
           </StepComponent>
         );
       default:

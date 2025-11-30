@@ -20,17 +20,6 @@ export default async function handler(
     return res.status(403).json({ message: 'Forbidden: You are not an admin.' });
   }
 
-  // 메뉴 권한 확인
-  const { getMenuIdFromPath, checkMenuPermission } = await import('@src/lib/utils/menu-permission');
-  // @ts-ignore
-  const userRoles = session.user.roles || [];
-  const menuId = getMenuIdFromPath(req.url || '/api/admin/design/design-data');
-  const permission = await checkMenuPermission(userRoles, menuId);
-  
-  if (!permission.hasPermission) {
-    return res.status(403).json({ message: permission.error || 'Forbidden: You do not have permission.' });
-  }
-
   try {
     // 여기에 '디자인팀'만 볼 수 있는 데이터를 DB에서 조회하는 로직을 넣습니다.
     // 예시: '말씀카드' 관련 설문조사(survey_id=2)의 응답을 가져옵니다.
