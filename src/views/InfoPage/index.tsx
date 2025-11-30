@@ -8,6 +8,13 @@ import * as S from "@src/views/InfoPage/style";
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Combobox } from '@src/components/ui/combobox';
+import styled from '@emotion/styled';
+import { keyframes } from '@emotion/react';
+
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
 
 // --- 타입 정의 및 상수 ---
 interface ProfileData {
@@ -39,196 +46,184 @@ const fetchProfile = async (): Promise<ProfileData> => {
   return res.json();
 };
 
-// --- 정보 업데이트 모달 컴포넌트 ---
-const UpdateModal = ({ 
-  onClose, 
-  profileData 
-}: { 
-  onClose: () => void;
-  profileData: ProfileData;
-}) => {
-    const [formData, setFormData] = useState({
-    name: profileData.name || '',
-    birth_date: profileData.birth_date || '',
-    community: profileData.community || '',
-    group_id: profileData.group_id?.toString() || '',
-    cell_id: profileData.cell_id?.toString() || '',
-    });
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [cells, setCells] = useState<Cell[]>([]);
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-  const queryClient = useQueryClient();
+// BibleCardPage와 동일한 스타일 컴포넌트
+const StepContent = styled.div`
+  animation: ${fadeIn} 0.3s ease;
+`;
 
-    useEffect(() => {
-        const fetchGroups = async () => {
-            const res = await fetch('/api/signup/groups');
-      if (res.ok) setGroups((await res.json()).data);
-        };
-        fetchGroups();
-    }, []);
+const StepTitle = styled.h2`
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+  text-align: center;
 
-    useEffect(() => {
-    const groupId = formData.group_id;
-    if (groupId && formData.community === '허브') {
-            const fetchCells = async () => {
-                const res = await fetch(`/api/signup/cells?groupId=${groupId}`);
-        if (res.ok) setCells((await res.json()).data);
-            };
-            fetchCells();
-    } else {
-      setCells([]);
+  @media (max-width: 480px) {
+    font-size: 16px;
+  }
+`;
+
+const StepDescription = styled.p`
+  font-size: 14px;
+  color: #64748b;
+  text-align: center;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+
+  @media (max-width: 480px) {
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+
+  @media (max-width: 480px) {
+    margin-bottom: 16px;
+  }
+`;
+
+const Label = styled.label`
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 8px;
+
+  @media (max-width: 480px) {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  max-width: 100%;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+  }
+
+  &[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    
+    &::-webkit-calendar-picker-indicator {
+      margin-left: auto;
+      padding: 0;
+      cursor: pointer;
     }
-  }, [formData.group_id, formData.community]);
+  }
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-    const newFormData = { ...formData, [name]: value };
-        setFormData(newFormData);
-    };
-
-    const handleComboboxChange = (name: string, value: string) => {
-    const newFormData = { ...formData, [name]: value };
+  @media (max-width: 480px) {
+    padding: 12px 14px;
+    font-size: 16px;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     
-    // 그룹 변경 시 다락방 초기화
-    if (name === 'group_id') {
-            newFormData.cell_id = '';
-        }
-    
-        setFormData(newFormData);
-    };
-    
-  const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-    setLoading(true);
-    setError('');
-
-        try {
-      const updateData: any = {
-        name: formData.name,
-        birth_date: formData.birth_date,
-        community: formData.community,
-      };
-
-      if (formData.community === '타공동체') {
-        updateData.group_id = null;
-        updateData.cell_id = null;
-      } else {
-        updateData.group_id = formData.group_id ? parseInt(formData.group_id) : null;
-        updateData.cell_id = formData.cell_id ? parseInt(formData.cell_id) : null;
+    &[type="date"] {
+      padding-right: 12px;
+      
+      &::-webkit-calendar-picker-indicator {
+        width: 20px;
+        height: 20px;
+        margin-left: auto;
       }
+    }
+  }
+`;
 
-      const res = await fetch('/api/auth/update-profile', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData),
-            });
+const InfoNote = styled.div`
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-bottom: 20px;
 
-            const data = await res.json();
-      if (!res.ok) throw new Error(data.message || '업데이트 실패');
+  @media (max-width: 480px) {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+`;
 
-            alert('정보가 성공적으로 업데이트되었습니다.');
-            await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-            onClose();
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
 
-    return (
-        <S.ModalOverlay>
-            <S.ModalContent>
-        <S.ModalTitle>정보 수정</S.ModalTitle>
-        <form onSubmit={handleSubmit}>
-                <S.InfoWrapper>
-            <div>
-              <S.Label>이름</S.Label>
-              <S.Input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="이름을 입력하세요"
-                required
-              />
-            </div>
+  @media (max-width: 480px) {
+    gap: 10px;
+    margin-top: 20px;
+    flex-direction: column;
+  }
+`;
 
-            <div>
-              <S.Label>생년월일</S.Label>
-              <S.Input
-                type="date"
-                name="birth_date"
-                value={formData.birth_date}
-                onChange={handleChange}
-                required
-              />
-            </div>
+const CancelButton = styled.button`
+  flex: 1;
+  padding: 16px;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
-            <div>
-              <S.Label>공동체</S.Label>
-              <Combobox
-                name="community"
-                value={formData.community}
-                onChange={(value) => handleComboboxChange('community', value)}
-                options={[
-                  { value: '', label: '-- 공동체 선택 --' },
-                  { value: '허브', label: '허브' },
-                  { value: '타공동체', label: '타공동체' },
-                ]}
-                placeholder="-- 공동체 선택 --"
-                required
-              />
-            </div>
+  &:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
 
-            {formData.community === '허브' && (
-              <>
-                <div>
-                  <S.Label>그룹</S.Label>
-                  <Combobox
-                    name="group_id"
-                    value={formData.group_id}
-                    onChange={(value) => handleComboboxChange('group_id', value)}
-                    options={[
-                      { value: '', label: '-- 그룹 선택 --' },
-                      ...groups.map(g => ({ value: g.id.toString(), label: g.name })),
-                    ]}
-                    placeholder="-- 그룹 선택 --"
-                  />
-                </div>
+  @media (max-width: 480px) {
+    padding: 14px;
+    font-size: 15px;
+  }
+`;
 
-                <div>
-                  <S.Label>다락방</S.Label>
-                  <Combobox
-                    name="cell_id"
-                    value={formData.cell_id}
-                    onChange={(value) => handleComboboxChange('cell_id', value)}
-                    options={[
-                      { value: '', label: '-- 다락방 선택 --' },
-                      ...cells.map(c => ({ value: c.id.toString(), label: c.name })),
-                    ]}
-                    placeholder="-- 다락방 선택 --"
-                    disabled={!formData.group_id}
-                  />
-                </div>
-              </>
-                    )}
-                </S.InfoWrapper>
+const SaveButton = styled.button`
+  flex: 1;
+  padding: 16px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
-                {error && <S.ErrorMessage>{error}</S.ErrorMessage>}
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
 
-                <S.ButtonWrapper>
-            <S.CancelButton type="button" onClick={onClose}>취소</S.CancelButton>
-            <S.SubmitButton type="submit" disabled={loading}>
-              {loading ? '저장 중...' : '저장'}
-            </S.SubmitButton>
-                </S.ButtonWrapper>
-        </form>
-            </S.ModalContent>
-        </S.ModalOverlay>
-    );
-};
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 480px) {
+    padding: 14px;
+    font-size: 15px;
+  }
+`;
 
 export default function MyInfoPage() {
   const router = useRouter();
@@ -243,7 +238,122 @@ export default function MyInfoPage() {
   });
 
   const handleLogout = () => signOut({ callbackUrl: '/login' });
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    birth_date: '',
+    community: '',
+    group_id: '' as string | number,
+    cell_id: '' as string | number,
+  });
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [cells, setCells] = useState<Cell[]>([]);
+  const [updateError, setUpdateError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const isHub = formData.community === '허브';
+
+  // 그룹 목록 가져오기
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchGroups = async () => {
+        try {
+          const response = await fetch('/api/signup/groups');
+          const data = await response.json();
+          if (response.ok) setGroups(data.data || []);
+        } catch (err) {
+          console.error('그룹 조회 실패:', err);
+        }
+      };
+      fetchGroups();
+    }
+  }, [isEditMode]);
+
+  // 셀 목록 가져오기
+  useEffect(() => {
+    if (isEditMode && formData.group_id && formData.community === '허브') {
+      const fetchCells = async () => {
+        try {
+          const response = await fetch(`/api/signup/cells?groupId=${formData.group_id}`);
+          const data = await response.json();
+          if (response.ok) setCells(data.data || []);
+        } catch (err) {
+          console.error('셀 조회 실패:', err);
+        }
+      };
+      fetchCells();
+    } else {
+      setCells([]);
+    }
+  }, [formData.group_id, formData.community, isEditMode]);
+
+  // 편집 모드 시작
+  const handleEditClick = () => {
+    if (profileData) {
+      setFormData({
+        name: profileData.name || '',
+        birth_date: profileData.birth_date || '',
+        community: profileData.community || '',
+        group_id: profileData.group_id || '',
+        cell_id: profileData.cell_id || '',
+      });
+      setIsEditMode(true);
+      setUpdateError('');
+    }
+  };
+
+  // 편집 취소
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setUpdateError('');
+    setFormData({
+      name: '',
+      birth_date: '',
+      community: '',
+      group_id: '',
+      cell_id: '',
+    });
+  };
+
+  // 저장
+  const handleSave = async () => {
+    setLoading(true);
+    setUpdateError('');
+
+    try {
+      const updateData: any = {
+        name: formData.name,
+        birth_date: formData.birth_date,
+        community: formData.community,
+      };
+
+      if (formData.community === '타공동체') {
+        updateData.group_id = null;
+        updateData.cell_id = null;
+      } else {
+        updateData.group_id = formData.group_id ? parseInt(formData.group_id.toString()) : null;
+        updateData.cell_id = formData.cell_id ? parseInt(formData.cell_id.toString()) : null;
+      }
+
+      const res = await fetch('/api/auth/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || '업데이트 실패');
+
+      alert('정보가 성공적으로 업데이트되었습니다.');
+      await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      setIsEditMode(false);
+    } catch (err: any) {
+      setUpdateError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 사용자 이름에서 첫 글자 추출
   const getInitial = (name: string) => {
@@ -287,20 +397,13 @@ export default function MyInfoPage() {
         <S.Content>
           {(error) && <S.ErrorMessage>{error?.message}</S.ErrorMessage>}
           
-          {profileData && isModalOpen && (
-            <UpdateModal 
-              onClose={() => setIsModalOpen(false)} 
-              profileData={profileData}
-            />
-          )}
-          
-          {profileData && !isModalOpen && (
+          {profileData && !isEditMode && (
             <>
               {/* 기본 정보 카드 */}
               <S.Card>
                 <S.CardHeader>
                   <S.CardTitle>기본 정보</S.CardTitle>
-                  <S.CardAction onClick={() => setIsModalOpen(true)}>
+                  <S.CardAction onClick={handleEditClick}>
                     수정하기
                   </S.CardAction>
                 </S.CardHeader>
@@ -340,6 +443,112 @@ export default function MyInfoPage() {
 
               <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
             </>
+          )}
+
+          {profileData && isEditMode && (
+            <S.Card>
+              <StepContent>
+                <StepTitle>내 정보 수정</StepTitle>
+                <StepDescription>
+                  수정된 정보는 프로필에도 반영됩니다.
+                </StepDescription>
+
+                <FormGroup>
+                  <Label>이름 *</Label>
+                  <Input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="이름을 입력하세요"
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>생년월일</Label>
+                  <Input
+                    type="date"
+                    value={formData.birth_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, birth_date: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>공동체 *</Label>
+                  <Combobox
+                    value={formData.community}
+                    onChange={(value) => setFormData(prev => ({ 
+                      ...prev, 
+                      community: value,
+                      group_id: '',
+                      cell_id: '',
+                    }))}
+                    options={[
+                      { value: '', label: '선택하세요' },
+                      { value: '허브', label: '허브' },
+                      { value: '타공동체', label: '타공동체' },
+                    ]}
+                    placeholder="선택하세요"
+                    required
+                  />
+                </FormGroup>
+
+                {isHub && (
+                  <>
+                    <FormGroup>
+                      <Label>그룹</Label>
+                      <Combobox
+                        value={formData.group_id?.toString() || ''}
+                        onChange={(value) => setFormData(prev => ({ 
+                          ...prev, 
+                          group_id: value ? parseInt(value) : '',
+                          cell_id: '',
+                        }))}
+                        options={[
+                          { value: '', label: '선택하세요' },
+                          ...(groups || []).map(g => ({ value: g.id.toString(), label: g.name })),
+                        ]}
+                        placeholder="선택하세요"
+                      />
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label>다락방</Label>
+                      <Combobox
+                        value={formData.cell_id?.toString() || ''}
+                        onChange={(value) => setFormData(prev => ({ 
+                          ...prev, 
+                          cell_id: value ? parseInt(value) : '',
+                        }))}
+                        options={[
+                          { value: '', label: '선택하세요' },
+                          ...(cells || []).map(c => ({ value: c.id.toString(), label: c.name })),
+                        ]}
+                        placeholder="선택하세요"
+                        disabled={!formData.group_id}
+                      />
+                    </FormGroup>
+                  </>
+                )}
+
+                {formData.community === '타공동체' && (
+                  <InfoNote>
+                    타공동체 소속이시군요! 그룹/다락방 선택은 생략됩니다.
+                  </InfoNote>
+                )}
+
+                {updateError && <S.ErrorMessage>{updateError}</S.ErrorMessage>}
+
+                <ButtonGroup>
+                  <CancelButton onClick={handleCancelEdit}>
+                    취소
+                  </CancelButton>
+                  <SaveButton onClick={handleSave} disabled={loading}>
+                    {loading ? '저장 중...' : '저장'}
+                  </SaveButton>
+                </ButtonGroup>
+              </StepContent>
+            </S.Card>
           )}
         </S.Content>
       </S.Wrapper>
