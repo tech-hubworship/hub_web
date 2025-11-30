@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import PageLayout from '@src/components/common/PageLayout';
 import * as S from './style';
+import { Combobox } from '@src/components/ui/combobox';
 
 export default function UpdatePage() {
   const { data: session, status } = useSession();
@@ -122,8 +123,12 @@ export default function UpdatePage() {
     }
   }, [session, status, router]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleComboboxChange = (name: string, value: string) => {
     const newFormData = { ...formData, [name]: value };
     
     // 커뮤니티가 변경되면 그룹/셀 초기화
@@ -295,16 +300,21 @@ export default function UpdatePage() {
                   </S.InputGroup>
                   <S.InputGroup>
                     <S.Label>성별 *</S.Label>
-                    <S.Select
+                    <Combobox
                       name="gender"
                       value={userInfo.gender}
-                      onChange={handleUserInfoChange}
+                      onChange={(value) => {
+                        const e = { target: { name: 'gender', value } } as React.ChangeEvent<HTMLInputElement>;
+                        handleUserInfoChange(e);
+                      }}
+                      options={[
+                        { value: '', label: '-- 성별 선택 --' },
+                        { value: 'M', label: '남' },
+                        { value: 'F', label: '여' },
+                      ]}
+                      placeholder="-- 성별 선택 --"
                       required
-                    >
-                      <option value="">-- 성별 선택 --</option>
-                      <option value="남">남</option>
-                      <option value="여">여</option>
-                    </S.Select>
+                    />
                   </S.InputGroup>
                   <S.ButtonWrapper style={{ marginTop: '16px' }}>
                     <S.CancelButton onClick={() => {
@@ -340,7 +350,9 @@ export default function UpdatePage() {
                     </S.InfoRow>
                     <S.InfoRow>
                       <S.InfoLabel>성별</S.InfoLabel>
-                      <S.InfoValue>{userInfo.gender || '미입력'}</S.InfoValue>
+                      <S.InfoValue>
+                        {userInfo.gender === 'M' ? '남성' : userInfo.gender === 'F' ? '여성' : userInfo.gender || '미입력'}
+                      </S.InfoValue>
                     </S.InfoRow>
                   </S.InfoCard>
                   {(!userInfo.name || !userInfo.birth_date || !userInfo.gender) && (
@@ -375,16 +387,18 @@ export default function UpdatePage() {
               onNext={handleCommunityNext}
               nextDisabled={!formData.community}
             >
-              <S.Select
+              <Combobox
                 name="community"
                 value={formData.community}
-                onChange={handleChange}
+                onChange={(value) => handleComboboxChange('community', value)}
+                options={[
+                  { value: '', label: '-- 공동체 선택 --' },
+                  { value: '허브', label: '허브' },
+                  { value: '타공동체', label: '타공동체' },
+                ]}
+                placeholder="-- 공동체 선택 --"
                 required
-              >
-                <option value="">-- 공동체 선택 --</option>
-                <option value="허브">허브</option>
-                <option value="타공동체">타공동체</option>
-              </S.Select>
+              />
             </S.StepComponent>
           ) : currentStep === 'group' ? (
             <S.StepComponent
@@ -393,19 +407,17 @@ export default function UpdatePage() {
               onNext={handleGroupNext}
               nextDisabled={!formData.group_id}
             >
-              <S.Select
+              <Combobox
                 name="group_id"
                 value={formData.group_id}
-                onChange={handleChange}
+                onChange={(value) => handleComboboxChange('group_id', value)}
+                options={[
+                  { value: '', label: '-- 그룹 선택 --' },
+                  ...groups.map(g => ({ value: g.id.toString(), label: g.name })),
+                ]}
+                placeholder="-- 그룹 선택 --"
                 required
-              >
-                <option value="">-- 그룹 선택 --</option>
-                {groups.map(g => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </S.Select>
+              />
             </S.StepComponent>
           ) : (
             <S.StepComponent
@@ -422,19 +434,17 @@ export default function UpdatePage() {
                   그룹/다락방 선택은 생략됩니다.
                 </S.InfoText>
               ) : (
-                <S.Select
+                <Combobox
                   name="cell_id"
                   value={formData.cell_id}
-                  onChange={handleChange}
+                  onChange={(value) => handleComboboxChange('cell_id', value)}
+                  options={[
+                    { value: '', label: '-- 다락방 선택 --' },
+                    ...cells.map(c => ({ value: c.id.toString(), label: c.name })),
+                  ]}
+                  placeholder="-- 다락방 선택 --"
                   required
-                >
-                  <option value="">-- 다락방 선택 --</option>
-                  {cells.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </S.Select>
+                />
               )}
             </S.StepComponent>
           )}
