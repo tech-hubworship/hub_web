@@ -616,7 +616,7 @@ const Card = styled.div`
   animation: ${fadeIn} 0.5s ease;
   box-sizing: border-box;
   width: 100%;
-  overflow: hidden;
+  position: relative;
 
   @media (max-width: 768px) {
     padding: 28px 24px;
@@ -732,7 +732,7 @@ const FormGroup = styled.div`
   margin-bottom: 20px;
   width: 100%;
   box-sizing: border-box;
-  overflow: hidden;
+  position: relative;
 
   @media (max-width: 480px) {
     margin-bottom: 16px;
