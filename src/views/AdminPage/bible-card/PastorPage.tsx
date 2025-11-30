@@ -526,12 +526,12 @@ export default function BibleCardPastorPage() {
                   <InfoValue>{selectedApp.name}</InfoValue>
                 </InfoItem>
                 <InfoItem>
-                  <InfoLabel>생년월일</InfoLabel>
-                  <InfoValue>{selectedApp.birth_date || '-'}</InfoValue>
-                </InfoItem>
-                <InfoItem>
                   <InfoLabel>성별</InfoLabel>
                   <InfoValue>{formatGender(selectedApp.gender)}</InfoValue>
+                </InfoItem>
+                <InfoItem>
+                  <InfoLabel>생년월일</InfoLabel>
+                  <InfoValue>{selectedApp.birth_date || '-'}</InfoValue>
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>공동체</InfoLabel>
@@ -577,7 +577,8 @@ export default function BibleCardPastorPage() {
                       </option>
                     ))}
                   </Select>
-
+                </BibleSelectorRow>
+                <BibleSelectorRow>
                   <Select
                     value={selectedChapter}
                     onChange={handleChapterChange}
@@ -1059,24 +1060,43 @@ const InfoGrid = styled.div`
   }
 
   @media (max-width: 480px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 10px;
     width: 100%;
     max-width: 100%;
   }
 `;
 
-const InfoItem = styled.div``;
+const InfoItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  min-height: 44px;
+  justify-content: center;
+`;
 
 const InfoLabel = styled.div`
   font-size: 11px;
   color: #64748b;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  line-height: 1.4;
+  
+  @media (max-width: 480px) {
+    font-size: 10px;
+    margin-bottom: 3px;
+  }
 `;
 
 const InfoValue = styled.div`
   font-size: 13px;
   font-weight: 600;
   color: #1e293b;
+  line-height: 1.4;
+  word-break: break-word;
+  
+  @media (max-width: 480px) {
+    font-size: 12px;
+  }
 `;
 
 const PrayerBox = styled.div`
