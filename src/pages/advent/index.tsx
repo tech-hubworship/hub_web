@@ -341,9 +341,12 @@ const AdventPage = () => {
 
       if (response.ok) {
         setComments(data.comments || []);
+        setTotalComments(data.comments?.length || 0);
       }
     } catch (err) {
       console.error('사용자 묵상 조회 오류:', err);
+      setComments([]);
+      setTotalComments(0);
     } finally {
       if (showLoading) setLoadingComments(false);
     }
@@ -529,7 +532,6 @@ const AdventPage = () => {
               transition={{ duration: 0.4 }}
             >
               <ScrollHintText>
-                <div>밑으로 내려 대림절을 묵상해보아요</div>
                 <ScrollArrow>↓</ScrollArrow>
               </ScrollHintText>
             </ScrollHint>
@@ -641,17 +643,23 @@ const AdventPage = () => {
                           isLoggedIn={!!session?.user}
                           showMyMeditation={showMyMeditation}
                           loading={loadingComments}
-                          onToggleMyMeditation={() => {
+                          onToggleMyMeditation={async () => {
                             const newShowMyMeditation = !showMyMeditation;
                             setShowMyMeditation(newShowMyMeditation);
                             setCommentsPage(1);
+                            setLoadingComments(true);
                             setComments([]); // 초기화
                             
                             // 새로운 데이터 가져오기
-                            if (newShowMyMeditation) {
-                              fetchUserComments(true);
-                            } else if (post?.post_dt) {
-                              fetchComments(post.post_dt, 1, itemsPerPage, true);
+                            try {
+                              if (newShowMyMeditation) {
+                                await fetchUserComments(true);
+                              } else if (post?.post_dt) {
+                                await fetchComments(post.post_dt, 1, itemsPerPage, true);
+                              }
+                            } catch (err) {
+                              console.error('묵상 조회 오류:', err);
+                              setLoadingComments(false);
                             }
                           }}
                           onPageChange={(page: number) => {

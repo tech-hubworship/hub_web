@@ -547,7 +547,12 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
           </ButtonWrapper>
         )}
 
-        <MeditationList variants={containerVariants}>
+        <MeditationList 
+          key={`meditation-list-${showMyMeditation ? 'my' : 'all'}-${comments.length}`}
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+        >
           {loading ? (
             <LoadingContainer>
               <img src="/icons/advent_logo.svg" alt="loading" />
