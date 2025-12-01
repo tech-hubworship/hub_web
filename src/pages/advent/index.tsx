@@ -45,6 +45,58 @@ const SectionWrapper = styled(motion.div)`
   margin-bottom: 0;
 `;
 
+// 스크롤 안내 문구
+const ScrollHint = styled(motion.div)`
+  text-align: center;
+  padding: 24px 20px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 500;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+
+  @media (max-width: 768px) {
+    padding: 20px 16px;
+    font-size: 14px;
+  }
+`;
+
+const ScrollHintText = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #CEB2FF;
+  font-size: 16px;
+  font-weight: 500;
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+    gap: 10px;
+  }
+`;
+
+const ScrollArrow = styled.div`
+  font-size: 24px;
+  color: #CEB2FF;
+  animation: bounce 1.5s ease-in-out infinite;
+  
+  @keyframes bounce {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(8px);
+    }
+  }
+  
+  @media (max-width: 768px) {
+    font-size: 20px;
+  }
+`;
+
 
 // ==================== Empty State Section ====================
 const EmptyStateCard = styled.div`
@@ -202,6 +254,7 @@ const AdventPage = () => {
   const [showMeditationSavedModal, setShowMeditationSavedModal] = useState(false);
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
   const [showFullScreenIntro, setShowFullScreenIntro] = useState(true); // 초기값을 true로 설정하여 전체 화면부터 시작
+  const [showScrollHint, setShowScrollHint] = useState(false);
 
   // 화면 크기 감지
   useEffect(() => {
@@ -241,6 +294,8 @@ const AdventPage = () => {
         // 추가로 0.3초 더 전체 화면 유지 후 일반 크기로 전환
         setTimeout(() => {
           setShowFullScreenIntro(false);
+          // 안내 문구 표시 (EventInfoSection 애니메이션 시작 전까지 표시)
+          setShowScrollHint(true);
         }, 300);
       }, remainingTime);
     } catch (err) {
@@ -250,12 +305,14 @@ const AdventPage = () => {
       const minDisplayTime = 1000;
       const remainingTime = Math.max(0, minDisplayTime - elapsed);
       
-      setTimeout(() => {
-        setLoading(false);
         setTimeout(() => {
-          setShowFullScreenIntro(false);
-        }, 300);
-      }, remainingTime);
+          setLoading(false);
+          setTimeout(() => {
+            setShowFullScreenIntro(false);
+            // 안내 문구 표시 (EventInfoSection 애니메이션 시작 전까지 표시)
+            setShowScrollHint(true);
+          }, 300);
+        }, remainingTime);
     }
   }, [loadingStartTime]);
 
@@ -463,6 +520,21 @@ const AdventPage = () => {
             isLoading={showFullScreenIntro}
           />
           
+          {/* 스크롤 안내 문구 */}
+          {showScrollHint && (
+            <ScrollHint
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4 }}
+            >
+              <ScrollHintText>
+                <div>밑으로 내려 대림절을 묵상해보아요</div>
+                <ScrollArrow>↓</ScrollArrow>
+              </ScrollHintText>
+            </ScrollHint>
+          )}
+          
           {/* 로딩 완료 후 IntroSection이 원래 위치로 돌아온 다음에만 다른 섹션들 표시 */}
           {!loading && !showFullScreenIntro && (
             <>
@@ -499,6 +571,14 @@ const AdventPage = () => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-100px" }}
                     transition={{ duration: 0.6, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    onAnimationStart={() => {
+                      // 애니메이션이 시작되면 안내 문구 숨김
+                      setShowScrollHint(false);
+                    }}
+                    onViewportEnter={() => {
+                      // 첫 번째 섹션이 뷰포트에 들어오면 안내 문구 숨김 (애니메이션 시작 전)
+                      setShowScrollHint(false);
+                    }}
                   >
                     <EventInfoSection />
                   </SectionWrapper>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
 import { AdventComment } from '@src/lib/advent/types';
@@ -313,7 +314,7 @@ const ModalOverlay = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10001;
+  z-index: 99999;
   padding: 20px;
 `;
 
@@ -326,6 +327,7 @@ const ModalContent = styled.div<{ colorIndex: number }>`
   padding: 32px;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 100000;
 
   background: ${props => {
     const colors = ['#FFFFFF', '#EE9EEA', '#A479EE', '#CEB2FF'];
@@ -620,8 +622,8 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
         )}
       </ContentWrapper>
 
-      {/* 모달 */}
-      {selectedComment && (
+      {/* 모달 - Portal을 사용하여 body에 직접 렌더링 */}
+      {selectedComment && typeof window !== 'undefined' && createPortal(
         <ModalOverlay onClick={() => setSelectedComment(null)}>
           <ModalContent 
             colorIndex={selectedComment.comment_id % 4}
@@ -640,7 +642,8 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
             </ModalHeader>
             <ModalBody>{selectedComment.content}</ModalBody>
           </ModalContent>
-        </ModalOverlay>
+        </ModalOverlay>,
+        document.body
       )}
     </SectionCard>
   );
