@@ -280,16 +280,6 @@ export const PreviousVideosSection: React.FC<PreviousVideosSectionProps> = ({
         damping: 20,
         ease: [0.34, 1.56, 0.64, 1]
       }
-    },
-    hover: {
-      scale: 1.08,
-      y: -10,
-      rotate: 2,
-      transition: {
-        type: "spring",
-        stiffness: 400,
-        damping: 10
-      }
     }
   };
 

@@ -498,29 +498,13 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
   };
 
   const postItVariants = {
-    hidden: { opacity: 0, scale: 0.6, rotate: -15, y: 50 },
+    hidden: { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
-      scale: 1,
-      rotate: 0,
       y: 0,
       transition: {
-        duration: 0.7,
-        type: "spring",
-        stiffness: 200,
-        damping: 15,
-        ease: [0.34, 1.56, 0.64, 1]
-      }
-    },
-    hover: {
-      scale: 1.12,
-      rotate: 3,
-      y: -8,
-      zIndex: 10,
-      transition: {
-        type: "spring",
-        stiffness: 400,
-        damping: 10
+        duration: 0.5,
+        ease: [0.25, 0.46, 0.45, 0.94]
       }
     }
   };
@@ -585,7 +569,6 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
                   key={comment.comment_id} 
                   colorIndex={colorIdx}
                   variants={postItVariants}
-                  whileHover="hover"
                   onTap={() => setSelectedComment(comment)}
                   style={{ cursor: 'pointer' }}
                 >
