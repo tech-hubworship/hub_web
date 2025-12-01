@@ -59,7 +59,7 @@ const SectionTitle = styled(motion.h2)`
   }
 `;
 
-const PreviousVideosGrid = styled.div`
+const PreviousVideosGrid = styled(motion.div)`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 24px;
@@ -77,7 +77,7 @@ const PreviousVideosGrid = styled.div`
   }
 `;
 
-const VideoCard = styled.div`
+const VideoCard = styled(motion.div)`
   background: #ffffff;
   border-radius: 12px;
   overflow: hidden;
@@ -240,43 +240,80 @@ export const PreviousVideosSection: React.FC<PreviousVideosSectionProps> = ({
   const YOUTUBE_PLAYLIST_URL = 'https://www.youtube.com/playlist?list=PLoPlKRWMoWwOoqAvlzXibGmxsaCrJn2YB';
 
   const containerVariants = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: 0, y: 60 },
     visible: {
       opacity: 1,
+      y: 0,
       transition: {
-        staggerChildren: 0.2,
-        delayChildren: 0.1
+        duration: 1,
+        staggerChildren: 0.15,
+        delayChildren: 0.2,
+        ease: [0.25, 0.46, 0.45, 0.94]
       }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 50, scale: 0.8 },
     visible: {
       opacity: 1,
       y: 0,
+      scale: 1,
       transition: {
-        duration: 0.6,
-        ease: [0.25, 0.46, 0.45, 0.94]
+        duration: 0.9,
+        ease: [0.34, 1.56, 0.64, 1]
+      }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 60, scale: 0.7, rotate: -5 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      rotate: 0,
+      transition: {
+        duration: 0.8,
+        type: "spring",
+        stiffness: 150,
+        damping: 20,
+        ease: [0.34, 1.56, 0.64, 1]
+      }
+    },
+    hover: {
+      scale: 1.08,
+      y: -10,
+      rotate: 2,
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 10
       }
     }
   };
 
   const buttonVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
+    hidden: { opacity: 0, scale: 0.7, y: 30 },
     visible: {
       opacity: 1,
       scale: 1,
+      y: 0,
       transition: {
-        duration: 0.5,
-        ease: [0.25, 0.46, 0.45, 0.94]
+        duration: 0.8,
+        type: "spring",
+        stiffness: 200,
+        damping: 15,
+        ease: [0.34, 1.56, 0.64, 1]
       }
     },
     hover: {
-      scale: 1.02,
+      scale: 1.1,
+      y: -5,
       transition: {
         type: "spring",
-        stiffness: 300
+        stiffness: 400,
+        damping: 10
       }
     }
   };
@@ -285,7 +322,7 @@ export const PreviousVideosSection: React.FC<PreviousVideosSectionProps> = ({
     <SectionCard
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-100px" }}
+      viewport={{ once: true, margin: "-200px" }}
       variants={containerVariants}
     >
       <SectionTitle variants={itemVariants}>

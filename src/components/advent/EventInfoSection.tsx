@@ -100,37 +100,52 @@ const NoticeText = styled(motion.p)`
 `;
 
 const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.15,
-      delayChildren: 0.1
-    }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 50 },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.6,
+      duration: 0.8,
+      staggerChildren: 0.2,
+      delayChildren: 0.2,
       ease: [0.25, 0.46, 0.45, 0.94]
     }
   }
 };
 
+const itemVariants = {
+  hidden: { opacity: 0, y: 40, scale: 0.9 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.8,
+      ease: [0.34, 1.56, 0.64, 1]
+    }
+  }
+};
+
 const candleVariants = {
-  hidden: { opacity: 0, scale: 0.5, rotate: -10 },
+  hidden: { opacity: 0, scale: 0.3, rotate: -180, y: -50 },
   visible: {
     opacity: 1,
     scale: 1,
     rotate: 0,
+    y: 0,
     transition: {
-      duration: 0.8,
+      duration: 1.2,
+      type: "spring",
+      stiffness: 200,
+      damping: 15,
       ease: [0.34, 1.56, 0.64, 1]
+    }
+  },
+  hover: {
+    scale: 1.15,
+    rotate: [0, -5, 5, -5, 0],
+    transition: {
+      duration: 0.5
     }
   }
 };
@@ -140,11 +155,14 @@ export const EventInfoSection: React.FC = () => {
     <SectionCard
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-100px" }}
+      viewport={{ once: true, margin: "-200px" }}
       variants={containerVariants}
     >
       <ContentWrapper>
-        <CandleIcon variants={candleVariants}>
+        <CandleIcon 
+          variants={candleVariants}
+          whileHover="hover"
+        >
           <img src="/icons/candle.svg" alt="candle icon" />
         </CandleIcon>
 

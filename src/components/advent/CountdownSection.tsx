@@ -166,42 +166,52 @@ export const CountdownSection: React.FC<CountdownSectionProps> = ({ targetDate }
   }, [targetDate]);
 
   const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 60 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.6,
+        duration: 1,
+        staggerChildren: 0.15,
+        delayChildren: 0.3,
         ease: [0.25, 0.46, 0.45, 0.94]
       }
     }
   };
 
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30, scale: 0.8 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.8,
+        ease: [0.34, 1.56, 0.64, 1]
+      }
+    }
+  };
+
   const timeUnitVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
+    hidden: { opacity: 0, scale: 0.5, y: 50, rotateX: -90 },
     visible: {
       opacity: 1,
       scale: 1,
+      y: 0,
+      rotateX: 0,
       transition: {
-        duration: 0.5,
+        duration: 1,
+        type: "spring",
+        stiffness: 200,
+        damping: 15,
         ease: [0.34, 1.56, 0.64, 1]
       }
     },
     pulse: {
-      scale: [1, 1.1, 1],
+      scale: [1, 1.15, 1],
+      y: [0, -10, 0],
       transition: {
-        duration: 2,
+        duration: 1.5,
         repeat: Infinity,
         ease: "easeInOut"
       }
@@ -212,7 +222,7 @@ export const CountdownSection: React.FC<CountdownSectionProps> = ({ targetDate }
     <SectionCard
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-100px" }}
+      viewport={{ once: true, margin: "-200px" }}
       variants={containerVariants}
     >
       <ContentWrapper>

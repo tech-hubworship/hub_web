@@ -28,7 +28,7 @@ const ContentWrapper = styled(motion.div)`
   text-align: center;
 `;
 
-const LogoWrapper = styled.div`
+const LogoWrapper = styled(motion.div)`
   display: flex;
   justify-content: center;
   align-items: center;
@@ -46,7 +46,7 @@ const LogoWrapper = styled.div`
   }
 `;
 
-const TitleText = styled.div`
+const TitleText = styled(motion.div)`
   font-size: 24px;
   font-weight: 600;
   color: #ffffff;
@@ -57,7 +57,7 @@ const TitleText = styled.div`
   }
 `;
 
-const SubtitleText = styled.div`
+const SubtitleText = styled(motion.div)`
   font-size: 16px;
   font-weight: 400;
   color: #ffffff;
@@ -221,7 +221,7 @@ const LoadingContainer = styled.div`
   }
 `;
 
-const ButtonWrapper = styled.div`
+const ButtonWrapper = styled(motion.div)`
   display: flex;
   justify-content: center;
   gap: 12px;
@@ -471,46 +471,56 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
   };
 
   const containerVariants = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: 0, y: 60 },
     visible: {
       opacity: 1,
+      y: 0,
       transition: {
-        staggerChildren: 0.08,
-        delayChildren: 0.1
+        duration: 1,
+        staggerChildren: 0.12,
+        delayChildren: 0.2,
+        ease: [0.25, 0.46, 0.45, 0.94]
       }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 40, scale: 0.8 },
     visible: {
       opacity: 1,
       y: 0,
+      scale: 1,
       transition: {
-        duration: 0.5,
-        ease: [0.25, 0.46, 0.45, 0.94]
+        duration: 0.8,
+        ease: [0.34, 1.56, 0.64, 1]
       }
     }
   };
 
   const postItVariants = {
-    hidden: { opacity: 0, scale: 0.9, rotate: -2 },
+    hidden: { opacity: 0, scale: 0.6, rotate: -15, y: 50 },
     visible: {
       opacity: 1,
       scale: 1,
       rotate: 0,
+      y: 0,
       transition: {
-        duration: 0.4,
-        ease: [0.25, 0.46, 0.45, 0.94]
+        duration: 0.7,
+        type: "spring",
+        stiffness: 200,
+        damping: 15,
+        ease: [0.34, 1.56, 0.64, 1]
       }
     },
     hover: {
-      scale: 1.05,
-      rotate: 1,
+      scale: 1.12,
+      rotate: 3,
+      y: -8,
       zIndex: 10,
       transition: {
         type: "spring",
-        stiffness: 300
+        stiffness: 400,
+        damping: 10
       }
     }
   };
@@ -519,7 +529,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
     <SectionCard
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-100px" }}
+      viewport={{ once: true, margin: "-200px" }}
       variants={containerVariants}
     >
       <ContentWrapper>
@@ -527,15 +537,15 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
           <img src="/icons/chat1.svg" alt="chat icon" />
         </LogoWrapper>
         
-        <TitleText as={motion.div} variants={itemVariants}>
+        <TitleText variants={itemVariants}>
           다른 지체들의 묵상
         </TitleText>
-        <SubtitleText as={motion.div} variants={itemVariants}>
+        <SubtitleText variants={itemVariants}>
           함께 나눈 묵상을 확인해보세요.
         </SubtitleText>
 
         {isLoggedIn && (
-          <ButtonWrapper as={motion.div} variants={itemVariants}>
+          <ButtonWrapper variants={itemVariants}>
             <ToggleButton 
               active={!showMyMeditation}
               onClick={onToggleMyMeditation}
@@ -576,7 +586,8 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
                   colorIndex={colorIdx}
                   variants={postItVariants}
                   whileHover="hover"
-                  onClick={() => setSelectedComment(comment)}
+                  onTap={() => setSelectedComment(comment)}
+                  style={{ cursor: 'pointer' }}
                 >
                   <MeditationHeader>
                     <MeditationTitle>{userName}님의 {dayText}</MeditationTitle>

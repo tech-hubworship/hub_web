@@ -84,10 +84,14 @@ const VideoContainer = styled(motion.div)`
   }
 `;
 
-const ThumbnailImage = styled(motion.img)`
+const ThumbnailImageWrapper = styled(motion.div)`
+  width: 100%;
+  margin-bottom: 24px;
+`;
+
+const ThumbnailImage = styled.img`
   width: 100%;
   border-radius: 12px;
-  margin-bottom: 24px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 `;
 
@@ -103,7 +107,7 @@ const PostContent = styled(motion.div)`
   }
 `;
 
-const YouTubeLink = styled(motion.a)`
+const YouTubeLinkBase = styled.a`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -131,6 +135,8 @@ const YouTubeLink = styled(motion.a)`
   }
 `;
 
+const YouTubeLink = motion(YouTubeLinkBase);
+
 interface VideoSectionProps {
   post: AdventPost;
   currentDate: string;
@@ -150,36 +156,50 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
   };
 
   const containerVariants = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: 0, y: 60 },
     visible: {
       opacity: 1,
+      y: 0,
       transition: {
-        staggerChildren: 0.15,
-        delayChildren: 0.1
+        duration: 1,
+        staggerChildren: 0.25,
+        delayChildren: 0.2,
+        ease: [0.25, 0.46, 0.45, 0.94]
       }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 50, scale: 0.8 },
     visible: {
       opacity: 1,
       y: 0,
+      scale: 1,
       transition: {
-        duration: 0.6,
-        ease: [0.25, 0.46, 0.45, 0.94]
+        duration: 0.9,
+        ease: [0.34, 1.56, 0.64, 1]
       }
     }
   };
 
   const videoVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
+    hidden: { opacity: 0, scale: 0.7, y: 50 },
     visible: {
       opacity: 1,
       scale: 1,
+      y: 0,
       transition: {
-        duration: 0.8,
-        ease: [0.25, 0.46, 0.45, 0.94]
+        duration: 1.2,
+        type: "spring",
+        stiffness: 150,
+        damping: 20,
+        ease: [0.34, 1.56, 0.64, 1]
+      }
+    },
+    hover: {
+      scale: 1.02,
+      transition: {
+        duration: 0.3
       }
     }
   };
@@ -188,7 +208,7 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
     <SectionCard
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-100px" }}
+      viewport={{ once: true, amount: 0.3 }}
       variants={containerVariants}
     >
       <ContentWrapper>
@@ -200,19 +220,23 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
         </SectionSubtitle>
         
         {post.thumbnail_url && !post.video_url && (
-          <ThumbnailImage
-            variants={videoVariants}
-            src={post.thumbnail_url} 
-            alt={post.title}
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
+          <ThumbnailImageWrapper variants={videoVariants}>
+            <ThumbnailImage
+              src={post.thumbnail_url} 
+              alt={post.title}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </ThumbnailImageWrapper>
         )}
 
         {post.video_url && getYouTubeEmbedUrl(post.video_url) && (
           <>
-            <VideoContainer variants={videoVariants}>
+            <VideoContainer 
+              variants={videoVariants}
+              whileHover="hover"
+            >
               <iframe
                 src={getYouTubeEmbedUrl(post.video_url) || ''}
                 title={post.title.replace(/advent/gi, '').replace(/test/gi, '').trim()}

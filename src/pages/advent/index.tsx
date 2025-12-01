@@ -23,6 +23,7 @@ const Container = styled.div`
   min-height: 100vh;
   background: transparent;
   padding: 80px 0 0;
+    background-color: #000000;
 
   @media (max-width: 768px) {
     padding: 60px 0 0;
@@ -462,8 +463,8 @@ const AdventPage = () => {
             isLoading={showFullScreenIntro}
           />
           
-          {/* 로딩 완료 후 */}
-          {!loading && (
+          {/* 로딩 완료 후 IntroSection이 원래 위치로 돌아온 다음에만 다른 섹션들 표시 */}
+          {!loading && !showFullScreenIntro && (
             <>
               {error && (
                 <motion.div
