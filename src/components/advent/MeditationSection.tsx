@@ -12,6 +12,7 @@ const SectionCard = styled(motion.div)`
   margin-left: calc(-50vw + 50%);
   margin-right: calc(-50vw + 50%);
   margin-top: 0;
+  will-change: transform, opacity;
 
   @media (max-width: 1024px) {
     padding: 0 32px 32px 32px;
@@ -100,6 +101,7 @@ const MeditationPostIt = styled(motion.div)<{ colorIndex: number }>`
   flex-direction: column;
   text-align: left;
   overflow: hidden;
+  will-change: transform, opacity;
 
   &:hover {
     transform: scale(1.03);
@@ -471,40 +473,38 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
   };
 
   const containerVariants = {
-    hidden: { opacity: 0, y: 60 },
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      y: 0,
       transition: {
-        duration: 1,
-        staggerChildren: 0.12,
-        delayChildren: 0.2,
-        ease: [0.25, 0.46, 0.45, 0.94]
+        duration: 0.5,
+        staggerChildren: 0.08,
+        delayChildren: 0.1,
+        ease: "easeOut"
       }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 40, scale: 0.8 },
+    hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
-      scale: 1,
       transition: {
-        duration: 0.8,
-        ease: [0.34, 1.56, 0.64, 1]
+        duration: 0.4,
+        ease: "easeOut"
       }
     }
   };
 
   const postItVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.5,
-        ease: [0.25, 0.46, 0.45, 0.94]
+        duration: 0.4,
+        ease: "easeOut"
       }
     }
   };

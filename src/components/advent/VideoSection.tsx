@@ -11,6 +11,7 @@ const SectionCard = styled(motion.div)`
   width: 100vw;
   margin-left: calc(-50vw + 50%);
   margin-right: calc(-50vw + 50%);
+  will-change: transform, opacity;
 
   @media (max-width: 1024px) {
     padding: 32px;
@@ -156,48 +157,42 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
   };
 
   const containerVariants = {
-    hidden: { opacity: 0, y: 60 },
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      y: 0,
       transition: {
-        duration: 1,
-        staggerChildren: 0.25,
-        delayChildren: 0.2,
-        ease: [0.25, 0.46, 0.45, 0.94]
+        duration: 0.6,
+        staggerChildren: 0.1,
+        delayChildren: 0.1,
+        ease: "easeOut"
       }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 50, scale: 0.8 },
+    hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
-      scale: 1,
       transition: {
-        duration: 0.9,
-        ease: [0.34, 1.56, 0.64, 1]
+        duration: 0.5,
+        ease: "easeOut"
       }
     }
   };
 
   const videoVariants = {
-    hidden: { opacity: 0, scale: 0.7, y: 50 },
+    hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
-      scale: 1,
       y: 0,
       transition: {
-        duration: 1.2,
-        type: "spring",
-        stiffness: 150,
-        damping: 20,
-        ease: [0.34, 1.56, 0.64, 1]
+        duration: 0.6,
+        ease: "easeOut"
       }
     },
     hover: {
-      scale: 1.02,
+      scale: 1.01,
       transition: {
         duration: 0.3
       }
