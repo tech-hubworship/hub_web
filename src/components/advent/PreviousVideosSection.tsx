@@ -1,9 +1,10 @@
 import React from 'react';
 import styled from '@emotion/styled';
+import { motion } from 'framer-motion';
 import { Play } from 'lucide-react';
 import { PreviousPost } from '@src/lib/advent/types';
 
-const SectionCard = styled.div`
+const SectionCard = styled(motion.div)`
   background: #6940B0;
   padding: 40px;
   text-align: center;
@@ -20,7 +21,7 @@ const SectionCard = styled.div`
   }
 `;
 
-const SectionTitle = styled.h2`
+const SectionTitle = styled(motion.h2)`
   font-size: 32px;
   font-weight: 700;
   color: #ffffff;
@@ -186,7 +187,7 @@ const LoadingText = styled.div`
   }
 `;
 
-const YouTubeChannelButton = styled.a`
+const YouTubeChannelButtonBase = styled.a`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -216,6 +217,8 @@ const YouTubeChannelButton = styled.a`
   }
 `;
 
+const YouTubeChannelButton = motion(YouTubeChannelButtonBase);
+
 const ButtonContent = styled.div`
   display: flex;
   align-items: center;
@@ -236,13 +239,62 @@ export const PreviousVideosSection: React.FC<PreviousVideosSectionProps> = ({
 }) => {
   const YOUTUBE_PLAYLIST_URL = 'https://www.youtube.com/playlist?list=PLoPlKRWMoWwOoqAvlzXibGmxsaCrJn2YB';
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2,
+        delayChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }
+    }
+  };
+
+  const buttonVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: 0.5,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }
+    },
+    hover: {
+      scale: 1.02,
+      transition: {
+        type: "spring",
+        stiffness: 300
+      }
+    }
+  };
+
   return (
-    <SectionCard>
-      <SectionTitle>
+    <SectionCard
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      variants={containerVariants}
+    >
+      <SectionTitle variants={itemVariants}>
         <span>지난 묵상 영상도</span>
         <span>다시볼수있어요</span>
       </SectionTitle>
-      <YouTubeChannelButton 
+      <YouTubeChannelButton
+        variants={buttonVariants}
+        whileHover="hover"
         href={YOUTUBE_PLAYLIST_URL}
         target="_blank"
         rel="noopener noreferrer"

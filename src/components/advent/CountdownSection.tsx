@@ -1,32 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
-import { keyframes } from '@emotion/react';
-
-// ==================== Animations ====================
-const pulse = keyframes`
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 0.9;
-  }
-`;
-
-const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-`;
+import { motion } from 'framer-motion';
 
 // ==================== Styled Components ====================
-const SectionCard = styled.div`
+const SectionCard = styled(motion.div)`
   background: #000000;
   padding: 60px 40px;
   color: #ffffff;
@@ -34,7 +11,6 @@ const SectionCard = styled.div`
   margin-left: calc(-50vw + 50%);
   margin-right: calc(-50vw + 50%);
   margin-bottom: 0;
-  animation: ${fadeIn} 0.5s ease-out;
 
   @media (max-width: 1024px) {
     padding: 48px 32px;
@@ -45,18 +21,17 @@ const SectionCard = styled.div`
   }
 `;
 
-const ContentWrapper = styled.div`
+const ContentWrapper = styled(motion.div)`
   max-width: 1200px;
   margin: 0 auto;
   text-align: center;
 `;
 
-const Message = styled.div`
+const Message = styled(motion.div)`
   font-size: 24px;
   font-weight: 500;
   margin-bottom: 40px;
   line-height: 1.6;
-  animation: ${fadeIn} 0.6s ease-out;
 
   @media (max-width: 768px) {
     font-size: 20px;
@@ -69,13 +44,12 @@ const Message = styled.div`
   }
 `;
 
-const CountdownContainer = styled.div`
+const CountdownContainer = styled(motion.div)`
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 24px;
   margin: 40px 0;
-  animation: ${fadeIn} 0.8s ease-out;
 
   @media (max-width: 768px) {
     gap: 16px;
@@ -88,13 +62,11 @@ const CountdownContainer = styled.div`
   }
 `;
 
-const TimeUnit = styled.div<{ delay?: number }>`
+const TimeUnit = styled(motion.div)`
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  animation: ${pulse} 2s ease-in-out infinite;
-  animation-delay: ${props => props.delay || 0}s;
 
   @media (max-width: 480px) {
     gap: 6px;
@@ -193,30 +165,100 @@ export const CountdownSection: React.FC<CountdownSectionProps> = ({ targetDate }
     return () => clearInterval(interval);
   }, [targetDate]);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }
+    }
+  };
+
+  const timeUnitVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: 0.5,
+        ease: [0.34, 1.56, 0.64, 1]
+      }
+    },
+    pulse: {
+      scale: [1, 1.1, 1],
+      transition: {
+        duration: 2,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }
+    }
+  };
+
   return (
-    <SectionCard>
+    <SectionCard
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      variants={containerVariants}
+    >
       <ContentWrapper>
-        <Message>
+        <Message variants={itemVariants}>
           묵상하기와 출석하기는 1차(11월 30일)에 오픈됩니다.
         </Message>
         
-        <CountdownContainer>
-          <TimeUnit delay={0}>
+        <CountdownContainer variants={containerVariants}>
+          <TimeUnit
+            variants={timeUnitVariants}
+            animate={["visible", "pulse"]}
+            transition={{ delay: 0 }}
+          >
             <TimeValue>{String(timeLeft.days).padStart(2, '0')}</TimeValue>
             <TimeLabel>일</TimeLabel>
           </TimeUnit>
-          <Separator>:</Separator>
-          <TimeUnit delay={0.2}>
+          <motion.div variants={itemVariants} style={{ fontSize: '36px', fontWeight: 300, color: '#ECC784', opacity: 0.6 }}>
+            :
+          </motion.div>
+          <TimeUnit
+            variants={timeUnitVariants}
+            animate={["visible", "pulse"]}
+            transition={{ delay: 0.2 }}
+          >
             <TimeValue>{String(timeLeft.hours).padStart(2, '0')}</TimeValue>
             <TimeLabel>시간</TimeLabel>
           </TimeUnit>
-          <Separator>:</Separator>
-          <TimeUnit delay={0.4}>
+          <motion.div variants={itemVariants} style={{ fontSize: '36px', fontWeight: 300, color: '#ECC784', opacity: 0.6 }}>
+            :
+          </motion.div>
+          <TimeUnit
+            variants={timeUnitVariants}
+            animate={["visible", "pulse"]}
+            transition={{ delay: 0.4 }}
+          >
             <TimeValue>{String(timeLeft.minutes).padStart(2, '0')}</TimeValue>
             <TimeLabel>분</TimeLabel>
           </TimeUnit>
-          <Separator>:</Separator>
-          <TimeUnit delay={0.6}>
+          <motion.div variants={itemVariants} style={{ fontSize: '36px', fontWeight: 300, color: '#ECC784', opacity: 0.6 }}>
+            :
+          </motion.div>
+          <TimeUnit
+            variants={timeUnitVariants}
+            animate={["visible", "pulse"]}
+            transition={{ delay: 0.6 }}
+          >
             <TimeValue>{String(timeLeft.seconds).padStart(2, '0')}</TimeValue>
             <TimeLabel>초</TimeLabel>
           </TimeUnit>

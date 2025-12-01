@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
+import { motion } from 'framer-motion';
 import { AdventComment } from '@src/lib/advent/types';
 import { getDayNumber } from '@src/lib/advent/utils';
 
-const SectionCard = styled.div`
+const SectionCard = styled(motion.div)`
   background: #000000;
   padding: 0 40px 40px 40px;
   color: #ffffff;
@@ -21,7 +22,7 @@ const SectionCard = styled.div`
   }
 `;
 
-const ContentWrapper = styled.div`
+const ContentWrapper = styled(motion.div)`
   max-width: 1200px;
   margin: 0 auto;
   text-align: center;
@@ -67,7 +68,7 @@ const SubtitleText = styled.div`
   }
 `;
 
-const MeditationList = styled.div`
+const MeditationList = styled(motion.div)`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 24px;
@@ -86,7 +87,7 @@ const MeditationList = styled.div`
   }
 `;
 
-const MeditationPostIt = styled.div<{ colorIndex: number }>`
+const MeditationPostIt = styled(motion.div)<{ colorIndex: number }>`
   position: relative;
   padding: 16px;
   border-radius: 8px;
@@ -469,18 +470,72 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
     return pages;
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+        delayChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }
+    }
+  };
+
+  const postItVariants = {
+    hidden: { opacity: 0, scale: 0.9, rotate: -2 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      rotate: 0,
+      transition: {
+        duration: 0.4,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }
+    },
+    hover: {
+      scale: 1.05,
+      rotate: 1,
+      zIndex: 10,
+      transition: {
+        type: "spring",
+        stiffness: 300
+      }
+    }
+  };
+
   return (
-    <SectionCard>
+    <SectionCard
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      variants={containerVariants}
+    >
       <ContentWrapper>
-        <LogoWrapper>
+        <LogoWrapper variants={itemVariants}>
           <img src="/icons/chat1.svg" alt="chat icon" />
         </LogoWrapper>
         
-        <TitleText>다른 지체들의 묵상</TitleText>
-        <SubtitleText>함께 나눈 묵상을 확인해보세요.</SubtitleText>
+        <TitleText as={motion.div} variants={itemVariants}>
+          다른 지체들의 묵상
+        </TitleText>
+        <SubtitleText as={motion.div} variants={itemVariants}>
+          함께 나눈 묵상을 확인해보세요.
+        </SubtitleText>
 
         {isLoggedIn && (
-          <ButtonWrapper>
+          <ButtonWrapper as={motion.div} variants={itemVariants}>
             <ToggleButton 
               active={!showMyMeditation}
               onClick={onToggleMyMeditation}
@@ -496,7 +551,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
           </ButtonWrapper>
         )}
 
-        <MeditationList>
+        <MeditationList variants={containerVariants}>
           {loading ? (
             <LoadingContainer>
               <img src="/icons/advent_logo.svg" alt="loading" />
@@ -516,9 +571,11 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
               const colorIdx = comment.comment_id % 4;
               
               return (
-                <MeditationPostIt 
+                <MeditationPostIt
                   key={comment.comment_id} 
                   colorIndex={colorIdx}
+                  variants={postItVariants}
+                  whileHover="hover"
                   onClick={() => setSelectedComment(comment)}
                 >
                   <MeditationHeader>

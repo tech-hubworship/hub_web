@@ -33,3 +33,4 @@ ANALYZE public.bible;
 -- ORDER BY indexname;
 
 
+

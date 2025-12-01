@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import styled from '@emotion/styled';
+import { motion } from 'framer-motion';
 import { getDayNumber } from '@src/lib/advent/utils';
 
-const SectionCard = styled.div`
+const SectionCard = styled(motion.div)`
   background: #000000;
   padding: 40px 40px 0 40px;
   color: #ffffff;
@@ -21,14 +22,14 @@ const SectionCard = styled.div`
   }
 `;
 
-const ContentWrapper = styled.div`
+const ContentWrapper = styled(motion.div)`
   max-width: 1200px;
   margin: 0 auto;
   text-align: center;
 `;
 
 
-const AttendanceContent = styled.div`
+const AttendanceContent = styled(motion.div)`
   text-align: center;
   padding: 40px 20px;
   display: flex;
@@ -48,7 +49,7 @@ const UnionButtonWrapper = styled.div`
   padding: 20px;
 `;
 
-const UnionButton = styled.button<{ isLoading: boolean; isClicking: boolean }>`
+const UnionButtonBase = styled.button<{ isLoading: boolean; isClicking: boolean }>`
   position: relative;
   width: 180px;
   height: 243px;
@@ -59,34 +60,10 @@ const UnionButton = styled.button<{ isLoading: boolean; isClicking: boolean }>`
   border: none;
   cursor: pointer;
   padding: 0;
-  animation: ${props => props.isLoading ? 'pulse 1.5s ease-in-out infinite' : 'none'};
-
-  &:hover:not(:disabled) {
-    transform: scale(1.05);
-
-    svg {
-      filter: brightness(1.1) drop-shadow(0 0 20px rgba(255, 255, 255, 0.8));
-    }
-  }
-
-  &:active:not(:disabled) {
-    transform: scale(0.98);
-  }
 
   &:disabled {
     cursor: not-allowed;
     opacity: 0.6;
-  }
-
-  @keyframes pulse {
-    0%, 100% {
-      transform: scale(1);
-      filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
-    }
-    50% {
-      transform: scale(1.05);
-      filter: drop-shadow(0 0 25px rgba(255, 255, 255, 1));
-    }
   }
 
   @media (max-width: 768px) {
@@ -99,6 +76,8 @@ const UnionButton = styled.button<{ isLoading: boolean; isClicking: boolean }>`
     height: 162px;
   }
 `;
+
+const UnionButton = motion(UnionButtonBase);
 
 const UnionSVGButton = styled.svg<{ fillColor?: string }>`
   width: 100%;
@@ -805,6 +784,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     try {
       setLoading(true);
       
+      // currentDate는 이제 post.post_dt를 전달받으므로 그대로 사용
       const response = await fetch('/api/advent/attendance', {
         method: 'POST',
         headers: {
@@ -962,10 +942,68 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     );
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }
+    }
+  };
+
+  const buttonVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: 0.6,
+        ease: [0.34, 1.56, 0.64, 1]
+      }
+    },
+    hover: {
+      scale: 1.05,
+      transition: {
+        type: "spring",
+        stiffness: 300
+      }
+    },
+    tap: {
+      scale: 0.98
+    },
+    pulse: {
+      scale: [1, 1.05, 1],
+      transition: {
+        duration: 1.5,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }
+    }
+  };
+
   return (
-    <SectionCard>
+    <SectionCard
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      variants={containerVariants}
+    >
       <ContentWrapper>
-        <AttendanceContent>
+        <AttendanceContent variants={itemVariants}>
           {!attendanceChecked ? (
             <>
               {/* 묵상 확인 중일 때 로딩 표시 */}
@@ -1001,7 +1039,11 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
                   <MeditationSavedText>✓ 묵상이 저장되었습니다</MeditationSavedText>
 
                   <UnionButtonWrapper>
-                    <UnionButton 
+                    <UnionButton
+                      variants={buttonVariants}
+                      animate={loading ? "pulse" : "visible"}
+                      whileHover={!loading && !isClicking ? "hover" : undefined}
+                      whileTap={!loading ? "tap" : undefined}
                       onClick={handleAttendanceClick}
                       disabled={loading || !dayNumber}
                       isLoading={loading}

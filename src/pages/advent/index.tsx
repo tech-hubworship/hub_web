@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import styled from '@emotion/styled';
 import { useSession } from 'next-auth/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from '@src/components/Header';
 import Footer from '@src/components/Footer';
 import { 
@@ -12,7 +13,6 @@ import {
   AttendanceSection, 
   MeditationSection, 
   PreviousVideosSection,
-  LoadingScreen,
   CountdownSection
 } from '@src/components/advent';
 import { AdventPost, AdventComment, PreviousPost } from '@src/lib/advent/types';
@@ -33,10 +33,15 @@ const ContentWrapper = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px 0;
+  background-color: #000000;
 
   @media (max-width: 768px) {
     padding: 0 16px 0;
   }
+`;
+
+const SectionWrapper = styled(motion.div)`
+  margin-bottom: 0;
 `;
 
 
@@ -194,6 +199,8 @@ const AdventPage = () => {
   const [loadingComments, setLoadingComments] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showMeditationSavedModal, setShowMeditationSavedModal] = useState(false);
+  const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
+  const [showFullScreenIntro, setShowFullScreenIntro] = useState(true); // 초기값을 true로 설정하여 전체 화면부터 시작
 
   // 화면 크기 감지
   useEffect(() => {
@@ -209,6 +216,9 @@ const AdventPage = () => {
   const fetchPost = useCallback(async (date: string) => {
     try {
       setLoading(true);
+      setShowFullScreenIntro(true);
+      const startTime = Date.now();
+      setLoadingStartTime(startTime);
       setError(null);
       
       const response = await fetch(`/api/advent/posts?date=${date}`);
@@ -219,12 +229,34 @@ const AdventPage = () => {
       } else {
         setError(data.error || '게시물을 불러오는데 실패했습니다.');
       }
+      
+      // 최소 1초는 전체 화면으로 표시 (로딩이 빨리 끝나도 여유있게)
+      const elapsed = Date.now() - startTime;
+      const minDisplayTime = 1000;
+      const remainingTime = Math.max(0, minDisplayTime - elapsed);
+      
+      setTimeout(() => {
+        setLoading(false);
+        // 추가로 0.3초 더 전체 화면 유지 후 일반 크기로 전환
+        setTimeout(() => {
+          setShowFullScreenIntro(false);
+        }, 300);
+      }, remainingTime);
     } catch (err) {
       setError('게시물을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
+      const startTime = loadingStartTime || Date.now();
+      const elapsed = Date.now() - startTime;
+      const minDisplayTime = 1000;
+      const remainingTime = Math.max(0, minDisplayTime - elapsed);
+      
+      setTimeout(() => {
+        setLoading(false);
+        setTimeout(() => {
+          setShowFullScreenIntro(false);
+        }, 300);
+      }, remainingTime);
     }
-  }, []);
+  }, [loadingStartTime]);
 
   const fetchComments = useCallback(async (date: string, page: number = 1, limit: number = 20, showLoading: boolean = false) => {
     try {
@@ -420,96 +452,159 @@ const AdventPage = () => {
         <meta name="description" content="대림절 말씀과 나눔" />
       </Head>
 
-      {loading && <LoadingScreen />}
-
       <Header />
 
       <Container>
         <ContentWrapper>
-          {error && <ErrorText>{error}</ErrorText>}
-
-          {!loading && !error && !post && (
-            <EmptyStateCard>
-              <EmptyState>
-                해당 날짜의 게시물이 없습니다.
-              </EmptyState>
-            </EmptyStateCard>
-          )}
-
-          {post && (
+          {/* IntroSection - 항상 표시, 로딩 중에는 전체 화면, 로딩 완료 후에는 일반 크기 */}
+          <IntroSection 
+            post={post || undefined} 
+            isLoading={showFullScreenIntro}
+          />
+          
+          {/* 로딩 완료 후 */}
+          {!loading && (
             <>
-              {/* 1. 인트로 섹션 */}
-              <IntroSection post={post} />
-
-              {/* 2. 이벤트 안내 섹션 */}
-              <EventInfoSection />
-
-              {/* 3. 영상 섹션 */}
-              <VideoSection post={post} currentDate={currentDateStr} />
-
-              {/* 0일차일 때 카운트다운 표시 */}
-              {isDayZero && (
-                <CountdownSection targetDate={firstDayTargetDate} />
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ErrorText>{error}</ErrorText>
+                </motion.div>
               )}
 
-              {/* 1일차 이상일 때만 출석 및 묵상 섹션 표시 */}
-              {!isDayZero && (
-                <>
-                  {/* 4. 출석 섹션 */}
-                  <AttendanceSection 
-                    currentDate={currentDateStr}
-                    isLoggedIn={!!session?.user}
-                    commentText={commentText}
-                    submitting={submitting}
-                    meditationSaved={meditationSaved}
-                    onCommentTextChange={setCommentText}
-                    onCommentSubmit={handleCommentSubmit}
-                    onMeditationSavedChange={setMeditationSaved}
-                  />
+              {!error && !post && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <EmptyStateCard>
+                    <EmptyState>
+                      해당 날짜의 게시물이 없습니다.
+                    </EmptyState>
+                  </EmptyStateCard>
+                </motion.div>
+              )}
 
-                  {/* 5. 묵상 섹션 (댓글) */}
-                  <MeditationSection
-                    comments={comments}
-                    totalComments={totalComments}
-                    currentPage={commentsPage}
-                    isLoggedIn={!!session?.user}
-                    showMyMeditation={showMyMeditation}
-                    loading={loadingComments}
-                    onToggleMyMeditation={() => {
-                      const newShowMyMeditation = !showMyMeditation;
-                      setShowMyMeditation(newShowMyMeditation);
-                      setCommentsPage(1);
-                      setComments([]); // 초기화
-                      
-                      // 새로운 데이터 가져오기
-                      if (newShowMyMeditation) {
-                        fetchUserComments(true);
-                      } else if (post?.post_dt) {
-                        fetchComments(post.post_dt, 1, itemsPerPage, true);
-                      }
-                    }}
-                    onPageChange={(page: number) => {
-                      if (post?.post_dt && !showMyMeditation) {
-                        setCommentsPage(page);
-                        fetchComments(post.post_dt, page, itemsPerPage, true);
-                      }
-                    }}
-                  />
+              {post && (
+                <>
+
+                  {/* 2. 이벤트 안내 섹션 */}
+                  <SectionWrapper
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.6, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  >
+                    <EventInfoSection />
+                  </SectionWrapper>
+
+                  {/* 3. 영상 섹션 */}
+                  <SectionWrapper
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.6, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  >
+                    <VideoSection post={post} currentDate={currentDateStr} />
+                  </SectionWrapper>
+
+                  {/* 0일차일 때 카운트다운 표시 */}
+                  {isDayZero && (
+                    <SectionWrapper
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true, margin: "-100px" }}
+                      transition={{ duration: 0.6, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    >
+                      <CountdownSection targetDate={firstDayTargetDate} />
+                    </SectionWrapper>
+                  )}
+
+                  {/* 1일차 이상일 때만 출석 및 묵상 섹션 표시 */}
+                  {!isDayZero && (
+                    <>
+                      {/* 4. 출석 섹션 */}
+                      <SectionWrapper
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.6, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      >
+                        <AttendanceSection 
+                          currentDate={post.post_dt}
+                          isLoggedIn={!!session?.user}
+                          commentText={commentText}
+                          submitting={submitting}
+                          meditationSaved={meditationSaved}
+                          onCommentTextChange={setCommentText}
+                          onCommentSubmit={handleCommentSubmit}
+                          onMeditationSavedChange={setMeditationSaved}
+                        />
+                      </SectionWrapper>
+
+                      {/* 5. 묵상 섹션 (댓글) */}
+                      <SectionWrapper
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.6, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      >
+                        <MeditationSection
+                          comments={comments}
+                          totalComments={totalComments}
+                          currentPage={commentsPage}
+                          isLoggedIn={!!session?.user}
+                          showMyMeditation={showMyMeditation}
+                          loading={loadingComments}
+                          onToggleMyMeditation={() => {
+                            const newShowMyMeditation = !showMyMeditation;
+                            setShowMyMeditation(newShowMyMeditation);
+                            setCommentsPage(1);
+                            setComments([]); // 초기화
+                            
+                            // 새로운 데이터 가져오기
+                            if (newShowMyMeditation) {
+                              fetchUserComments(true);
+                            } else if (post?.post_dt) {
+                              fetchComments(post.post_dt, 1, itemsPerPage, true);
+                            }
+                          }}
+                          onPageChange={(page: number) => {
+                            if (post?.post_dt && !showMyMeditation) {
+                              setCommentsPage(page);
+                              fetchComments(post.post_dt, page, itemsPerPage, true);
+                            }
+                          }}
+                        />
+                      </SectionWrapper>
+                    </>
+                  )}
+
+                  {/* 5. 지난 묵상 영상 섹션 */}
+                  <SectionWrapper
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.6, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  >
+                    <PreviousVideosSection
+                      previousPosts={previousPosts}
+                      loading={loadingPrevious}
+                      onVideoClick={handlePreviousVideoClick}
+                    />
+                  </SectionWrapper>
                 </>
               )}
-
-              {/* 5. 지난 묵상 영상 섹션 */}
-              <PreviousVideosSection
-                previousPosts={previousPosts}
-                loading={loadingPrevious}
-                onVideoClick={handlePreviousVideoClick}
-              />
             </>
           )}
         </ContentWrapper>
       </Container>
 
-      <Footer />
+      {!loading && <Footer />}
 
       {/* 묵상 저장 완료 모달 */}
       {showMeditationSavedModal && (

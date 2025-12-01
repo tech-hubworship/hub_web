@@ -442,6 +442,9 @@ export default function AdventStatsPage() {
 
   const totalDays = mixedChartData.length;
   const maxCumulative = Math.max(...mixedChartData.map(d => d.cumulative), 0);
+  const maxCompleted = Math.max(...mixedChartData.map(d => d.completed), 0);
+  const maxValue = Math.max(maxCumulative, maxCompleted, 1);
+  const yAxisDomain = [0, Math.ceil(maxValue * 1.1)]; // 10% 여유 공간
 
   // 차트 색상 배열
   const COLORS = {
@@ -592,6 +595,7 @@ export default function AdventStatsPage() {
                     axisLine={false}
                     tickMargin={8}
                     tick={{ fill: '#64748b', fontSize: 11 }}
+                    domain={yAxisDomain}
                   />
                   <YAxis
                     yAxisId="right"
@@ -600,6 +604,7 @@ export default function AdventStatsPage() {
                     axisLine={false}
                     tickMargin={8}
                     tick={{ fill: '#64748b', fontSize: 11 }}
+                    domain={yAxisDomain}
                   />
                   <Tooltip />
                   <Legend />

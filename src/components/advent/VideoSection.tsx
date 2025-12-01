@@ -1,9 +1,10 @@
 import React from 'react';
 import styled from '@emotion/styled';
+import { motion } from 'framer-motion';
 import { AdventPost } from '@src/lib/advent/types';
 import { getYouTubeEmbedUrl, getDayNumber, formatDate, getYouTubeWatchUrl } from '@src/lib/advent/utils';
 
-const SectionCard = styled.div`
+const SectionCard = styled(motion.div)`
   background: #E3D2FF;
   padding: 40px;
   border-bottom: 1px solid #f3f4f6;
@@ -20,13 +21,13 @@ const SectionCard = styled.div`
   }
 `;
 
-const ContentWrapper = styled.div`
+const ContentWrapper = styled(motion.div)`
   max-width: 1200px;
   margin: 0 auto;
   text-align: center;
 `;
 
-const SectionTitle = styled.h2`
+const SectionTitle = styled(motion.h2)`
   font-family: 'Wanted Sans', sans-serif;
   font-size: 28px;
   font-weight: 800;
@@ -47,7 +48,7 @@ const SectionTitle = styled.h2`
   }
 `;
 
-const SectionSubtitle = styled.div`
+const SectionSubtitle = styled(motion.div)`
   font-family: 'Wanted Sans', sans-serif;
   font-size: 16px;
   font-weight: 700;
@@ -63,7 +64,7 @@ const SectionSubtitle = styled.div`
   }
 `;
 
-const VideoContainer = styled.div`
+const VideoContainer = styled(motion.div)`
   position: relative;
   width: 100%;
   padding-bottom: 56.25%; /* 16:9 aspect ratio */
@@ -83,14 +84,14 @@ const VideoContainer = styled.div`
   }
 `;
 
-const ThumbnailImage = styled.img`
+const ThumbnailImage = styled(motion.img)`
   width: 100%;
   border-radius: 12px;
   margin-bottom: 24px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 `;
 
-const PostContent = styled.div`
+const PostContent = styled(motion.div)`
   font-size: 18px;
   line-height: 1.8;
   color: #374151;
@@ -102,7 +103,7 @@ const PostContent = styled.div`
   }
 `;
 
-const YouTubeLink = styled.a`
+const YouTubeLink = styled(motion.a)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -148,16 +149,59 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
     window.open(youtubeWatchUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }
+    }
+  };
+
+  const videoVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: 0.8,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }
+    }
+  };
+
   return (
-    <SectionCard>
+    <SectionCard
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      variants={containerVariants}
+    >
       <ContentWrapper>
-        <SectionTitle>대림절 3분 묵상</SectionTitle>
-        <SectionSubtitle>
+        <SectionTitle variants={itemVariants}>
+          대림절 3분 묵상
+        </SectionTitle>
+        <SectionSubtitle variants={itemVariants}>
           {dayNumber && `${dayNumber}일차`} / {formattedDate}
         </SectionSubtitle>
         
         {post.thumbnail_url && !post.video_url && (
-          <ThumbnailImage 
+          <ThumbnailImage
+            variants={videoVariants}
             src={post.thumbnail_url} 
             alt={post.title}
             onError={(e) => {
@@ -168,7 +212,7 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
 
         {post.video_url && getYouTubeEmbedUrl(post.video_url) && (
           <>
-            <VideoContainer>
+            <VideoContainer variants={videoVariants}>
               <iframe
                 src={getYouTubeEmbedUrl(post.video_url) || ''}
                 title={post.title.replace(/advent/gi, '').replace(/test/gi, '').trim()}
@@ -177,7 +221,8 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
               />
             </VideoContainer>
             {youtubeWatchUrl && (
-              <YouTubeLink 
+              <YouTubeLink
+                variants={itemVariants}
                 href={youtubeWatchUrl}
                 onClick={handleYouTubeLinkClick}
               >
