@@ -251,20 +251,31 @@ const AdventPage = () => {
   const [meditationSaved, setMeditationSaved] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [showMeditationSavedModal, setShowMeditationSavedModal] = useState(false);
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
   const [showFullScreenIntro, setShowFullScreenIntro] = useState(true); // 초기값을 true로 설정하여 전체 화면부터 시작
   const [showScrollHint, setShowScrollHint] = useState(false);
 
-  // 화면 크기 감지
+  // 화면 크기 및 가로 모드 감지
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
+    const checkScreen = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setIsMobile(width <= 768);
+      setIsLandscape(width > height);
+      // 작은 화면: 높이가 600px 이하이거나 너비가 400px 이하
+      setIsSmallScreen(height <= 600 || width <= 400);
     };
     
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    checkScreen();
+    window.addEventListener('resize', checkScreen);
+    window.addEventListener('orientationchange', checkScreen);
+    return () => {
+      window.removeEventListener('resize', checkScreen);
+      window.removeEventListener('orientationchange', checkScreen);
+    };
   }, []);
 
   const fetchPost = useCallback(async (date: string) => {
@@ -569,9 +580,10 @@ const AdventPage = () => {
 
                   {/* 2. 이벤트 안내 섹션 */}
                   <SectionWrapper
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
+                    initial={isLandscape || isSmallScreen ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                    animate={isLandscape || isSmallScreen ? { opacity: 1, y: 0 } : undefined}
+                    whileInView={isLandscape || isSmallScreen ? undefined : { opacity: 1, y: 0 }}
+                    viewport={isLandscape || isSmallScreen ? undefined : { once: true, margin: "-100px", amount: 0.3 }}
                     transition={{ duration: 0.6, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
                     onAnimationStart={() => {
                       // 애니메이션이 시작되면 안내 문구 숨김
@@ -631,9 +643,10 @@ const AdventPage = () => {
 
                       {/* 5. 묵상 섹션 (댓글) */}
                       <SectionWrapper
-                        initial={{ opacity: 0, y: 30 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: "-100px" }}
+                        initial={isLandscape || isSmallScreen ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                        animate={isLandscape || isSmallScreen ? { opacity: 1, y: 0 } : undefined}
+                        whileInView={isLandscape || isSmallScreen ? undefined : { opacity: 1, y: 0 }}
+                        viewport={isLandscape || isSmallScreen ? undefined : { once: true, margin: "-100px", amount: 0.3 }}
                         transition={{ duration: 0.6, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
                       >
                         <MeditationSection
