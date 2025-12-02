@@ -569,9 +569,9 @@ const AdventPage = () => {
 
                   {/* 2. 이벤트 안내 섹션 */}
                   <SectionWrapper
-                    initial={{ opacity: 0, y: 30 }}
+                    initial={isMobile ? false : { opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: isMobile ? "0px" : "-100px", amount: isMobile ? 0.1 : 0.3 }}
+                    viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: isMobile ? 0 : 0.3 }}
                     transition={{ duration: 0.6, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
                     onAnimationStart={() => {
                       // 애니메이션이 시작되면 안내 문구 숨김
