@@ -24,7 +24,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // 레코드가 없음
         // 캐시 우회 요청인 경우 캐시하지 않음
         if (req.headers['x-cache-bypass']) {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
         } else {
           // 빈 결과도 짧게 캐시 (1분)
           res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
@@ -37,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 캐시 우회 요청인 경우 캐시하지 않음 (캐시 무효화를 위한 내부 호출)
     if (req.headers['x-cache-bypass']) {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
     } else {

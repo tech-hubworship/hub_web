@@ -278,21 +278,19 @@ const AdventPage = () => {
     };
   }, []);
 
-  // API 중복 호출 방지를 위한 캐시 (짧은 시간만 캐시)
+  // API 중복 호출 방지를 위한 캐시
   const postCacheRef = useRef<Map<string, { post: AdventPost | null; timestamp: number }>>(new Map());
-  const CACHE_DURATION = 10000; // 10초 캐시 (성능 개선을 위해 짧게 유지)
+  const CACHE_DURATION = 60000; // 1분 캐시
 
-  const fetchPost = useCallback(async (date: string, forceRefresh: boolean = false) => {
-    // 강제 새로고침이 아닐 때만 캐시 확인
-    if (!forceRefresh) {
-      const cached = postCacheRef.current.get(date);
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        setPost(cached.post);
-        setLoading(false);
-        setShowFullScreenIntro(false);
-        setShowScrollHint(true);
-        return;
-      }
+  const fetchPost = useCallback(async (date: string) => {
+    // 캐시 확인
+    const cached = postCacheRef.current.get(date);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      setPost(cached.post);
+      setLoading(false);
+      setShowFullScreenIntro(false);
+      setShowScrollHint(true);
+      return;
     }
 
     try {
@@ -302,19 +300,17 @@ const AdventPage = () => {
       setLoadingStartTime(startTime);
       setError(null);
       
-      // 캐시를 우회하여 최신 데이터 가져오기
-      const response = await fetch(`/api/advent/posts?date=${date}&_t=${Date.now()}`, {
-        cache: 'no-store', // 브라우저 캐시 우회
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
+      // 서버의 Cache-Control 헤더를 존중하되, stale 데이터는 재검증
+      const response = await fetch(`/api/advent/posts?date=${date}`, {
+        // 서버에서 캐시 무효화 헤더를 보내면 자동으로 재검증됨
+        cache: 'default',
       });
       const data = await response.json();
 
       if (response.ok) {
         const postData = data.post || null;
         setPost(postData);
-        // 캐시에 저장 (강제 새로고침 시에도 캐시 업데이트)
+        // 캐시에 저장
         postCacheRef.current.set(date, { post: postData, timestamp: Date.now() });
       } else {
         setError(data.error || '게시물을 불러오는데 실패했습니다.');
@@ -428,9 +424,7 @@ const AdventPage = () => {
     if (selectedDate !== dateToUse) {
       setSelectedDate(dateToUse);
       setMeditationSaved(false); // 날짜 변경 시 묵상 저장 상태 초기화
-      // 날짜 변경 시에는 캐시를 무시하고 새로 가져오기
-      postCacheRef.current.delete(dateToUse);
-      fetchPost(dateToUse, true);
+      fetchPost(dateToUse);
     }
   }, [router.isReady, router.query.date, selectedDate, fetchPost]);
 

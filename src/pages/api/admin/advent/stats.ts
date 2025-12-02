@@ -363,6 +363,7 @@ export default async function handler(
         hourlyData[hour].cumulative = cumulativeUsers.size;
       }
 
+      // 데이터가 있는 경우에만 추가 (모든 시간대가 0이어도 추가)
       hourlyCumulativeByDate.push({
         date: dateStr,
         dayNumber,
@@ -384,11 +385,11 @@ export default async function handler(
         commentCount: todayComments?.length || 0,
         attendanceCount: todayAttendance?.length || 0,
       },
-      daily: dailyStats,
-      streaks: streakStats,
-      cumulative: cumulativeStats,
+      daily: dailyStats || [],
+      streaks: streakStats || {},
+      cumulative: cumulativeStats || [],
       hourlyCumulative: hourlyCumulative,
-      hourlyCumulativeByDate: hourlyCumulativeByDate,
+      hourlyCumulativeByDate: hourlyCumulativeByDate || [],
     });
   } catch (error) {
     console.error('통계 조회 오류:', error);

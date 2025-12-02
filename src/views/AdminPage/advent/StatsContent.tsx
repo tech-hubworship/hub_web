@@ -347,6 +347,14 @@ export default function AdventStatsPage() {
 
       if (response.ok) {
         setStats(data);
+        // 디버깅용 로그 (개발 환경에서만)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('통계 데이터:', {
+            hasHourlyData: !!data.hourlyCumulativeByDate,
+            hourlyDataLength: data.hourlyCumulativeByDate?.length || 0,
+            firstDateData: data.hourlyCumulativeByDate?.[0],
+          });
+        }
       } else {
         setError(data.error || '통계를 불러오는데 실패했습니다.');
       }
@@ -359,29 +367,39 @@ export default function AdventStatsPage() {
 
   // 시간대별 누적 추이 차트 데이터 변환
   const hourlyChartData = useMemo(() => {
-    if (!stats?.hourlyCumulativeByDate || stats.hourlyCumulativeByDate.length === 0) {
+    if (!stats?.hourlyCumulativeByDate || !Array.isArray(stats.hourlyCumulativeByDate) || stats.hourlyCumulativeByDate.length === 0) {
       return null;
     }
 
-    const hourMap = new Map<number, Record<string, number>>();
-    
-    // 0시부터 23시까지 초기화
-    for (let hour = 0; hour < 24; hour++) {
-      hourMap.set(hour, { hour });
-    }
-    
-    // 각 날짜별 데이터를 시간대별로 추가
-    stats.hourlyCumulativeByDate.forEach((dateData) => {
-      const dateKey = `day${dateData.dayNumber}`;
-      dateData.hourlyData.forEach((hourData) => {
-        const hourEntry = hourMap.get(hourData.hour);
-        if (hourEntry) {
-          hourEntry[dateKey] = hourData.cumulative;
+    try {
+      const hourMap = new Map<number, Record<string, number>>();
+      
+      // 0시부터 23시까지 초기화
+      for (let hour = 0; hour < 24; hour++) {
+        hourMap.set(hour, { hour });
+      }
+      
+      // 각 날짜별 데이터를 시간대별로 추가
+      stats.hourlyCumulativeByDate.forEach((dateData) => {
+        if (!dateData || !dateData.hourlyData || !Array.isArray(dateData.hourlyData)) {
+          return;
         }
+        const dateKey = `day${dateData.dayNumber}`;
+        dateData.hourlyData.forEach((hourData) => {
+          if (hourData && typeof hourData.hour === 'number' && typeof hourData.cumulative === 'number') {
+            const hourEntry = hourMap.get(hourData.hour);
+            if (hourEntry) {
+              hourEntry[dateKey] = hourData.cumulative;
+            }
+          }
+        });
       });
-    });
-    
-    return Array.from(hourMap.values());
+      
+      return Array.from(hourMap.values());
+    } catch (error) {
+      console.error('시간대별 차트 데이터 변환 오류:', error);
+      return null;
+    }
   }, [stats?.hourlyCumulativeByDate]);
 
   // 기간 필터링된 통합 차트 데이터
@@ -687,7 +705,7 @@ export default function AdventStatsPage() {
       </Section>
 
       {/* 시간대별 누적 추이 그래프 */}
-      {hourlyChartData && stats.hourlyCumulativeByDate && stats.hourlyCumulativeByDate.length > 0 && (() => {
+      {stats?.hourlyCumulativeByDate && Array.isArray(stats.hourlyCumulativeByDate) && stats.hourlyCumulativeByDate.length > 0 && hourlyChartData && hourlyChartData.length > 0 && (() => {
         // 색상 배열 (각 날짜별로 다른 색상)
         const dateColors = [
           '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
@@ -700,7 +718,11 @@ export default function AdventStatsPage() {
 
         // ChartConfig 생성
         const chartConfig: ChartConfig = {};
-        stats.hourlyCumulativeByDate.forEach((dateData) => {
+        const validDates = stats.hourlyCumulativeByDate.filter(dateData => 
+          dateData && dateData.dayNumber && dateData.hourlyData && Array.isArray(dateData.hourlyData)
+        );
+        
+        validDates.forEach((dateData) => {
           const dateKey = `day${dateData.dayNumber}`;
           chartConfig[dateKey] = {
             label: `${dateData.dayNumber}일차`,
@@ -708,12 +730,18 @@ export default function AdventStatsPage() {
           };
         });
 
-        const maxValue = Math.max(
-          ...hourlyChartData.flatMap(d => 
-            (stats.hourlyCumulativeByDate || []).map(dateData => d[`day${dateData.dayNumber}`] || 0)
-          ),
-          1
+        // 최대값 계산 (안전하게)
+        const allValues = hourlyChartData.flatMap(d => 
+          validDates.map(dateData => {
+            const value = d[`day${dateData.dayNumber}`];
+            return typeof value === 'number' ? value : 0;
+          })
         );
+        const maxValue = allValues.length > 0 ? Math.max(...allValues, 1) : 1;
+
+        if (validDates.length === 0) {
+          return null;
+        }
 
         return (
           <Section>
@@ -747,17 +775,18 @@ export default function AdventStatsPage() {
                       axisLine={false}
                       tickMargin={8}
                       tick={{ fill: '#64748b', fontSize: 11 }}
-                      domain={[0, Math.ceil(maxValue * 1.1)]}
+                      domain={maxValue > 0 ? [0, Math.ceil(maxValue * 1.1)] : [0, 10]}
                     />
                     <Tooltip
-                      formatter={(value: number, name: string) => {
+                      formatter={(value: any, name: string) => {
+                        if (value === null || value === undefined) return [null, null];
                         const dayNumber = name.replace('day', '');
                         return [`${value}명`, `${dayNumber}일차`];
                       }}
                       labelFormatter={(label) => `${label}시`}
                     />
                     <Legend />
-                    {(stats.hourlyCumulativeByDate || []).map((dateData) => {
+                    {validDates.map((dateData) => {
                       const dateKey = `day${dateData.dayNumber}`;
                       const color = dateColors[(dateData.dayNumber - 1) % dateColors.length];
                       return (
@@ -770,6 +799,7 @@ export default function AdventStatsPage() {
                           dot={{ fill: color, r: 3, strokeWidth: 1, stroke: '#fff' }}
                           activeDot={{ r: 5, fill: color, stroke: '#fff', strokeWidth: 2 }}
                           name={`${dateData.dayNumber}일차`}
+                          connectNulls={false}
                         />
                       );
                     })}
