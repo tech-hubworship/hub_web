@@ -62,15 +62,16 @@ const ScrollHint = styled(motion.div)`
   }
 `;
 
-const ScrollHintText = styled.div`
+const ScrollHintText = styled(motion.div)<{ isHiding: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: #CEB2FF;
+  color: ${props => props.isHiding ? '#000000' : '#CEB2FF'};
   font-size: 16px;
   font-weight: 500;
+  transition: color 0.6s ease;
   
   @media (max-width: 768px) {
     font-size: 14px;
@@ -78,19 +79,23 @@ const ScrollHintText = styled.div`
   }
 `;
 
-const ScrollArrow = styled.div`
+const ScrollArrow = styled(motion.div)<{ isHiding: boolean }>`
   font-size: 24px;
-  color: #CEB2FF;
-  animation: bounce 1.5s ease-in-out infinite;
+  color: ${props => props.isHiding ? '#000000' : '#CEB2FF'};
+  transition: color 0.6s ease;
   
-  @keyframes bounce {
-    0%, 100% {
-      transform: translateY(0);
+  ${props => !props.isHiding && `
+    animation: bounce 1.5s ease-in-out infinite;
+    
+    @keyframes bounce {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(8px);
+      }
     }
-    50% {
-      transform: translateY(8px);
-    }
-  }
+  `}
   
   @media (max-width: 768px) {
     font-size: 20px;
@@ -255,6 +260,7 @@ const AdventPage = () => {
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
   const [showFullScreenIntro, setShowFullScreenIntro] = useState(true); // 초기값을 true로 설정하여 전체 화면부터 시작
   const [showScrollHint, setShowScrollHint] = useState(false);
+  const [hideScrollHint, setHideScrollHint] = useState(false);
 
   // 화면 크기 감지 (가로 모드 포함)
   useEffect(() => {
@@ -538,8 +544,8 @@ const AdventPage = () => {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.4 }}
             >
-              <ScrollHintText>
-                <ScrollArrow>↓</ScrollArrow>
+              <ScrollHintText isHiding={hideScrollHint}>
+                <ScrollArrow isHiding={hideScrollHint}>↓</ScrollArrow>
               </ScrollHintText>
             </ScrollHint>
           )}
@@ -583,8 +589,8 @@ const AdventPage = () => {
                   >
                     <EventInfoSection 
                       onCandleVisible={() => {
-                        // 캔들 아이콘이 보이기 시작하면 안내 문구 숨김 (모든 모드)
-                        setShowScrollHint(false);
+                        // 캔들 아이콘이 보이기 시작하면 안내 문구 색상을 배경색과 동일하게 변경
+                        setHideScrollHint(true);
                       }}
                     />
                   </SectionWrapper>
