@@ -424,15 +424,22 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
   const [selectedComment, setSelectedComment] = useState<AdventComment | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // 화면 크기 감지
+  // 화면 크기 감지 (가로 모드 포함)
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
+      // 가로 모드 감지: 너비가 높이보다 크거나, 너비가 768 이하이거나, 높이가 500 이하인 경우
+      const isLandscape = window.innerWidth > window.innerHeight;
+      const isSmallScreen = window.innerWidth <= 768 || window.innerHeight <= 500;
+      setIsMobile(isLandscape || isSmallScreen);
     };
     
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener('orientationchange', checkMobile);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('orientationchange', checkMobile);
+    };
   }, []);
 
   const itemsPerPage = isMobile ? 10 : 20;
@@ -479,9 +486,9 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.5,
-        staggerChildren: 0.08,
-        delayChildren: 0.1,
+        duration: isMobile ? 0.2 : 0.5,
+        staggerChildren: isMobile ? 0.02 : 0.08,
+        delayChildren: isMobile ? 0 : 0.1,
         ease: "easeOut"
       }
     }
@@ -493,7 +500,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.4,
+        duration: isMobile ? 0.2 : 0.4,
         ease: "easeOut"
       }
     }
@@ -505,7 +512,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.4,
+        duration: isMobile ? 0.2 : 0.4,
         ease: "easeOut"
       }
     }
@@ -513,9 +520,9 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
 
   return (
     <SectionCard
-      initial="hidden"
+      initial={isMobile ? false : "hidden"}
       whileInView="visible"
-      viewport={{ once: true, margin: isMobile ? "0px" : "-200px", amount: isMobile ? 0.1 : 0.3 }}
+      viewport={{ once: true, margin: isMobile ? "-50px" : "-200px", amount: isMobile ? 0 : 0.3 }}
       variants={containerVariants}
     >
       <ContentWrapper>

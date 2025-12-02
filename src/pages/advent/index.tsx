@@ -259,9 +259,10 @@ const AdventPage = () => {
   // 화면 크기 감지 (가로 모드 포함)
   useEffect(() => {
     const checkMobile = () => {
-      // 가로 모드도 감지 (너비가 768 이하이거나 높이가 500 이하인 경우)
+      // 가로 모드 감지: 너비가 높이보다 크거나, 너비가 768 이하이거나, 높이가 500 이하인 경우
+      const isLandscape = window.innerWidth > window.innerHeight;
       const isSmallScreen = window.innerWidth <= 768 || window.innerHeight <= 500;
-      setIsMobile(isSmallScreen);
+      setIsMobile(isLandscape || isSmallScreen);
     };
     
     checkMobile();
@@ -529,7 +530,7 @@ const AdventPage = () => {
             isLoading={showFullScreenIntro}
           />
           
-          {/* 스크롤 안내 문구 */}
+          {/* 스크롤 안내 문구 - 이벤트 안내 섹션 애니메이션 시작 전까지 표시 */}
           {showScrollHint && (
             <ScrollHint
               initial={{ opacity: 0, y: -10 }}
@@ -578,13 +579,9 @@ const AdventPage = () => {
                     initial={isMobile ? false : { opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: isMobile ? 0 : 0.3 }}
-                    transition={{ duration: 0.6, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    transition={{ duration: isMobile ? 0.2 : 0.6, delay: isMobile ? 0 : 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
                     onAnimationStart={() => {
-                      // 애니메이션이 시작되면 안내 문구 숨김
-                      setShowScrollHint(false);
-                    }}
-                    onAnimationComplete={() => {
-                      // 애니메이션이 완료되면 안내 문구 숨김
+                      // 애니메이션이 실제로 시작될 때만 안내 문구 숨김
                       setShowScrollHint(false);
                     }}
                   >
@@ -593,10 +590,10 @@ const AdventPage = () => {
 
                   {/* 3. 영상 섹션 */}
                   <SectionWrapper
-                    initial={{ opacity: 0, y: 30 }}
+                    initial={isMobile ? false : { opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: isMobile ? "0px" : "-100px", amount: isMobile ? 0.1 : 0.3 }}
-                    transition={{ duration: 0.6, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: isMobile ? 0 : 0.3 }}
+                    transition={{ duration: isMobile ? 0.2 : 0.6, delay: isMobile ? 0 : 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
                   >
                     <VideoSection post={post} currentDate={currentDateStr} />
                   </SectionWrapper>
@@ -604,10 +601,10 @@ const AdventPage = () => {
                   {/* 0일차일 때 카운트다운 표시 */}
                   {isDayZero && (
                     <SectionWrapper
-                      initial={{ opacity: 0, scale: 0.9 }}
+                      initial={isMobile ? false : { opacity: 0, scale: 0.9 }}
                       whileInView={{ opacity: 1, scale: 1 }}
-                      viewport={{ once: true, margin: isMobile ? "0px" : "-100px", amount: isMobile ? 0.1 : 0.3 }}
-                      transition={{ duration: 0.6, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: isMobile ? 0 : 0.3 }}
+                      transition={{ duration: isMobile ? 0.2 : 0.6, delay: isMobile ? 0 : 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
                     >
                       <CountdownSection targetDate={firstDayTargetDate} />
                     </SectionWrapper>
@@ -618,10 +615,10 @@ const AdventPage = () => {
                     <>
                       {/* 4. 출석 섹션 */}
                       <SectionWrapper
-                        initial={{ opacity: 0, y: 30 }}
+                        initial={isMobile ? false : { opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: isMobile ? "0px" : "-100px", amount: isMobile ? 0.1 : 0.3 }}
-                        transition={{ duration: 0.6, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: isMobile ? 0 : 0.3 }}
+                        transition={{ duration: isMobile ? 0.2 : 0.6, delay: isMobile ? 0 : 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
                       >
                         <AttendanceSection 
                           currentDate={post.post_dt}
@@ -637,9 +634,9 @@ const AdventPage = () => {
 
                       {/* 5. 묵상 섹션 (댓글) */}
                       <SectionWrapper
-                        initial={{ opacity: 0, y: 30 }}
+                        initial={isMobile ? false : { opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: isMobile ? "0px" : "-100px", amount: isMobile ? 0.1 : 0.3 }}
+                        viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: isMobile ? 0 : 0.3 }}
                         transition={{ duration: 0.6, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
                       >
                         <MeditationSection
@@ -681,10 +678,10 @@ const AdventPage = () => {
 
                   {/* 5. 지난 묵상 영상 섹션 */}
                   <SectionWrapper
-                    initial={{ opacity: 0, y: 30 }}
+                    initial={isMobile ? false : { opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: isMobile ? "0px" : "0px", amount: isMobile ? 0.1 : 0.3 }}
-                    transition={{ duration: 0.6, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    viewport={{ once: true, margin: isMobile ? "-50px" : "0px", amount: isMobile ? 0 : 0.3 }}
+                    transition={{ duration: isMobile ? 0.2 : 0.6, delay: isMobile ? 0 : 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
                   >
                     <PreviousVideosSection
                       previousPosts={previousPosts}
