@@ -149,39 +149,45 @@ interface EventInfoSectionProps {
 
 export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onCandleVisible }) => {
   const candleRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLDivElement>(null);
   const hasCalled = useRef(false);
+  const isMobile = typeof window !== 'undefined' && (window.innerWidth <= 768 || window.innerHeight <= 500);
 
   useEffect(() => {
     if (!candleRef.current || hasCalled.current) return;
 
+    // 모바일에서는 섹션이 실제로 보일 때까지 기다림
+    const targetElement = isMobile ? sectionRef.current : candleRef.current;
+    if (!targetElement) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio > 0.1) {
-            // 캔들 아이콘이 뷰포트에 보이기 시작하면 콜백 호출
+          if (entry.isIntersecting && entry.intersectionRatio > (isMobile ? 0.3 : 0.1)) {
+            // 모바일: 섹션이 충분히 보일 때, PC: 캔들 아이콘이 보이기 시작할 때
             if (!hasCalled.current) {
               hasCalled.current = true;
-              onCandleVisible?.();
+              // 모바일에서는 약간의 지연을 두어 애니메이션이 시작된 후에 숨김
+              setTimeout(() => {
+                onCandleVisible?.();
+              }, isMobile ? 300 : 0);
             }
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: isMobile ? 0.3 : 0.1 }
     );
 
-    if (candleRef.current) {
-      observer.observe(candleRef.current);
-    }
+    observer.observe(targetElement);
 
     return () => {
-      if (candleRef.current) {
-        observer.unobserve(candleRef.current);
-      }
+      observer.disconnect();
     };
-  }, [onCandleVisible]);
+  }, [onCandleVisible, isMobile]);
 
   return (
     <SectionCard
+      ref={sectionRef}
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: "-200px" }}
@@ -193,8 +199,8 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onCandleVisi
           variants={candleVariants}
           whileHover="hover"
           onAnimationStart={(definition: any) => {
-            // 캔들 아이콘 애니메이션이 visible 상태로 시작될 때 콜백 호출
-            if (!hasCalled.current && definition && (definition.opacity === 1 || definition.scale === 1)) {
+            // PC에서만 캔들 아이콘 애니메이션이 visible 상태로 시작될 때 콜백 호출
+            if (!isMobile && !hasCalled.current && definition && (definition.opacity === 1 || definition.scale === 1)) {
               hasCalled.current = true;
               onCandleVisible?.();
             }
