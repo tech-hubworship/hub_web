@@ -125,3 +125,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   return res.status(405).json({ error: '허용되지 않는 메서드입니다.' });
 }
 
+
