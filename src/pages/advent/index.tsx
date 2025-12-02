@@ -434,20 +434,6 @@ const AdventPage = () => {
     }
   }, [router.isReady, router.query.date, selectedDate, fetchPost]);
 
-  // 페이지 포커스 시 캐시 무효화 (어드민에서 수정 후 돌아왔을 때 최신 데이터 표시)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (selectedDate) {
-        // 포커스 시 캐시를 무효화하고 새로 가져오기
-        postCacheRef.current.delete(selectedDate);
-        fetchPost(selectedDate, true);
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [selectedDate, fetchPost]);
-
   // 페이지당 아이템 수 (모바일: 5, PC: 8)
   const itemsPerPage = isMobile ? 5 : 8;
 
