@@ -85,6 +85,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: '게시물 추가에 실패했습니다.' });
       }
 
+      // 캐시 무효화: 새로 추가된 게시물의 캐시를 갱신하기 위해 내부적으로 API 호출
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+          (req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000');
+        await fetch(`${baseUrl}/api/advent/posts?date=${post_dt}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'x-cache-bypass': 'true',
+          },
+        });
+      } catch (cacheError) {
+        console.warn('캐시 갱신 실패 (무시됨):', cacheError);
+      }
+
+      // posts-list 캐시도 무효화
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+          (req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000');
+        await fetch(`${baseUrl}/api/advent/posts-list?limit=12`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'x-cache-bypass': 'true',
+          },
+        });
+      } catch (cacheError) {
+        console.warn('posts-list 캐시 갱신 실패 (무시됨):', cacheError);
+      }
+
       return res.status(201).json({ post: data });
     } catch (error) {
       console.error('게시물 추가 오류:', error);
