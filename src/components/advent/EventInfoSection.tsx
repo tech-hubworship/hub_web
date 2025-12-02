@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
 
@@ -143,7 +143,43 @@ const candleVariants = {
   }
 };
 
-export const EventInfoSection: React.FC = () => {
+interface EventInfoSectionProps {
+  onCandleVisible?: () => void;
+}
+
+export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onCandleVisible }) => {
+  const candleRef = useRef<HTMLDivElement>(null);
+  const hasCalled = useRef(false);
+
+  useEffect(() => {
+    if (!candleRef.current || hasCalled.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.1) {
+            // 캔들 아이콘이 뷰포트에 보이기 시작하면 콜백 호출
+            if (!hasCalled.current) {
+              hasCalled.current = true;
+              onCandleVisible?.();
+            }
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    if (candleRef.current) {
+      observer.observe(candleRef.current);
+    }
+
+    return () => {
+      if (candleRef.current) {
+        observer.unobserve(candleRef.current);
+      }
+    };
+  }, [onCandleVisible]);
+
   return (
     <SectionCard
       initial="hidden"
@@ -153,8 +189,16 @@ export const EventInfoSection: React.FC = () => {
     >
       <ContentWrapper>
         <CandleIcon 
+          ref={candleRef}
           variants={candleVariants}
           whileHover="hover"
+          onAnimationStart={(definition: any) => {
+            // 캔들 아이콘 애니메이션이 visible 상태로 시작될 때 콜백 호출
+            if (!hasCalled.current && definition && (definition.opacity === 1 || definition.scale === 1)) {
+              hasCalled.current = true;
+              onCandleVisible?.();
+            }
+          }}
         >
           <img src="/icons/candle.svg" alt="candle icon" />
         </CandleIcon>
