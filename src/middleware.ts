@@ -7,6 +7,15 @@ import { getToken } from 'next-auth/jwt';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // favicon.ico 요청 최적화 - 긴 캐시 시간 설정
+  if (pathname === '/favicon.ico') {
+    const response = NextResponse.next();
+    // 1년 캐시 (favicon은 거의 변경되지 않음)
+    response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    response.headers.set('Expires', new Date(Date.now() + 31536000000).toUTCString());
+    return response;
+  }
+
   // /admin 경로 보호
   if (pathname.startsWith('/admin')) {
     const token = await getToken({
@@ -34,6 +43,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/favicon.ico',
     '/admin/:path*',
   ],
 };

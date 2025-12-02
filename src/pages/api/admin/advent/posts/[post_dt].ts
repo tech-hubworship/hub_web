@@ -65,6 +65,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: '게시물 수정에 실패했습니다.' });
       }
 
+      // 캐시 무효화: 수정된 게시물의 캐시를 갱신하기 위해 내부적으로 API 호출
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+          (req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000');
+        await fetch(`${baseUrl}/api/advent/posts?date=${post_dt}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'x-cache-bypass': 'true', // 캐시 우회 플래그
+          },
+        });
+      } catch (cacheError) {
+        // 캐시 갱신 실패는 로그만 남기고 응답은 성공으로 처리
+        console.warn('캐시 갱신 실패 (무시됨):', cacheError);
+      }
+
+      // posts-list 캐시도 무효화
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+          (req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000');
+        await fetch(`${baseUrl}/api/advent/posts-list?limit=12`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'x-cache-bypass': 'true',
+          },
+        });
+      } catch (cacheError) {
+        console.warn('posts-list 캐시 갱신 실패 (무시됨):', cacheError);
+      }
+
       return res.status(200).json({ post: data });
     } catch (error) {
       console.error('게시물 수정 오류:', error);
@@ -82,6 +113,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (error) {
         console.error('게시물 삭제 오류:', error);
         return res.status(500).json({ error: '게시물 삭제에 실패했습니다.' });
+      }
+
+      // 캐시 무효화: 삭제된 게시물의 캐시를 갱신하기 위해 내부적으로 API 호출
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+          (req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000');
+        await fetch(`${baseUrl}/api/advent/posts?date=${post_dt}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'x-cache-bypass': 'true',
+          },
+        });
+      } catch (cacheError) {
+        console.warn('캐시 갱신 실패 (무시됨):', cacheError);
+      }
+
+      // posts-list 캐시도 무효화
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+          (req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000');
+        await fetch(`${baseUrl}/api/advent/posts-list?limit=12`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'x-cache-bypass': 'true',
+          },
+        });
+      } catch (cacheError) {
+        console.warn('posts-list 캐시 갱신 실패 (무시됨):', cacheError);
       }
 
       return res.status(200).json({ message: '게시물이 삭제되었습니다.' });

@@ -12,7 +12,7 @@ export default function Document() {
         <link rel="apple-touch-icon-precomposed" href={`/apple-touch-icon-precomposed.png?v=${cacheBuster}`} />
         <link rel="apple-touch-icon" sizes="180x180" href={`/apple-icon-180x180.png?v=${cacheBuster}`} />
         
-        <link rel="shortcut icon" href="/favicon.ico" />
+        {/* Favicon 설정 - 명시적으로 설정하여 브라우저의 자동 요청 최소화 */}
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
