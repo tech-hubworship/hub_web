@@ -41,9 +41,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
     } else {
-      // 게시물 데이터 캐싱 (5분 캐시로 단축, stale-while-revalidate로 최대 10분까지 사용)
-      // 어드민에서 수정 시 빠르게 반영되도록 캐시 시간 단축
-      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      // 게시물 데이터 캐싱 (1시간 캐시, stale-while-revalidate로 최대 2시간까지 사용)
+      // Advent 게시물은 하루에 한 번만 업데이트되므로 적절한 캐시 시간 설정
+      res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
     }
     
     return res.status(200).json({ post: data });
