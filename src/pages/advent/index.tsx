@@ -580,9 +580,17 @@ const AdventPage = () => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: isMobile ? 0 : 0.3 }}
                     transition={{ duration: isMobile ? 0.2 : 0.6, delay: isMobile ? 0 : 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    onViewportEnter={() => {
+                      // 가로 모드에서는 뷰포트에 들어오면 안내 문구 숨김
+                      if (isMobile) {
+                        setShowScrollHint(false);
+                      }
+                    }}
                     onAnimationStart={() => {
-                      // 애니메이션이 실제로 시작될 때만 안내 문구 숨김
-                      setShowScrollHint(false);
+                      // 애니메이션이 실제로 시작될 때만 안내 문구 숨김 (큰 화면에서만)
+                      if (!isMobile) {
+                        setShowScrollHint(false);
+                      }
                     }}
                   >
                     <EventInfoSection />
