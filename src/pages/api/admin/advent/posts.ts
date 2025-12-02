@@ -86,68 +86,92 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: '게시물 추가에 실패했습니다.' });
       }
 
-      // 캐시 무효화: 하이브리드 방식 (revalidateTag + HTTP 캐시 무효화)
-      const invalidateCache = async () => {
+      // 캐시 무효화: 확실한 무효화를 위해 await 사용
+      try {
+        // 1. Next.js Data Cache 무효화 시도
         try {
-          // 1. Next.js Data Cache 무효화 (unstable_cache)
           revalidateTag('advent-posts');
           revalidateTag('advent-posts-list');
-          console.log(`[캐시 무효화] revalidateTag 완료, post_dt: ${post_dt}`);
-
-          // 2. HTTP 캐시 무효화 (CDN/Edge 캐시)
-          let baseUrl = process.env.NEXTAUTH_URL || 
-                        process.env.NEXT_PUBLIC_BASE_URL;
-          
-          if (!baseUrl) {
-            if (process.env.VERCEL_URL) {
-              baseUrl = `https://${process.env.VERCEL_URL}`;
-            } else {
-              const protocol = req.headers['x-forwarded-proto']?.toString() || 
-                (req.headers['x-forwarded-ssl'] === 'on' ? 'https' : 'http') ||
-                ((req.connection as any)?.encrypted ? 'https' : 'http');
-              const host = req.headers.host || 
-                req.headers['x-forwarded-host'] || 
-                'localhost:3000';
-              baseUrl = `${protocol}://${host}`;
-            }
-          }
-          
-          await Promise.all([
-            fetch(`${baseUrl}/api/advent/posts?date=${post_dt}`, {
-              method: 'GET',
-              headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0',
-                'x-cache-bypass': 'true',
-                'User-Agent': 'HubWorship-Cache-Invalidator',
-              },
-              cache: 'no-store',
-            }),
-            fetch(`${baseUrl}/api/advent/posts-list?limit=12`, {
-              method: 'GET',
-              headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0',
-                'x-cache-bypass': 'true',
-                'User-Agent': 'HubWorship-Cache-Invalidator',
-              },
-              cache: 'no-store',
-            }),
-          ]);
-          
-          console.log(`[캐시 무효화 성공] 모든 캐시 레이어 무효화 완료, post_dt: ${post_dt}`);
-        } catch (cacheError) {
-          console.error('[캐시 무효화 실패]', {
-            error: cacheError,
-            message: cacheError instanceof Error ? cacheError.message : String(cacheError),
-            post_dt,
-          });
+          console.log(`[캐시 무효화] revalidateTag 호출 완료, post_dt: ${post_dt}`);
+        } catch (revalidateError) {
+          console.warn('[캐시 무효화] revalidateTag 실패 (무시됨):', revalidateError);
         }
-      };
 
-      invalidateCache();
+        // 2. HTTP 캐시 무효화
+        let baseUrl = process.env.NEXTAUTH_URL || 
+                      process.env.NEXT_PUBLIC_BASE_URL;
+        
+        if (!baseUrl) {
+          if (process.env.VERCEL_URL) {
+            baseUrl = `https://${process.env.VERCEL_URL}`;
+          } else {
+            const protocol = req.headers['x-forwarded-proto']?.toString() || 
+              (req.headers['x-forwarded-ssl'] === 'on' ? 'https' : 'http') ||
+              ((req.connection as any)?.encrypted ? 'https' : 'http');
+            const host = req.headers.host || 
+              req.headers['x-forwarded-host'] || 
+              'localhost:3000';
+            baseUrl = `${protocol}://${host}`;
+          }
+        }
+        
+        console.log(`[캐시 무효화] baseUrl: ${baseUrl}, post_dt: ${post_dt}`);
+        
+        await Promise.all([
+          fetch(`${baseUrl}/api/advent/posts?date=${post_dt}`, {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+              'x-cache-bypass': 'true',
+              'User-Agent': 'HubWorship-Cache-Invalidator',
+            },
+            cache: 'no-store',
+          }),
+          fetch(`${baseUrl}/api/advent/posts?date=${post_dt}&_t=${Date.now()}`, {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+              'x-cache-bypass': 'true',
+              'User-Agent': 'HubWorship-Cache-Invalidator',
+            },
+            cache: 'no-store',
+          }),
+          fetch(`${baseUrl}/api/advent/posts-list?limit=12`, {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+              'x-cache-bypass': 'true',
+              'User-Agent': 'HubWorship-Cache-Invalidator',
+            },
+            cache: 'no-store',
+          }),
+          fetch(`${baseUrl}/api/advent/posts-list?limit=12&_t=${Date.now()}`, {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+              'x-cache-bypass': 'true',
+              'User-Agent': 'HubWorship-Cache-Invalidator',
+            },
+            cache: 'no-store',
+          }),
+        ]);
+        
+        console.log(`[캐시 무효화 성공] 모든 캐시 레이어 무효화 완료, post_dt: ${post_dt}`);
+      } catch (cacheError) {
+        console.error('[캐시 무효화 실패]', {
+          error: cacheError,
+          message: cacheError instanceof Error ? cacheError.message : String(cacheError),
+          post_dt,
+        });
+      }
 
       return res.status(201).json({ post: data });
     } catch (error) {

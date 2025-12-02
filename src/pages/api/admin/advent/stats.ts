@@ -312,20 +312,35 @@ export default async function handler(
       dateComments?.forEach(comment => {
         if (comment.reg_id && comment.reg_dt) {
           try {
-            const regDate = new Date(comment.reg_dt);
-            // 한국 시간대 (Asia/Seoul)로 변환하여 시간 추출
-            const formatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: 'Asia/Seoul',
-              hour: 'numeric',
-              hour12: false
-            });
-            const parts = formatter.formatToParts(regDate);
-            const hourPart = parts.find(part => part.type === 'hour');
-            if (hourPart) {
-              const hour = parseInt(hourPart.value, 10);
-              if (!isNaN(hour) && hour >= 0 && hour < 24) {
-                userActivityTimes.push({ userId: comment.reg_id, hour });
-              }
+            // reg_dt는 getKoreanTimestamp()로 저장된 "YYYY-MM-DD HH:mm:ss" 형식
+            // getKoreanTimestamp()는 UTC+9로 계산된 값을 ISO로 변환 후 Z 제거
+            // 예: UTC "2025-11-30T15:00:00Z" -> 한국 시간 "2025-12-01 00:00:00"
+            // 저장된 값: "2025-12-01 00:00:00" (시간대 정보 없음, 하지만 실제로는 UTC+9 시간)
+            
+            let regDate: Date;
+            
+            if (comment.reg_dt.includes('T') && (comment.reg_dt.endsWith('Z') || comment.reg_dt.includes('+'))) {
+              // ISO 형식이고 시간대 정보가 있는 경우
+              regDate = new Date(comment.reg_dt);
+            } else {
+              // "YYYY-MM-DD HH:mm:ss" 형식인 경우
+              // 이 값은 UTC+9로 계산된 값이지만 Z가 제거되어 있음
+              // UTC로 해석하려면, 이 값에서 9시간을 빼야 원래 UTC 시간이 됨
+              const dateStr = comment.reg_dt.replace(' ', 'T');
+              // UTC로 해석 (Z 추가)
+              const asUTC = new Date(dateStr + 'Z');
+              // 원래 UTC 시간을 구하기 위해 9시간을 뺌
+              const originalUTC = new Date(asUTC.getTime() - (9 * 60 * 60 * 1000));
+              // 이제 originalUTC는 실제 UTC 시간
+              // 한국 시간대로 변환 (UTC+9)
+              regDate = new Date(originalUTC.getTime() + (9 * 60 * 60 * 1000));
+            }
+            
+            // 한국 시간대 (Asia/Seoul) 기준으로 시간 추출
+            // regDate는 이미 한국 시간대로 변환되었으므로, UTC 시간을 사용
+            const koreanHour = regDate.getUTCHours();
+            if (!isNaN(koreanHour) && koreanHour >= 0 && koreanHour < 24) {
+              userActivityTimes.push({ userId: comment.reg_id, hour: koreanHour });
             }
           } catch (e) {
             // 날짜 파싱 실패 시 무시
@@ -337,20 +352,35 @@ export default async function handler(
       dateAttendance?.forEach(attendance => {
         if (attendance.user_id && attendance.reg_dt) {
           try {
-            const regDate = new Date(attendance.reg_dt);
-            // 한국 시간대 (Asia/Seoul)로 변환하여 시간 추출
-            const formatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: 'Asia/Seoul',
-              hour: 'numeric',
-              hour12: false
-            });
-            const parts = formatter.formatToParts(regDate);
-            const hourPart = parts.find(part => part.type === 'hour');
-            if (hourPart) {
-              const hour = parseInt(hourPart.value, 10);
-              if (!isNaN(hour) && hour >= 0 && hour < 24) {
-                userActivityTimes.push({ userId: attendance.user_id, hour });
-              }
+            // reg_dt는 getKoreanTimestamp()로 저장된 "YYYY-MM-DD HH:mm:ss" 형식
+            // getKoreanTimestamp()는 UTC+9로 계산된 값을 ISO로 변환 후 Z 제거
+            // 예: UTC "2025-11-30T15:00:00Z" -> 한국 시간 "2025-12-01 00:00:00"
+            // 저장된 값: "2025-12-01 00:00:00" (시간대 정보 없음, 하지만 실제로는 UTC+9 시간)
+            
+            let regDate: Date;
+            
+            if (attendance.reg_dt.includes('T') && (attendance.reg_dt.endsWith('Z') || attendance.reg_dt.includes('+'))) {
+              // ISO 형식이고 시간대 정보가 있는 경우
+              regDate = new Date(attendance.reg_dt);
+            } else {
+              // "YYYY-MM-DD HH:mm:ss" 형식인 경우
+              // 이 값은 UTC+9로 계산된 값이지만 Z가 제거되어 있음
+              // UTC로 해석하려면, 이 값에서 9시간을 빼야 원래 UTC 시간이 됨
+              const dateStr = attendance.reg_dt.replace(' ', 'T');
+              // UTC로 해석 (Z 추가)
+              const asUTC = new Date(dateStr + 'Z');
+              // 원래 UTC 시간을 구하기 위해 9시간을 뺌
+              const originalUTC = new Date(asUTC.getTime() - (9 * 60 * 60 * 1000));
+              // 이제 originalUTC는 실제 UTC 시간
+              // 한국 시간대로 변환 (UTC+9)
+              regDate = new Date(originalUTC.getTime() + (9 * 60 * 60 * 1000));
+            }
+            
+            // 한국 시간대 (Asia/Seoul) 기준으로 시간 추출
+            // regDate는 이미 한국 시간대로 변환되었으므로, UTC 시간을 사용
+            const koreanHour = regDate.getUTCHours();
+            if (!isNaN(koreanHour) && koreanHour >= 0 && koreanHour < 24) {
+              userActivityTimes.push({ userId: attendance.user_id, hour: koreanHour });
             }
           } catch (e) {
             // 날짜 파싱 실패 시 무시
