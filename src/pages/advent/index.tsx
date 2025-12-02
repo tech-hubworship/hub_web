@@ -256,15 +256,21 @@ const AdventPage = () => {
   const [showFullScreenIntro, setShowFullScreenIntro] = useState(true); // 초기값을 true로 설정하여 전체 화면부터 시작
   const [showScrollHint, setShowScrollHint] = useState(false);
 
-  // 화면 크기 감지
+  // 화면 크기 감지 (가로 모드 포함)
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
+      // 가로 모드도 감지 (너비가 768 이하이거나 높이가 500 이하인 경우)
+      const isSmallScreen = window.innerWidth <= 768 || window.innerHeight <= 500;
+      setIsMobile(isSmallScreen);
     };
     
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener('orientationchange', checkMobile);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('orientationchange', checkMobile);
+    };
   }, []);
 
   const fetchPost = useCallback(async (date: string) => {
@@ -577,8 +583,8 @@ const AdventPage = () => {
                       // 애니메이션이 시작되면 안내 문구 숨김
                       setShowScrollHint(false);
                     }}
-                    onViewportEnter={() => {
-                      // 첫 번째 섹션이 뷰포트에 들어오면 안내 문구 숨김 (애니메이션 시작 전)
+                    onAnimationComplete={() => {
+                      // 애니메이션이 완료되면 안내 문구 숨김
                       setShowScrollHint(false);
                     }}
                   >
