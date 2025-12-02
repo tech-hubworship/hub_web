@@ -423,27 +423,16 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
 }) => {
   const [selectedComment, setSelectedComment] = useState<AdventComment | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [isLandscape, setIsLandscape] = useState(false);
-  const [isSmallScreen, setIsSmallScreen] = useState(false);
 
-  // 화면 크기 및 가로 모드 감지
+  // 화면 크기 감지
   useEffect(() => {
-    const checkScreen = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      setIsMobile(width <= 768);
-      setIsLandscape(width > height);
-      // 작은 화면: 높이가 600px 이하이거나 너비가 400px 이하
-      setIsSmallScreen(height <= 600 || width <= 400);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
     };
     
-    checkScreen();
-    window.addEventListener('resize', checkScreen);
-    window.addEventListener('orientationchange', checkScreen);
-    return () => {
-      window.removeEventListener('resize', checkScreen);
-      window.removeEventListener('orientationchange', checkScreen);
-    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const itemsPerPage = isMobile ? 10 : 20;
@@ -524,10 +513,9 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
 
   return (
     <SectionCard
-      initial={isLandscape || isSmallScreen ? "visible" : "hidden"}
-      animate={isLandscape || isSmallScreen ? "visible" : undefined}
-      whileInView={isLandscape || isSmallScreen ? undefined : "visible"}
-      viewport={isLandscape || isSmallScreen ? undefined : { once: true, margin: "-200px", amount: 0.3 }}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: isMobile ? "0px" : "-200px", amount: isMobile ? 0.1 : 0.3 }}
       variants={containerVariants}
     >
       <ContentWrapper>
