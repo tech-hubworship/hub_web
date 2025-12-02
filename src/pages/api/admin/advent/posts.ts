@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@src/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]';
 import { getKoreanTimestamp } from '@src/lib/utils/date';
+import { revalidateTag } from 'next/cache';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
@@ -85,35 +86,68 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: '게시물 추가에 실패했습니다.' });
       }
 
-      // 캐시 무효화: 새로 추가된 게시물의 캐시를 갱신하기 위해 내부적으로 API 호출
-      try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-          (req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000');
-        await fetch(`${baseUrl}/api/advent/posts?date=${post_dt}`, {
-          method: 'GET',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'x-cache-bypass': 'true',
-          },
-        });
-      } catch (cacheError) {
-        console.warn('캐시 갱신 실패 (무시됨):', cacheError);
-      }
+      // 캐시 무효화: 하이브리드 방식 (revalidateTag + HTTP 캐시 무효화)
+      const invalidateCache = async () => {
+        try {
+          // 1. Next.js Data Cache 무효화 (unstable_cache)
+          revalidateTag('advent-posts');
+          revalidateTag('advent-posts-list');
+          console.log(`[캐시 무효화] revalidateTag 완료, post_dt: ${post_dt}`);
 
-      // posts-list 캐시도 무효화
-      try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-          (req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000');
-        await fetch(`${baseUrl}/api/advent/posts-list?limit=12`, {
-          method: 'GET',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'x-cache-bypass': 'true',
-          },
-        });
-      } catch (cacheError) {
-        console.warn('posts-list 캐시 갱신 실패 (무시됨):', cacheError);
-      }
+          // 2. HTTP 캐시 무효화 (CDN/Edge 캐시)
+          let baseUrl = process.env.NEXTAUTH_URL || 
+                        process.env.NEXT_PUBLIC_BASE_URL;
+          
+          if (!baseUrl) {
+            if (process.env.VERCEL_URL) {
+              baseUrl = `https://${process.env.VERCEL_URL}`;
+            } else {
+              const protocol = req.headers['x-forwarded-proto']?.toString() || 
+                (req.headers['x-forwarded-ssl'] === 'on' ? 'https' : 'http') ||
+                ((req.connection as any)?.encrypted ? 'https' : 'http');
+              const host = req.headers.host || 
+                req.headers['x-forwarded-host'] || 
+                'localhost:3000';
+              baseUrl = `${protocol}://${host}`;
+            }
+          }
+          
+          await Promise.all([
+            fetch(`${baseUrl}/api/advent/posts?date=${post_dt}`, {
+              method: 'GET',
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'x-cache-bypass': 'true',
+                'User-Agent': 'HubWorship-Cache-Invalidator',
+              },
+              cache: 'no-store',
+            }),
+            fetch(`${baseUrl}/api/advent/posts-list?limit=12`, {
+              method: 'GET',
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'x-cache-bypass': 'true',
+                'User-Agent': 'HubWorship-Cache-Invalidator',
+              },
+              cache: 'no-store',
+            }),
+          ]);
+          
+          console.log(`[캐시 무효화 성공] 모든 캐시 레이어 무효화 완료, post_dt: ${post_dt}`);
+        } catch (cacheError) {
+          console.error('[캐시 무효화 실패]', {
+            error: cacheError,
+            message: cacheError instanceof Error ? cacheError.message : String(cacheError),
+            post_dt,
+          });
+        }
+      };
+
+      invalidateCache();
 
       return res.status(201).json({ post: data });
     } catch (error) {
@@ -124,5 +158,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(405).json({ error: '허용되지 않는 메서드입니다.' });
 }
+
+
 
 

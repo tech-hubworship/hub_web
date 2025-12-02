@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]';
 import { supabaseAdmin } from '@src/lib/supabase';
+import { getKoreanDateString } from '@src/lib/utils/date';
 
 export default async function handler(
   req: NextApiRequest,
@@ -21,9 +22,7 @@ export default async function handler(
     const { startDate: startDateParam, endDate: endDateParam } = req.query;
 
     // 오늘 날짜 (한국 시간 기준)
-    const now = new Date();
-    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-    const todayStr = koreanTime.toISOString().slice(0, 10).replace(/-/g, '');
+    const todayStr = getKoreanDateString();
 
     // 오늘 묵상+출석한 사람 수
     const { data: todayComments } = await supabaseAdmin
@@ -55,32 +54,44 @@ export default async function handler(
     ).length;
 
     // 기간 설정 (2025-11-30 ~ 2025-12-25, 총 26일)
-    // 로컬 시간대를 사용하여 날짜 생성 (시간대 문제 방지)
+    // 한국 시간대 기준으로 날짜 생성
     const allDates: string[] = [];
-    const startDate = new Date(2025, 10, 30, 12, 0, 0); // 정오 시간으로 설정하여 시간대 문제 방지
-    const endDate = new Date(2025, 11, 25, 12, 0, 0); // 정오 시간으로 설정
+    // 한국 시간대 기준으로 날짜 생성 (UTC+9)
+    const startYear = 2025;
+    const startMonth = 11; // 11월
+    const startDay = 30;
+    const endYear = 2025;
+    const endMonth = 12; // 12월
+    const endDay = 25;
     
-    const currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-      // 로컬 시간대 기준으로 날짜 문자열 생성
-      const year = currentDate.getFullYear();
-      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-      const day = String(currentDate.getDate()).padStart(2, '0');
+    // 한국 시간대(UTC+9) 기준으로 시작일과 종료일 생성
+    // UTC로 변환하여 일관성 유지
+    const startDateUTC = new Date(Date.UTC(startYear, startMonth - 1, startDay, 0, 0, 0));
+    const endDateUTC = new Date(Date.UTC(endYear, endMonth - 1, endDay, 0, 0, 0));
+    
+    const currentDate = new Date(startDateUTC);
+    while (currentDate <= endDateUTC) {
+      // 한국 시간대(UTC+9) 기준으로 날짜 문자열 생성
+      const koreanDate = new Date(currentDate.getTime() + (9 * 60 * 60 * 1000));
+      const year = koreanDate.getUTCFullYear();
+      const month = String(koreanDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(koreanDate.getUTCDate()).padStart(2, '0');
       const dateStr = `${year}${month}${day}`;
       allDates.push(dateStr);
       
-      // 다음 날로 이동
-      currentDate.setDate(currentDate.getDate() + 1);
+      // 다음 날로 이동 (UTC 기준)
+      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
     }
 
-    // 일차 계산 함수
+    // 일차 계산 함수 (한국 시간대 기준)
     const getDayNumber = (dateStr: string): number => {
       const year = parseInt(dateStr.slice(0, 4), 10);
-      const month = parseInt(dateStr.slice(4, 6), 10) - 1;
+      const month = parseInt(dateStr.slice(4, 6), 10);
       const day = parseInt(dateStr.slice(6, 8), 10);
-      const currentDate = new Date(year, month, day);
-      const baseDate = new Date(2025, 10, 30);
-      const diffTime = currentDate.getTime() - baseDate.getTime();
+      // 한국 시간대 기준으로 날짜 생성 (UTC+9)
+      const currentDateUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+      const baseDateUTC = new Date(Date.UTC(2025, 10, 30, 0, 0, 0)); // 11월 30일
+      const diffTime = currentDateUTC.getTime() - baseDateUTC.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       return diffDays + 1;
     };
@@ -239,25 +250,28 @@ export default async function handler(
       const startDateStr = startDateParam.replace(/-/g, '');
       const endDateStr = endDateParam.replace(/-/g, '');
       
-      // 날짜 범위 생성
-      const start = new Date(
-        parseInt(startDateStr.slice(0, 4), 10),
-        parseInt(startDateStr.slice(4, 6), 10) - 1,
-        parseInt(startDateStr.slice(6, 8), 10)
-      );
-      const end = new Date(
-        parseInt(endDateStr.slice(0, 4), 10),
-        parseInt(endDateStr.slice(4, 6), 10) - 1,
-        parseInt(endDateStr.slice(6, 8), 10)
-      );
+      // 한국 시간대 기준으로 날짜 범위 생성 (UTC+9)
+      const startYear = parseInt(startDateStr.slice(0, 4), 10);
+      const startMonth = parseInt(startDateStr.slice(4, 6), 10);
+      const startDay = parseInt(startDateStr.slice(6, 8), 10);
       
-      const current = new Date(start);
-      while (current <= end) {
-        const year = current.getFullYear();
-        const month = String(current.getMonth() + 1).padStart(2, '0');
-        const day = String(current.getDate()).padStart(2, '0');
+      const endYear = parseInt(endDateStr.slice(0, 4), 10);
+      const endMonth = parseInt(endDateStr.slice(4, 6), 10);
+      const endDay = parseInt(endDateStr.slice(6, 8), 10);
+      
+      // UTC로 변환하여 일관성 유지
+      const startUTC = new Date(Date.UTC(startYear, startMonth - 1, startDay, 0, 0, 0));
+      const endUTC = new Date(Date.UTC(endYear, endMonth - 1, endDay, 0, 0, 0));
+      
+      const current = new Date(startUTC);
+      while (current <= endUTC) {
+        // 한국 시간대(UTC+9) 기준으로 날짜 문자열 생성
+        const koreanDate = new Date(current.getTime() + (9 * 60 * 60 * 1000));
+        const year = koreanDate.getUTCFullYear();
+        const month = String(koreanDate.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(koreanDate.getUTCDate()).padStart(2, '0');
         targetDates.push(`${year}${month}${day}`);
-        current.setDate(current.getDate() + 1);
+        current.setUTCDate(current.getUTCDate() + 1);
       }
     } else {
       // 기간이 제공되지 않으면 오늘만

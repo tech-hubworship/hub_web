@@ -280,7 +280,7 @@ const AdventPage = () => {
 
   // API 중복 호출 방지를 위한 캐시
   const postCacheRef = useRef<Map<string, { post: AdventPost | null; timestamp: number }>>(new Map());
-  const CACHE_DURATION = 60000; // 1분 캐시
+  const CACHE_DURATION = 300000; // 5분 캐시 (서버 캐시와 함께 사용하여 Edge request 최소화)
 
   const fetchPost = useCallback(async (date: string) => {
     // 캐시 확인
@@ -301,8 +301,10 @@ const AdventPage = () => {
       setError(null);
       
       // 서버의 Cache-Control 헤더를 존중하되, stale 데이터는 재검증
+      // HTTP 캐시를 활용하여 Edge request 최소화
       const response = await fetch(`/api/advent/posts?date=${date}`, {
-        // 서버에서 캐시 무효화 헤더를 보내면 자동으로 재검증됨
+        // 서버에서 보내는 Cache-Control 헤더를 브라우저가 자동으로 존중
+        // s-maxage=3600으로 CDN/Edge 캐시도 활용
         cache: 'default',
       });
       const data = await response.json();
