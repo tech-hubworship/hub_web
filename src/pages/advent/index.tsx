@@ -259,11 +259,10 @@ const AdventPage = () => {
   // 화면 크기 감지 (가로 모드 포함)
   useEffect(() => {
     const checkMobile = () => {
-      // 가로 모드 감지: 너비가 높이보다 큰 경우
+      // 가로 모드 감지: 너비가 높이보다 크거나, 너비가 768 이하이거나, 높이가 500 이하인 경우
       const isLandscape = window.innerWidth > window.innerHeight;
-      // 작은 화면 감지: 너비가 768 이하이면서 높이가 500 이하인 경우 (세로 모드에서만)
-      const isSmallPortrait = !isLandscape && (window.innerWidth <= 768 && window.innerHeight <= 500);
-      setIsMobile(isLandscape || isSmallPortrait);
+      const isSmallScreen = window.innerWidth <= 768 || window.innerHeight <= 500;
+      setIsMobile(isLandscape || isSmallScreen);
     };
     
     checkMobile();
@@ -583,9 +582,7 @@ const AdventPage = () => {
                     transition={{ duration: isMobile ? 0.2 : 0.6, delay: isMobile ? 0 : 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
                     onViewportEnter={() => {
                       // 가로 모드에서는 뷰포트에 들어오면 안내 문구 숨김
-                      // 세로 모드에서는 애니메이션이 시작될 때 숨김
-                      const isLandscape = window.innerWidth > window.innerHeight;
-                      if (isLandscape) {
+                      if (isMobile) {
                         setShowScrollHint(false);
                       }
                     }}
