@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import styled from '@emotion/styled';
@@ -262,13 +262,11 @@ const AdventPage = () => {
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [hideScrollHint, setHideScrollHint] = useState(false);
 
-  // 화면 크기 감지 (가로 모드 포함)
+  // 화면 크기 감지
   useEffect(() => {
     const checkMobile = () => {
-      // 가로 모드 감지: 너비가 높이보다 크거나, 너비가 768 이하이거나, 높이가 500 이하인 경우
-      const isLandscape = window.innerWidth > window.innerHeight;
-      const isSmallScreen = window.innerWidth <= 768 || window.innerHeight <= 500;
-      setIsMobile(isLandscape || isSmallScreen);
+      // 너비가 768px 이하인 경우 모바일로 감지
+      setIsMobile(window.innerWidth <= 768);
     };
     
     checkMobile();
@@ -280,7 +278,23 @@ const AdventPage = () => {
     };
   }, []);
 
-  const fetchPost = useCallback(async (date: string) => {
+  // API 중복 호출 방지를 위한 캐시 (짧은 시간만 캐시)
+  const postCacheRef = useRef<Map<string, { post: AdventPost | null; timestamp: number }>>(new Map());
+  const CACHE_DURATION = 10000; // 10초 캐시 (성능 개선을 위해 짧게 유지)
+
+  const fetchPost = useCallback(async (date: string, forceRefresh: boolean = false) => {
+    // 강제 새로고침이 아닐 때만 캐시 확인
+    if (!forceRefresh) {
+      const cached = postCacheRef.current.get(date);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        setPost(cached.post);
+        setLoading(false);
+        setShowFullScreenIntro(false);
+        setShowScrollHint(true);
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       setShowFullScreenIntro(true);
@@ -288,11 +302,20 @@ const AdventPage = () => {
       setLoadingStartTime(startTime);
       setError(null);
       
-      const response = await fetch(`/api/advent/posts?date=${date}`);
+      // 캐시를 우회하여 최신 데이터 가져오기
+      const response = await fetch(`/api/advent/posts?date=${date}&_t=${Date.now()}`, {
+        cache: 'no-store', // 브라우저 캐시 우회
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
       const data = await response.json();
 
       if (response.ok) {
-        setPost(data.post || null);
+        const postData = data.post || null;
+        setPost(postData);
+        // 캐시에 저장 (강제 새로고침 시에도 캐시 업데이트)
+        postCacheRef.current.set(date, { post: postData, timestamp: Date.now() });
       } else {
         setError(data.error || '게시물을 불러오는데 실패했습니다.');
       }
@@ -401,13 +424,32 @@ const AdventPage = () => {
     // date 쿼리가 없으면 한국 시간 현재 날짜를 변수에 직접 세팅
     const dateToUse = dateFromQuery || getKoreanDate();
     
-    setSelectedDate(dateToUse);
-    setMeditationSaved(false); // 날짜 변경 시 묵상 저장 상태 초기화
-    fetchPost(dateToUse);
-  }, [router.isReady, router.query.date, fetchPost]);
+    // 날짜가 변경된 경우에만 fetchPost 호출
+    if (selectedDate !== dateToUse) {
+      setSelectedDate(dateToUse);
+      setMeditationSaved(false); // 날짜 변경 시 묵상 저장 상태 초기화
+      // 날짜 변경 시에는 캐시를 무시하고 새로 가져오기
+      postCacheRef.current.delete(dateToUse);
+      fetchPost(dateToUse, true);
+    }
+  }, [router.isReady, router.query.date, selectedDate, fetchPost]);
 
-  // 페이지당 아이템 수 (모바일: 5, PC: 10)
-  const itemsPerPage = isMobile ? 5 : 10;
+  // 페이지 포커스 시 캐시 무효화 (어드민에서 수정 후 돌아왔을 때 최신 데이터 표시)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (selectedDate) {
+        // 포커스 시 캐시를 무효화하고 새로 가져오기
+        postCacheRef.current.delete(selectedDate);
+        fetchPost(selectedDate, true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [selectedDate, fetchPost]);
+
+  // 페이지당 아이템 수 (모바일: 5, PC: 8)
+  const itemsPerPage = isMobile ? 5 : 8;
 
   // post가 변경될 때마다 전체 묵상 가져오기
   useEffect(() => {
@@ -724,3 +766,5 @@ const AdventPage = () => {
 };
 
 export default AdventPage;
+
+

@@ -245,11 +245,24 @@ interface CumulativeStat {
   cumulativeCompleted: number;
 }
 
+interface HourlyCumulative {
+  hour: number;
+  cumulative: number;
+}
+
+interface HourlyCumulativeByDate {
+  date: string;
+  dayNumber: number;
+  hourlyData: HourlyCumulative[];
+}
+
 interface StatsData {
   today: TodayStats;
   daily: DailyStat[];
   streaks: Record<number, number>;
   cumulative: CumulativeStat[];
+  hourlyCumulative?: HourlyCumulative[];
+  hourlyCumulativeByDate?: HourlyCumulativeByDate[];
 }
 
 // 날짜 유틸리티 함수
@@ -319,13 +332,17 @@ export default function AdventStatsPage() {
 
   useEffect(() => {
     fetchStats();
-  }, []);
+  }, [startDate, endDate]);
 
   const fetchStats = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/admin/advent/stats');
+      const queryParams = new URLSearchParams({
+        startDate,
+        endDate,
+      });
+      const response = await fetch(`/api/admin/advent/stats?${queryParams}`);
       const data = await response.json();
 
       if (response.ok) {
@@ -339,6 +356,33 @@ export default function AdventStatsPage() {
       setLoading(false);
     }
   };
+
+  // 시간대별 누적 추이 차트 데이터 변환
+  const hourlyChartData = useMemo(() => {
+    if (!stats?.hourlyCumulativeByDate || stats.hourlyCumulativeByDate.length === 0) {
+      return null;
+    }
+
+    const hourMap = new Map<number, Record<string, number>>();
+    
+    // 0시부터 23시까지 초기화
+    for (let hour = 0; hour < 24; hour++) {
+      hourMap.set(hour, { hour });
+    }
+    
+    // 각 날짜별 데이터를 시간대별로 추가
+    stats.hourlyCumulativeByDate.forEach((dateData) => {
+      const dateKey = `day${dateData.dayNumber}`;
+      dateData.hourlyData.forEach((hourData) => {
+        const hourEntry = hourMap.get(hourData.hour);
+        if (hourEntry) {
+          hourEntry[dateKey] = hourData.cumulative;
+        }
+      });
+    });
+    
+    return Array.from(hourMap.values());
+  }, [stats?.hourlyCumulativeByDate]);
 
   // 기간 필터링된 통합 차트 데이터
   const mixedChartData = useMemo(() => {
@@ -641,6 +685,107 @@ export default function AdventStatsPage() {
           )}
         </div>
       </Section>
+
+      {/* 시간대별 누적 추이 그래프 */}
+      {hourlyChartData && stats.hourlyCumulativeByDate && stats.hourlyCumulativeByDate.length > 0 && (() => {
+        // 색상 배열 (각 날짜별로 다른 색상)
+        const dateColors = [
+          '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+          '#06b6d4', '#f97316', '#ec4899', '#84cc16', '#6366f1',
+          '#14b8a6', '#f43f5e', '#a855f7', '#22c55e', '#eab308',
+          '#06b6d4', '#f472b6', '#34d399', '#fbbf24', '#60a5fa',
+          '#a78bfa', '#fb7185', '#4ade80', '#fbbf24', '#38bdf8',
+          '#c084fc', '#fb923c', '#2dd4bf'
+        ];
+
+        // ChartConfig 생성
+        const chartConfig: ChartConfig = {};
+        stats.hourlyCumulativeByDate.forEach((dateData) => {
+          const dateKey = `day${dateData.dayNumber}`;
+          chartConfig[dateKey] = {
+            label: `${dateData.dayNumber}일차`,
+            color: dateColors[(dateData.dayNumber - 1) % dateColors.length],
+          };
+        });
+
+        const maxValue = Math.max(
+          ...hourlyChartData.flatMap(d => 
+            (stats.hourlyCumulativeByDate || []).map(dateData => d[`day${dateData.dayNumber}`] || 0)
+          ),
+          1
+        );
+
+        return (
+          <Section>
+            <SectionTitle>시간대별 누적 추이</SectionTitle>
+            <SectionDescription>선택한 기간 동안 각 날짜별 시간대별 누적 완료 인원을 확인하세요</SectionDescription>
+            
+            <ChartWrapper>
+              <ChartContainer config={chartConfig}>
+                <ResponsiveContainer width="100%" height={350} minHeight={350}>
+                  <LineChart
+                    data={hourlyChartData}
+                    margin={{
+                      top: 20,
+                      right: 30,
+                      left: 20,
+                      bottom: 20,
+                    }}
+                  >
+                    <CartesianGrid stroke="#f5f5f5" />
+                    <XAxis
+                      dataKey="hour"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                      tick={{ fill: '#64748b', fontSize: 11 }}
+                      tickFormatter={(value) => `${value}시`}
+                      padding={{ left: 10, right: 10 }}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      tick={{ fill: '#64748b', fontSize: 11 }}
+                      domain={[0, Math.ceil(maxValue * 1.1)]}
+                    />
+                    <Tooltip
+                      formatter={(value: number, name: string) => {
+                        const dayNumber = name.replace('day', '');
+                        return [`${value}명`, `${dayNumber}일차`];
+                      }}
+                      labelFormatter={(label) => `${label}시`}
+                    />
+                    <Legend />
+                    {(stats.hourlyCumulativeByDate || []).map((dateData) => {
+                      const dateKey = `day${dateData.dayNumber}`;
+                      const color = dateColors[(dateData.dayNumber - 1) % dateColors.length];
+                      return (
+                        <Line
+                          key={dateKey}
+                          type="monotone"
+                          dataKey={dateKey}
+                          stroke={color}
+                          strokeWidth={2}
+                          dot={{ fill: color, r: 3, strokeWidth: 1, stroke: '#fff' }}
+                          activeDot={{ r: 5, fill: color, stroke: '#fff', strokeWidth: 2 }}
+                          name={`${dateData.dayNumber}일차`}
+                        />
+                      );
+                    })}
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </ChartWrapper>
+            <div style={{ marginTop: '2px', fontSize: '12px', color: '#64748b' }}>
+              표시 기간: {formatDate(parseDateInput(startDate))} ~ {formatDate(parseDateInput(endDate))}
+              {maxValue > 0 && (
+                <> | 최대 누적 완료: <strong style={{ color: COLORS.cumulative }}>{maxValue}명</strong></>
+              )}
+            </div>
+          </Section>
+        );
+      })()}
 
       {/* 일별 상세 통계 테이블 */}
       <Section style={{ padding: 0 }}>

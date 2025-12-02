@@ -424,13 +424,11 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
   const [selectedComment, setSelectedComment] = useState<AdventComment | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // 화면 크기 감지 (가로 모드 포함)
+  // 화면 크기 감지
   useEffect(() => {
     const checkMobile = () => {
-      // 가로 모드 감지: 너비가 높이보다 크거나, 너비가 768 이하이거나, 높이가 500 이하인 경우
-      const isLandscape = window.innerWidth > window.innerHeight;
-      const isSmallScreen = window.innerWidth <= 768 || window.innerHeight <= 500;
-      setIsMobile(isLandscape || isSmallScreen);
+      // 너비가 768px 이하인 경우 모바일로 감지
+      setIsMobile(window.innerWidth <= 768);
     };
     
     checkMobile();
@@ -442,7 +440,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
     };
   }, []);
 
-  const itemsPerPage = isMobile ? 10 : 20;
+  const itemsPerPage = isMobile ? 5 : 8;
   const totalPages = Math.ceil(totalComments / itemsPerPage);
 
   // 100자 제한 함수

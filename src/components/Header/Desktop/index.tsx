@@ -118,7 +118,9 @@ export const MenuTitlesWrapper = styled.div`
   align-items: center;
 `;
 
-export const MenuTitle = styled(Link)<MenuTitleProps>`
+export const MenuTitle = styled(Link, {
+  shouldForwardProp: (prop) => prop !== 'menuColor' && prop !== 'isSelected',
+})<MenuTitleProps>`
   font-size: 18px;
   line-height: 36px;
   font-weight: ${({ isSelected }) => (isSelected ? '700' : '500')};

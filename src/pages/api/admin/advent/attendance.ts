@@ -99,17 +99,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const meditationUserIds = Array.from(new Set((meditationData || []).map(m => m.reg_id)));
-    
-    if (meditationUserIds.length === 0) {
-      return res.status(200).json({
-        date,
-        total_users: 0,
-        attended: 0,
-        meditation_count: 0,
-        attendance_rate: 0,
-        list: []
-      });
-    }
 
     /** ------------------------------
      * 2) 출석자 목록 조회
@@ -136,7 +125,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     /** ------------------------------
-     * 3) 묵상 작성자들의 profiles + group + cell JOIN
+     * 3) 묵상 작성자 또는 출석자 목록 합치기 (중복 제거)
+     * ------------------------------ */
+    const allUserIds = Array.from(new Set([...meditationUserIds, ...attendedUserIds]));
+    
+    if (allUserIds.length === 0) {
+      return res.status(200).json({
+        date,
+        total_users: 0,
+        attended: 0,
+        meditation_count: 0,
+        attendance_rate: 0,
+        list: []
+      });
+    }
+
+    /** ------------------------------
+     * 4) 묵상 작성자 또는 출석자들의 profiles + group + cell JOIN
      * ------------------------------ */
     let query = supabaseAdmin
       .from('profiles')
@@ -149,7 +154,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         hub_groups:group_id (id, name),
         hub_cells:cell_id (id, name)
       `)
-      .in('user_id', meditationUserIds);
+      .in('user_id', allUserIds);
 
     // 🔍 검색 필터
     if (search) {
@@ -182,7 +187,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
 
     /** ------------------------------
-     * 4) 묵상 여부와 출석 여부 매핑
+     * 5) 묵상 여부와 출석 여부 매핑
      * ------------------------------ */
     const list = safeUsers.map(u => {
       const hasMeditation = meditationUserIds.includes(u.user_id);
@@ -204,7 +209,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     /** ------------------------------
-     * 5) 통계 계산
+     * 6) 통계 계산
      * ------------------------------ */
     const total_users = list.length;
     const attended = list.filter(u => u.attended).length;

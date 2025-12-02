@@ -16,7 +16,8 @@ interface IParentComponentProps {
 declare module 'shortid';
 
 declare module '*.svg' {
+  import React from 'react';
   export const ReactComponent: React.FC<React.SVGProps<SVGSVGElement>>;
-  const src: string;
+  const src: React.FC<React.SVGProps<SVGSVGElement>>;
   export default src;
 }

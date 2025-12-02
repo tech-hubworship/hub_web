@@ -1,8 +1,8 @@
 import styled from "@emotion/styled";
 import { colors } from "@sopt-makers/colors";
 import { useState, useEffect } from "react";
-import MenuBar from "@src/assets/icons/menuBar.svg";
-import XButton from "@src/assets/icons/x_button.svg";
+import MenuBarIcon from "@src/assets/icons/menuBar.svg";
+import XButtonIcon from "@src/assets/icons/x_button.svg";
 
 import { MenuState } from "../types";
 import HeaderMenu from "./HeaderMenu";
@@ -29,9 +29,9 @@ function MobileHeader({ onMenuStateChange }: MobileHeaderProps) {
       <StyledHeader isMenuShown={isMenuShown === "open"}>
         <ToggleButton onClick={handleHeaderToggleButton}>
           {isMenuShown === "open" ? (
-            <XButton width="24px" height="24px" />
+            <XButtonIcon width="24" height="24" />
           ) : (
-            <MenuBar width="24px" height="24px" />
+            <MenuBarIcon width="24" height="24" />
           )}
         </ToggleButton>
         {/* <RecruitButton /> */}
