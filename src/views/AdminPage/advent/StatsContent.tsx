@@ -778,12 +778,56 @@ export default function AdventStatsPage() {
                       domain={maxValue > 0 ? [0, Math.ceil(maxValue * 1.1)] : [0, 10]}
                     />
                     <Tooltip
-                      formatter={(value: any, name: string) => {
-                        if (value === null || value === undefined) return [null, null];
-                        const dayNumber = name.replace('day', '');
-                        return [`${value}명`, `${dayNumber}일차`];
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload || payload.length === 0 || !label) return null;
+                        
+                        const hour = typeof label === 'number' ? label : parseInt(String(label), 10);
+                        if (isNaN(hour)) return null;
+                        
+                        const timeString = `${String(hour).padStart(2, '0')}:59:59`;
+                        
+                        return (
+                          <div style={{
+                            background: 'white',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            minWidth: '200px'
+                          }}>
+                            <div style={{ 
+                              fontWeight: 600, 
+                              marginBottom: '8px', 
+                              color: '#111827',
+                              fontSize: '13px'
+                            }}>
+                              ~ {timeString} 까지
+                            </div>
+                            {payload.map((entry: any, index: number) => {
+                              const dayNumber = entry.name.replace('day', '').replace('일차', '');
+                              const color = entry.color || entry.stroke || '#3b82f6';
+                              return (
+                                <div key={index} style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: '8px',
+                                  marginTop: '4px'
+                                }}>
+                                  <div style={{
+                                    width: '12px',
+                                    height: '12px',
+                                    borderRadius: '50%',
+                                    backgroundColor: color
+                                  }} />
+                                  <span style={{ fontSize: '12px', color: '#334155' }}>
+                                    {dayNumber}일차: <strong>{entry.value}명</strong>
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
                       }}
-                      labelFormatter={(label) => `${label}시`}
                     />
                     <Legend />
                     {validDates.map((dateData) => {
@@ -798,7 +842,7 @@ export default function AdventStatsPage() {
                           strokeWidth={2}
                           dot={{ fill: color, r: 3, strokeWidth: 1, stroke: '#fff' }}
                           activeDot={{ r: 5, fill: color, stroke: '#fff', strokeWidth: 2 }}
-                          name={`${dateData.dayNumber}일차`}
+                          name={dateData.dayNumber.toString()}
                           connectNulls={false}
                         />
                       );

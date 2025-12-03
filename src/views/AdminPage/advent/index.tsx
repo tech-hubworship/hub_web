@@ -75,6 +75,21 @@ export default function AdventPostsAdminPage() {
       });
 
       if (response.ok) {
+        // 클라이언트 캐시 무효화: revalidateTag API를 호출하여 클라이언트 fetch 캐시 무효화
+        try {
+          await fetch('/api/advent/revalidate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              tags: ['advent-posts', 'advent-posts-list'],
+            }),
+          });
+        } catch (cacheError) {
+          console.warn('캐시 무효화 실패 (무시됨):', cacheError);
+        }
+        
         setShowModal(false);
         setEditingPost(null);
         setFormData({
@@ -104,6 +119,23 @@ export default function AdventPostsAdminPage() {
       });
 
       if (response.ok) {
+        // ✅ 클라이언트 → 서버 API → revalidateTag() 호출 구조
+        // 클라이언트에서는 revalidateTag()를 직접 호출할 수 없으므로
+        // 서버 Route Handler를 통해 간접적으로 호출합니다.
+        try {
+          await fetch('/api/advent/revalidate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              tags: ['advent-posts', 'advent-posts-list'], // unstable_cache에서 지정한 태그
+            }),
+          });
+        } catch (cacheError) {
+          console.warn('캐시 무효화 실패 (무시됨):', cacheError);
+        }
+        
         fetchPosts();
       } else {
         const data = await response.json();

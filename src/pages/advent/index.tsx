@@ -300,12 +300,10 @@ const AdventPage = () => {
       setLoadingStartTime(startTime);
       setError(null);
       
-      // 서버의 Cache-Control 헤더를 존중하되, stale 데이터는 재검증
-      // HTTP 캐시를 활용하여 Edge request 최소화
+      // Pages Router에서는 fetch의 next 옵션이 작동하지 않으므로
+      // 클라이언트 측 캐시(postCacheRef)를 사용하여 중복 요청 방지
       const response = await fetch(`/api/advent/posts?date=${date}`, {
-        // 서버에서 보내는 Cache-Control 헤더를 브라우저가 자동으로 존중
-        // s-maxage=3600으로 CDN/Edge 캐시도 활용
-        cache: 'default',
+        cache: 'default', // 브라우저 캐시 사용
       });
       const data = await response.json();
 
@@ -389,7 +387,11 @@ const AdventPage = () => {
   const fetchPreviousPosts = useCallback(async (currentPostDt?: string) => {
     try {
       setLoadingPrevious(true);
-      const response = await fetch('/api/advent/posts-list?limit=12');
+      // Pages Router에서는 fetch의 next 옵션이 작동하지 않으므로
+      // 클라이언트 측 캐시를 사용하여 중복 요청 방지
+      const response = await fetch('/api/advent/posts-list?limit=12', {
+        cache: 'default', // 브라우저 캐시 사용
+      });
       const data = await response.json();
 
       if (response.ok) {

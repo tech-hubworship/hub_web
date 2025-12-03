@@ -2,38 +2,13 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@src/lib/supabase';
 import { unstable_cache } from 'next/cache';
 
-// Node.js runtime 명시 (unstable_cache는 Node.js에서만 작동)
-export const config = {
-  runtime: 'nodejs',
-};
-
-// 캐시된 게시물 조회 함수 (날짜별로 캐시 키 분리)
-const getCachedPost = (date: string) => {
-  return unstable_cache(
-    async () => {
-      const { data, error } = await supabaseAdmin
-        .from('advent_posts')
-        .select('*')
-        .eq('post_dt', date)
-        .single();
-      
-      if (error) {
-        if (error.code === 'PGRST116') {
-          return { post: null, error: null };
-        }
-        return { post: null, error };
-      }
-      
-      return { post: data, error: null };
-    },
-    [`advent-post-${date}`],
-    {
-      tags: ['advent-posts'],
-      revalidate: 3600, // 1시간
-    }
-  )();
-};
-
+/**
+ * GET API: 게시물 조회
+ * 
+ * ✅ 태그 기반 캐싱 구조
+ * - unstable_cache로 태그 'advent-posts' 지정
+ * - 클라이언트에서 /api/advent/revalidate 호출 시 revalidateTag('advent-posts')로 무효화 가능
+ */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: '허용되지 않는 메서드입니다.' });
@@ -46,47 +21,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: '올바른 날짜 형식이 아닙니다. (YYYYMMDD)' });
     }
 
-    // 캐시 우회 요청인 경우 직접 조회 (캐시 무효화를 위한 내부 호출)
-    if (req.headers['x-cache-bypass']) {
-      const { data, error } = await supabaseAdmin
-        .from('advent_posts')
-        .select('*')
-        .eq('post_dt', date)
-        .single();
+    // unstable_cache로 태그 기반 캐싱 (revalidateTag로 무효화 가능)
+    const getCachedPost = unstable_cache(
+      async (postDate: string) => {
+        const { data, error } = await supabaseAdmin
+          .from('advent_posts')
+          .select('*')
+          .eq('post_dt', postDate)
+          .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-          res.setHeader('Pragma', 'no-cache');
-          res.setHeader('Expires', '0');
-          return res.status(200).json({ post: null });
+        if (error) {
+          if (error.code === 'PGRST116') {
+            return null;
+          }
+          throw error;
         }
-        console.error('게시물 조회 오류:', error);
-        return res.status(500).json({ error: '게시물을 불러오는데 실패했습니다.' });
+
+        return data;
+      },
+      [`advent-post-${date}`], // 캐시 키
+      {
+        tags: ['advent-posts'], // revalidateTag로 무효화할 태그
+        revalidate: 3600, // 1시간
       }
+    );
 
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      return res.status(200).json({ post: data });
+    const data = await getCachedPost(date);
+
+    if (data === null && req.query.date) {
+      // 데이터가 없을 때는 null 반환
+      return res.status(200).json({ post: null });
     }
 
-    // 일반 요청: 캐시 사용
-    const { post, error } = await getCachedPost(date);
-
-    if (error) {
-      console.error('게시물 조회 오류:', error);
-      return res.status(500).json({ error: '게시물을 불러오는데 실패했습니다.' });
-    }
-
-    // 게시물 데이터 캐싱 (1시간 캐시, stale-while-revalidate로 최대 2시간까지 사용)
-    res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
-    
-    return res.status(200).json({ post });
+    return res.status(200).json({ post: data });
   } catch (error) {
     console.error('게시물 조회 오류:', error);
     return res.status(500).json({ error: '게시물을 불러오는데 실패했습니다.' });
   }
 }
-
-
