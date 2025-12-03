@@ -494,6 +494,21 @@ const AdventPage = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // 묵상 저장 성공 시 캐시 무효화
+        try {
+          await fetch('/api/advent/revalidate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              tags: ['advent-comments'], // 묵상 댓글 캐시 무효화
+            }),
+          });
+        } catch (cacheError) {
+          console.warn('캐시 무효화 실패 (무시됨):', cacheError);
+        }
+
         setCommentText('');
         setMeditationSaved(true);
         // 전체 묵상 새로고침
