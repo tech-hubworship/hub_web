@@ -57,6 +57,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ post: null });
     }
 
+    // Edge/CDN 캐싱을 위한 Cache-Control 헤더 설정
+    // max-age=0: 브라우저는 항상 재검증 (revalidateTag 무효화 시 즉시 반영)
+    // s-maxage=3600: Edge/CDN에서 1시간 캐싱 (Edge request 대폭 감소)
+    // stale-while-revalidate=7200: 만료 후 2시간 동안 stale 데이터 제공하며 백그라운드 재검증
+    res.setHeader(
+      'Cache-Control',
+      'public, max-age=0, s-maxage=3600, stale-while-revalidate=7200, must-revalidate'
+    );
+
     return res.status(200).json({ post: data });
   } catch (error) {
     console.error('게시물 조회 오류:', error);
