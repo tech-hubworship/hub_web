@@ -5,10 +5,35 @@ import { unstable_cache } from 'next/cache';
 /**
  * GET API: 게시물 목록 조회
  * 
- * ✅ 태그 기반 캐싱 구조
- * - unstable_cache로 태그 'advent-posts-list' 지정
+ * ✅ Next.js 캐시 전략 (unstable_cache)
+ * - 태그 기반 캐싱: 'advent-posts-list' 태그로 캐시 관리
+ * - revalidate: 3600초 (1시간) - 캐시 유효 기간
  * - 클라이언트에서 /api/advent/revalidate 호출 시 revalidateTag('advent-posts-list')로 무효화 가능
  */
+
+// 캐시된 데이터 조회 함수 (handler 외부에서 정의하여 캐시가 제대로 작동하도록)
+// unstable_cache는 함수 인자를 자동으로 캐시 키에 포함시킵니다
+const getCachedPostsList = unstable_cache(
+  async (limit: number) => {
+    const { data, error } = await supabaseAdmin
+      .from('advent_posts')
+      .select('post_dt, title, thumbnail_url, video_url')
+      .order('post_dt', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw error;
+    }
+
+    return data || [];
+  },
+  ['advent-posts-list'], // 캐시 키 prefix (실제 키는 'advent-posts-list-{limit}' 형태)
+  {
+    tags: ['advent-posts-list'], // revalidateTag로 무효화할 태그
+    revalidate: 3600, // 1시간 캐시 유효 기간
+  }
+);
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: '허용되지 않는 메서드입니다.' });
@@ -18,28 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { limit = '10' } = req.query;
     const limitNum = parseInt(limit as string, 10);
 
-    // unstable_cache로 태그 기반 캐싱 (revalidateTag로 무효화 가능)
-    const getCachedPostsList = unstable_cache(
-      async (limit: number) => {
-        const { data, error } = await supabaseAdmin
-          .from('advent_posts')
-          .select('post_dt, title, thumbnail_url, video_url')
-          .order('post_dt', { ascending: false })
-          .limit(limit);
-
-        if (error) {
-          throw error;
-        }
-
-        return data || [];
-      },
-      [`advent-posts-list-${limitNum}`], // 캐시 키
-      {
-        tags: ['advent-posts-list'], // revalidateTag로 무효화할 태그
-        revalidate: 3600, // 1시간
-      }
-    );
-
+    // 캐시된 데이터 조회 (Next.js가 자동으로 캐시 관리)
     const data = await getCachedPostsList(limitNum);
 
     return res.status(200).json({ posts: data });

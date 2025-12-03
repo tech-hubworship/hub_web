@@ -18,7 +18,7 @@ function Channels({ isFooter = false }: ChannelsProps) {
         window.open("https://www.youtube.com/@hub_worship");
         break;
       case "instagram":
-        window.open("https://www.youtube.com/@hub_worship");
+        window.open("https://www.instagram.com/hub_worship/");
         break;
       case "youtube":
         window.open("https://www.youtube.com/@hub_worship");
