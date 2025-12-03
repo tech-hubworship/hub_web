@@ -11,26 +11,9 @@ export interface TabInfo {
   requiredRoles?: string[];
 }
 
-// 사용 가능한 모든 어드민 메뉴 정의
+// 기본 대시보드 메뉴만 정의 (하위 호환성용, 실제로는 DB에서 관리)
 export const ADMIN_MENUS: TabInfo[] = [
   { id: 'dashboard', title: '대시보드', icon: '🏠', path: '/admin' },
-  { id: 'users', title: '회원관리', icon: '👥', path: '/admin/users', requiredRoles: ['MC'] },
-  { id: 'roles', title: '권한 관리', icon: '🔐', path: '/admin/roles', requiredRoles: ['MC'] },
-  { id: 'photos', title: '사진팀 관리', icon: '📷', path: '/admin/photos', requiredRoles: ['사진팀'] },
-  { id: 'photos-manage', title: '사진 관리', icon: '📸', path: '/admin/photos/manage', requiredRoles: ['사진팀'] },
-  { id: 'photos-reservations', title: '예약 관리', icon: '📋', path: '/admin/photos/reservations', requiredRoles: ['사진팀'] },
-  { id: 'design', title: '디자인 관리', icon: '🎨', path: '/admin/design', requiredRoles: ['디자인팀', '양육MC'] },
-  { id: 'secretary', title: '서기 관리', icon: '✍️', path: '/admin/secretary', requiredRoles: ['서기'] },
-  { id: 'advent', title: '대림절 관리', icon: '🎄', path: '/admin/advent', requiredRoles: ['목회자'] },
-  { id: 'advent-posts', title: '게시글 관리', icon: '📝', path: '/admin/advent/posts', requiredRoles: ['목회자'] },
-  { id: 'advent-attendance', title: '출석 현황', icon: '📅', path: '/admin/advent/attendance', requiredRoles: ['목회자'] },
-  { id: 'advent-stats', title: '대림절 통계', icon: '📊', path: '/admin/advent/stats', requiredRoles: ['목회자'] },
-  { id: 'bible-card', title: '말씀카드 관리', icon: '📜', path: '/admin/bible-card', requiredRoles: ['MC'] },
-  { id: 'bible-card-applications', title: '신청 관리', icon: '📋', path: '/admin/bible-card/applications', requiredRoles: ['MC'] },
-  { id: 'bible-card-pastor', title: '말씀 작성', icon: '✍️', path: '/admin/bible-card/pastor', requiredRoles: ['목회자'] },
-  { id: 'bible-card-complete', title: '완료 관리', icon: '✅', path: '/admin/bible-card/complete', requiredRoles: ['MC'] },
-  { id: 'tech-inquiries', title: '문의사항', icon: '💬', path: '/admin/tech-inquiries' },
-  { id: 'menu-management', title: '메뉴 관리', icon: '⚙️', path: '/admin/menu-management', requiredRoles: ['MC'] },
 ];
 
 interface MDIContextType {
@@ -93,18 +76,19 @@ export function AdminMDIProvider({ children }: { children: ReactNode }) {
     setActiveTabId(tabId);
   }, []);
 
-  // 경로로 메뉴 찾기
+  // 경로로 메뉴 찾기 (하위 호환성용, 실제로는 DB에서 관리)
   const getMenuByPath = useCallback((path: string) => {
     return ADMIN_MENUS.find(menu => menu.path === path);
   }, []);
 
-  // ID로 메뉴 찾기
+  // ID로 메뉴 찾기 (하위 호환성용, 실제로는 DB에서 관리)
   const getMenuById = useCallback((id: string) => {
     return ADMIN_MENUS.find(menu => menu.id === id);
   }, []);
 
-  // 사용자 역할에 따라 접근 가능한 메뉴 필터링
+  // 사용자 역할에 따라 접근 가능한 메뉴 필터링 (하위 호환성용, 실제로는 DB에서 관리)
   const getAccessibleMenus = useCallback((roles: string[]) => {
+    // 기본 대시보드만 반환 (실제 메뉴는 DB에서 관리)
     return ADMIN_MENUS.filter(menu => {
       if (!menu.requiredRoles || menu.requiredRoles.length === 0) {
         return true; // 권한 요구사항 없으면 모두 접근 가능

@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAdminMDI, TabInfo, ADMIN_MENUS } from '@src/contexts/AdminMDIContext';
+import { useAdminMDI, TabInfo } from '@src/contexts/AdminMDIContext';
 import * as S from './mdi-style';
 
 // 동적으로 로드할 콘텐츠 컴포넌트들
@@ -22,27 +22,27 @@ import BibleCardAdminPage from '@src/views/AdminPage/bible-card';
 import BibleCardPastorPage from '@src/views/AdminPage/bible-card/PastorPage';
 import BibleCardCompletePage from '@src/views/AdminPage/bible-card/CompletePage';
 
-// 메뉴 카드 설명
-const MENU_DESCRIPTIONS: Record<string, string> = {
-  'dashboard': 'HUB 관리자 대시보드에서 시스템을 관리할 수 있습니다.',
-  'users': '계정관리 및 권한관리',
-  'roles': '시스템 권한(역할)을 관리합니다',
-  'photos': '사진팀이 할 수 있는 업무를 선택해주세요.',
-  'photos-manage': '사진을 업로드하고 수정, 삭제, 미리보기를 할 수 있습니다',
-  'photos-reservations': '사진 예약 현황을 확인하고 관리합니다',
-  'design': '디자인 작업 관리 및 통계',
-  'secretary': '회의록 및 문서 관리',
-  'advent': '대림절 콘텐츠를 관리할 수 있습니다.',
-  'advent-posts': '대림절 말씀/영상/콘텐츠 관리',
-  'advent-attendance': '대림절 출석 정보 및 통계',
-  'advent-stats': '대림절 묵상+출석 통계 및 그래프',
-  'bible-card': '말씀카드 신청 현황 및 목회자 배정',
-  'bible-card-applications': '말씀카드 신청 현황 관리 및 목회자 배정',
-  'bible-card-pastor': '배정된 지체들에게 말씀 작성',
-  'bible-card-complete': '완료된 말씀카드 관리 및 CSV 추출',
-  'tech-inquiries': '사용자 문의 및 버그 리포트 관리',
-  'menu-management': '관리자 메뉴와 권한을 설정합니다',
+// 메뉴 ID와 컴포넌트 매핑 (동적 렌더링용)
+const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
+  'users': UsersAdminPage,
+  'roles': RolesAdminPage,
+  'tech-inquiries': TechInquiriesPage,
+  'advent-posts': AdventPostsAdminPage,
+  'advent-attendance': AttendanceContent,
+  'advent-stats': AdventStatsPage,
+  'photos-manage': ManageContent,
+  'photos-reservations': ReservationsContent,
+  'bible-card-applications': BibleCardAdminPage,
+  'bible-card-pastor': BibleCardPastorPage,
+  'bible-card-complete': BibleCardCompletePage,
+  'menu-management': MenuManagementPage,
 };
+
+// 확장된 TabInfo 타입 (description 포함)
+interface ExtendedTabInfo extends TabInfo {
+  description?: string;
+  parent_id?: number | null;
+}
 
 export default function MDIAdminPage() {
   const { data: session, status } = useSession();
@@ -84,6 +84,7 @@ export default function MDIAdminPage() {
     order_index: number;
     is_active: boolean;
     roles: string[];
+    description?: string;
   }>>({
     queryKey: ['admin-menus'],
     queryFn: async () => {
@@ -97,8 +98,8 @@ export default function MDIAdminPage() {
   // DB 메뉴를 TabInfo 형식으로 변환하고 권한 필터링 (hooks는 항상 early return 이전에 호출되어야 함)
   const accessibleMenus = React.useMemo(() => {
     if (!dbMenus) {
-      // DB 메뉴가 없으면 기본 ADMIN_MENUS 사용 (하위 호환성)
-      return getAccessibleMenus(roles);
+      // DB 메뉴가 없으면 빈 배열 반환 (하위 호환성 제거)
+      return [];
     }
 
     // 활성화된 메뉴만 필터링
@@ -120,13 +121,15 @@ export default function MDIAdminPage() {
         icon: menu.icon,
         path: menu.path,
         requiredRoles: menu.roles || [],
-      }))
+        description: menu.description || '',
+        parent_id: menu.parent_id,
+      } as ExtendedTabInfo))
       .sort((a, b) => {
         const menuA = dbMenus.find(m => m.menu_id === a.id);
         const menuB = dbMenus.find(m => m.menu_id === b.id);
         return (menuA?.order_index || 0) - (menuB?.order_index || 0);
       });
-  }, [dbMenus, roles, getAccessibleMenus]);
+  }, [dbMenus, roles]);
 
   // URL 쿼리 파라미터로 탭 자동 열기
   useEffect(() => {
@@ -175,70 +178,56 @@ export default function MDIAdminPage() {
 
   // 현재 활성 탭에 따른 콘텐츠 렌더링
   const renderTabContent = () => {
-    switch (activeTabId) {
-      case 'dashboard':
-        return (
-          <DashboardContent 
-            session={session} 
-            accessibleMenus={accessibleMenus}
-            onMenuClick={handleMenuClick}
-          />
-        );
-      case 'users':
-        return <UsersAdminPage />;
-      case 'roles':
-        return <RolesAdminPage />;
-      case 'photos':
-        return (
-          <PhotosSubmenuContent 
-            session={session}
-            accessibleMenus={accessibleMenus}
-            onMenuClick={handleMenuClick}
-          />
-        );
-      case 'tech-inquiries':
-        return <TechInquiriesPage />;
-      case 'design':
-        return <ComingSoonContent title="디자인 관리" />;
-      case 'secretary':
-        return <ComingSoonContent title="서기 관리" />;
-      case 'advent':
-        return (
-          <AdventSubmenuContent 
-            session={session}
-            accessibleMenus={accessibleMenus}
-            onMenuClick={handleMenuClick}
-          />
-        );
-      case 'advent-posts':
-        return <AdventPostsAdminPage />;
-      case 'advent-attendance':
-        return <AttendanceContent />;
-      case 'advent-stats':
-        return <AdventStatsPage />;
-      case 'photos-manage':
-        return <ManageContent />;
-      case 'photos-reservations':
-        return <ReservationsContent />;
-      case 'bible-card':
-        return (
-          <BibleCardSubmenuContent 
-            session={session}
-            accessibleMenus={accessibleMenus}
-            onMenuClick={handleMenuClick}
-          />
-        );
-      case 'bible-card-applications':
-        return <BibleCardAdminPage />;
-      case 'bible-card-pastor':
-        return <BibleCardPastorPage />;
-      case 'bible-card-complete':
-        return <BibleCardCompletePage />;
-      case 'menu-management':
-        return <MenuManagementPage />;
-      default:
-        return <ComingSoonContent title={activeTabId} />;
+    const activeMenu = accessibleMenus.find(m => m.id === activeTabId);
+    
+    // 대시보드
+    if (activeTabId === 'dashboard') {
+      return (
+        <DashboardContent 
+          session={session} 
+          accessibleMenus={accessibleMenus}
+          onMenuClick={handleMenuClick}
+        />
+      );
     }
+
+    // 부모 메뉴가 서브메뉴 콘텐츠를 표시하는 경우 (photos, advent, bible-card)
+    if (activeTabId === 'photos') {
+      return (
+        <PhotosSubmenuContent 
+          session={session}
+          accessibleMenus={accessibleMenus}
+          onMenuClick={handleMenuClick}
+        />
+      );
+    }
+    if (activeTabId === 'advent') {
+      return (
+        <AdventSubmenuContent 
+          session={session}
+          accessibleMenus={accessibleMenus}
+          onMenuClick={handleMenuClick}
+        />
+      );
+    }
+    if (activeTabId === 'bible-card') {
+      return (
+        <BibleCardSubmenuContent 
+          session={session}
+          accessibleMenus={accessibleMenus}
+          onMenuClick={handleMenuClick}
+        />
+      );
+    }
+
+    // 동적 컴포넌트 매핑
+    const Component = MENU_COMPONENTS[activeTabId];
+    if (Component) {
+      return <Component />;
+    }
+
+    // 컴포넌트가 없는 경우 Coming Soon 표시
+    return <ComingSoonContent title={activeMenu?.title || activeTabId} />;
   };
 
   return (
@@ -279,50 +268,25 @@ export default function MDIAdminPage() {
                 // 대시보드는 항상 표시
                 if (menu.id === 'dashboard') return true;
                 // 하위 메뉴는 별도 처리 (parent_id가 있는 메뉴는 하위 메뉴)
-                if (dbMenus) {
-                  const dbMenu = dbMenus.find(m => m.menu_id === menu.id);
-                  if (dbMenu?.parent_id) return false;
-                } else {
-                  // DB 메뉴가 없을 때는 기존 로직 사용
-                  if (menu.id.includes('-')) return false;
-                }
+                const dbMenu = dbMenus?.find(m => m.menu_id === menu.id);
+                if (dbMenu?.parent_id) return false;
                 return true;
               })
               .map(menu => {
                 // 하위 메뉴 찾기 (DB에서 parent_id로 찾기)
-                let accessibleSubMenus: TabInfo[] = [];
-                if (dbMenus) {
-                  const dbMenu = dbMenus.find(m => m.menu_id === menu.id);
-                  if (dbMenu) {
-                    accessibleSubMenus = accessibleMenus
+                const dbMenu = dbMenus?.find(m => m.menu_id === menu.id);
+                const accessibleSubMenus: TabInfo[] = dbMenu
+                  ? accessibleMenus
                       .filter(subMenu => {
-                        const subDbMenu = dbMenus.find(m => m.menu_id === subMenu.id);
+                        const subDbMenu = dbMenus?.find(m => m.menu_id === subMenu.id);
                         return subDbMenu?.parent_id === dbMenu.id;
                       })
                       .sort((a, b) => {
-                        const menuA = dbMenus.find(m => m.menu_id === a.id);
-                        const menuB = dbMenus.find(m => m.menu_id === b.id);
+                        const menuA = dbMenus?.find(m => m.menu_id === a.id);
+                        const menuB = dbMenus?.find(m => m.menu_id === b.id);
                         return (menuA?.order_index || 0) - (menuB?.order_index || 0);
-                      });
-                  }
-                } else {
-                  // DB 메뉴가 없을 때는 기존 하위 메뉴 로직 사용
-                  const subMenus: { [key: string]: string[] } = {
-                    'photos': ['photos-manage', 'photos-reservations'],
-                    'advent': ['advent-posts', 'advent-attendance'],
-                    'bible-card': ['bible-card-applications', 'bible-card-pastor', 'bible-card-complete'],
-                  };
-                  const hasSubMenus = subMenus[menu.id] && subMenus[menu.id].length > 0;
-                  if (hasSubMenus) {
-                    accessibleSubMenus = subMenus[menu.id]
-                      .filter(subId => accessibleMenus.some(m => m.id === subId))
-                      .map(subId => {
-                        const subMenu = ADMIN_MENUS.find(m => m.id === subId);
-                        return subMenu!;
                       })
-                      .filter(Boolean);
-                  }
-                }
+                  : []
 
                 return (
                   <React.Fragment key={menu.id}>
@@ -426,10 +390,10 @@ function DashboardContent({ session, accessibleMenus, onMenuClick }: DashboardCo
       if (!hasPermission) return false;
     }
     
-    // 하위 메뉴는 제외 (parent_id가 있거나 경로에 하위 경로가 있는 경우)
-    if (m.path.includes('/admin/photos/') && m.path !== '/admin/photos') return false;
-    if (m.path.includes('/admin/advent/') && m.path !== '/admin/advent') return false;
-    if (m.path.includes('/admin/bible-card/') && m.path !== '/admin/bible-card') return false;
+    // 하위 메뉴는 제외 (parent_id가 있는 경우)
+    const extendedMenu = m as ExtendedTabInfo;
+    if (extendedMenu.parent_id) return false;
+    
     return true;
   });
 
@@ -444,15 +408,18 @@ function DashboardContent({ session, accessibleMenus, onMenuClick }: DashboardCo
 
       <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
       <S.MenuGrid>
-        {menuItems.map((menu) => (
-          <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
-            <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
-            <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
-            <S.MenuCardDescription>
-              {MENU_DESCRIPTIONS[menu.id] || '관리 메뉴'}
-            </S.MenuCardDescription>
-          </S.MenuCard>
-        ))}
+        {menuItems.map((menu) => {
+          const extendedMenu = menu as ExtendedTabInfo;
+          return (
+            <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
+              <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
+              <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
+              <S.MenuCardDescription>
+                {extendedMenu.description || '관리 메뉴'}
+              </S.MenuCardDescription>
+            </S.MenuCard>
+          );
+        })}
       </S.MenuGrid>
     </>
   );
@@ -493,15 +460,18 @@ function PhotosSubmenuContent({ session, accessibleMenus, onMenuClick }: Submenu
 
       <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
       <S.MenuGrid>
-        {photosMenus.map((menu) => (
-          <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
-            <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
-            <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
-            <S.MenuCardDescription>
-              {MENU_DESCRIPTIONS[menu.id] || '관리 메뉴'}
-            </S.MenuCardDescription>
-          </S.MenuCard>
-        ))}
+        {photosMenus.map((menu) => {
+          const extendedMenu = menu as ExtendedTabInfo;
+          return (
+            <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
+              <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
+              <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
+              <S.MenuCardDescription>
+                {extendedMenu.description || '관리 메뉴'}
+              </S.MenuCardDescription>
+            </S.MenuCard>
+          );
+        })}
       </S.MenuGrid>
     </>
   );
@@ -536,15 +506,18 @@ function AdventSubmenuContent({ session, accessibleMenus, onMenuClick }: Submenu
 
       <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
       <S.MenuGrid>
-        {adventMenus.map((menu) => (
-          <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
-            <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
-            <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
-            <S.MenuCardDescription>
-              {MENU_DESCRIPTIONS[menu.id] || '관리 메뉴'}
-            </S.MenuCardDescription>
-          </S.MenuCard>
-        ))}
+        {adventMenus.map((menu) => {
+          const extendedMenu = menu as ExtendedTabInfo;
+          return (
+            <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
+              <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
+              <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
+              <S.MenuCardDescription>
+                {extendedMenu.description || '관리 메뉴'}
+              </S.MenuCardDescription>
+            </S.MenuCard>
+          );
+        })}
       </S.MenuGrid>
     </>
   );
@@ -579,15 +552,18 @@ function BibleCardSubmenuContent({ session, accessibleMenus, onMenuClick }: Subm
 
       <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
       <S.MenuGrid>
-        {bibleCardMenus.map((menu) => (
-          <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
-            <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
-            <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
-            <S.MenuCardDescription>
-              {MENU_DESCRIPTIONS[menu.id] || '관리 메뉴'}
-            </S.MenuCardDescription>
-          </S.MenuCard>
-        ))}
+        {bibleCardMenus.map((menu) => {
+          const extendedMenu = menu as ExtendedTabInfo;
+          return (
+            <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
+              <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
+              <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
+              <S.MenuCardDescription>
+                {extendedMenu.description || '관리 메뉴'}
+              </S.MenuCardDescription>
+            </S.MenuCard>
+          );
+        })}
       </S.MenuGrid>
     </>
   );

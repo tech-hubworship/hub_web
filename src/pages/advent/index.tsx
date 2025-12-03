@@ -346,7 +346,7 @@ const AdventPage = () => {
           }, 300);
         }, remainingTime);
     }
-  }, [loadingStartTime]);
+  }, []); // loadingStartTime은 내부에서만 사용되므로 의존성에서 제거
 
   const fetchComments = useCallback(async (date: string, page: number = 1, limit: number = 20, showLoading: boolean = false) => {
     try {
