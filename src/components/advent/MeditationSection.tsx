@@ -484,9 +484,22 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
     visible: {
       opacity: 1,
       transition: {
-        duration: isMobile ? 0.2 : 0.5,
-        staggerChildren: isMobile ? 0.02 : 0.08,
-        delayChildren: isMobile ? 0 : 0.1,
+        staggerChildren: isMobile ? 0.05 : 0.1, // 순차적 애니메이션 간격
+        delayChildren: isMobile ? 0 : 0.1
+      }
+    }
+  };
+
+  // 포스트잇 카드용 variants (부모의 staggerChildren 효과를 받음)
+  // transition을 완전히 제거하여 부모의 staggerChildren이 작동하도록 함
+  // 자식의 transition이 없으면 부모의 staggerChildren 타이밍을 따름
+  const postItItemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.4, // 각 카드의 애니메이션 지속 시간
         ease: "easeOut"
       }
     }
@@ -504,23 +517,11 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
     }
   };
 
-  const postItVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: isMobile ? 0.2 : 0.4,
-        ease: "easeOut"
-      }
-    }
-  };
-
   return (
     <SectionCard
       initial={isMobile ? false : "hidden"}
       whileInView="visible"
-      viewport={{ once: true, margin: isMobile ? "-50px" : "-200px", amount: isMobile ? 0 : 0.3 }}
+      viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: 0 }}
       variants={containerVariants}
     >
       <ContentWrapper>
@@ -555,7 +556,8 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
         <MeditationList 
           key={`meditation-list-${showMyMeditation ? 'my' : 'all'}-${comments.length}`}
           initial="hidden"
-          animate="visible"
+          whileInView="visible"
+          viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: 0 }}
           variants={containerVariants}
         >
           {loading ? (
@@ -580,7 +582,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
                 <MeditationPostIt
                   key={comment.comment_id} 
                   colorIndex={colorIdx}
-                  variants={postItVariants}
+                  variants={postItItemVariants}
                   onTap={() => setSelectedComment(comment)}
                   style={{ cursor: 'pointer' }}
                 >

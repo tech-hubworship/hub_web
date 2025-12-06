@@ -431,6 +431,7 @@ export default function AdventStatsPage() {
       });
     
     // 모든 날짜 수집 및 정렬 (일차 기준)
+    // daily와 cumulative 모두에서 날짜를 수집하여 누락 방지
     const allDates = Array.from(new Set([
       ...Array.from(dailyMap.keys()),
       ...Array.from(cumulativeMap.keys())
@@ -447,7 +448,7 @@ export default function AdventStatsPage() {
         dayNumber,
         day: dayNumber > 0 ? `${dayNumber}일` : '',
         completed: daily?.completed || 0,
-        cumulative: cumulative?.cumulativeCompleted || 0,
+        cumulative: cumulative?.cumulativeCompleted ?? 0, // null/undefined도 0으로 처리
       };
     }).sort((a, b) => a.dayNumber - b.dayNumber);
     
