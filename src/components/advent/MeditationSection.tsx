@@ -479,39 +479,54 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
     return pages;
   };
 
+  // 섹션 헤더용 variants - opacity만 사용하여 안전하게
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: isMobile ? 0.05 : 0.1, // 순차적 애니메이션 간격
-        delayChildren: isMobile ? 0 : 0.1
+        duration: 0.6,
+        staggerChildren: 0.1,
+        delayChildren: 0.1,
+        ease: "easeOut"
       }
     }
   };
 
-  // 포스트잇 카드용 variants (부모의 staggerChildren 효과를 받음)
-  // transition을 완전히 제거하여 부모의 staggerChildren이 작동하도록 함
-  // 자식의 transition이 없으면 부모의 staggerChildren 타이밍을 따름
+  // 포스트잇 리스트용 variants (순차 애니메이션) - opacity만 사용하여 안전하게
+  const listContainerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: isMobile ? 0.05 : 0.1,
+        delayChildren: 0.1,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  // 포스트잇 카드용 variants
   const postItItemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.4, // 각 카드의 애니메이션 지속 시간
+        duration: 0.4,
         ease: "easeOut"
       }
     }
   };
 
+  // 헤더 아이템용 variants
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: isMobile ? 0.2 : 0.4,
+        duration: 0.5,
         ease: "easeOut"
       }
     }
@@ -519,9 +534,9 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
 
   return (
     <SectionCard
-      initial={isMobile ? false : "hidden"}
+      initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: 0 }}
+      viewport={{ once: true, margin: "-100px" }}
       variants={containerVariants}
     >
       <ContentWrapper>
@@ -557,8 +572,8 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
           key={`meditation-list-${showMyMeditation ? 'my' : 'all'}-${comments.length}`}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: 0 }}
-          variants={containerVariants}
+          viewport={{ once: true, margin: "-100px" }}
+          variants={listContainerVariants}
         >
           {loading ? (
             <LoadingContainer>
