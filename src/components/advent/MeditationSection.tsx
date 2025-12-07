@@ -423,6 +423,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
 }) => {
   const [selectedComment, setSelectedComment] = useState<AdventComment | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [listAnimationKey, setListAnimationKey] = useState(0);
 
   // 화면 크기 감지
   useEffect(() => {
@@ -439,6 +440,17 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
       window.removeEventListener('orientationchange', checkMobile);
     };
   }, []);
+
+  // 페이지 변경 시 애니메이션 재트리거
+  useEffect(() => {
+    if (!loading && comments.length > 0) {
+      // 약간의 지연 후 애니메이션 재트리거
+      const timer = setTimeout(() => {
+        setListAnimationKey(prev => prev + 1);
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [currentPage, comments.length, loading]);
 
   const itemsPerPage = isMobile ? 5 : 8;
   const totalPages = Math.ceil(totalComments / itemsPerPage);
@@ -569,8 +581,9 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
         )}
 
         <MeditationList 
-          key={`meditation-list-${showMyMeditation ? 'my' : 'all'}-${comments.length}`}
+          key={`meditation-list-${showMyMeditation ? 'my' : 'all'}-${currentPage}-${listAnimationKey}`}
           initial="hidden"
+          animate={loading ? "hidden" : "visible"}
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={listContainerVariants}
