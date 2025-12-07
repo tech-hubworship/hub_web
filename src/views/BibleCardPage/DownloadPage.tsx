@@ -201,7 +201,7 @@ export default function BibleCardDownloadPage() {
   const app: ApplicationData = myApplication.application;
 
   // 오픈 전 - 카운트다운 표시
-  if (false) { // !isOpen
+  if (!isOpen) {
     return (
       <>
         <Head>
