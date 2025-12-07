@@ -120,7 +120,7 @@ export default function BibleCardDownloadPage() {
       const filename = `${appName}_말씀카드_${index}.jpg`;
 
       // 프록시 API 호출
-      const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(linkUrl)}&filename=${encodeURIComponent(filename)}`;
+      const proxyUrl = `/api/bible-card/download-proxy?url=${encodeURIComponent(linkUrl)}&filename=${encodeURIComponent(filename)}`;
       
       const response = await fetch(proxyUrl);
       if (!response.ok) {
@@ -291,7 +291,7 @@ export default function BibleCardDownloadPage() {
                     onClick={() => handleDownload(app.drive_link_1, 1)}
                     disabled={downloading[1]}
                   >
-                    {downloading[1] ? '다운로드 중...' : '📥 말씀카드 다운로드 (1)'}
+                    {downloading[1] ? '다운로드 중...' : '말씀카드 ver.1'}
                   </DownloadButton>
                   {app.drive_link_2 && (
                     <DownloadButton 
@@ -299,7 +299,7 @@ export default function BibleCardDownloadPage() {
                       disabled={downloading[2]}
                       secondary
                     >
-                      {downloading[2] ? '다운로드 중...' : '📥 말씀카드 다운로드 (2)'}
+                      {downloading[2] ? '다운로드 중...' : '말씀카드 ver.2'}
                     </DownloadButton>
                   )}
                 </>
