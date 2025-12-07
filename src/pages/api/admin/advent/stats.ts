@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]';
 import { supabaseAdmin } from '@src/lib/supabase';
+import { getKoreanDateString } from '@src/lib/utils/date';
 
 export default async function handler(
   req: NextApiRequest,
@@ -21,354 +22,144 @@ export default async function handler(
     const { startDate: startDateParam, endDate: endDateParam } = req.query;
 
     // 오늘 날짜 (한국 시간 기준)
-    const now = new Date();
-    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-    const todayStr = koreanTime.toISOString().slice(0, 10).replace(/-/g, '');
+    const todayStr = getKoreanDateString();
 
-    // 오늘 묵상+출석한 사람 수
-    const { data: todayComments } = await supabaseAdmin
-      .from('advent_comments')
-      .select('reg_id, reg_dt')
-      .eq('post_dt', todayStr);
-
-    const { data: todayAttendance } = await supabaseAdmin
-      .from('advent_attendance')
-      .select('user_id, reg_dt')
-      .eq('post_dt', todayStr);
-
-    const todayCommentUserIds = new Set(todayComments?.map(c => c.reg_id) || []);
-    const todayAttendanceUserIds = new Set(todayAttendance?.map(a => a.user_id) || []);
+    // 오늘 통계를 RPC 함수로 조회
+    const { data: todayStatsData, error: todayError } = await supabaseAdmin.rpc('get_advent_today_stats', {
+      today_date: todayStr
+    });
     
-    // 오늘 묵상과 출석을 모두 한 사람
-    const todayCompleted = Array.from(todayCommentUserIds).filter(
-      userId => todayAttendanceUserIds.has(userId)
-    ).length;
+    const todayStatsRaw = todayStatsData?.[0] || {
+      completed: 0,
+      comment_only: 0,
+      attendance_only: 0,
+      comment_count: 0,
+      attendance_count: 0,
+    };
     
-    // 오늘 묵상만 한 사람 (출석 안함)
-    const todayCommentOnly = Array.from(todayCommentUserIds).filter(
-      userId => !todayAttendanceUserIds.has(userId)
-    ).length;
-    
-    // 오늘 출석만 한 사람 (묵상 안함)
-    const todayAttendanceOnly = Array.from(todayAttendanceUserIds).filter(
-      userId => !todayCommentUserIds.has(userId)
-    ).length;
+    const todayStats = {
+      completed: todayStatsRaw.completed || 0,
+      commentOnly: todayStatsRaw.comment_only || 0,
+      attendanceOnly: todayStatsRaw.attendance_only || 0,
+      commentCount: todayStatsRaw.comment_count || 0,
+      attendanceCount: todayStatsRaw.attendance_count || 0,
+    };
 
-    // 기간 설정 (2025-11-30 ~ 2025-12-25, 총 26일)
-    // 로컬 시간대를 사용하여 날짜 생성 (시간대 문제 방지)
-    const allDates: string[] = [];
-    const startDate = new Date(2025, 10, 30, 12, 0, 0); // 정오 시간으로 설정하여 시간대 문제 방지
-    const endDate = new Date(2025, 11, 25, 12, 0, 0); // 정오 시간으로 설정
+    // 기간 설정 (시작일과 종료일)
+    const startDateStr = startDateParam && typeof startDateParam === 'string' 
+      ? startDateParam.replace(/-/g, '') 
+      : '20251130';
+    const endDateStr = endDateParam && typeof endDateParam === 'string'
+      ? endDateParam.replace(/-/g, '')
+      : '20251225';
     
-    const currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-      // 로컬 시간대 기준으로 날짜 문자열 생성
-      const year = currentDate.getFullYear();
-      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-      const day = String(currentDate.getDate()).padStart(2, '0');
-      const dateStr = `${year}${month}${day}`;
-      allDates.push(dateStr);
-      
-      // 다음 날로 이동
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
+    // YYYYMMDD를 YYYY-MM-DD로 변환
+    const startDateForRpc = `${startDateStr.slice(0, 4)}-${startDateStr.slice(4, 6)}-${startDateStr.slice(6, 8)}`;
+    const endDateForRpc = `${endDateStr.slice(0, 4)}-${endDateStr.slice(4, 6)}-${endDateStr.slice(6, 8)}`;
 
-    // 일차 계산 함수
+    // 일차 계산 함수 (한국 시간대 기준)
     const getDayNumber = (dateStr: string): number => {
       const year = parseInt(dateStr.slice(0, 4), 10);
-      const month = parseInt(dateStr.slice(4, 6), 10) - 1;
+      const month = parseInt(dateStr.slice(4, 6), 10);
       const day = parseInt(dateStr.slice(6, 8), 10);
-      const currentDate = new Date(year, month, day);
-      const baseDate = new Date(2025, 10, 30);
-      const diffTime = currentDate.getTime() - baseDate.getTime();
+      // 한국 시간대 기준으로 날짜 생성 (UTC+9)
+      const currentDateUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+      const baseDateUTC = new Date(Date.UTC(2025, 10, 30, 0, 0, 0)); // 11월 30일
+      const diffTime = currentDateUTC.getTime() - baseDateUTC.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       return diffDays + 1;
     };
 
-    // 각 날짜별로 묵상+출석 완료한 사람 수 조회
-    const dailyStats = await Promise.all(
-      allDates.map(async (dateStr) => {
-        const dayNumber = getDayNumber(dateStr);
-        
-        // 1일차 이상만 포함
-        if (dayNumber < 1) {
-          return null;
-        }
-
-        const { data: comments } = await supabaseAdmin
-          .from('advent_comments')
-          .select('reg_id')
-          .eq('post_dt', dateStr);
-
-        const { data: attendance } = await supabaseAdmin
-          .from('advent_attendance')
-          .select('user_id')
-          .eq('post_dt', dateStr);
-
-        const commentUserIds = new Set(comments?.map(c => c.reg_id) || []);
-        const attendanceUserIds = new Set(attendance?.map(a => a.user_id) || []);
-
-        // 묵상과 출석을 모두 한 사람
-        const completed = Array.from(commentUserIds).filter(
-          userId => attendanceUserIds.has(userId)
-        );
-        
-        // 묵상만 한 사람 (출석 안함)
-        const commentOnly = Array.from(commentUserIds).filter(
-          userId => !attendanceUserIds.has(userId)
-        );
-        
-        // 출석만 한 사람 (묵상 안함)
-        const attendanceOnly = Array.from(attendanceUserIds).filter(
-          userId => !commentUserIds.has(userId)
-        );
-
-        return {
-          date: dateStr,
-          dayNumber: dayNumber,
-          completed: completed.length,
-          commentOnly: commentOnly.length,
-          attendanceOnly: attendanceOnly.length,
-          commentCount: comments?.length || 0,
-          attendanceCount: attendance?.length || 0,
-        };
-      })
-    ).then(results => results.filter((r): r is NonNullable<typeof r> => r !== null));
-
-    // 누적 연속 완료 통계
-    // 각 사용자별로 연속 완료 일수 계산
-    const { data: allComments } = await supabaseAdmin
-      .from('advent_comments')
-      .select('reg_id, post_dt')
-      .in('post_dt', allDates)
-      .order('post_dt', { ascending: true });
-
-    const { data: allAttendance } = await supabaseAdmin
-      .from('advent_attendance')
-      .select('user_id, post_dt')
-      .in('post_dt', allDates)
-      .order('post_dt', { ascending: true });
-
-    // 사용자별 완료 날짜 집합 생성 (묵상과 출석을 모두 한 경우만 완료)
-    const userCommentDates: Record<string, Set<string>> = {};
-    const userAttendanceDates: Record<string, Set<string>> = {};
+    // 일별 통계를 RPC 함수로 조회
+    const { data: dailyStatsData } = await supabaseAdmin.rpc('get_advent_daily_stats', {
+      start_date: startDateForRpc,
+      end_date: endDateForRpc
+    });
     
-    allComments?.forEach(c => {
-      if (!userCommentDates[c.reg_id]) {
-        userCommentDates[c.reg_id] = new Set();
-      }
-      userCommentDates[c.reg_id].add(c.post_dt);
+    const dailyStats = (dailyStatsData || []).map((d: any) => ({
+      date: d.date,
+      dayNumber: d.day_number,
+      completed: d.completed || 0,
+      commentOnly: d.comment_only || 0,
+      attendanceOnly: d.attendance_only || 0,
+      commentCount: d.comment_count || 0,
+      attendanceCount: d.attendance_count || 0,
+    }));
+
+
+    // 연속 완료 일수별 통계를 RPC 함수로 조회
+    const { data: streakStatsData } = await supabaseAdmin.rpc('get_advent_streak_stats', {
+      start_date: startDateForRpc,
+      end_date: endDateForRpc
     });
-
-    allAttendance?.forEach(a => {
-      if (!userAttendanceDates[a.user_id]) {
-        userAttendanceDates[a.user_id] = new Set();
-      }
-      userAttendanceDates[a.user_id].add(a.post_dt);
-    });
-
-    // 묵상과 출석을 모두 한 날짜만 완료로 간주
-    const userCompletedDates: Record<string, Set<string>> = {};
-    Object.keys(userCommentDates).forEach(userId => {
-      if (userAttendanceDates[userId]) {
-        userCompletedDates[userId] = new Set();
-        userCommentDates[userId].forEach(dateStr => {
-          if (userAttendanceDates[userId].has(dateStr)) {
-            userCompletedDates[userId].add(dateStr);
-          }
-        });
-      }
-    });
-
-    // 각 사용자별로 연속 완료 일수 계산
-    const userStreaks: number[] = [];
-    Object.entries(userCompletedDates).forEach(([userId, completedDates]) => {
-      let maxStreak = 0;
-      let currentStreak = 0;
-
-      allDates.forEach(dateStr => {
-        if (completedDates.has(dateStr)) {
-          currentStreak++;
-          maxStreak = Math.max(maxStreak, currentStreak);
-        } else {
-          currentStreak = 0;
-        }
-      });
-
-      if (maxStreak > 0) {
-        userStreaks.push(maxStreak);
-      }
-    });
-
-    // 연속 완료 일수별 통계
+    
     const streakStats: Record<number, number> = {};
-    userStreaks.forEach(streak => {
-      streakStats[streak] = (streakStats[streak] || 0) + 1;
+    (streakStatsData || []).forEach((s: any) => {
+      if (s.streak && s.count) {
+        streakStats[s.streak] = s.count;
+      }
     });
 
-    // 누적 완료 통계 (1일차부터 N일차까지 완료한 사람 수)
-    const cumulativeStats = allDates
-      .map((dateStr, index) => {
-        const dayNumber = getDayNumber(dateStr);
-        
-        // 1일차 이상만 포함
-        if (dayNumber < 1) {
-          return null;
-        }
+    // 누적 완료 통계를 RPC 함수로 조회
+    const { data: cumulativeStatsData } = await supabaseAdmin.rpc('get_advent_cumulative_stats', {
+      start_date: startDateForRpc,
+      end_date: endDateForRpc
+    });
+    
+    const cumulativeStats = (cumulativeStatsData || []).map((c: any) => ({
+      date: c.date,
+      dayNumber: c.day_number,
+      cumulativeCompleted: c.cumulative_completed || 0,
+    }));
 
-        const datesUpToToday = allDates.slice(0, index + 1).filter(d => getDayNumber(d) >= 1);
-        const usersCompletedAll = Object.entries(userCompletedDates).filter(
-          ([userId, completedDates]) => {
-            return datesUpToToday.every(d => completedDates.has(d));
-          }
-        ).length;
-
-        return {
-          date: dateStr,
-          dayNumber: dayNumber,
-          cumulativeCompleted: usersCompletedAll,
-        };
-      })
-      .filter((r): r is NonNullable<typeof r> => r !== null);
-
-    // 시간대별 누적 추이 계산 (날짜별로 분리)
-    // 기간 설정 (시작일과 종료일이 제공되면 해당 기간 사용, 아니면 오늘만)
-    let targetDates: string[] = [];
-    if (startDateParam && endDateParam && typeof startDateParam === 'string' && typeof endDateParam === 'string') {
-      // YYYY-MM-DD 형식을 YYYYMMDD로 변환
-      const startDateStr = startDateParam.replace(/-/g, '');
-      const endDateStr = endDateParam.replace(/-/g, '');
-      
-      // 날짜 범위 생성
-      const start = new Date(
-        parseInt(startDateStr.slice(0, 4), 10),
-        parseInt(startDateStr.slice(4, 6), 10) - 1,
-        parseInt(startDateStr.slice(6, 8), 10)
-      );
-      const end = new Date(
-        parseInt(endDateStr.slice(0, 4), 10),
-        parseInt(endDateStr.slice(4, 6), 10) - 1,
-        parseInt(endDateStr.slice(6, 8), 10)
-      );
-      
-      const current = new Date(start);
-      while (current <= end) {
-        const year = current.getFullYear();
-        const month = String(current.getMonth() + 1).padStart(2, '0');
-        const day = String(current.getDate()).padStart(2, '0');
-        targetDates.push(`${year}${month}${day}`);
-        current.setDate(current.getDate() + 1);
+    // 시간대별 누적 추이를 RPC 함수로 조회
+    const { data: hourlyCumulativeData, error: hourlyError } = await supabaseAdmin.rpc('get_advent_hourly_cumulative', {
+      start_date: startDateForRpc,
+      end_date: endDateForRpc
+    });
+    
+    // 날짜별로 그룹화
+    const hourlyCumulativeByDateMap = new Map<string, Array<{ hour: number; cumulative: number }>>();
+    (hourlyCumulativeData || []).forEach((h: any) => {
+      if (!hourlyCumulativeByDateMap.has(h.date)) {
+        hourlyCumulativeByDateMap.set(h.date, []);
       }
-    } else {
-      // 기간이 제공되지 않으면 오늘만
-      targetDates = [todayStr];
-    }
-
-    // 각 날짜별로 시간대별 누적 추이 계산
+      hourlyCumulativeByDateMap.get(h.date)!.push({
+        hour: h.hour,
+        cumulative: h.cumulative || 0,
+      });
+    });
+    
+    // 각 날짜별로 0-23시 데이터 보장
     const hourlyCumulativeByDate: Array<{
       date: string;
       dayNumber: number;
       hourlyData: Array<{ hour: number; cumulative: number }>;
     }> = [];
-
-    for (const dateStr of targetDates) {
+    
+    hourlyCumulativeByDateMap.forEach((hourlyData, dateStr) => {
       const dayNumber = getDayNumber(dateStr);
-      if (dayNumber < 1) continue;
-
-      // 해당 날짜의 묵상과 출석 데이터 조회
-      const { data: dateComments } = await supabaseAdmin
-        .from('advent_comments')
-        .select('reg_id, reg_dt')
-        .eq('post_dt', dateStr);
-
-      const { data: dateAttendance } = await supabaseAdmin
-        .from('advent_attendance')
-        .select('user_id, reg_dt')
-        .eq('post_dt', dateStr);
-
-      // 0시부터 23시까지 초기화
-      const hourlyData: Array<{ hour: number; cumulative: number }> = [];
+      if (dayNumber < 1) return;
+      
+      // 0-23시 데이터 보장
+      const completeHourlyData: Array<{ hour: number; cumulative: number }> = [];
       for (let hour = 0; hour < 24; hour++) {
-        hourlyData.push({ hour, cumulative: 0 });
+        const existing = hourlyData.find((h: any) => h.hour === hour);
+        completeHourlyData.push({
+          hour,
+          cumulative: existing?.cumulative || 0,
+        });
       }
-
-      const userActivityTimes: Array<{ userId: string; hour: number }> = [];
-
-      // 묵상 데이터 처리
-      dateComments?.forEach(comment => {
-        if (comment.reg_id && comment.reg_dt) {
-          try {
-            const regDate = new Date(comment.reg_dt);
-            // 한국 시간대 (Asia/Seoul)로 변환하여 시간 추출
-            const formatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: 'Asia/Seoul',
-              hour: 'numeric',
-              hour12: false
-            });
-            const parts = formatter.formatToParts(regDate);
-            const hourPart = parts.find(part => part.type === 'hour');
-            if (hourPart) {
-              const hour = parseInt(hourPart.value, 10);
-              if (!isNaN(hour) && hour >= 0 && hour < 24) {
-                userActivityTimes.push({ userId: comment.reg_id, hour });
-              }
-            }
-          } catch (e) {
-            // 날짜 파싱 실패 시 무시
-          }
-        }
-      });
-
-      // 출석 데이터 처리
-      dateAttendance?.forEach(attendance => {
-        if (attendance.user_id && attendance.reg_dt) {
-          try {
-            const regDate = new Date(attendance.reg_dt);
-            // 한국 시간대 (Asia/Seoul)로 변환하여 시간 추출
-            const formatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: 'Asia/Seoul',
-              hour: 'numeric',
-              hour12: false
-            });
-            const parts = formatter.formatToParts(regDate);
-            const hourPart = parts.find(part => part.type === 'hour');
-            if (hourPart) {
-              const hour = parseInt(hourPart.value, 10);
-              if (!isNaN(hour) && hour >= 0 && hour < 24) {
-                userActivityTimes.push({ userId: attendance.user_id, hour });
-              }
-            }
-          } catch (e) {
-            // 날짜 파싱 실패 시 무시
-          }
-        }
-      });
-
-      // 각 시간대별로 누적 완료 인원 계산
-      const usersByHour = new Map<number, Set<string>>();
-      userActivityTimes.forEach(({ userId, hour }) => {
-        if (!usersByHour.has(hour)) {
-          usersByHour.set(hour, new Set());
-        }
-        usersByHour.get(hour)!.add(userId);
-      });
-
-      // 누적 계산
-      const cumulativeUsers = new Set<string>();
-      for (let hour = 0; hour < 24; hour++) {
-        const usersAtHour = usersByHour.get(hour);
-        if (usersAtHour) {
-          usersAtHour.forEach(userId => cumulativeUsers.add(userId));
-        }
-        hourlyData[hour].cumulative = cumulativeUsers.size;
-      }
-
+      
       hourlyCumulativeByDate.push({
         date: dateStr,
         dayNumber,
-        hourlyData,
+        hourlyData: completeHourlyData,
       });
-    }
+    });
+    
+    // 일차 순서대로 정렬
+    hourlyCumulativeByDate.sort((a, b) => a.dayNumber - b.dayNumber);
 
     // 기존 형식도 유지 (하위 호환성)
     const hourlyCumulative: Array<{ hour: number; cumulative: number }> = [];
@@ -377,18 +168,12 @@ export default async function handler(
     }
 
     return res.status(200).json({
-      today: {
-        completed: todayCompleted,
-        commentOnly: todayCommentOnly,
-        attendanceOnly: todayAttendanceOnly,
-        commentCount: todayComments?.length || 0,
-        attendanceCount: todayAttendance?.length || 0,
-      },
-      daily: dailyStats,
-      streaks: streakStats,
-      cumulative: cumulativeStats,
+      today: todayStats,
+      daily: dailyStats || [],
+      streaks: streakStats || {},
+      cumulative: cumulativeStats || [],
       hourlyCumulative: hourlyCumulative,
-      hourlyCumulativeByDate: hourlyCumulativeByDate,
+      hourlyCumulativeByDate: hourlyCumulativeByDate || [],
     });
   } catch (error) {
     console.error('통계 조회 오류:', error);

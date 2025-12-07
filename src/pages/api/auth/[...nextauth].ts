@@ -3,6 +3,7 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import { supabaseAdmin } from '@src/lib/supabase';
+import { unstable_cache } from 'next/cache';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -47,13 +48,26 @@ export const authOptions: NextAuthOptions = {
         token.name = user.name;
       }
 
-      // 토큰에 isAdmin 정보 추가 (매 요청마다 확인)
+      // 토큰에 isAdmin 정보 추가 (캐싱 적용)
       if (token.sub) {
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('status, admin_roles(roles(name))')
-          .eq('user_id', token.sub)
-          .maybeSingle();
+        // 캐시된 프로필 조회 (같은 사용자의 짧은 시간 내 요청은 캐시에서 반환)
+        const getCachedAdminProfile = unstable_cache(
+          async (userId: string) => {
+            const { data: profile } = await supabaseAdmin
+              .from('profiles')
+              .select('status, admin_roles(roles(name))')
+              .eq('user_id', userId)
+              .maybeSingle();
+            return profile;
+          },
+          ['user-admin-profile'],
+          {
+            tags: ['user-profile'],
+            revalidate: 60, // 1분 캐싱
+          }
+        );
+
+        const profile = await getCachedAdminProfile(token.sub);
 
         if (profile) {
           const hasAdminRoles = profile.admin_roles && (profile.admin_roles as any[]).length > 0;
@@ -71,15 +85,29 @@ export const authOptions: NextAuthOptions = {
       if (token.sub && session.user) {
         session.user.id = token.sub;
 
-        const { data: profile, error } = await supabaseAdmin
-          .from('profiles')
-          .select('*, admin_roles(roles(name))')
-          .eq('user_id', token.sub)
-          .maybeSingle();
-        
-        if (error) {
-          console.error("Error fetching profile in session:", error);
-        }
+        // 캐시된 프로필 조회 (같은 사용자의 짧은 시간 내 요청은 캐시에서 반환)
+        const getCachedFullProfile = unstable_cache(
+          async (userId: string) => {
+            const { data: profile, error } = await supabaseAdmin
+              .from('profiles')
+              .select('*, admin_roles(roles(name))')
+              .eq('user_id', userId)
+              .maybeSingle();
+            
+            if (error) {
+              console.error("Error fetching profile in session:", error);
+            }
+
+            return profile;
+          },
+          ['user-full-profile'],
+          {
+            tags: ['user-profile'],
+            revalidate: 60, // 1분 캐싱
+          }
+        );
+
+        const profile = await getCachedFullProfile(token.sub);
 
         if (!profile) {
           // --- 최초 로그인 사용자 ---

@@ -278,21 +278,19 @@ const AdventPage = () => {
     };
   }, []);
 
-  // API 중복 호출 방지를 위한 캐시 (짧은 시간만 캐시)
+  // API 중복 호출 방지를 위한 캐시
   const postCacheRef = useRef<Map<string, { post: AdventPost | null; timestamp: number }>>(new Map());
-  const CACHE_DURATION = 10000; // 10초 캐시 (성능 개선을 위해 짧게 유지)
+  const CACHE_DURATION = 300000; // 5분 캐시 (서버 캐시와 함께 사용하여 Edge request 최소화)
 
-  const fetchPost = useCallback(async (date: string, forceRefresh: boolean = false) => {
-    // 강제 새로고침이 아닐 때만 캐시 확인
-    if (!forceRefresh) {
-      const cached = postCacheRef.current.get(date);
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        setPost(cached.post);
-        setLoading(false);
-        setShowFullScreenIntro(false);
-        setShowScrollHint(true);
-        return;
-      }
+  const fetchPost = useCallback(async (date: string) => {
+    // 캐시 확인
+    const cached = postCacheRef.current.get(date);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      setPost(cached.post);
+      setLoading(false);
+      setShowFullScreenIntro(false);
+      setShowScrollHint(true);
+      return;
     }
 
     try {
@@ -302,19 +300,17 @@ const AdventPage = () => {
       setLoadingStartTime(startTime);
       setError(null);
       
-      // 캐시를 우회하여 최신 데이터 가져오기
-      const response = await fetch(`/api/advent/posts?date=${date}&_t=${Date.now()}`, {
-        cache: 'no-store', // 브라우저 캐시 우회
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
+      // Pages Router에서는 fetch의 next 옵션이 작동하지 않으므로
+      // 클라이언트 측 캐시(postCacheRef)를 사용하여 중복 요청 방지
+      const response = await fetch(`/api/advent/posts?date=${date}`, {
+        cache: 'default', // 브라우저 캐시 사용
       });
       const data = await response.json();
 
       if (response.ok) {
         const postData = data.post || null;
         setPost(postData);
-        // 캐시에 저장 (강제 새로고침 시에도 캐시 업데이트)
+        // 캐시에 저장
         postCacheRef.current.set(date, { post: postData, timestamp: Date.now() });
       } else {
         setError(data.error || '게시물을 불러오는데 실패했습니다.');
@@ -350,7 +346,7 @@ const AdventPage = () => {
           }, 300);
         }, remainingTime);
     }
-  }, [loadingStartTime]);
+  }, []); // loadingStartTime은 내부에서만 사용되므로 의존성에서 제거
 
   const fetchComments = useCallback(async (date: string, page: number = 1, limit: number = 20, showLoading: boolean = false) => {
     try {
@@ -391,7 +387,11 @@ const AdventPage = () => {
   const fetchPreviousPosts = useCallback(async (currentPostDt?: string) => {
     try {
       setLoadingPrevious(true);
-      const response = await fetch('/api/advent/posts-list?limit=12');
+      // Pages Router에서는 fetch의 next 옵션이 작동하지 않으므로
+      // 클라이언트 측 캐시를 사용하여 중복 요청 방지
+      const response = await fetch('/api/advent/posts-list?limit=12', {
+        cache: 'default', // 브라우저 캐시 사용
+      });
       const data = await response.json();
 
       if (response.ok) {
@@ -428,25 +428,9 @@ const AdventPage = () => {
     if (selectedDate !== dateToUse) {
       setSelectedDate(dateToUse);
       setMeditationSaved(false); // 날짜 변경 시 묵상 저장 상태 초기화
-      // 날짜 변경 시에는 캐시를 무시하고 새로 가져오기
-      postCacheRef.current.delete(dateToUse);
-      fetchPost(dateToUse, true);
+      fetchPost(dateToUse);
     }
   }, [router.isReady, router.query.date, selectedDate, fetchPost]);
-
-  // 페이지 포커스 시 캐시 무효화 (어드민에서 수정 후 돌아왔을 때 최신 데이터 표시)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (selectedDate) {
-        // 포커스 시 캐시를 무효화하고 새로 가져오기
-        postCacheRef.current.delete(selectedDate);
-        fetchPost(selectedDate, true);
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [selectedDate, fetchPost]);
 
   // 페이지당 아이템 수 (모바일: 5, PC: 8)
   const itemsPerPage = isMobile ? 5 : 8;
@@ -510,6 +494,21 @@ const AdventPage = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // 묵상 저장 성공 시 캐시 무효화
+        try {
+          await fetch('/api/advent/revalidate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              tags: ['advent-comments'], // 묵상 댓글 캐시 무효화
+            }),
+          });
+        } catch (cacheError) {
+          console.warn('캐시 무효화 실패 (무시됨):', cacheError);
+        }
+
         setCommentText('');
         setMeditationSaved(true);
         // 전체 묵상 새로고침
@@ -682,12 +681,7 @@ const AdventPage = () => {
                       </SectionWrapper>
 
                       {/* 5. 묵상 섹션 (댓글) */}
-                      <SectionWrapper
-                        initial={isMobile ? false : { opacity: 0, y: 30 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: isMobile ? 0 : 0.3 }}
-                        transition={{ duration: 0.6, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-                      >
+                      <div>
                         <MeditationSection
                           comments={comments}
                           totalComments={totalComments}
@@ -721,7 +715,7 @@ const AdventPage = () => {
                             }
                           }}
                         />
-                      </SectionWrapper>
+                      </div>
                     </>
                   )}
 

@@ -190,7 +190,7 @@ export const EventInfoSection: React.FC<EventInfoSectionProps> = ({ onCandleVisi
       ref={sectionRef}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-200px" }}
+      viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: 0 }}
       variants={containerVariants}
     >
       <ContentWrapper>

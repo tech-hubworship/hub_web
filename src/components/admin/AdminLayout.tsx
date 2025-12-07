@@ -3,22 +3,8 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useEffect, useState, ReactNode } from 'react';
-import { useAdminMDI, TabInfo, ADMIN_MENUS } from '@src/contexts/AdminMDIContext';
+import { useAdminMDI, TabInfo } from '@src/contexts/AdminMDIContext';
 import * as S from '@src/views/AdminPage/mdi-style';
-
-// 메뉴 카드 설명
-const MENU_DESCRIPTIONS: Record<string, string> = {
-  'dashboard': 'HUB 관리자 대시보드에서 시스템을 관리할 수 있습니다.',
-  'users': '계정관리 및 권한관리',
-  'photos': '사진팀이 할 수 있는 업무를 선택해주세요.',
-  'photos-manage': '사진을 업로드하고 수정, 삭제, 미리보기를 할 수 있습니다',
-  'photos-reservations': '사진 예약 현황을 확인하고 관리합니다',
-  'design': '디자인 작업 관리 및 통계',
-  'secretary': '회의록 및 문서 관리',
-  'advent': '대림절 말씀/영상/콘텐츠 관리',
-  'advent-attendance': '대림절 출석 정보 및 통계',
-  'tech-inquiries': '사용자 문의 및 버그 리포트 관리',
-};
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -61,7 +47,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   const roles = session.user.roles || [];
-  const accessibleMenus = getAccessibleMenus(roles);
+  // AdminLayout은 더 이상 사용되지 않으므로 빈 배열 반환 (MDIAdminPage 사용)
+  const accessibleMenus: TabInfo[] = [];
 
   // 메뉴 클릭 핸들러
   const handleMenuClick = (menu: TabInfo) => {
@@ -124,43 +111,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               ))}
           </S.NavGroup>
 
-          {/* 사진팀 서브메뉴 */}
-          {roles.includes('사진팀') && (
-            <S.NavGroup>
-              {!sidebarCollapsed && <S.NavGroupTitle>사진팀</S.NavGroupTitle>}
-              {ADMIN_MENUS
-                .filter(menu => menu.path.includes('/admin/photos'))
-                .map((menu) => (
-                  <S.NavItem
-                    key={menu.id}
-                    active={activeTabId === menu.id}
-                    onClick={() => handleMenuClick(menu)}
-                  >
-                    <S.NavIcon collapsed={sidebarCollapsed}>{menu.icon}</S.NavIcon>
-                    {!sidebarCollapsed && <S.NavText>{menu.title}</S.NavText>}
-                  </S.NavItem>
-                ))}
-            </S.NavGroup>
-          )}
-
-          {/* 대림절 서브메뉴 */}
-          {roles.includes('목회자') && (
-            <S.NavGroup>
-              {!sidebarCollapsed && <S.NavGroupTitle>대림절</S.NavGroupTitle>}
-              {ADMIN_MENUS
-                .filter(menu => menu.path.includes('/admin/advent'))
-                .map((menu) => (
-                  <S.NavItem
-                    key={menu.id}
-                    active={activeTabId === menu.id}
-                    onClick={() => handleMenuClick(menu)}
-                  >
-                    <S.NavIcon collapsed={sidebarCollapsed}>{menu.icon}</S.NavIcon>
-                    {!sidebarCollapsed && <S.NavText>{menu.title}</S.NavText>}
-                  </S.NavItem>
-                ))}
-            </S.NavGroup>
-          )}
         </S.NavSection>
 
         {/* 사용자 정보 */}
@@ -245,7 +195,7 @@ function DashboardContent({ session, accessibleMenus, onMenuClick }: DashboardCo
             <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
             <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
             <S.MenuCardDescription>
-              {MENU_DESCRIPTIONS[menu.id] || '관리 메뉴'}
+              관리 메뉴
             </S.MenuCardDescription>
           </S.MenuCard>
         ))}

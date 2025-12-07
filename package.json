@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --ignore-path .gitignore .",
-    "format": "eslint --ignore-path .gitignore --fix . && prettier . --write"
+    "format": "eslint --ignore-path .gitignore --fix . && prettier . --write",
+    "backup:db": "node scripts/backup-db.js"
   },
   "dependencies": {
     "@amplitude/analytics-browser": "^2.3.0",
@@ -42,7 +43,7 @@
     "lucide-react": "^0.546.0",
     "moment": "^2.30.1",
     "nanoid": "4.0.2",
-    "next": "15.2.3",
+    "next": "15.2.6",
     "next-auth": "^4.24.11",
     "node-fetch": "^3.3.2",
     "pg": "^8.16.3",

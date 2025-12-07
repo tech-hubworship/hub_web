@@ -17,6 +17,33 @@ export default async function handler(
     }
 
     if (req.method === 'GET') {
+      // 경로로 메뉴 조회 (쿼리 파라미터로 path가 있으면)
+      const { path } = req.query;
+      if (path && typeof path === 'string') {
+        const { data: menu, error } = await supabaseAdmin
+          .from('admin_menus')
+          .select(`
+            *,
+            admin_menu_roles(
+              role_id,
+              roles(id, name)
+            )
+          `)
+          .eq('path', path)
+          .eq('is_active', true)
+          .single();
+
+        if (error || !menu) {
+          return res.status(404).json({ error: '메뉴를 찾을 수 없습니다.' });
+        }
+
+        return res.status(200).json({
+          ...menu,
+          roles: menu.admin_menu_roles?.map((mr: any) => mr.roles?.name).filter(Boolean) || [],
+          admin_menu_roles: undefined,
+        });
+      }
+
       // 메뉴 목록 조회
       const { data: menus, error } = await supabaseAdmin
         .from('admin_menus')

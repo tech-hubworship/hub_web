@@ -27,7 +27,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
           },
         ],
       },
@@ -36,7 +36,43 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
+          },
+        ],
+      },
+      {
+        source: '/android-icon-:size.png',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
+          },
+        ],
+      },
+      {
+        source: '/apple-touch-icon.png',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
+          },
+        ],
+      },
+      {
+        source: '/apple-touch-icon-precomposed.png',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
+          },
+        ],
+      },
+      {
+        source: '/icons/advent_logo.svg',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
           },
         ],
       },

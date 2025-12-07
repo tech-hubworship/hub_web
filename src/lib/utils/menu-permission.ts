@@ -4,64 +4,60 @@
 import { supabaseAdmin } from '@src/lib/supabase';
 
 /**
- * API 경로를 메뉴 ID로 변환
+ * API 경로를 메뉴 ID로 변환 (DB에서 조회)
+ * @param path API 경로 (예: /api/admin/users)
+ * @returns 메뉴 ID 또는 null
  */
-export function getMenuIdFromPath(path: string): string | null {
-  // /api/admin/ 제거
-  const cleanPath = path.replace('/api/admin/', '');
+export async function getMenuIdFromPath(path: string): Promise<string | null> {
+  // /api/admin/ 제거하고 /admin/ 경로로 변환
+  let adminPath = path.replace('/api/admin/', '/admin/');
   
-  // 경로를 메뉴 ID로 매핑
-  const pathToMenuId: { [key: string]: string } = {
-    'users': 'users',
-    'users/roles': 'users',
-    'users/update': 'users',
-    'users/groups': 'users',
-    'users/cells': 'users',
-    'roles': 'roles',
-    'roles/[id]': 'roles',
-    'photos': 'photos',
-    'photos/manage': 'photos-manage',
-    'photos/reservations': 'photos-reservations',
-    'photos/stats': 'photos',
-    'photos/folders': 'photos-manage',
-    'advent': 'advent',
-    'advent/posts': 'advent-posts',
-    'advent/posts/[post_dt]': 'advent-posts',
-    'advent/attendance': 'advent-attendance',
-    'advent/stats': 'advent-stats',
-    'design': 'design',
-    'design/design-data': 'design',
-    'design/survey-stats': 'design',
-    'design/download-survey-csv': 'design',
-    'secretary': 'secretary',
-    'ice-breaking/questions': 'ice-breaking',
-    'ice-breaking/questions/[id]': 'ice-breaking',
-    'menus': 'menu-management',
-    'menus/[id]': 'menu-management',
-    'menus/roles': 'menu-management',
-    'tech-inquiries': 'tech-inquiries',
-    'bible-card': 'bible-card',
-    'bible-card/applications': 'bible-card-applications',
-    'bible-card/pastor': 'bible-card-pastor',
-    'bible-card/complete': 'bible-card-complete',
-  };
-
-  // 정확한 매칭 시도
-  if (pathToMenuId[cleanPath]) {
-    return pathToMenuId[cleanPath];
+  // /admin으로 시작하지 않으면 /admin/ 추가
+  if (!adminPath.startsWith('/admin')) {
+    adminPath = `/admin${adminPath.startsWith('/') ? '' : '/'}${adminPath}`;
   }
 
-  // 동적 경로 처리 ([id] 등)
-  for (const [pattern, menuId] of Object.entries(pathToMenuId)) {
-    const regex = new RegExp('^' + pattern.replace(/\[.*?\]/g, '[^/]+') + '$');
-    if (regex.test(cleanPath)) {
-      return menuId;
+  try {
+    // DB에서 경로로 메뉴 조회
+    const { data: menu, error } = await supabaseAdmin
+      .from('admin_menus')
+      .select('menu_id, path')
+      .eq('path', adminPath)
+      .eq('is_active', true)
+      .single();
+
+    if (!error && menu) {
+      return menu.menu_id;
     }
-  }
 
-  // 첫 번째 경로 세그먼트를 메뉴 ID로 사용
-  const firstSegment = cleanPath.split('/')[0];
-  return firstSegment || null;
+    // 정확한 경로 매칭 실패 시, 경로가 포함된 메뉴 찾기 (하위 경로 처리)
+    const pathSegments = adminPath.split('/').filter(Boolean);
+    if (pathSegments.length > 0) {
+      // /admin/users/roles 같은 경우 /admin/users를 찾기
+      for (let i = pathSegments.length; i > 0; i--) {
+        const partialPath = '/' + pathSegments.slice(0, i).join('/');
+        const { data: partialMenu } = await supabaseAdmin
+          .from('admin_menus')
+          .select('menu_id, path')
+          .eq('path', partialPath)
+          .eq('is_active', true)
+          .single();
+
+        if (partialMenu) {
+          return partialMenu.menu_id;
+        }
+      }
+    }
+
+    // DB에서 찾지 못한 경우, 첫 번째 경로 세그먼트를 메뉴 ID로 사용 (하위 호환성)
+    const firstSegment = pathSegments[0] || null;
+    return firstSegment;
+  } catch (error) {
+    console.error('Error getting menu ID from path:', error);
+    // 에러 발생 시 첫 번째 경로 세그먼트 반환
+    const pathSegments = adminPath.split('/').filter(Boolean);
+    return pathSegments[0] || null;
+  }
 }
 
 /**

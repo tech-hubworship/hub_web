@@ -423,6 +423,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
 }) => {
   const [selectedComment, setSelectedComment] = useState<AdventComment | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [listAnimationKey, setListAnimationKey] = useState(0);
 
   // 화면 크기 감지
   useEffect(() => {
@@ -439,6 +440,17 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
       window.removeEventListener('orientationchange', checkMobile);
     };
   }, []);
+
+  // 페이지 변경 시 애니메이션 재트리거
+  useEffect(() => {
+    if (!loading && comments.length > 0) {
+      // 약간의 지연 후 애니메이션 재트리거
+      const timer = setTimeout(() => {
+        setListAnimationKey(prev => prev + 1);
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [currentPage, comments.length, loading]);
 
   const itemsPerPage = isMobile ? 5 : 8;
   const totalPages = Math.ceil(totalComments / itemsPerPage);
@@ -479,38 +491,54 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
     return pages;
   };
 
+  // 섹션 헤더용 variants - opacity만 사용하여 안전하게
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        duration: isMobile ? 0.2 : 0.5,
-        staggerChildren: isMobile ? 0.02 : 0.08,
-        delayChildren: isMobile ? 0 : 0.1,
+        duration: 0.6,
+        staggerChildren: 0.1,
+        delayChildren: 0.1,
         ease: "easeOut"
       }
     }
   };
 
+  // 포스트잇 리스트용 variants (순차 애니메이션) - opacity만 사용하여 안전하게
+  const listContainerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: isMobile ? 0.05 : 0.1,
+        delayChildren: 0.1,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  // 포스트잇 카드용 variants
+  const postItItemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.4,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  // 헤더 아이템용 variants
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: isMobile ? 0.2 : 0.4,
-        ease: "easeOut"
-      }
-    }
-  };
-
-  const postItVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: isMobile ? 0.2 : 0.4,
+        duration: 0.5,
         ease: "easeOut"
       }
     }
@@ -518,9 +546,9 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
 
   return (
     <SectionCard
-      initial={isMobile ? false : "hidden"}
+      initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: isMobile ? "-50px" : "-200px", amount: isMobile ? 0 : 0.3 }}
+      viewport={{ once: true, margin: "-100px" }}
       variants={containerVariants}
     >
       <ContentWrapper>
@@ -553,10 +581,12 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
         )}
 
         <MeditationList 
-          key={`meditation-list-${showMyMeditation ? 'my' : 'all'}-${comments.length}`}
+          key={`meditation-list-${showMyMeditation ? 'my' : 'all'}-${currentPage}-${listAnimationKey}`}
           initial="hidden"
-          animate="visible"
-          variants={containerVariants}
+          animate={loading ? "hidden" : "visible"}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={listContainerVariants}
         >
           {loading ? (
             <LoadingContainer>
@@ -580,7 +610,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
                 <MeditationPostIt
                   key={comment.comment_id} 
                   colorIndex={colorIdx}
-                  variants={postItVariants}
+                  variants={postItItemVariants}
                   onTap={() => setSelectedComment(comment)}
                   style={{ cursor: 'pointer' }}
                 >
