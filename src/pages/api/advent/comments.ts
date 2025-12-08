@@ -4,7 +4,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]';
 import { getKoreanTimestamp } from '@src/lib/utils/date';
 import { unstable_cache } from 'next/cache';
-import { revalidateTag } from 'next/cache';
 
 /**
  * GET API: 묵상(댓글) 조회
@@ -185,19 +184,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: '댓글 작성에 실패했습니다.' });
       }
 
-      // 묵상 저장 성공 시 캐시 무효화
-      try {
-        revalidateTag('advent-comments');
-        console.log(`[캐시 무효화] revalidateTag 완료: advent-comments, post_dt: ${post_dt}`);
-      } catch (cacheError) {
-        // 캐시 갱신 실패는 로그만 남기고 응답은 성공으로 처리
-        console.warn('[캐시 무효화 실패]', {
-          error: cacheError,
-          message: cacheError instanceof Error ? cacheError.message : String(cacheError),
-          post_dt,
-        });
-      }
-
+      // 묵상 저장 성공
+      // 참고: 캐시 무효화는 클라이언트에서 /api/advent/revalidate Route Handler를 통해 처리됩니다.
+      // Pages Router API Route에서는 revalidateTag를 직접 호출할 수 없습니다.
       return res.status(201).json({ comment: data });
     } catch (error) {
       console.error('댓글 작성 오류:', error);

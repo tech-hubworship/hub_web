@@ -348,10 +348,17 @@ const AdventPage = () => {
     }
   }, []); // loadingStartTime은 내부에서만 사용되므로 의존성에서 제거
 
-  const fetchComments = useCallback(async (date: string, page: number = 1, limit: number = 20, showLoading: boolean = false) => {
+  const fetchComments = useCallback(async (date: string, page: number = 1, limit: number = 20, showLoading: boolean = false, skipCache: boolean = false) => {
     try {
       if (showLoading) setLoadingComments(true);
-      const response = await fetch(`/api/advent/comments?date=${date}&page=${page}&limit=${limit}`);
+      // 캐시 무효화 후에는 timestamp를 추가하여 강제로 새로고침
+      const url = skipCache 
+        ? `/api/advent/comments?date=${date}&page=${page}&limit=${limit}&_t=${Date.now()}`
+        : `/api/advent/comments?date=${date}&page=${page}&limit=${limit}`;
+      
+      const response = await fetch(url, {
+        cache: skipCache ? 'no-store' : 'default',
+      });
       const data = await response.json();
 
       if (response.ok) {
@@ -365,15 +372,15 @@ const AdventPage = () => {
     }
   }, []);
 
-  const fetchUserComments = useCallback(async (showLoading: boolean = false) => {
+  const fetchUserComments = useCallback(async (page: number = 1, limit: number = 20, showLoading: boolean = false) => {
     try {
       if (showLoading) setLoadingComments(true);
-      const response = await fetch('/api/advent/user-comments');
+      const response = await fetch(`/api/advent/user-comments?page=${page}&limit=${limit}`);
       const data = await response.json();
 
       if (response.ok) {
         setComments(data.comments || []);
-        setTotalComments(data.comments?.length || 0);
+        setTotalComments(data.total || 0);
       }
     } catch (err) {
       console.error('사용자 묵상 조회 오류:', err);
@@ -446,11 +453,12 @@ const AdventPage = () => {
   // 사용자 묵상 가져오기 (내 묵상 보기 모드일 때)
   useEffect(() => {
     if (showMyMeditation && session?.user) {
-      fetchUserComments();
+      setCommentsPage(1);
+      fetchUserComments(1, itemsPerPage);
     } else if (showMyMeditation && !session?.user) {
       setComments([]);
     }
-  }, [showMyMeditation, session?.user, fetchUserComments]);
+  }, [showMyMeditation, session?.user, fetchUserComments, itemsPerPage]);
 
   // post가 변경될 때마다 이전 게시물 목록 업데이트
   useEffect(() => {
@@ -494,6 +502,9 @@ const AdventPage = () => {
       const data = await response.json();
 
       if (response.ok) {
+        setCommentText('');
+        setMeditationSaved(true);
+        
         // 묵상 저장 성공 시 캐시 무효화
         try {
           await fetch('/api/advent/revalidate', {
@@ -505,15 +516,16 @@ const AdventPage = () => {
               tags: ['advent-comments'], // 묵상 댓글 캐시 무효화
             }),
           });
+          
+          // 캐시 무효화 후 약간의 지연을 주고 새로고침 (서버 캐시가 완전히 무효화되도록)
+          await new Promise(resolve => setTimeout(resolve, 100));
         } catch (cacheError) {
           console.warn('캐시 무효화 실패 (무시됨):', cacheError);
         }
 
-        setCommentText('');
-        setMeditationSaved(true);
-        // 전체 묵상 새로고침
+        // 전체 묵상 새로고침 (캐시 무효화 후 강제로 새로고침)
         setCommentsPage(1);
-        fetchComments(post.post_dt, 1, itemsPerPage);
+        fetchComments(post.post_dt, 1, itemsPerPage, true, true); // skipCache: true
         // 팝업 표시
         setShowMeditationSavedModal(true);
         return true;
@@ -699,7 +711,7 @@ const AdventPage = () => {
                             // 새로운 데이터 가져오기
                             try {
                               if (newShowMyMeditation) {
-                                await fetchUserComments(true);
+                                await fetchUserComments(1, itemsPerPage, true);
                               } else if (post?.post_dt) {
                                 await fetchComments(post.post_dt, 1, itemsPerPage, true);
                               }
@@ -709,8 +721,10 @@ const AdventPage = () => {
                             }
                           }}
                           onPageChange={(page: number) => {
-                            if (post?.post_dt && !showMyMeditation) {
-                              setCommentsPage(page);
+                            setCommentsPage(page);
+                            if (showMyMeditation) {
+                              fetchUserComments(page, itemsPerPage, true);
+                            } else if (post?.post_dt) {
                               fetchComments(post.post_dt, page, itemsPerPage, true);
                             }
                           }}

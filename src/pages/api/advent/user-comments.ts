@@ -18,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         userId = userId.substring(0, 100);
       }
 
-      const { post_dt, checkOnly } = req.query;
+      const { post_dt, checkOnly, page = '1', limit = '10' } = req.query;
 
       // 특정 날짜의 묵상 존재 여부만 확인하는 경우
       if (checkOnly === 'true' && post_dt) {
@@ -37,6 +37,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ hasMeditation: existingComments && existingComments.length > 0 });
       }
 
+      // 페이징 파라미터 처리
+      const pageNum = parseInt(page as string, 10);
+      const limitNum = parseInt(limit as string, 10);
+      const from = (pageNum - 1) * limitNum;
+      const to = from + limitNum - 1;
+
+      // 전체 개수 조회
+      const { count, error: countError } = await supabaseAdmin
+        .from('advent_comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('reg_id', userId);
+
+      if (countError) {
+        console.error('사용자 묵상 개수 조회 오류:', countError);
+      }
+
       // 사용자의 묵상들을 가져오면서 profiles 테이블과 조인하여 name 가져오기
       // Supabase에서 직접 조인은 외래키가 필요하므로, 
       // reg_id를 기준으로 profiles에서 name을 가져옴
@@ -45,7 +61,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .select('*')
         .eq('reg_id', userId)
         .order('post_dt', { ascending: false })
-        .order('reg_dt', { ascending: false });
+        .order('reg_dt', { ascending: false })
+        .range(from, to);
 
       if (commentsError) {
         console.error('사용자 묵상 조회 오류:', commentsError);
@@ -98,7 +115,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_affiliation: affiliation,
       }));
 
-      return res.status(200).json({ comments: commentsWithNames });
+      return res.status(200).json({
+        comments: commentsWithNames,
+        total: count || 0,
+        page: pageNum,
+        limit: limitNum,
+        hasMore: (count || 0) > to + 1
+      });
     } catch (error) {
       console.error('사용자 묵상 조회 오류:', error);
       return res.status(500).json({ error: '묵상을 불러오는데 실패했습니다.' });
