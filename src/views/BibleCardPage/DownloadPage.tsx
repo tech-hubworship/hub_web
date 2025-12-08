@@ -57,6 +57,7 @@ export default function BibleCardDownloadPage() {
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [isOpen, setIsOpen] = useState(false);
+  const [downloading, setDownloading] = useState<{ [key: number]: boolean }>({ 1: false, 2: false });
 
   // 내 신청 정보 조회
   const { data: myApplication, isLoading } = useQuery({
@@ -105,6 +106,50 @@ export default function BibleCardDownloadPage() {
       router.push(`/login?redirect=${encodeURIComponent('/bible-card/download')}`);
     }
   }, [status, router]);
+
+  // 다운로드 핸들러
+  const handleDownload = async (linkUrl: string, index: number) => {
+    if (!linkUrl) return;
+    if (downloading[index]) return;
+
+    try {
+      setDownloading(prev => ({ ...prev, [index]: true }));
+
+      // 파일명 생성 (예: HUB_말씀카드_1.jpg)
+      const appName = myApplication?.application?.name || 'HUB';
+      const filename = `${appName}_말씀카드_${index}.jpg`;
+
+      // 프록시 API 호출
+      const proxyUrl = `/api/bible-card/download-proxy?url=${encodeURIComponent(linkUrl)}&filename=${encodeURIComponent(filename)}`;
+      
+      const response = await fetch(proxyUrl);
+      if (!response.ok) {
+        throw new Error('다운로드에 실패했습니다.');
+      }
+
+      // Blob URL 생성
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      // 다운로드 링크 생성
+      const link = document.createElement('a');
+      link.style.display = 'none';
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Blob URL 해제
+      window.URL.revokeObjectURL(blobUrl);
+
+    } catch (error) {
+      console.error('다운로드 오류:', error);
+      alert('다운로드 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setDownloading(prev => ({ ...prev, [index]: false }));
+    }
+  };
 
   if (status === 'loading' || isLoading) {
     return (
@@ -199,7 +244,7 @@ export default function BibleCardDownloadPage() {
               </CountdownSection>
 
               <InfoMessage>
-                🎉 새해 첫날, 특별한 말씀카드가 공개됩니다!
+                🎉 새해 첫 날, 특별한 말씀카드가 공개됩니다!
               </InfoMessage>
 
               <BackLink onClick={() => router.push('/bible-card')}>
@@ -242,12 +287,19 @@ export default function BibleCardDownloadPage() {
             <DownloadSection>
               {app.drive_link_1 ? (
                 <>
-                  <DownloadButton href={app.drive_link_1} target="_blank" rel="noopener">
-                    📥 말씀카드 다운로드 (1)
+                  <DownloadButton 
+                    onClick={() => handleDownload(app.drive_link_1, 1)}
+                    disabled={downloading[1]}
+                  >
+                    {downloading[1] ? '다운로드 중...' : '말씀카드 ver.1'}
                   </DownloadButton>
                   {app.drive_link_2 && (
-                    <DownloadButton href={app.drive_link_2} target="_blank" rel="noopener" secondary>
-                      📥 말씀카드 다운로드 (2)
+                    <DownloadButton 
+                      onClick={() => handleDownload(app.drive_link_2, 2)}
+                      disabled={downloading[2]}
+                      secondary
+                    >
+                      {downloading[2] ? '다운로드 중...' : '말씀카드 ver.2'}
                     </DownloadButton>
                   )}
                 </>
@@ -577,7 +629,7 @@ const DownloadSection = styled.div`
   margin-bottom: 24px;
 `;
 
-const DownloadButton = styled.a<{ secondary?: boolean }>`
+const DownloadButton = styled.button<{ secondary?: boolean }>`
   display: block;
   width: 100%;
   padding: 16px;
@@ -598,6 +650,15 @@ const DownloadButton = styled.a<{ secondary?: boolean }>`
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+
+  &:disabled {
+    background: #9ca3af;
+    border-color: #9ca3af;
+    color: white;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
 
   @media (max-width: 480px) {
