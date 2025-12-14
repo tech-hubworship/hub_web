@@ -505,23 +505,9 @@ const AdventPage = () => {
         setCommentText('');
         setMeditationSaved(true);
         
-        // 묵상 저장 성공 시 캐시 무효화
-        try {
-          await fetch('/api/advent/revalidate', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              tags: ['advent-comments'], // 묵상 댓글 캐시 무효화
-            }),
-          });
-          
-          // 캐시 무효화 후 약간의 지연을 주고 새로고침 (서버 캐시가 완전히 무효화되도록)
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (cacheError) {
-          console.warn('캐시 무효화 실패 (무시됨):', cacheError);
-        }
+        // 서버에서 이미 revalidateTag를 호출하므로 클라이언트에서는 불필요
+        // Edge 캐시 무효화를 위해 약간의 지연 후 새로고침
+        await new Promise(resolve => setTimeout(resolve, 200));
 
         // 전체 묵상 새로고침 (캐시 무효화 후 강제로 새로고침)
         setCommentsPage(1);

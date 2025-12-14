@@ -127,10 +127,13 @@ export async function GET(request: NextRequest) {
     const result = await getCachedComments(date, pageNum, limitNum);
 
     // Edge/CDN 캐싱을 위한 Cache-Control 헤더 설정
+    // max-age=0: 브라우저는 항상 재검증 (revalidateTag 무효화 시 즉시 반영)
+    // s-maxage=0: Edge/CDN 캐시도 즉시 무효화 (revalidateTag 호출 시 새 데이터 반영)
+    // must-revalidate: 캐시 만료 시 반드시 재검증
     const headers = new Headers();
     headers.set(
       'Cache-Control',
-      'public, max-age=0, s-maxage=3600, stale-while-revalidate=7200, must-revalidate'
+      'public, max-age=0, s-maxage=0, must-revalidate'
     );
 
     return Response.json(result, { headers });
@@ -214,7 +217,16 @@ export async function POST(request: NextRequest) {
       console.warn('[캐시 무효화] revalidateTag 실패 (무시됨): advent-comments', cacheError);
     }
 
-    return Response.json({ comment: data }, { status: 201 });
+    // Edge 캐시 무효화를 위한 헤더 설정
+    const headers = new Headers();
+    headers.set(
+      'Cache-Control',
+      'no-cache, no-store, must-revalidate'
+    );
+    headers.set('CDN-Cache-Control', 'no-cache');
+    headers.set('Vercel-CDN-Cache-Control', 'no-cache');
+
+    return Response.json({ comment: data }, { status: 201, headers });
   } catch (error) {
     console.error('댓글 작성 오류:', error);
     return Response.json(
