@@ -319,38 +319,38 @@ export default function BibleCardPromotion() {
           </>
         ) : (
           <>
-            <Title>신년 말씀카드 신청</Title>
-            {isOpen ? (
-              <CTAButton onClick={handleClick}>
-                말씀카드 페이지로 이동 →
-              </CTAButton>
-            ) : (
-              <CountdownWrapper>
-                <CountdownText>오픈까지 남은 시간</CountdownText>
-                {timeLeft && (
-                  <CountdownGrid>
-                    <CountdownItem>
-                      <CountdownNumber>{String(timeLeft.days).padStart(2, '0')}</CountdownNumber>
-                      <CountdownLabel>일</CountdownLabel>
-                    </CountdownItem>
-                    <CountdownSeparator>:</CountdownSeparator>
-                    <CountdownItem>
-                      <CountdownNumber>{String(timeLeft.hours).padStart(2, '0')}</CountdownNumber>
-                      <CountdownLabel>시</CountdownLabel>
-                    </CountdownItem>
-                    <CountdownSeparator>:</CountdownSeparator>
-                    <CountdownItem>
-                      <CountdownNumber>{String(timeLeft.minutes).padStart(2, '0')}</CountdownNumber>
-                      <CountdownLabel>분</CountdownLabel>
-                    </CountdownItem>
-                    <CountdownSeparator>:</CountdownSeparator>
-                    <CountdownItem>
-                      <CountdownNumber>{String(timeLeft.seconds).padStart(2, '0')}</CountdownNumber>
-                      <CountdownLabel>초</CountdownLabel>
-                    </CountdownItem>
-                  </CountdownGrid>
-                )}
-              </CountdownWrapper>
+        <Title>신년 말씀카드 신청</Title>
+        {isOpen ? (
+          <CTAButton onClick={handleClick}>
+            말씀카드 페이지로 이동 →
+          </CTAButton>
+        ) : (
+          <CountdownWrapper>
+            <CountdownText>오픈까지 남은 시간</CountdownText>
+            {timeLeft && (
+              <CountdownGrid>
+                <CountdownItem>
+                  <CountdownNumber>{String(timeLeft.days).padStart(2, '0')}</CountdownNumber>
+                  <CountdownLabel>일</CountdownLabel>
+                </CountdownItem>
+                <CountdownSeparator>:</CountdownSeparator>
+                <CountdownItem>
+                  <CountdownNumber>{String(timeLeft.hours).padStart(2, '0')}</CountdownNumber>
+                  <CountdownLabel>시</CountdownLabel>
+                </CountdownItem>
+                <CountdownSeparator>:</CountdownSeparator>
+                <CountdownItem>
+                  <CountdownNumber>{String(timeLeft.minutes).padStart(2, '0')}</CountdownNumber>
+                  <CountdownLabel>분</CountdownLabel>
+                </CountdownItem>
+                <CountdownSeparator>:</CountdownSeparator>
+                <CountdownItem>
+                  <CountdownNumber>{String(timeLeft.seconds).padStart(2, '0')}</CountdownNumber>
+                  <CountdownLabel>초</CountdownLabel>
+                </CountdownItem>
+              </CountdownGrid>
+            )}
+          </CountdownWrapper>
             )}
           </>
         )}

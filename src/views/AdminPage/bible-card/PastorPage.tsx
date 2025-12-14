@@ -29,7 +29,9 @@ export default function BibleCardPastorPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
 
   const [formData, setFormData] = useState({
     bible_verse_reference: '',
@@ -55,16 +57,19 @@ export default function BibleCardPastorPage() {
   const [isLoadingVerses, setIsLoadingVerses] = useState(false);
   const [isLoadingText, setIsLoadingText] = useState(false);
 
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState('');
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
+
   // 배정된 지체 목록 조회
   const { data: assignedData, isLoading, refetch } = useQuery({
-    queryKey: ['pastor-assigned', statusFilter, currentPage, searchQuery],
+    queryKey: ['pastor-assigned', appliedStatusFilter, currentPage, appliedSearchQuery, limit],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
-        limit: '20',
+        limit: limit.toString(),
       });
-      if (statusFilter) params.append('status', statusFilter);
-      if (searchQuery) params.append('search', searchQuery);
+      if (appliedStatusFilter) params.append('status', appliedStatusFilter);
+      if (appliedSearchQuery) params.append('search', appliedSearchQuery);
       
       const response = await fetch(`/api/bible-card/pastor/assigned?${params}`);
       if (!response.ok) throw new Error('조회 실패');
@@ -339,6 +344,20 @@ export default function BibleCardPastorPage() {
     });
   };
 
+  const handleSearch = () => {
+    setAppliedStatusFilter(statusFilter);
+    setAppliedSearchQuery(searchQuery);
+    setCurrentPage(1);
+  };
+
+  const handleLimitChange = (value: string) => {
+    const newLimit = parseInt(value);
+    setLimit(newLimit);
+    setCurrentPage(1);
+    // limit 변경 시 즉시 재조회
+    queryClient.invalidateQueries({ queryKey: ['pastor-assigned'] });
+  };
+
   const formatGender = (gender: string) => {
     if (gender === 'M') return '남';
     if (gender === 'F') return '여';
@@ -370,67 +389,92 @@ export default function BibleCardPastorPage() {
       <Header>
         <HeaderContent>
           <Title>✍️ 말씀 작성</Title>
-          <Subtitle>배정된 지체들의 기도제목을 보고 말씀을 작성해주세요</Subtitle>
+    
         </HeaderContent>
       </Header>
 
-      {/* 통계 */}
-      <StatsGrid>
-        <StatCard color="#f1f5f9">
-          <StatValue>{stats?.total || 0}</StatValue>
-          <StatLabel>전체 배정</StatLabel>
-        </StatCard>
-        <StatCard color="#fef3c7">
-          <StatValue>{stats?.assigned || 0}</StatValue>
-          <StatLabel>작성 대기</StatLabel>
-        </StatCard>
-        <StatCard color="#d1fae5">
-          <StatValue>{stats?.completed || 0}</StatValue>
-          <StatLabel>작성 완료</StatLabel>
-        </StatCard>
-        <StatCard color="#e0e7ff">
-          <StatValue>{stats?.delivered || 0}</StatValue>
-          <StatLabel>전달 완료</StatLabel>
-        </StatCard>
-      </StatsGrid>
+      {/* 통계 및 필터 (접기/펼치기 가능) */}
+      {!isFilterCollapsed && (
+        <>
+          {/* 통계 */}
+          <StatsGrid>
+            <StatCard color="#f1f5f9">
+              <StatValue>{stats?.total || 0}</StatValue>
+              <StatLabel>전체 배정</StatLabel>
+            </StatCard>
+            <StatCard color="#fef3c7">
+              <StatValue>{stats?.assigned || 0}</StatValue>
+              <StatLabel>작성 대기</StatLabel>
+            </StatCard>
+            <StatCard color="#d1fae5">
+              <StatValue>{stats?.completed || 0}</StatValue>
+              <StatLabel>작성 완료</StatLabel>
+            </StatCard>
+            <StatCard color="#e0e7ff">
+              <StatValue>{stats?.delivered || 0}</StatValue>
+              <StatLabel>전달 완료</StatLabel>
+            </StatCard>
+          </StatsGrid>
 
-      {/* 필터 */}
-      <FilterSection>
-        <FilterGroup>
-          <FilterLabel>상태</FilterLabel>
+          {/* 필터 */}
+          <FilterSection>
+            <FilterGroup>
+              <FilterLabel>상태</FilterLabel>
+              <Combobox
+                value={statusFilter}
+                onChange={(value) => { setStatusFilter(value); }}
+                options={[
+                  { value: '', label: '전체' },
+                  { value: 'assigned', label: '작성 대기' },
+                  { value: 'completed', label: '작성 완료' },
+                  { value: 'delivered', label: '전달 완료' },
+                ]}
+                placeholder="전체"
+              />
+            </FilterGroup>
+
+            <SearchFilterGroup>
+              <SearchInputWrapper>
+                <FilterLabel>검색</FilterLabel>
+                <SearchInput
+                  type="text"
+                  placeholder="이름, 말씀, 구절로 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch();
+                    }
+                  }}
+                />
+              </SearchInputWrapper>
+              <SearchButton onClick={handleSearch} disabled={isLoading}>
+                {isLoading ? '조회 중...' : '🔍 조회'}
+              </SearchButton>
+            </SearchFilterGroup>
+          </FilterSection>
+        </>
+      )}
+
+      {/* 접기/펼치기 버튼 및 목록 헤더 */}
+      <ListHeader>
+        <ToggleButton onClick={() => setIsFilterCollapsed(!isFilterCollapsed)}>
+          {isFilterCollapsed ? '▼ 펼치기' : '▲ 접기'}
+        </ToggleButton>
+        <LimitGroup>
           <Combobox
-            value={statusFilter}
-            onChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}
+            value={limit.toString()}
+            onChange={handleLimitChange}
             options={[
-              { value: '', label: '전체' },
-              { value: 'assigned', label: '작성 대기' },
-              { value: 'completed', label: '작성 완료' },
-              { value: 'delivered', label: '전달 완료' },
+              { value: '10', label: '10개' },
+              { value: '20', label: '20개' },
+              { value: '50', label: '50개' },
+              { value: '100', label: '100개' },
             ]}
-            placeholder="전체"
+            placeholder="20개"
           />
-        </FilterGroup>
-
-        <FilterGroup style={{ flex: 1, maxWidth: '300px' }}>
-          <FilterLabel>검색</FilterLabel>
-          <SearchInput
-            type="text"
-            placeholder="이름, 말씀, 구절로 검색..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                refetch();
-              }
-            }}
-            style={{ width: '100%' }}
-          />
-        </FilterGroup>
-
-        <SearchButton onClick={() => refetch()} disabled={isLoading}>
-          {isLoading ? '조회 중...' : '🔍 조회하기'}
-        </SearchButton>
-      </FilterSection>
+        </LimitGroup>
+      </ListHeader>
 
       {/* 목록 - 데스크톱 테이블 / 모바일 카드 */}
       {isLoading ? (
@@ -517,33 +561,40 @@ export default function BibleCardPastorPage() {
       )}
 
       {/* 페이지네이션 */}
-      {pagination && pagination.totalPages > 1 && (
+      {pagination && pagination.total > 0 && (
         <Pagination>
-          <PageButton
-            onClick={() => setCurrentPage(1)}
-            disabled={currentPage === 1}
-          >
-            ≪
-          </PageButton>
-          <PageButton
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-          >
-            ＜
-          </PageButton>
-          <PageInfo>{currentPage} / {pagination.totalPages}</PageInfo>
-          <PageButton
-            onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages, prev + 1))}
-            disabled={currentPage === pagination.totalPages}
-          >
-            ＞
-          </PageButton>
-          <PageButton
-            onClick={() => setCurrentPage(pagination.totalPages)}
-            disabled={currentPage === pagination.totalPages}
-          >
-            ≫
-          </PageButton>
+          <PaginationInfo>
+            전체 {pagination.total}개 중 {((currentPage - 1) * limit) + 1}-{Math.min(currentPage * limit, pagination.total)}개 표시
+          </PaginationInfo>
+          {pagination.totalPages > 1 && (
+            <>
+              <PageButton
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+              >
+                ≪
+              </PageButton>
+              <PageButton
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                ＜
+              </PageButton>
+              <PageInfo>{currentPage} / {pagination.totalPages}</PageInfo>
+              <PageButton
+                onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages, prev + 1))}
+                disabled={currentPage === pagination.totalPages}
+              >
+                ＞
+              </PageButton>
+              <PageButton
+                onClick={() => setCurrentPage(pagination.totalPages)}
+                disabled={currentPage === pagination.totalPages}
+              >
+                ≫
+              </PageButton>
+            </>
+          )}
         </Pagination>
       )}
 
@@ -736,7 +787,7 @@ const Container = styled.div`
 `;
 
 const Header = styled.div`
-  margin-bottom: 24px;
+  margin-bottom: 8px;
   width: 100%;
   box-sizing: border-box;
 `;
@@ -771,7 +822,7 @@ const StatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
   width: 100%;
   box-sizing: border-box;
 
@@ -819,17 +870,19 @@ const StatLabel = styled.div`
 
 const FilterSection = styled.div`
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 16px;
-  margin-bottom: 24px;
   padding: 16px 24px;
   background: #f8fafc;
   border-radius: 8px;
   align-items: flex-end;
+  width: 100%;
+  box-sizing: border-box;
 
   @media (max-width: 768px) {
-    padding: 16px;
-    gap: 12px;
+    padding: 12px;
+    gap: 8px;
+
   }
 `;
 
@@ -837,12 +890,108 @@ const FilterGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 0 0 auto;
+
+  /* 상태 콤보박스 */
+  &:first-of-type {
+    min-width: 160px;
+    width: 160px;
+    flex-shrink: 0;
+
+    @media (max-width: 768px) {
+      min-width: 100px;
+      width: 100px;
+      flex-shrink: 0;
+    }
+  }
 `;
 
 const FilterLabel = styled.label`
   font-size: 12px;
   font-weight: 600;
   color: #64748b;
+`;
+
+const SearchFilterGroup = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+
+  @media (max-width: 768px) {
+    flex: 1;
+    min-width: 200px;
+    flex-shrink: 1;
+  }
+`;
+
+const SearchInputWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+
+  @media (max-width: 768px) {
+    min-width: 0;
+  }
+`;
+
+const ToggleButton = styled.button`
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #1e293b;
+  }
+
+  @media (max-width: 768px) {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+`;
+
+const ListHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+
+  @media (max-width: 768px) {
+    justify-content: space-between;
+    align-items: center;
+  }
+`;
+
+const LimitGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  /* Combobox 너비 설정 */
+  & > div {
+    min-width: 120px;
+    width: 120px;
+  }
+
+  @media (max-width: 768px) {
+    & > div {
+      min-width: 100px;
+      width: 100px;
+    }
+  }
 `;
 
 const FilterSelect = styled.select`
@@ -884,6 +1033,8 @@ const SearchButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
   height: fit-content;
+  white-space: nowrap;
+  flex-shrink: 0;
 
   &:hover:not(:disabled) {
     background: #2563eb;
@@ -898,6 +1049,11 @@ const SearchButton = styled.button`
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 12px;
+    font-size: 13px;
   }
 `;
 
@@ -1030,6 +1186,7 @@ const Pagination = styled.div`
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
+    flex-direction: column;
   }
 `;
 
@@ -1057,6 +1214,20 @@ const PageInfo = styled.span`
   font-size: 14px;
   color: #64748b;
   padding: 0 12px;
+`;
+
+const PaginationInfo = styled.div`
+  font-size: 14px;
+  color: #64748b;
+  margin-right: auto;
+
+  @media (max-width: 768px) {
+    font-size: 12px;
+    margin-right: 0;
+    margin-bottom: 8px;
+    width: 100%;
+    text-align: center;
+  }
 `;
 
 const Modal = styled.div`

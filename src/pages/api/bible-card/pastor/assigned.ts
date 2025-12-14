@@ -47,7 +47,7 @@ export default async function handler(
       } else if (status === 'assigned') {
         countQuery = countQuery.eq('status', 'assigned').is('bible_verse', null);
       } else {
-        countQuery = countQuery.eq('status', status);
+      countQuery = countQuery.eq('status', status);
       }
     }
 
@@ -78,7 +78,7 @@ export default async function handler(
       } else if (status === 'assigned') {
         query = query.eq('status', 'assigned').is('bible_verse', null);
       } else {
-        query = query.eq('status', status);
+      query = query.eq('status', status);
       }
     }
 
