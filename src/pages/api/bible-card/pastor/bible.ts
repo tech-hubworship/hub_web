@@ -146,36 +146,62 @@ export default async function handler(
       });
     }
 
-    // 4. 본문 조회
+    // 4. 본문 조회 (범위 지원)
     if (type === 'text' && book && chapter && verse) {
       const chapterNum = parseInt(chapter as string, 10);
-      const verseNum = parseInt(verse as string, 10);
+      const verseStr = verse as string;
       
-      if (isNaN(chapterNum) || isNaN(verseNum)) {
-        return res.status(400).json({ error: '올바른 장/절 번호가 아닙니다.' });
+      if (isNaN(chapterNum)) {
+        return res.status(400).json({ error: '올바른 장 번호가 아닙니다.' });
       }
 
+      // 범위 파싱 (예: "1-2" 또는 "1")
+      const verseRange = verseStr.includes('-') 
+        ? verseStr.split('-').map(v => parseInt(v.trim(), 10))
+        : [parseInt(verseStr, 10)];
+
+      if (verseRange.some(v => isNaN(v))) {
+        return res.status(400).json({ error: '올바른 절 번호가 아닙니다.' });
+      }
+
+      const startVerse = verseRange[0];
+      const endVerse = verseRange.length > 1 ? verseRange[1] : startVerse;
+
+      if (endVerse < startVerse) {
+        return res.status(400).json({ error: '절 범위가 올바르지 않습니다.' });
+      }
+
+      // 여러 절 조회
       const { data, error } = await supabaseAdmin
         .from('bible')
-        .select('content, book_full_name')
+        .select('verse, content, book_full_name')
         .eq('book_name', book)
         .eq('chapter', chapterNum)
-        .eq('verse', verseNum)
-        .maybeSingle();
+        .gte('verse', startVerse)
+        .lte('verse', endVerse)
+        .order('verse', { ascending: true });
 
       if (error) {
         console.error('Error fetching verse text:', error);
         return res.status(500).json({ error: '본문 조회 실패' });
       }
 
-      if (!data || !data.content) {
+      if (!data || data.length === 0) {
         return res.status(404).json({ error: '구절을 찾을 수 없습니다.' });
       }
 
-      const bookFullName = data.book_full_name || book;
+      // 본문 합치기
+      const texts = data.map(item => item.content).filter(Boolean);
+      const combinedText = texts.join(' ');
+
+      const bookFullName = data[0]?.book_full_name || book;
+      const reference = endVerse > startVerse 
+        ? `${bookFullName} ${chapterNum}:${startVerse}-${endVerse}`
+        : `${bookFullName} ${chapterNum}:${startVerse}`;
+
       return res.status(200).json({
-        reference: `${bookFullName} ${chapterNum}:${verseNum}`,
-        text: data.content,
+        reference,
+        text: combinedText,
       });
     }
 

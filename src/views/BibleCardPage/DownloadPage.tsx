@@ -56,8 +56,13 @@ export default function BibleCardDownloadPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [isOpen, setIsOpen] = useState(false);
+  // 쿼리 스트링에 value=admin이 있으면 시간 제한 없이 오픈
+  const isAdminMode = router.query.value === 'admin';
+  const [isOpen, setIsOpen] = useState(isAdminMode);
   const [downloading, setDownloading] = useState<{ [key: number]: boolean }>({ 1: false, 2: false });
+  const [activeTab, setActiveTab] = useState<'card' | 'verse' | 'prayer'>('card');
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
 
   // 내 신청 정보 조회
   const { data: myApplication, isLoading } = useQuery({
@@ -70,8 +75,14 @@ export default function BibleCardDownloadPage() {
     enabled: status === 'authenticated',
   });
 
-  // 카운트다운 계산
+  // 카운트다운 계산 (admin 모드가 아닐 때만)
   useEffect(() => {
+    // admin 모드면 카운트다운 스킵
+    if (isAdminMode) {
+      setIsOpen(true);
+      return;
+    }
+
     const calculateTimeLeft = () => {
       const now = new Date();
       const difference = OPEN_DATE.getTime() - now.getTime();
@@ -98,7 +109,7 @@ export default function BibleCardDownloadPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [isAdminMode]);
 
   // 로그인 체크
   useEffect(() => {
@@ -106,6 +117,67 @@ export default function BibleCardDownloadPage() {
       router.push(`/login?redirect=${encodeURIComponent('/bible-card/download')}`);
     }
   }, [status, router]);
+
+  // 이미지를 프록시 API를 통해 가져와서 Blob URL로 변환
+  useEffect(() => {
+    // myApplication이 없거나 app이 없으면 실행하지 않음
+    if (!myApplication?.hasApplication || !myApplication?.application?.drive_link_1) {
+      setImageBlobUrl(null);
+      setImageLoading(false);
+      return;
+    }
+
+    const app = myApplication.application;
+    const driveLink = app.drive_link_1;
+    let isCancelled = false;
+
+    const loadImageViaProxy = async () => {
+      setImageLoading(true);
+      try {
+        // 프록시 API를 통해 이미지 가져오기 (view 모드)
+        const proxyUrl = `/api/bible-card/download-proxy?url=${encodeURIComponent(driveLink)}&view=true`;
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+          throw new Error(`이미지 로드 실패: ${response.status}`);
+        }
+
+        // 취소되었는지 확인
+        if (isCancelled) return;
+
+        // Blob으로 변환
+        const blob = await response.blob();
+        
+        if (isCancelled) {
+          window.URL.revokeObjectURL(window.URL.createObjectURL(blob));
+          return;
+        }
+
+        const blobUrl = window.URL.createObjectURL(blob);
+        setImageBlobUrl(blobUrl);
+        setImageLoading(false);
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('이미지 로드 오류:', error);
+          setImageLoading(false);
+          setImageBlobUrl(null);
+        }
+      }
+    };
+
+    loadImageViaProxy();
+
+    // 클린업: 컴포넌트 언마운트 시 또는 drive_link_1 변경 시 Blob URL 해제
+    return () => {
+      isCancelled = true;
+      setImageBlobUrl((prev) => {
+        if (prev) {
+          window.URL.revokeObjectURL(prev);
+        }
+        return null;
+      });
+    };
+  }, [myApplication?.application?.drive_link_1]);
 
   // 다운로드 핸들러
   const handleDownload = async (linkUrl: string, index: number) => {
@@ -258,6 +330,7 @@ export default function BibleCardDownloadPage() {
     );
   }
 
+
   // 오픈 후 - 다운로드 가능
   return (
     <>
@@ -274,42 +347,116 @@ export default function BibleCardDownloadPage() {
               <Subtitle>{app.name}님을 위한 말씀카드</Subtitle>
             </CardHeader>
 
-            {/* 말씀 정보 */}
-            {app.bible_verse && (
-              <BibleSection>
-                <BibleLabel>📖 나에게 주신 말씀</BibleLabel>
-                <BibleReference>{app.bible_verse_reference}</BibleReference>
-                <BibleContent>{app.bible_verse}</BibleContent>
-              </BibleSection>
+            {/* 탭 메뉴 */}
+            <TabContainer>
+              <TabButton 
+                active={activeTab === 'card'} 
+                onClick={() => setActiveTab('card')}
+              >
+                말씀카드
+              </TabButton>
+              <TabButton 
+                active={activeTab === 'verse'} 
+                onClick={() => setActiveTab('verse')}
+              >
+                내 말씀
+              </TabButton>
+              <TabButton 
+                active={activeTab === 'prayer'} 
+                onClick={() => setActiveTab('prayer')}
+              >
+                내 기도제목
+              </TabButton>
+            </TabContainer>
+
+            {/* 탭 컨텐츠 */}
+            {activeTab === 'card' && (
+              <>
+                {/* 말씀카드 이미지 */}
+                {app.drive_link_1 && (
+                  <CardImageContainer>
+                    {imageLoading && (
+                      <ImageSkeleton>
+                        <SkeletonSpinner />
+                        <SkeletonText>말씀카드를 불러오는 중...</SkeletonText>
+                      </ImageSkeleton>
+                    )}
+                    {imageBlobUrl && !imageLoading && (
+                      <CardImage 
+                        src={imageBlobUrl} 
+                        alt={`${app.name}님의 말씀카드`}
+                        onError={() => {
+                          setImageLoading(false);
+                          setImageBlobUrl(null);
+                        }}
+                      />
+                    )}
+                    {!imageBlobUrl && !imageLoading && (
+                      <ImageError>
+                        <ErrorIcon>⚠️</ErrorIcon>
+                        <ErrorText>이미지를 불러올 수 없습니다.</ErrorText>
+                      </ImageError>
+                    )}
+                  </CardImageContainer>
+                )}
+
+                {/* 다운로드 버튼 */}
+                <DownloadSection>
+                  {app.drive_link_1 ? (
+                    <DownloadButton 
+                      onClick={() => handleDownload(app.drive_link_1, 1)}
+                      disabled={downloading[1]}
+                    >
+                      {downloading[1] ? '다운로드 중...' : '📥 말씀카드 다운로드'}
+                    </DownloadButton>
+                  ) : (
+                    <NoLinkMessage>
+                      아직 다운로드 링크가 준비되지 않았습니다.<br />
+                      잠시 후 다시 확인해주세요.
+                    </NoLinkMessage>
+                  )}
+                </DownloadSection>
+              </>
             )}
 
-            {/* 다운로드 버튼 */}
-            <DownloadSection>
-              {app.drive_link_1 ? (
-                <>
-                  <DownloadButton 
-                    onClick={() => handleDownload(app.drive_link_1, 1)}
-                    disabled={downloading[1]}
-                  >
-                    {downloading[1] ? '다운로드 중...' : '말씀카드 ver.1'}
-                  </DownloadButton>
-                  {app.drive_link_2 && (
-                    <DownloadButton 
-                      onClick={() => handleDownload(app.drive_link_2, 2)}
-                      disabled={downloading[2]}
-                      secondary
-                    >
-                      {downloading[2] ? '다운로드 중...' : '말씀카드 ver.2'}
-                    </DownloadButton>
-                  )}
-                </>
-              ) : (
-                <NoLinkMessage>
-                  아직 다운로드 링크가 준비되지 않았습니다.<br />
-                  잠시 후 다시 확인해주세요.
-                </NoLinkMessage>
-              )}
-            </DownloadSection>
+            {activeTab === 'verse' && (
+              <>
+                {/* 말씀 정보 */}
+                {app.bible_verse ? (
+                  <BibleSection>
+                    <BibleLabel>📖 나에게 주신 말씀</BibleLabel>
+                    <BibleReference>{app.bible_verse_reference}</BibleReference>
+                    <BibleContent>{app.bible_verse}</BibleContent>
+                    {app.pastor_message && (
+                      <>
+                        <PastorMessageLabel>💬 비고</PastorMessageLabel>
+                        <PastorMessageContent>{app.pastor_message}</PastorMessageContent>
+                      </>
+                    )}
+                  </BibleSection>
+                ) : (
+                  <EmptyTabMessage>
+                    아직 말씀이 작성되지 않았습니다.
+                  </EmptyTabMessage>
+                )}
+              </>
+            )}
+
+            {activeTab === 'prayer' && (
+              <>
+                {/* 기도제목 */}
+                {app.prayer_request ? (
+                  <PrayerSection>
+                    <PrayerLabel>🙏 나의 기도제목</PrayerLabel>
+                    <PrayerContent>{app.prayer_request}</PrayerContent>
+                  </PrayerSection>
+                ) : (
+                  <EmptyTabMessage>
+                    기도제목이 없습니다.
+                  </EmptyTabMessage>
+                )}
+              </>
+            )}
 
             <BackLink onClick={() => router.push('/bible-card')}>
               ← 신청 내역으로 돌아가기
@@ -560,6 +707,148 @@ const InfoMessage = styled.div`
   }
 `;
 
+// 탭 스타일
+const TabContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0;
+
+  @media (max-width: 480px) {
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+`;
+
+const TabButton = styled.button<{ active: boolean }>`
+  flex: 1;
+  padding: 12px 16px;
+  background: ${props => props.active ? '#f8fafc' : 'transparent'};
+  border: none;
+  border-bottom: 3px solid ${props => props.active ? '#6366f1' : 'transparent'};
+  color: ${props => props.active ? '#6366f1' : '#64748b'};
+  font-size: 15px;
+  font-weight: ${props => props.active ? '600' : '500'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+
+  &:hover {
+    color: #6366f1;
+    background: #f8fafc;
+  }
+
+  @media (max-width: 480px) {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+`;
+
+// 말씀카드 이미지 스타일
+const CardImageContainer = styled.div`
+  width: 100%;
+  margin-bottom: 24px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  position: relative;
+  min-height: 400px;
+  background: #f8fafc;
+
+  @media (max-width: 480px) {
+    border-radius: 12px;
+    margin-bottom: 20px;
+    min-height: 300px;
+  }
+`;
+
+const ImageSkeleton = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s ease-in-out infinite;
+
+  @keyframes loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+`;
+
+const SkeletonSpinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(99, 102, 241, 0.2);
+  border-top: 4px solid #6366f1;
+  border-radius: 50%;
+  animation: ${spin} 1s linear infinite;
+  margin-bottom: 16px;
+`;
+
+const SkeletonText = styled.div`
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+`;
+
+const CardImage = styled.img`
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  border-radius: 16px;
+
+  @media (max-width: 480px) {
+    border-radius: 12px;
+  }
+`;
+
+const ImageError = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  color: #64748b;
+`;
+
+const ErrorIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 12px;
+`;
+
+const ErrorText = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+`;
+
+const EmptyTabMessage = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+  color: #94a3b8;
+  font-size: 15px;
+  background: #f8fafc;
+  border-radius: 12px;
+  margin-bottom: 20px;
+`;
+
 // 다운로드 화면 스타일
 const BibleSection = styled.div`
   background: linear-gradient(135deg, #dbeafe, #bfdbfe);
@@ -594,21 +883,21 @@ const BibleContent = styled.div`
   white-space: pre-wrap;
 `;
 
-const PastorMessage = styled.div`
+const PastorMessageLabel = styled.div`
+  font-weight: 600;
+  color: #1e40af;
   margin-top: 20px;
+  margin-bottom: 8px;
+  font-size: 14px;
   padding-top: 16px;
   border-top: 1px solid rgba(30, 64, 175, 0.2);
+`;
+
+const PastorMessageContent = styled.div`
   color: #1e3a8a;
   font-size: 14px;
   line-height: 1.7;
   white-space: pre-wrap;
-`;
-
-const MessageLabel = styled.div`
-  font-weight: 600;
-  color: #1e40af;
-  margin-bottom: 8px;
-  font-size: 13px;
 `;
 
 const PastorInfo = styled.div`
@@ -633,11 +922,9 @@ const DownloadButton = styled.button<{ secondary?: boolean }>`
   display: block;
   width: 100%;
   padding: 16px;
-  background: ${props => props.secondary 
-    ? 'white' 
-    : 'linear-gradient(135deg, #10b981, #059669)'};
-  color: ${props => props.secondary ? '#10b981' : 'white'};
-  border: ${props => props.secondary ? '2px solid #10b981' : 'none'};
+  background: #FF474A;
+  color: white;
+  border: none;
   border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
@@ -647,14 +934,14 @@ const DownloadButton = styled.button<{ secondary?: boolean }>`
   transition: all 0.2s ease;
   box-sizing: border-box;
 
-  &:hover {
+  &:hover:not(:disabled) {
+    background: rgb(216, 61, 63);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 4px 12px rgba(255, 71, 74, 0.3);
   }
 
   &:disabled {
     background: #9ca3af;
-    border-color: #9ca3af;
     color: white;
     cursor: not-allowed;
     transform: none;
@@ -675,6 +962,32 @@ const NoLinkMessage = styled.div`
   color: #92400e;
   font-size: 14px;
   line-height: 1.6;
+`;
+
+const PrayerSection = styled.div`
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+
+  @media (max-width: 480px) {
+    padding: 18px;
+    border-radius: 12px;
+  }
+`;
+
+const PrayerLabel = styled.div`
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 12px;
+  font-size: 15px;
+`;
+
+const PrayerContent = styled.div`
+  color: #78350f;
+  line-height: 1.8;
+  font-size: 15px;
+  white-space: pre-wrap;
 `;
 
 const BackLink = styled.button`

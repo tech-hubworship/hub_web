@@ -27,11 +27,12 @@ export default async function handler(
     }
 
     const pastorId = session.user.id;
-    const { status, page = '1', limit = '20' } = req.query;
+    const { status, page = '1', limit = '20', search } = req.query;
 
     const pageNum = parseInt(page as string) || 1;
     const limitNum = parseInt(limit as string) || 20;
     const offset = (pageNum - 1) * limitNum;
+    const searchQuery = search && typeof search === 'string' ? search.trim() : '';
 
     // 전체 개수 조회
     let countQuery = supabaseAdmin
@@ -41,6 +42,11 @@ export default async function handler(
 
     if (status && typeof status === 'string') {
       countQuery = countQuery.eq('status', status);
+    }
+
+    // 검색 조건 추가 (이름, 말씀 본문, 구절 참조)
+    if (searchQuery) {
+      countQuery = countQuery.or(`name.ilike.%${searchQuery}%,bible_verse.ilike.%${searchQuery}%,bible_verse_reference.ilike.%${searchQuery}%`);
     }
 
     const { count } = await countQuery;
@@ -60,6 +66,11 @@ export default async function handler(
 
     if (status && typeof status === 'string') {
       query = query.eq('status', status);
+    }
+
+    // 검색 조건 추가 (이름, 말씀 본문, 구절 참조)
+    if (searchQuery) {
+      query = query.or(`name.ilike.%${searchQuery}%,bible_verse.ilike.%${searchQuery}%,bible_verse_reference.ilike.%${searchQuery}%`);
     }
 
     const { data, error } = await query;

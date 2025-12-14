@@ -16,44 +16,85 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     let targetUrl = url;
+    let fileId: string | null = null;
 
-    // 구글 드라이브 링크 변환
+    // 구글 드라이브 링크에서 파일 ID 추출
     const googleDriveIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     if (googleDriveIdMatch && googleDriveIdMatch[1]) {
-      const fileId = googleDriveIdMatch[1];
-      targetUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      fileId = googleDriveIdMatch[1];
     }
 
-    console.log(`[Download Proxy] Fetching: ${targetUrl}`);
+    // 여러 구글 드라이브 URL 형식 시도
+    const urlAttempts: string[] = [];
+    
+    if (fileId) {
+      // 방법 1: uc?export=download (가장 일반적)
+      urlAttempts.push(`https://drive.google.com/uc?export=download&id=${fileId}`);
+      // 방법 2: uc?export=view (뷰 모드)
+      urlAttempts.push(`https://drive.google.com/uc?export=view&id=${fileId}`);
+      // 방법 3: thumbnail (썸네일)
+      urlAttempts.push(`https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`);
+    } else {
+      urlAttempts.push(url);
+    }
 
-    // 이미지 데이터 가져오기
-    const imageResponse = await fetch(targetUrl, {
-      method: 'GET',
-      headers: {
-        // 구글이 봇으로 인식하지 않도록 User-Agent를 가짜로 넣어줌
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-      },
-    });
+    let imageResponse: Response | null = null;
+    let lastError: Error | null = null;
 
-    if (!imageResponse.ok) {
-      console.error(`[Download Proxy] Failed: ${imageResponse.status} ${imageResponse.statusText}`);
-      throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+    // 각 URL 시도
+    for (const attemptUrl of urlAttempts) {
+      try {
+        console.log(`[Download Proxy] Trying: ${attemptUrl}`);
+        
+        imageResponse = await fetch(attemptUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'Referer': 'https://drive.google.com/',
+          },
+        });
+
+        if (imageResponse.ok && imageResponse.headers.get('content-type')?.startsWith('image/')) {
+          console.log(`[Download Proxy] Success with: ${attemptUrl}`);
+          break;
+        } else {
+          console.log(`[Download Proxy] Failed with status ${imageResponse.status} for: ${attemptUrl}`);
+          imageResponse = null;
+        }
+      } catch (error) {
+        console.log(`[Download Proxy] Error for ${attemptUrl}:`, error);
+        lastError = error as Error;
+        imageResponse = null;
+      }
+    }
+
+    if (!imageResponse || !imageResponse.ok) {
+      console.error(`[Download Proxy] All attempts failed. Last error:`, lastError);
+      throw new Error(`Failed to fetch image: ${imageResponse?.status || 'unknown'}`);
     }
 
     // 파일 다운로드 헤더 설정
-    const contentType = imageResponse.headers.get('content-type') || 'application/octet-stream';
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const finalFilename = typeof filename === 'string' ? filename : 'download.jpg';
     
-    // 한글 파일명 깨짐 방지
-    const encodedFilename = encodeURIComponent(finalFilename).replace(/['()]/g, escape);
+    // 쿼리 파라미터로 view 모드 확인 (이미지 표시용)
+    const isViewMode = req.query.view === 'true';
 
     res.setHeader('Content-Type', contentType);
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename*=UTF-8''${encodedFilename}`
-    );
+    
+    if (!isViewMode) {
+      // 다운로드 모드일 때만 Content-Disposition 설정
+      const encodedFilename = encodeURIComponent(finalFilename).replace(/['()]/g, escape);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename*=UTF-8''${encodedFilename}`
+      );
+    } else {
+      // 이미지 표시 모드일 때는 CORS 헤더 추가
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
 
     // 데이터 전송
     const arrayBuffer = await imageResponse.arrayBuffer();

@@ -29,9 +29,7 @@ export default function BibleCardPastorPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  
-  // 실시간 업데이트 상태
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [formData, setFormData] = useState({
     bible_verse_reference: '',
@@ -44,7 +42,7 @@ export default function BibleCardPastorPage() {
   const [selectedBook, setSelectedBook] = useState<string>('');
   const [selectedBookShort, setSelectedBookShort] = useState<string>('');
   const [selectedChapter, setSelectedChapter] = useState<number | ''>('');
-  const [selectedVerse, setSelectedVerse] = useState<number | ''>('');
+  const [selectedVerse, setSelectedVerse] = useState<string>(''); // 범위 지원을 위해 string으로 변경
 
   // 로드된 옵션들
   const [books, setBooks] = useState<Array<{id: number, full_name: string, short_name: string}>>([]);
@@ -58,20 +56,20 @@ export default function BibleCardPastorPage() {
   const [isLoadingText, setIsLoadingText] = useState(false);
 
   // 배정된 지체 목록 조회
-  const { data: assignedData, isLoading } = useQuery({
-    queryKey: ['pastor-assigned', statusFilter, currentPage],
+  const { data: assignedData, isLoading, refetch } = useQuery({
+    queryKey: ['pastor-assigned', statusFilter, currentPage, searchQuery],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: '20',
       });
       if (statusFilter) params.append('status', statusFilter);
+      if (searchQuery) params.append('search', searchQuery);
       
       const response = await fetch(`/api/bible-card/pastor/assigned?${params}`);
       if (!response.ok) throw new Error('조회 실패');
       return response.json();
     },
-    refetchInterval: autoRefresh ? 30000 : false, // 실시간 업데이트 토글
   });
 
   // 말씀 입력 뮤테이션
@@ -125,14 +123,15 @@ export default function BibleCardPastorPage() {
     fetchBooks();
   }, []);
 
-  // 기존 구절 파싱 함수
+  // 기존 구절 파싱 함수 (범위 지원)
   const parseReference = (reference: string) => {
-    const match = reference.match(/^(.+?)\s+(\d+):(\d+)$/);
+    // "책명 1:2" 또는 "책명 1:2-3" 형식 지원
+    const match = reference.match(/^(.+?)\s+(\d+):(\d+(?:-\d+)?)$/);
     if (!match) return null;
     return {
       book: match[1].trim(),
       chapter: parseInt(match[2], 10),
-      verse: parseInt(match[3], 10),
+      verse: match[3], // "2" 또는 "2-3" 형식
     };
   };
 
@@ -190,16 +189,15 @@ export default function BibleCardPastorPage() {
     }
   };
 
-  // 절 선택 핸들러
+  // 절 선택 핸들러 (범위 지원)
   const handleVerseChange = async (verseValue: string) => {
-    const verse = verseValue ? parseInt(verseValue) : '';
-    setSelectedVerse(verse);
+    setSelectedVerse(verseValue);
     
-    if (selectedBookShort && selectedChapter && verse) {
+    if (selectedBookShort && selectedChapter && verseValue) {
       setIsLoadingText(true);
       try {
         const response = await fetch(
-          `/api/bible-card/pastor/bible?type=text&book=${encodeURIComponent(selectedBookShort)}&chapter=${selectedChapter}&verse=${verse}`
+          `/api/bible-card/pastor/bible?type=text&book=${encodeURIComponent(selectedBookShort)}&chapter=${selectedChapter}&verse=${encodeURIComponent(verseValue)}`
         );
         if (!response.ok) throw new Error('본문 조회 실패');
         const data = await response.json();
@@ -388,23 +386,36 @@ export default function BibleCardPastorPage() {
 
       {/* 필터 */}
       <FilterBar>
-        <Combobox
-          value={statusFilter}
-          onChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}
-          options={[
-            { value: '', label: '전체' },
-            { value: 'assigned', label: '작성 대기' },
-            { value: 'completed', label: '작성 완료' },
-            { value: 'delivered', label: '전달 완료' },
-          ]}
-          placeholder="전체"
+        <ComboboxWrapper>
+          <Combobox
+            value={statusFilter}
+            onChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}
+            options={[
+              { value: '', label: '전체' },
+              { value: 'assigned', label: '작성 대기' },
+              { value: 'completed', label: '작성 완료' },
+              { value: 'delivered', label: '전달 완료' },
+            ]}
+            placeholder="전체"
+          />
+        </ComboboxWrapper>
+        <SearchInput
+          type="text"
+          placeholder="이름, 말씀, 구절로 검색..."
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') {
+              refetch();
+            }
+          }}
         />
-        <AutoRefreshButton 
-          active={autoRefresh}
-          onClick={() => setAutoRefresh(!autoRefresh)}
+        <RefreshButton 
+          onClick={() => refetch()}
+          disabled={isLoading}
         >
-          {autoRefresh ? '🔄 실시간 ON' : '⏸️ 실시간 OFF'}
-        </AutoRefreshButton>
+          {isLoading ? '조회 중...' : '🔍 조회하기'}
+        </RefreshButton>
       </FilterBar>
 
       {/* 목록 - 데스크톱 테이블 / 모바일 카드 */}
@@ -572,7 +583,7 @@ export default function BibleCardPastorPage() {
                     <Combobox
                       value={selectedTestament}
                       onChange={handleTestamentChange}
-                      disabled={selectedApp.status !== 'assigned'}
+                      disabled={false}
                       options={[
                         { value: '', label: '구약/신약' },
                         { value: '구약', label: '구약' },
@@ -585,7 +596,7 @@ export default function BibleCardPastorPage() {
                     <Combobox
                       value={selectedBook}
                       onChange={handleBookChange}
-                      disabled={selectedApp.status !== 'assigned' || isLoadingBooks || !selectedTestament}
+                      disabled={isLoadingBooks || !selectedTestament}
                       options={[
                         { value: '', label: '책 선택' },
                         ...filteredBooks.map(book => ({ value: book.full_name, label: book.full_name })),
@@ -599,7 +610,7 @@ export default function BibleCardPastorPage() {
                     <Combobox
                       value={selectedChapter?.toString() || ''}
                       onChange={handleChapterChange}
-                      disabled={!selectedBook || isLoadingChapters || selectedApp.status !== 'assigned'}
+                      disabled={!selectedBook || isLoadingChapters}
                       options={[
                         { value: '', label: '장 선택' },
                         ...(isLoadingChapters 
@@ -612,14 +623,33 @@ export default function BibleCardPastorPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <Combobox
-                      value={selectedVerse?.toString() || ''}
+                      value={selectedVerse || ''}
                       onChange={handleVerseChange}
-                      disabled={!selectedChapter || isLoadingVerses || selectedApp.status !== 'assigned'}
+                      disabled={!selectedChapter || isLoadingVerses}
                       options={[
                         { value: '', label: '절 선택' },
                         ...(isLoadingVerses 
                           ? [{ value: '', label: '로딩 중...' }]
-                          : verses.map(v => ({ value: v.toString(), label: `${v}절` }))
+                          : (() => {
+                              // 단일 절 옵션
+                              const singleOptions = verses.map(v => ({ value: v.toString(), label: `${v}절` }));
+                              // 범위 옵션 (연속된 절들에 대해)
+                              const rangeOptions: Array<{ value: string; label: string }> = [];
+                              for (let i = 0; i < verses.length; i++) {
+                                for (let j = i + 1; j < verses.length && j < i + 10; j++) { // 최대 10절까지 범위
+                                  const start = verses[i];
+                                  const end = verses[j];
+                                  // 연속된 절인지 확인
+                                  if (end - start === j - i) {
+                                    rangeOptions.push({ 
+                                      value: `${start}-${end}`, 
+                                      label: `${start}-${end}절` 
+                                    });
+                                  }
+                                }
+                              }
+                              return [...singleOptions, ...rangeOptions];
+                            })()
                         ),
                       ]}
                       placeholder="절 선택"
@@ -645,41 +675,30 @@ export default function BibleCardPastorPage() {
                   value={formData.bible_verse}
                   onChange={(e) => setFormData(prev => ({ ...prev, bible_verse: e.target.value }))}
                   rows={5}
-                  disabled={selectedApp.status !== 'assigned'}
+                  disabled={false}
                 />
               </FormGroup>
 
               <FormGroup>
-                <Label>목회자 메시지 (선택)</Label>
+                <Label>비고 (선택)</Label>
                 <Textarea
-                  placeholder="기도나 격려의 말씀을 남겨주세요..."
+                  placeholder="비고"
                   value={formData.pastor_message}
                   onChange={(e) => setFormData(prev => ({ ...prev, pastor_message: e.target.value }))}
                   rows={3}
-                  disabled={selectedApp.status !== 'assigned'}
+                  disabled={false}
                 />
               </FormGroup>
             </ModalBody>
 
             <ModalFooter>
-              {selectedApp.status === 'assigned' ? (
-                <>
-                  <CancelButton onClick={handleCloseModal}>취소</CancelButton>
-                  <SaveButton 
-                    onClick={handleSubmit}
-                    disabled={completeMutation.isPending}
-                  >
-                    {completeMutation.isPending ? '저장 중...' : '말씀 저장'}
-                  </SaveButton>
-                </>
-              ) : (
-                <>
-                  <CompletedNote>
-                    ✅ 이미 말씀이 작성된 신청입니다.
-                  </CompletedNote>
-                  <CancelButton onClick={handleCloseModal} style={{ flex: 1 }}>닫기</CancelButton>
-                </>
-              )}
+              <CancelButton onClick={handleCloseModal}>취소</CancelButton>
+              <SaveButton 
+                onClick={handleSubmit}
+                disabled={completeMutation.isPending}
+              >
+                {completeMutation.isPending ? '저장 중...' : selectedApp.status === 'assigned' ? '말씀 저장' : '말씀 수정'}
+              </SaveButton>
             </ModalFooter>
           </ModalContent>
         </Modal>
@@ -785,10 +804,32 @@ const FilterBar = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
+  overflow-x: hidden;
 
   @media (max-width: 768px) {
-    flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    
+    /* 스크롤바 숨기기 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+`;
+
+const ComboboxWrapper = styled.div`
+  flex: 0 0 auto;
+  min-width: 120px;
+  width: 150px;
+
+  @media (max-width: 768px) {
+    min-width: 100px;
+    width: 100px;
+    flex-shrink: 0;
   }
 `;
 
@@ -807,28 +848,62 @@ const FilterSelect = styled.select`
   }
 `;
 
-const AutoRefreshButton = styled.button<{ active: boolean }>`
-  padding: 10px 16px;
-  background: ${props => props.active ? '#10b981' : 'white'};
-  border: 1px solid ${props => props.active ? '#10b981' : '#e2e8f0'};
+const SearchInput = styled.input`
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 14px;
-  font-weight: 600;
-  color: ${props => props.active ? 'white' : '#64748b'};
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
+  flex: 1;
+  min-width: 200px;
+  box-sizing: border-box;
 
-  &:hover {
-    background: ${props => props.active ? '#059669' : '#f1f5f9'};
-    border-color: ${props => props.active ? '#059669' : '#cbd5e1'};
-    color: ${props => props.active ? 'white' : '#1e293b'};
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
   }
 
   @media (max-width: 768px) {
+    font-size: 16px; /* iOS 줌 방지 */
+    min-width: 0;
+    flex: 1 1 auto;
     width: 100%;
+    max-width: 100%;
+  }
+`;
+
+const RefreshButton = styled.button`
+  padding: 10px 20px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 768px) {
     font-size: 12px;
     padding: 8px 12px;
+    flex: 0 0 auto;
+    min-width: auto;
   }
 `;
 
@@ -1102,16 +1177,16 @@ const InfoGrid = styled.div`
   max-width: 100%;
 
   @media (max-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
     padding: 12px;
     width: 100%;
     max-width: 100%;
   }
 
   @media (max-width: 480px) {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
     padding: 10px;
     width: 100%;
     max-width: 100%;
@@ -1188,10 +1263,6 @@ const BibleSelectorRow = styled.div`
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
 `;
 
 const Select = styled.select`

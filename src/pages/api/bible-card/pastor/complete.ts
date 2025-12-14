@@ -40,7 +40,7 @@ export default async function handler(
     // 해당 신청이 이 목회자에게 배정된 것인지 확인
     const { data: existing } = await supabaseAdmin
       .from('bible_card_applications')
-      .select('id, assigned_pastor_id')
+      .select('id, assigned_pastor_id, status')
       .eq('id', applicationId)
       .single();
 
@@ -52,16 +52,24 @@ export default async function handler(
       return res.status(403).json({ error: '본인에게 배정된 지체만 말씀을 입력할 수 있습니다.' });
     }
 
-    // 말씀 입력
+    // 업데이트할 데이터 준비
+    const updateData: Record<string, any> = {
+      bible_verse,
+      bible_verse_reference,
+      pastor_message: pastor_message || null,
+    };
+
+    // 상태가 'assigned'인 경우에만 상태를 'completed'로 변경하고 completed_at 설정
+    if (existing.status === 'assigned') {
+      updateData.completed_at = new Date().toISOString();
+      updateData.status = 'completed';
+    }
+    // 이미 완료된 경우에는 상태를 변경하지 않고 내용만 업데이트
+
+    // 말씀 입력/수정
     const { error } = await supabaseAdmin
       .from('bible_card_applications')
-      .update({
-        bible_verse,
-        bible_verse_reference,
-        pastor_message: pastor_message || null,
-        completed_at: new Date().toISOString(),
-        status: 'completed',
-      })
+      .update(updateData)
       .eq('id', applicationId);
 
     if (error) {
