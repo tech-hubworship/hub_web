@@ -216,8 +216,8 @@ export default function BibleCardPromotion() {
     seconds: number;
   } | null>(null);
 
-  // 신청 마감 시간: 2026년 2월 15일 02시 (한국시간)
-  const APPLICATION_CLOSE_DATE = new Date('2026-02-15T02:00:00+09:00');
+  // 신청 마감 시간: 2025년 12월 15일 02시 (한국시간)
+  const APPLICATION_CLOSE_DATE = new Date('2025-12-15T02:00:00+09:00');
   // 배부 시작 시간: 2026년 1월 1일 00시 (한국시간)
   const DISTRIBUTION_DATE = new Date('2026-01-01T00:00:00+09:00');
   // 오픈 시간: 2025년 11월 30일 16시 (오후 4시, 한국시간)

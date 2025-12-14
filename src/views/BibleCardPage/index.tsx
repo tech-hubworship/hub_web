@@ -35,8 +35,8 @@ interface Profile {
 
 const COMMUNITIES = ['허브', '타공동체'];
 
-// 신청 마감 시간: 2026년 2월 15일 02시 (한국시간)
-const APPLICATION_CLOSE_DATE = new Date('2026-02-15T02:00:00+09:00');
+// 신청 마감 시간: 2025년 12월 15일 02시 (한국시간)
+const APPLICATION_CLOSE_DATE = new Date('2025-12-15T02:00:00+09:00');
 
 export default function BibleCardApplyPage() {
   const { data: session, status } = useSession();
