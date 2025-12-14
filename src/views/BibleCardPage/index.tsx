@@ -35,6 +35,9 @@ interface Profile {
 
 const COMMUNITIES = ['허브', '타공동체'];
 
+// 신청 마감 시간: 2026년 2월 15일 02시 (한국시간)
+const APPLICATION_CLOSE_DATE = new Date('2026-02-15T02:00:00+09:00');
+
 export default function BibleCardApplyPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -44,6 +47,7 @@ export default function BibleCardApplyPage() {
   const [isEditMode, setIsEditMode] = useState(false); // 수정 모드 상태
   const [isPrayerEditMode, setIsPrayerEditMode] = useState(false); // 기도제목 수정 모드 상태
   const [prayerRequest, setPrayerRequest] = useState(''); // 기도제목 수정용 상태
+  const [isApplicationClosed, setIsApplicationClosed] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     birth_date: '',
@@ -53,6 +57,18 @@ export default function BibleCardApplyPage() {
     cell_id: '' as string | number,
     prayer_request: '',
   });
+
+  // 신청 마감 시간 체크
+  useEffect(() => {
+    const checkApplicationClosed = () => {
+      const now = new Date();
+      setIsApplicationClosed(now >= APPLICATION_CLOSE_DATE);
+    };
+    
+    checkApplicationClosed();
+    const interval = setInterval(checkApplicationClosed, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // 내 신청 정보 조회
   const { data: myApplication, isLoading } = useQuery({
@@ -213,6 +229,42 @@ export default function BibleCardApplyPage() {
               <Spinner />
               <LoadingText>로딩 중...</LoadingText>
             </LoadingContainer>
+          </ContentWrapper>
+        </Container>
+        <Footer />
+      </>
+    );
+  }
+
+  // 신청 기간 종료 화면
+  if (isApplicationClosed && !myApplication?.hasApplication) {
+    return (
+      <>
+        <Head>
+          <title>말씀카드 신청 기간 종료 | HUB Worship</title>
+        </Head>
+        <Header />
+        <Container>
+          <ContentWrapper>
+            <Card>
+              <CardHeader>
+                <Title>📜 말씀카드 신청</Title>
+              </CardHeader>
+              <ClosedMessage>
+                <ClosedIcon>⏰</ClosedIcon>
+                <ClosedTitle>신청 기간이 종료되었습니다</ClosedTitle>
+                <ClosedDescription>
+                  말씀카드 신청 기간이 지났습니다.<br />
+                  이미 신청하신 분들은 2026년 1월 1일부터<br />
+                  말씀카드를 다운로드하실 수 있습니다.
+                </ClosedDescription>
+                {myApplication?.hasApplication && (
+                  <CompleteButton onClick={() => router.push('/bible-card/download')}>
+                    내 말씀카드 보기 →
+                  </CompleteButton>
+                )}
+              </ClosedMessage>
+            </Card>
           </ContentWrapper>
         </Container>
         <Footer />
@@ -1462,5 +1514,52 @@ const DownloadButton = styled.a`
     padding: 12px;
     font-size: 13px;
     border-radius: 8px;
+  }
+`;
+
+const ClosedMessage = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+
+  @media (max-width: 480px) {
+    padding: 40px 16px;
+    gap: 16px;
+  }
+`;
+
+const ClosedIcon = styled.div`
+  font-size: 64px;
+  margin-bottom: 8px;
+
+  @media (max-width: 480px) {
+    font-size: 48px;
+  }
+`;
+
+const ClosedTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+
+  @media (max-width: 480px) {
+    font-size: 20px;
+  }
+`;
+
+const ClosedDescription = styled.p`
+  font-size: 15px;
+  color: #64748b;
+  line-height: 1.8;
+  margin: 0;
+  max-width: 500px;
+
+  @media (max-width: 480px) {
+    font-size: 14px;
+    line-height: 1.7;
   }
 `;

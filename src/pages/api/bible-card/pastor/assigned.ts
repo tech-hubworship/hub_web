@@ -40,8 +40,15 @@ export default async function handler(
       .select('id', { count: 'exact', head: true })
       .eq('assigned_pastor_id', pastorId);
 
+    // status 필터 처리: 'completed'는 bible_verse가 있는 것으로, 'assigned'는 status='assigned'이고 bible_verse가 null인 것으로 필터링
     if (status && typeof status === 'string') {
-      countQuery = countQuery.eq('status', status);
+      if (status === 'completed') {
+        countQuery = countQuery.not('bible_verse', 'is', null);
+      } else if (status === 'assigned') {
+        countQuery = countQuery.eq('status', 'assigned').is('bible_verse', null);
+      } else {
+        countQuery = countQuery.eq('status', status);
+      }
     }
 
     // 검색 조건 추가 (이름, 말씀 본문, 구절 참조)
@@ -64,8 +71,15 @@ export default async function handler(
       .order('assigned_at', { ascending: false })
       .range(offset, offset + limitNum - 1);
 
+    // status 필터 처리: 'completed'는 bible_verse가 있는 것으로, 'assigned'는 status='assigned'이고 bible_verse가 null인 것으로 필터링
     if (status && typeof status === 'string') {
-      query = query.eq('status', status);
+      if (status === 'completed') {
+        query = query.not('bible_verse', 'is', null);
+      } else if (status === 'assigned') {
+        query = query.eq('status', 'assigned').is('bible_verse', null);
+      } else {
+        query = query.eq('status', status);
+      }
     }
 
     // 검색 조건 추가 (이름, 말씀 본문, 구절 참조)
@@ -92,16 +106,16 @@ export default async function handler(
       user_profile: undefined,
     }));
 
-    // 통계
+    // 통계 (작성대기: status='assigned' && bible_verse IS NULL, 작성완료: bible_verse 값 존재)
     const { data: allAssigned } = await supabaseAdmin
       .from('bible_card_applications')
-      .select('status')
+      .select('status, bible_verse')
       .eq('assigned_pastor_id', pastorId);
 
     const stats = {
       total: allAssigned?.length || 0,
-      assigned: allAssigned?.filter(a => a.status === 'assigned').length || 0,
-      completed: allAssigned?.filter(a => a.status === 'completed').length || 0,
+      assigned: allAssigned?.filter(a => a.status === 'assigned' && a.bible_verse == null).length || 0,
+      completed: allAssigned?.filter(a => a.bible_verse != null && a.bible_verse.trim() !== '').length || 0,
       delivered: allAssigned?.filter(a => a.status === 'delivered').length || 0,
     };
 

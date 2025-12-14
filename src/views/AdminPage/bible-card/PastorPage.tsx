@@ -345,14 +345,24 @@ export default function BibleCardPastorPage() {
     return '-';
   };
 
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, { bg: string; color: string; label: string }> = {
-      assigned: { bg: '#fef3c7', color: '#92400e', label: '작성대기' },
-      completed: { bg: '#d1fae5', color: '#065f46', label: '작성완료' },
-      delivered: { bg: '#e0e7ff', color: '#4338ca', label: '전달완료' },
-    };
-    const style = styles[status] || styles.assigned;
-    return <StatusBadge bg={style.bg} textColor={style.color}>{style.label}</StatusBadge>;
+  const getStatusBadge = (app: Application) => {
+    // 작성대기: status === 'assigned' && bible_verse == null
+    // 작성완료: bible_verse 값 존재
+    // 전달완료: status === 'delivered'
+    const hasBibleVerse = app.bible_verse != null && app.bible_verse.trim() !== '';
+    const isDelivered = app.status === 'delivered';
+    const isAssigned = app.status === 'assigned' && (app.bible_verse == null || app.bible_verse.trim() === '');
+    
+    if (isDelivered) {
+      return <StatusBadge bg="#e0e7ff" textColor="#4338ca">전달완료</StatusBadge>;
+    } else if (hasBibleVerse) {
+      return <StatusBadge bg="#d1fae5" textColor="#065f46">작성완료</StatusBadge>;
+    } else if (isAssigned) {
+      return <StatusBadge bg="#fef3c7" textColor="#92400e">작성대기</StatusBadge>;
+    } else {
+      // 그 외의 경우 (예: completed 상태이지만 bible_verse가 없는 경우)
+      return <StatusBadge bg="#f1f5f9" textColor="#64748b">대기중</StatusBadge>;
+    }
   };
 
   return (
@@ -385,8 +395,9 @@ export default function BibleCardPastorPage() {
       </StatsGrid>
 
       {/* 필터 */}
-      <FilterBar>
-        <ComboboxWrapper>
+      <FilterSection>
+        <FilterGroup>
+          <FilterLabel>상태</FilterLabel>
           <Combobox
             value={statusFilter}
             onChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}
@@ -398,25 +409,28 @@ export default function BibleCardPastorPage() {
             ]}
             placeholder="전체"
           />
-        </ComboboxWrapper>
-        <SearchInput
-          type="text"
-          placeholder="이름, 말씀, 구절로 검색..."
-          value={searchQuery}
-          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-          onKeyPress={(e) => {
-            if (e.key === 'Enter') {
-              refetch();
-            }
-          }}
-        />
-        <RefreshButton 
-          onClick={() => refetch()}
-          disabled={isLoading}
-        >
+        </FilterGroup>
+
+        <FilterGroup style={{ flex: 1, maxWidth: '300px' }}>
+          <FilterLabel>검색</FilterLabel>
+          <SearchInput
+            type="text"
+            placeholder="이름, 말씀, 구절로 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                refetch();
+              }
+            }}
+            style={{ width: '100%' }}
+          />
+        </FilterGroup>
+
+        <SearchButton onClick={() => refetch()} disabled={isLoading}>
           {isLoading ? '조회 중...' : '🔍 조회하기'}
-        </RefreshButton>
-      </FilterBar>
+        </SearchButton>
+      </FilterSection>
 
       {/* 목록 - 데스크톱 테이블 / 모바일 카드 */}
       {isLoading ? (
@@ -457,15 +471,15 @@ export default function BibleCardPastorPage() {
                     <Td>
                       <PrayerPreview>{app.prayer_request}</PrayerPreview>
                     </Td>
-                    <Td>{getStatusBadge(app.status)}</Td>
+                    <Td>{getStatusBadge(app)}</Td>
                     <Td>
                       {app.bible_verse_reference ? (
                         <BiblePreview>📖 {app.bible_verse_reference}</BiblePreview>
                       ) : '-'}
                     </Td>
                     <Td>
-                      <ActionButton status={app.status}>
-                        {app.status === 'assigned' ? '작성' : '보기'}
+                      <ActionButton hasBibleVerse={app.bible_verse != null && app.bible_verse.trim() !== ''} isDelivered={app.status === 'delivered'}>
+                        {app.status === 'assigned' && (app.bible_verse == null || app.bible_verse.trim() === '') ? '작성' : '보기'}
                       </ActionButton>
                     </Td>
                   </Tr>
@@ -488,12 +502,12 @@ export default function BibleCardPastorPage() {
                   )}
                 </MobileListLeft>
                 <MobileListRight>
-                  {getStatusBadge(app.status)}
+                  {getStatusBadge(app)}
                   {app.bible_verse_reference && (
                     <MobileListBible>📖 {app.bible_verse_reference}</MobileListBible>
                   )}
-                  <ActionButton status={app.status}>
-                    {app.status === 'assigned' ? '작성' : '보기'}
+                  <ActionButton hasBibleVerse={app.bible_verse != null && app.bible_verse.trim() !== ''} isDelivered={app.status === 'delivered'}>
+                    {(app.bible_verse == null || app.bible_verse.trim() === '') && app.status !== 'delivered' ? '작성' : '보기'}
                   </ActionButton>
                 </MobileListRight>
               </MobileListItem>
@@ -583,7 +597,7 @@ export default function BibleCardPastorPage() {
                     <Combobox
                       value={selectedTestament}
                       onChange={handleTestamentChange}
-                      disabled={false}
+                      disabled={selectedApp.status === 'delivered' || selectedApp.status === 'completed'}
                       options={[
                         { value: '', label: '구약/신약' },
                         { value: '구약', label: '구약' },
@@ -596,7 +610,7 @@ export default function BibleCardPastorPage() {
                     <Combobox
                       value={selectedBook}
                       onChange={handleBookChange}
-                      disabled={isLoadingBooks || !selectedTestament}
+                      disabled={isLoadingBooks || !selectedTestament || selectedApp.status === 'delivered' || selectedApp.status === 'completed'}
                       options={[
                         { value: '', label: '책 선택' },
                         ...filteredBooks.map(book => ({ value: book.full_name, label: book.full_name })),
@@ -610,7 +624,7 @@ export default function BibleCardPastorPage() {
                     <Combobox
                       value={selectedChapter?.toString() || ''}
                       onChange={handleChapterChange}
-                      disabled={!selectedBook || isLoadingChapters}
+                      disabled={!selectedBook || isLoadingChapters || selectedApp.status === 'delivered' || selectedApp.status === 'completed'}
                       options={[
                         { value: '', label: '장 선택' },
                         ...(isLoadingChapters 
@@ -625,7 +639,7 @@ export default function BibleCardPastorPage() {
                     <Combobox
                       value={selectedVerse || ''}
                       onChange={handleVerseChange}
-                      disabled={!selectedChapter || isLoadingVerses}
+                      disabled={!selectedChapter || isLoadingVerses || selectedApp.status === 'delivered' || selectedApp.status === 'completed'}
                       options={[
                         { value: '', label: '절 선택' },
                         ...(isLoadingVerses 
@@ -675,7 +689,7 @@ export default function BibleCardPastorPage() {
                   value={formData.bible_verse}
                   onChange={(e) => setFormData(prev => ({ ...prev, bible_verse: e.target.value }))}
                   rows={5}
-                  disabled={false}
+                  disabled={selectedApp.status === 'delivered' || selectedApp.status === 'completed'}
                 />
               </FormGroup>
 
@@ -686,19 +700,25 @@ export default function BibleCardPastorPage() {
                   value={formData.pastor_message}
                   onChange={(e) => setFormData(prev => ({ ...prev, pastor_message: e.target.value }))}
                   rows={3}
-                  disabled={false}
+                  disabled={selectedApp.status === 'delivered' || selectedApp.status === 'completed'}
                 />
               </FormGroup>
             </ModalBody>
 
             <ModalFooter>
               <CancelButton onClick={handleCloseModal}>취소</CancelButton>
-              <SaveButton 
-                onClick={handleSubmit}
-                disabled={completeMutation.isPending}
-              >
-                {completeMutation.isPending ? '저장 중...' : selectedApp.status === 'assigned' ? '말씀 저장' : '말씀 수정'}
-              </SaveButton>
+              {selectedApp.status === 'delivered' || selectedApp.status === 'completed' ? (
+                <SaveButton disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>
+                  완료된 말씀은 수정할 수 없습니다
+                </SaveButton>
+              ) : (
+                <SaveButton 
+                  onClick={handleSubmit}
+                  disabled={completeMutation.isPending}
+                >
+                  {completeMutation.isPending ? '저장 중...' : (selectedApp.bible_verse == null || selectedApp.bible_verse.trim() === '') ? '말씀 저장' : '말씀 수정'}
+                </SaveButton>
+              )}
             </ModalFooter>
           </ModalContent>
         </Modal>
@@ -797,40 +817,32 @@ const StatLabel = styled.div`
   margin-top: 4px;
 `;
 
-const FilterBar = styled.div`
-  margin-bottom: 20px;
-  width: 100%;
-  box-sizing: border-box;
+const FilterSection = styled.div`
   display: flex;
-  gap: 12px;
-  align-items: center;
-  overflow-x: hidden;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-radius: 8px;
+  align-items: flex-end;
 
   @media (max-width: 768px) {
-    gap: 8px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    
-    /* 스크롤바 숨기기 */
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    &::-webkit-scrollbar {
-      display: none;
-    }
+    padding: 16px;
+    gap: 12px;
   }
 `;
 
-const ComboboxWrapper = styled.div`
-  flex: 0 0 auto;
-  min-width: 120px;
-  width: 150px;
+const FilterGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
 
-  @media (max-width: 768px) {
-    min-width: 100px;
-    width: 100px;
-    flex-shrink: 0;
-  }
+const FilterLabel = styled.label`
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
 `;
 
 const FilterSelect = styled.select`
@@ -853,25 +865,15 @@ const SearchInput = styled.input`
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 14px;
-  flex: 1;
-  min-width: 200px;
   box-sizing: border-box;
 
   &:focus {
     outline: none;
     border-color: #6366f1;
   }
-
-  @media (max-width: 768px) {
-    font-size: 16px; /* iOS 줌 방지 */
-    min-width: 0;
-    flex: 1 1 auto;
-    width: 100%;
-    max-width: 100%;
-  }
 `;
 
-const RefreshButton = styled.button`
+const SearchButton = styled.button`
   padding: 10px 20px;
   background: #3b82f6;
   border: none;
@@ -881,8 +883,7 @@ const RefreshButton = styled.button`
   color: white;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
-  flex-shrink: 0;
+  height: fit-content;
 
   &:hover:not(:disabled) {
     background: #2563eb;
@@ -897,13 +898,6 @@ const RefreshButton = styled.button`
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 12px;
-    padding: 8px 12px;
-    flex: 0 0 auto;
-    min-width: auto;
   }
 `;
 
@@ -987,12 +981,12 @@ const BiblePreview = styled.div`
   font-weight: 500;
 `;
 
-const ActionButton = styled.button<{ status: string }>`
+const ActionButton = styled.button<{ hasBibleVerse: boolean; isDelivered: boolean }>`
   padding: 5px 12px;
-  background: ${props => props.status === 'assigned' 
+  background: ${props => !props.hasBibleVerse && !props.isDelivered
     ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' 
     : '#f1f5f9'};
-  color: ${props => props.status === 'assigned' ? 'white' : '#64748b'};
+  color: ${props => !props.hasBibleVerse && !props.isDelivered ? 'white' : '#64748b'};
   border: none;
   border-radius: 6px;
   font-size: 12px;

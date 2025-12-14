@@ -138,6 +138,85 @@ const YouTubeLinkBase = styled.a`
 
 const YouTubeLink = motion(YouTubeLinkBase);
 
+const VideoEmptyState = styled(motion.div)`
+  text-align: center;
+  padding: 60px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 249, 255, 0.9) 100%);
+  border-radius: 16px;
+  margin: 24px 0;
+
+  @media (max-width: 768px) {
+    padding: 40px 24px;
+    gap: 20px;
+  }
+`;
+
+const VideoIconWrapper = styled(motion.div)`
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #CEB2FF 0%, #9B7FD9 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(206, 178, 255, 0.3);
+  margin-bottom: 8px;
+
+  @media (max-width: 768px) {
+    width: 64px;
+    height: 64px;
+  }
+`;
+
+const VideoIcon = styled.div`
+  font-size: 36px;
+  color: #ffffff;
+  
+  @media (max-width: 768px) {
+    font-size: 28px;
+  }
+`;
+
+const VideoEmptyTitle = styled.div`
+  font-size: 20px;
+  font-weight: 600;
+  color: #724886;
+  line-height: 1.6;
+  white-space: pre-line;
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+    line-height: 1.5;
+  }
+`;
+
+const VideoEmptySubtitle = styled.div`
+  font-size: 16px;
+  font-weight: 500;
+  color: #9B7FD9;
+  line-height: 1.6;
+  margin-top: 8px;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+    margin-top: 4px;
+  }
+`;
+
+const PrayerIcon = styled(motion.div)`
+  font-size: 24px;
+  color: #CEB2FF;
+  margin-top: 8px;
+  
+  @media (max-width: 768px) {
+    font-size: 20px;
+  }
+`;
+
 interface VideoSectionProps {
   post: AdventPost;
   currentDate: string;
@@ -214,19 +293,7 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
           {dayNumber && `${dayNumber}일차`} / {formattedDate}
         </SectionSubtitle>
         
-        {post.thumbnail_url && !post.video_url && (
-          <ThumbnailImageWrapper variants={videoVariants}>
-            <ThumbnailImage
-              src={post.thumbnail_url} 
-              alt={post.title}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          </ThumbnailImageWrapper>
-        )}
-
-        {post.video_url && getYouTubeEmbedUrl(post.video_url) && (
+        {post.video_url && getYouTubeEmbedUrl(post.video_url) ? (
           <>
             <VideoContainer 
               variants={videoVariants}
@@ -249,6 +316,50 @@ export const VideoSection: React.FC<VideoSectionProps> = ({ post, currentDate })
               </YouTubeLink>
             )}
           </>
+        ) : post.thumbnail_url && !post.video_url ? (
+          <ThumbnailImageWrapper variants={videoVariants}>
+            <ThumbnailImage
+              src={post.thumbnail_url} 
+              alt={post.title}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </ThumbnailImageWrapper>
+        ) : (
+          <VideoEmptyState variants={itemVariants}>
+            <VideoIconWrapper
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ 
+                delay: 0.2,
+                type: "spring",
+                stiffness: 200,
+                damping: 15
+              }}
+            >
+              <VideoIcon>🎬</VideoIcon>
+            </VideoIconWrapper>
+            <VideoEmptyTitle>
+              영상 제작팀이 열심히 영상을 제작중입니다
+            </VideoEmptyTitle>
+            <VideoEmptySubtitle>
+              헌신하는 영상제작팀을 위해 기도해주세요
+            </VideoEmptySubtitle>
+            <PrayerIcon
+              animate={{ 
+                y: [0, -8, 0],
+                opacity: [0.7, 1, 0.7]
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              🙏
+            </PrayerIcon>
+          </VideoEmptyState>
         )}
 
       </ContentWrapper>

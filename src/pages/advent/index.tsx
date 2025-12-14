@@ -105,24 +105,93 @@ const ScrollArrow = styled(motion.div)<{ isHiding: boolean }>`
 
 // ==================== Empty State Section ====================
 const EmptyStateCard = styled.div`
-  background: #ffffff;
-  padding: 40px;
-  border-bottom: 1px solid #f3f4f6;
+  background: linear-gradient(135deg, #f8f9ff 0%, #fff5f8 100%);
+  padding: 60px 40px;
+  border-radius: 20px;
+  border: 1px solid rgba(206, 178, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(206, 178, 255, 0.1);
+  margin: 40px 0;
 
   @media (max-width: 768px) {
-    padding: 24px;
+    padding: 40px 24px;
+    margin: 30px 0;
+    border-radius: 16px;
   }
 `;
 
 const EmptyState = styled.div`
   text-align: center;
-  color: #6b7280;
-  padding: 60px 20px;
-  font-size: 18px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
 
   @media (max-width: 768px) {
-    padding: 40px 16px;
-    font-size: 16px;
+    gap: 20px;
+    padding: 10px;
+  }
+`;
+
+const VideoIconWrapper = styled(motion.div)`
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #CEB2FF 0%, #9B7FD9 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(206, 178, 255, 0.3);
+  margin-bottom: 8px;
+
+  @media (max-width: 768px) {
+    width: 64px;
+    height: 64px;
+  }
+`;
+
+const VideoIcon = styled.div`
+  font-size: 36px;
+  color: #ffffff;
+  
+  @media (max-width: 768px) {
+    font-size: 28px;
+  }
+`;
+
+const EmptyStateTitle = styled.div`
+  font-size: 20px;
+  font-weight: 600;
+  color: #724886;
+  line-height: 1.6;
+  white-space: pre-line;
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+    line-height: 1.5;
+  }
+`;
+
+const EmptyStateSubtitle = styled.div`
+  font-size: 16px;
+  font-weight: 500;
+  color: #9B7FD9;
+  line-height: 1.6;
+  margin-top: 8px;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+    margin-top: 4px;
+  }
+`;
+
+const PrayerIcon = styled(motion.div)`
+  font-size: 24px;
+  color: #CEB2FF;
+  margin-top: 8px;
+  
+  @media (max-width: 768px) {
+    font-size: 20px;
   }
 `;
 
@@ -604,13 +673,43 @@ const AdventPage = () => {
 
               {!error && !post && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
                 >
                   <EmptyStateCard>
                     <EmptyState>
-                      해당 날짜의 게시물이 없습니다.
+                      <VideoIconWrapper
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ 
+                          delay: 0.2,
+                          type: "spring",
+                          stiffness: 200,
+                          damping: 15
+                        }}
+                      >
+                        <VideoIcon>🎬</VideoIcon>
+                      </VideoIconWrapper>
+                      <EmptyStateTitle>
+                        영상 제작팀이 열심히 영상을 제작중입니다
+                      </EmptyStateTitle>
+                      <EmptyStateSubtitle>
+                        헌신하는 영상제작팀을 위해 기도해주세요
+                      </EmptyStateSubtitle>
+                      <PrayerIcon
+                        animate={{ 
+                          y: [0, -8, 0],
+                          opacity: [0.7, 1, 0.7]
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                      >
+                        🙏
+                      </PrayerIcon>
                     </EmptyState>
                   </EmptyStateCard>
                 </motion.div>

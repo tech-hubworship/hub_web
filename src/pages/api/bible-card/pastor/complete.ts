@@ -59,12 +59,11 @@ export default async function handler(
       pastor_message: pastor_message || null,
     };
 
-    // 상태가 'assigned'인 경우에만 상태를 'completed'로 변경하고 completed_at 설정
-    if (existing.status === 'assigned') {
-      updateData.completed_at = new Date().toISOString();
-      updateData.status = 'completed';
+    // 상태는 변경하지 않음 (bible_verse 값 존재 여부로 작성 완료 판단)
+    // 이미 완료된 경우(completed, delivered)에는 수정 불가
+    if (existing.status === 'completed' || existing.status === 'delivered') {
+      return res.status(403).json({ error: '완료된 말씀은 수정할 수 없습니다.' });
     }
-    // 이미 완료된 경우에는 상태를 변경하지 않고 내용만 업데이트
 
     // 말씀 입력/수정
     const { error } = await supabaseAdmin

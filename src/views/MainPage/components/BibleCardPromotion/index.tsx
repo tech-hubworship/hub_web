@@ -208,24 +208,50 @@ export default function BibleCardPromotion() {
     seconds: number;
   } | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [isApplicationClosed, setIsApplicationClosed] = useState(false);
+  const [distributionTimeLeft, setDistributionTimeLeft] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  } | null>(null);
 
+  // 신청 마감 시간: 2026년 2월 15일 02시 (한국시간)
+  const APPLICATION_CLOSE_DATE = new Date('2026-02-15T02:00:00+09:00');
+  // 배부 시작 시간: 2026년 1월 1일 00시 (한국시간)
+  const DISTRIBUTION_DATE = new Date('2026-01-01T00:00:00+09:00');
   // 오픈 시간: 2025년 11월 30일 16시 (오후 4시, 한국시간)
+  const OPEN_DATE = new Date('2025-11-30T16:00:00+09:00');
 
   useEffect(() => {
     const updateCountdown = () => {
-      // 오픈 시간: 2025년 11월 30일 16시 (오후 4시, 한국시간, UTC+9)
-      // ISO string with timezone은 자동으로 UTC로 변환됨
-      const openDate = new Date('2025-11-30T16:00:00+09:00');
-      
-      // 현재 시간 (UTC 기준, Date 객체는 내부적으로 UTC로 저장됨)
       const now = new Date();
       
-      // 둘 다 UTC 기준이므로 직접 비교
-      const diff = openDate.getTime() - now.getTime();
-
+      // 신청 마감 시간 체크
+      if (now >= APPLICATION_CLOSE_DATE) {
+        setIsApplicationClosed(true);
+        setIsOpen(false);
+        
+        // 배부 시작까지 카운트다운
+        const diff = DISTRIBUTION_DATE.getTime() - now.getTime();
+        if (diff > 0) {
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          setDistributionTimeLeft({ days, hours, minutes, seconds });
+        } else {
+          setDistributionTimeLeft(null);
+        }
+        return;
+      }
+      
+      // 신청 오픈 시간 체크
+      const diff = OPEN_DATE.getTime() - now.getTime();
       if (diff <= 0) {
         setIsOpen(true);
         setTimeLeft(null);
+        setIsApplicationClosed(false);
         return;
       }
 
@@ -236,6 +262,7 @@ export default function BibleCardPromotion() {
 
       setTimeLeft({ days, hours, minutes, seconds });
       setIsOpen(false);
+      setIsApplicationClosed(false);
     };
 
     updateCountdown();
@@ -245,8 +272,10 @@ export default function BibleCardPromotion() {
   }, []);
 
   const handleClick = () => {
-    if (isOpen) {
+    if (isOpen && !isApplicationClosed) {
       router.push('/bible-card');
+    } else if (isApplicationClosed) {
+      router.push('/bible-card/download');
     }
   };
 
@@ -254,38 +283,76 @@ export default function BibleCardPromotion() {
     <SectionCard>
       <ContentWrapper>
         <IconWrapper>📜</IconWrapper>
-        <Title>신년 말씀카드 신청</Title>
-        {isOpen ? (
-          <CTAButton onClick={handleClick}>
-            말씀카드 페이지로 이동 →
-          </CTAButton>
-        ) : (
-          <CountdownWrapper>
-            <CountdownText>오픈까지 남은 시간</CountdownText>
-            {timeLeft && (
-              <CountdownGrid>
-                <CountdownItem>
-                  <CountdownNumber>{String(timeLeft.days).padStart(2, '0')}</CountdownNumber>
-                  <CountdownLabel>일</CountdownLabel>
-                </CountdownItem>
-                <CountdownSeparator>:</CountdownSeparator>
-                <CountdownItem>
-                  <CountdownNumber>{String(timeLeft.hours).padStart(2, '0')}</CountdownNumber>
-                  <CountdownLabel>시</CountdownLabel>
-                </CountdownItem>
-                <CountdownSeparator>:</CountdownSeparator>
-                <CountdownItem>
-                  <CountdownNumber>{String(timeLeft.minutes).padStart(2, '0')}</CountdownNumber>
-                  <CountdownLabel>분</CountdownLabel>
-                </CountdownItem>
-                <CountdownSeparator>:</CountdownSeparator>
-                <CountdownItem>
-                  <CountdownNumber>{String(timeLeft.seconds).padStart(2, '0')}</CountdownNumber>
-                  <CountdownLabel>초</CountdownLabel>
-                </CountdownItem>
-              </CountdownGrid>
+        {isApplicationClosed ? (
+          <>
+            <Title>신년 말씀카드</Title>
+            {distributionTimeLeft ? (
+              <CountdownWrapper>
+                <CountdownText>공개까지 남은 시간</CountdownText>
+                <CountdownGrid>
+                  <CountdownItem>
+                    <CountdownNumber>{String(distributionTimeLeft.days).padStart(2, '0')}</CountdownNumber>
+                    <CountdownLabel>일</CountdownLabel>
+                  </CountdownItem>
+                  <CountdownSeparator>:</CountdownSeparator>
+                  <CountdownItem>
+                    <CountdownNumber>{String(distributionTimeLeft.hours).padStart(2, '0')}</CountdownNumber>
+                    <CountdownLabel>시</CountdownLabel>
+                  </CountdownItem>
+                  <CountdownSeparator>:</CountdownSeparator>
+                  <CountdownItem>
+                    <CountdownNumber>{String(distributionTimeLeft.minutes).padStart(2, '0')}</CountdownNumber>
+                    <CountdownLabel>분</CountdownLabel>
+                  </CountdownItem>
+                  <CountdownSeparator>:</CountdownSeparator>
+                  <CountdownItem>
+                    <CountdownNumber>{String(distributionTimeLeft.seconds).padStart(2, '0')}</CountdownNumber>
+                    <CountdownLabel>초</CountdownLabel>
+                  </CountdownItem>
+                </CountdownGrid>
+              </CountdownWrapper>
+            ) : (
+              <CTAButton onClick={handleClick}>
+                말씀카드 다운로드 →
+              </CTAButton>
             )}
-          </CountdownWrapper>
+          </>
+        ) : (
+          <>
+            <Title>신년 말씀카드 신청</Title>
+            {isOpen ? (
+              <CTAButton onClick={handleClick}>
+                말씀카드 페이지로 이동 →
+              </CTAButton>
+            ) : (
+              <CountdownWrapper>
+                <CountdownText>오픈까지 남은 시간</CountdownText>
+                {timeLeft && (
+                  <CountdownGrid>
+                    <CountdownItem>
+                      <CountdownNumber>{String(timeLeft.days).padStart(2, '0')}</CountdownNumber>
+                      <CountdownLabel>일</CountdownLabel>
+                    </CountdownItem>
+                    <CountdownSeparator>:</CountdownSeparator>
+                    <CountdownItem>
+                      <CountdownNumber>{String(timeLeft.hours).padStart(2, '0')}</CountdownNumber>
+                      <CountdownLabel>시</CountdownLabel>
+                    </CountdownItem>
+                    <CountdownSeparator>:</CountdownSeparator>
+                    <CountdownItem>
+                      <CountdownNumber>{String(timeLeft.minutes).padStart(2, '0')}</CountdownNumber>
+                      <CountdownLabel>분</CountdownLabel>
+                    </CountdownItem>
+                    <CountdownSeparator>:</CountdownSeparator>
+                    <CountdownItem>
+                      <CountdownNumber>{String(timeLeft.seconds).padStart(2, '0')}</CountdownNumber>
+                      <CountdownLabel>초</CountdownLabel>
+                    </CountdownItem>
+                  </CountdownGrid>
+                )}
+              </CountdownWrapper>
+            )}
+          </>
         )}
       </ContentWrapper>
     </SectionCard>
