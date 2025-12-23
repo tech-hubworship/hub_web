@@ -306,6 +306,73 @@ const ModalButton = styled.button`
   }
 `;
 
+const SpecialAttendanceModalContent = styled(ModalContent)`
+  max-width: 500px;
+`;
+
+const SpecialAttendanceTitle = styled(ModalTitle)`
+  color: #724886;
+  font-size: 22px;
+  margin-bottom: 20px;
+`;
+
+const SpecialAttendanceMessage = styled(ModalMessage)`
+  font-size: 16px;
+  line-height: 1.8;
+  margin-bottom: 30px;
+`;
+
+const DateButtonGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+`;
+
+const DateButton = styled.button<{ disabled?: boolean }>`
+  width: 100%;
+  padding: 16px 24px;
+  background: ${props => props.disabled ? '#e5e7eb' : '#724886'};
+  color: ${props => props.disabled ? '#9ca3af' : '#ffffff'};
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  &:hover:not(:disabled) {
+    background: #5d3a6b;
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 768px) {
+    padding: 14px 20px;
+    font-size: 14px;
+  }
+`;
+
+const DateLabel = styled.span`
+  font-weight: 700;
+`;
+
+const CloseButton = styled(ModalButton)`
+  background: #6b7280;
+  margin-top: 12px;
+
+  &:hover {
+    background: #4b5563;
+  }
+`;
+
 // ==================== Main Component ====================
 const AdventPage = () => {
   const router = useRouter();
@@ -330,6 +397,9 @@ const AdventPage = () => {
   const [showFullScreenIntro, setShowFullScreenIntro] = useState(true); // 초기값을 true로 설정하여 전체 화면부터 시작
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [hideScrollHint, setHideScrollHint] = useState(false);
+  const [showSpecialAttendanceModal, setShowSpecialAttendanceModal] = useState(false);
+  const [specialAttendanceDates, setSpecialAttendanceDates] = useState<string[]>([]);
+  const [checkingSpecialAttendance, setCheckingSpecialAttendance] = useState(false);
 
   // 화면 크기 감지
   useEffect(() => {
@@ -535,6 +605,120 @@ const AdventPage = () => {
       fetchPreviousPosts(post.post_dt);
     }
   }, [post?.post_dt, loading, fetchPreviousPosts]);
+
+  // 특별 출석 날짜 체크 (12월 24일, 25일에 20일, 21일 출석 체크)
+  const checkSpecialAttendance = useCallback(async () => {
+    if (!session?.user) return;
+
+    const specialDates = ['20251220', '20251221'];
+    const now = new Date();
+    const currentDateStr = now.getFullYear().toString() + 
+      String(now.getMonth() + 1).padStart(2, '0') + 
+      String(now.getDate()).padStart(2, '0');
+
+    // 현재 날짜가 12월 24일 또는 25일인지 확인
+    const isSpecialPeriod = currentDateStr === '20251224' || currentDateStr === '20251225';
+
+    if (!isSpecialPeriod) return;
+
+    try {
+      setCheckingSpecialAttendance(true);
+      const missingDates: string[] = [];
+
+      // 각 특별 날짜의 출석 여부 확인
+      for (const date of specialDates) {
+        const response = await fetch(`/api/advent/attendance?post_dt=${date}`);
+        const data = await response.json();
+        
+        if (response.ok && !data.attendance) {
+          missingDates.push(date);
+        }
+      }
+
+      // 출석하지 않은 날짜가 있으면 팝업 표시
+      if (missingDates.length > 0) {
+        setSpecialAttendanceDates(missingDates);
+        setShowSpecialAttendanceModal(true);
+      }
+    } catch (err) {
+      console.error('특별 출석 확인 오류:', err);
+    } finally {
+      setCheckingSpecialAttendance(false);
+    }
+  }, [session?.user]);
+
+  // 로그인 후 특별 출석 체크
+  useEffect(() => {
+    if (session?.user && !loading) {
+      checkSpecialAttendance();
+    }
+  }, [session?.user, loading, checkSpecialAttendance]);
+
+  // 특별 출석 처리 (묵상 "아멘" 자동 저장 포함)
+  const handleSpecialAttendance = useCallback(async (date: string) => {
+    if (!session?.user) {
+      router.push(`/login?redirect=${encodeURIComponent(router.asPath)}`);
+      return;
+    }
+
+    const dayNumber = getDayNumber(date);
+    if (!dayNumber) {
+      alert('올바른 날짜가 아닙니다.');
+      return;
+    }
+
+    try {
+      // 1. 먼저 묵상 "아멘" 저장
+      const commentResponse = await fetch('/api/advent/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_dt: date,
+          content: '아멘',
+        }),
+      });
+
+      const commentData = await commentResponse.json();
+      
+      // 묵상 저장 실패해도 계속 진행 (이미 저장된 경우일 수 있음)
+      if (!commentResponse.ok && commentData.error !== '이미 출석하셨습니다.') {
+        console.warn('묵상 저장 실패:', commentData.error);
+      }
+
+      // 2. 출석 처리
+      const attendanceResponse = await fetch('/api/advent/attendance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_dt: date,
+          day_number: dayNumber,
+        }),
+      });
+
+      const attendanceData = await attendanceResponse.json();
+
+      if (attendanceResponse.ok) {
+        // 출석 완료된 날짜 제거
+        setSpecialAttendanceDates(prev => prev.filter(d => d !== date));
+        
+        // 모든 날짜 출석 완료 시 팝업 닫기
+        if (specialAttendanceDates.filter(d => d !== date).length === 0) {
+          setShowSpecialAttendanceModal(false);
+        }
+        
+        alert(`${date.slice(4, 6)}월 ${date.slice(6, 8)}일 출석이 완료되었습니다.`);
+      } else {
+        alert(attendanceData.error || '출석 처리에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('특별 출석 처리 오류:', err);
+      alert('출석 처리 중 오류가 발생했습니다.');
+    }
+  }, [session?.user, router, specialAttendanceDates]);
 
 
   const handleCommentSubmit = useCallback(async (): Promise<boolean> => {
@@ -852,6 +1036,39 @@ const AdventPage = () => {
               확인
             </ModalButton>
           </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* 특별 출석 팝업 (12월 20일, 21일) */}
+      {showSpecialAttendanceModal && (
+        <ModalOverlay onClick={() => setShowSpecialAttendanceModal(false)}>
+          <SpecialAttendanceModalContent onClick={(e) => e.stopPropagation()}>
+            <SpecialAttendanceTitle>
+              특별 출석 안내
+            </SpecialAttendanceTitle>
+            <SpecialAttendanceMessage>
+              12월 20일과 21일은 모든 분들이 출석하실 수 있습니다.{'\n'}
+              출석하지 않은 날짜의 버튼을 눌러주세요.{'\n\n'}
+              묵상은 "아멘"으로 자동 저장됩니다.
+            </SpecialAttendanceMessage>
+            <DateButtonGroup>
+              {specialAttendanceDates.includes('20251220') && (
+                <DateButton onClick={() => handleSpecialAttendance('20251220')}>
+                  <DateLabel>12월 20일</DateLabel>
+                  <span>출석하기</span>
+                </DateButton>
+              )}
+              {specialAttendanceDates.includes('20251221') && (
+                <DateButton onClick={() => handleSpecialAttendance('20251221')}>
+                  <DateLabel>12월 21일</DateLabel>
+                  <span>출석하기</span>
+                </DateButton>
+              )}
+            </DateButtonGroup>
+            <CloseButton onClick={() => setShowSpecialAttendanceModal(false)}>
+              닫기
+            </CloseButton>
+          </SpecialAttendanceModalContent>
         </ModalOverlay>
       )}
     </>
