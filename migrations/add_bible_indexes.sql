@@ -34,3 +34,4 @@ ANALYZE public.bible;
 
 
 
+

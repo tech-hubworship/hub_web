@@ -93,26 +93,70 @@ export default async function handler(
 
     // 2. 장 목록 조회
     if (type === 'chapters' && book) {
-      const { data, error } = await supabaseAdmin
-        .from('bible')
-        .select('chapter, book_full_name')
-        .eq('book_name', book)
-        .order('chapter', { ascending: true });
+      // 시편일 경우 여러 번 조회해서 합치기 (50편씩)
+      const isPsalms = book === '시' || book === '시편';
+      
+      if (isPsalms) {
+        const allChapters = new Set<number>();
+        const chapterRanges = [
+          { start: 1, end: 50 },
+          { start: 51, end: 100 },
+          { start: 101, end: 150 },
+        ];
 
-      if (error) {
-        console.error('Error fetching chapters:', error);
-        return res.status(500).json({ error: '장 목록 조회 실패' });
+        for (const range of chapterRanges) {
+          const { data, error } = await supabaseAdmin
+            .from('bible')
+            .select('chapter, book_full_name')
+            .eq('book_name', book)
+            .gte('chapter', range.start)
+            .lte('chapter', range.end)
+            .order('chapter', { ascending: true });
+
+          if (error) {
+            console.error(`Error fetching chapters ${range.start}-${range.end}:`, error);
+            continue; // 에러가 나도 다음 범위 계속 시도
+          }
+
+          if (data && data.length > 0) {
+            data.forEach((item: any) => {
+              allChapters.add(item.chapter);
+            });
+          }
+        }
+
+        if (allChapters.size === 0) {
+          return res.status(404).json({ error: '시편 장 목록을 찾을 수 없습니다.' });
+        }
+
+        const chapters = Array.from(allChapters).sort((a, b) => a - b);
+        return res.status(200).json({
+          book: '시편',
+          chapters,
+        });
+      } else {
+        // 시편이 아닌 경우 기존 로직 사용
+        const { data, error } = await supabaseAdmin
+          .from('bible')
+          .select('chapter, book_full_name')
+          .eq('book_name', book)
+          .order('chapter', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching chapters:', error);
+          return res.status(500).json({ error: '장 목록 조회 실패' });
+        }
+
+        if (!data || data.length === 0) {
+          return res.status(404).json({ error: '책을 찾을 수 없습니다.' });
+        }
+
+        const chapters = Array.from(new Set(data.map((item: any) => item.chapter))).sort((a, b) => a - b);
+        return res.status(200).json({
+          book: data[0]?.book_full_name || book,
+          chapters,
+        });
       }
-
-      if (!data || data.length === 0) {
-        return res.status(404).json({ error: '책을 찾을 수 없습니다.' });
-      }
-
-      const chapters = Array.from(new Set(data.map((item: any) => item.chapter))).sort((a, b) => a - b);
-      return res.status(200).json({
-        book: data[0]?.book_full_name || book,
-        chapters,
-      });
     }
 
     // 3. 절 목록 조회

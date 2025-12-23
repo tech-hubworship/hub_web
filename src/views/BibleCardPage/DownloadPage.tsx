@@ -398,24 +398,24 @@ export default function BibleCardDownloadPage() {
                       </ImageError>
                     )}
                   </CardImageContainer>
-                )}
+            )}
 
-                {/* 다운로드 버튼 */}
-                <DownloadSection>
-                  {app.drive_link_1 ? (
-                    <DownloadButton 
-                      onClick={() => handleDownload(app.drive_link_1, 1)}
-                      disabled={downloading[1]}
-                    >
+            {/* 다운로드 버튼 */}
+            <DownloadSection>
+              {app.drive_link_1 ? (
+                  <DownloadButton 
+                    onClick={() => handleDownload(app.drive_link_1, 1)}
+                    disabled={downloading[1]}
+                  >
                       {downloading[1] ? '다운로드 중...' : '📥 말씀카드 다운로드'}
-                    </DownloadButton>
-                  ) : (
-                    <NoLinkMessage>
-                      아직 다운로드 링크가 준비되지 않았습니다.<br />
-                      잠시 후 다시 확인해주세요.
-                    </NoLinkMessage>
-                  )}
-                </DownloadSection>
+                  </DownloadButton>
+              ) : (
+                <NoLinkMessage>
+                  아직 다운로드 링크가 준비되지 않았습니다.<br />
+                  잠시 후 다시 확인해주세요.
+                </NoLinkMessage>
+              )}
+            </DownloadSection>
               </>
             )}
 

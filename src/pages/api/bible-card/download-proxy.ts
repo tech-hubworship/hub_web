@@ -45,15 +45,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     for (const attemptUrl of urlAttempts) {
       try {
         console.log(`[Download Proxy] Trying: ${attemptUrl}`);
-        
+
         imageResponse = await fetch(attemptUrl, {
-          method: 'GET',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
             'Referer': 'https://drive.google.com/',
-          },
-        });
+      },
+    });
 
         if (imageResponse.ok && imageResponse.headers.get('content-type')?.startsWith('image/')) {
           console.log(`[Download Proxy] Success with: ${attemptUrl}`);
@@ -86,10 +86,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!isViewMode) {
       // 다운로드 모드일 때만 Content-Disposition 설정
       const encodedFilename = encodeURIComponent(finalFilename).replace(/['()]/g, escape);
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename*=UTF-8''${encodedFilename}`
-      );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodedFilename}`
+    );
     } else {
       // 이미지 표시 모드일 때는 CORS 헤더 추가
       res.setHeader('Access-Control-Allow-Origin', '*');
