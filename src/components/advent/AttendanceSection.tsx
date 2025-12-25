@@ -587,6 +587,7 @@ interface AttendanceSectionProps {
   onCommentTextChange: (text: string) => void;
   onCommentSubmit: () => Promise<boolean>;
   onMeditationSavedChange: (saved: boolean) => void;
+  isEventEnded?: boolean;
 }
 
 interface AttendanceMap {
@@ -602,6 +603,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   onCommentTextChange,
   onCommentSubmit,
   onMeditationSavedChange,
+  isEventEnded = false,
 }) => {
   const router = useRouter();
   const [attendanceChecked, setAttendanceChecked] = useState(false);
@@ -676,9 +678,16 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
 
   useEffect(() => {
     if (isLoggedIn && currentDate) {
-      checkAttendance();
+      if (isEventEnded) {
+        // 이벤트 종료 후에는 자동으로 전체 출석 현황 표시
+        fetchAttendance();
+        setShowTable(true);
+        setShowWeekView(true);
+      } else {
+        checkAttendance();
+      }
     }
-  }, [currentDate, isLoggedIn]);
+  }, [currentDate, isLoggedIn, isEventEnded]);
 
   const checkAttendance = async () => {
     try {
@@ -728,9 +737,8 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
 
   const handleViewAllClick = () => {
     setShowWeekView(true);
-    const currentWeek = dayNumber ? Math.ceil(dayNumber / 7) : 1;
-    setSelectedWeek(currentWeek);
-    fetchWeekAttendance(currentWeek);
+    // 전체 출석 현황을 표시하기 위해 전체 출석 데이터 가져오기
+    fetchAttendance();
   };
 
   const handleBackToCurrent = () => {
@@ -745,7 +753,9 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   };
 
   const renderWeekIcons = (startDay: number, endDay: number) => {
-    const days = Array.from({ length: endDay - startDay + 1 }, (_, i) => startDay + i);
+    // 27일차, 28일차 제외
+    const days = Array.from({ length: endDay - startDay + 1 }, (_, i) => startDay + i)
+      .filter(day => day <= 26);
     const firstRowDays = days.slice(0, 4);
     const secondRowDays = days.slice(4, 7);
     
@@ -883,17 +893,18 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     if (!dayNumber) return null;
     
     // 현재 날짜가 속한 범위 계산 (7일씩)
-    // 1-7일차, 8-14일차, 15-21일차, 22-28일차
+    // 1-7일차, 8-14일차, 15-21일차, 22-26일차 (27일차, 28일차 제외)
     const currentRange = Math.ceil(dayNumber / 7);
     const startDay = (currentRange - 1) * 7 + 1;
-    const endDay = Math.min(currentRange * 7, 28);
+    const endDay = Math.min(currentRange * 7, 26); // 28에서 26으로 변경
     
-    // 해당 범위의 일차만 필터링
-    const days = Array.from({ length: endDay - startDay + 1 }, (_, i) => startDay + i);
+    // 해당 범위의 일차만 필터링 (27일차, 28일차 제외)
+    const days = Array.from({ length: endDay - startDay + 1 }, (_, i) => startDay + i)
+      .filter(day => day <= 26); // 27일차, 28일차 필터링
     
     // 첫 번째 줄 (1-4 또는 8-11, 15-18, 22-25)
     const firstRowDays = days.slice(0, 4);
-    // 두 번째 줄 (5-7 또는 12-14, 19-21, 26-28)
+    // 두 번째 줄 (5-7 또는 12-14, 19-21, 26)
     const secondRowDays = days.slice(4, 7);
     
     return (
@@ -911,6 +922,50 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
       </>
     );
   };
+
+  // 1일차부터 26일차까지 모두 표시하는 함수
+  const renderAllDaysIcons = () => {
+    const allDays = Array.from({ length: 26 }, (_, i) => i + 1);
+    
+    // 여러 줄로 나누어 표시 (한 줄에 4개씩)
+    const rows: number[][] = [];
+    for (let i = 0; i < allDays.length; i += 4) {
+      rows.push(allDays.slice(i, i + 4));
+    }
+    
+    return (
+      <>
+        {rows.map((rowDays, rowIndex) => (
+          <IconRow key={rowIndex}>
+            {rowDays.map((day) => renderUnionIcon(day, attendanceMap))}
+          </IconRow>
+        ))}
+      </>
+    );
+  };
+
+  // 이벤트 종료 후에는 출석 버튼 숨기고 전체 출석 현황만 표시
+  if (isEventEnded && isLoggedIn) {
+    return (
+      <SectionCard>
+        <ContentWrapper>
+          <AttendanceContent>
+            <CompletionHeader>
+              <LogoContainer>
+                <img src="/icons/advent_logo.svg" alt="advent logo" />
+              </LogoContainer>
+              <CompletionText>전체 출석 현황</CompletionText>
+            </CompletionHeader>
+            {showTable && (
+              <UnionGrid>
+                {renderAllDaysIcons()}
+              </UnionGrid>
+            )}
+          </AttendanceContent>
+        </ContentWrapper>
+      </SectionCard>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
@@ -1109,35 +1164,9 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
               )}
 
               {showTable && showWeekView && (
-                <WeekSelectorContainer>
-                  <WeekSelectorTitle>전체 출석정보</WeekSelectorTitle>
-                  
-                  <WeekTabs>
-                    {[1, 2, 3, 4].map((week) => (
-                      <WeekTab
-                        key={week}
-                        active={selectedWeek === week}
-                        onClick={() => handleWeekSelect(week)}
-                      >
-                        {week}주차
-                      </WeekTab>
-                    ))}
-                  </WeekTabs>
-
-                  {loadingWeek ? (
-                    <LoadingLogo>
-                      <img src="/icons/advent_logo.svg" alt="loading" />
-                    </LoadingLogo>
-                  ) : selectedWeek ? (
-                    <UnionGrid>
-                      {renderWeekIcons((selectedWeek - 1) * 7 + 1, selectedWeek * 7)}
-                    </UnionGrid>
-                  ) : null}
-
-                  <BackButton onClick={handleBackToCurrent}>
-                    현재 주차 보기
-                  </BackButton>
-                </WeekSelectorContainer>
+                <UnionGrid>
+                  {renderAllDaysIcons()}
+                </UnionGrid>
               )}
             </AttendanceComplete>
           )}

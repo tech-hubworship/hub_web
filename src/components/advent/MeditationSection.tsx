@@ -409,6 +409,7 @@ interface MeditationSectionProps {
   loading: boolean;
   onToggleMyMeditation: () => void;
   onPageChange: (page: number) => void;
+  isEventEnded?: boolean;
 }
 
 export const MeditationSection: React.FC<MeditationSectionProps> = ({
@@ -420,6 +421,7 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
   loading,
   onToggleMyMeditation,
   onPageChange,
+  isEventEnded = false,
 }) => {
   const [selectedComment, setSelectedComment] = useState<AdventComment | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -557,13 +559,13 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
         </LogoWrapper>
         
         <TitleText variants={itemVariants}>
-          다른 지체들의 묵상
+          {isEventEnded ? '내 묵상' : '다른 지체들의 묵상'}
         </TitleText>
         <SubtitleText variants={itemVariants}>
-          함께 나눈 묵상을 확인해보세요.
+          {isEventEnded ? '대림절 기간 나의 묵상을 확인해보세요' : '함께 나눈 묵상을 확인해보세요.'}
         </SubtitleText>
 
-        {isLoggedIn && (
+        {isLoggedIn && !isEventEnded && (
           <ButtonWrapper variants={itemVariants}>
             <ToggleButton 
               active={!showMyMeditation}

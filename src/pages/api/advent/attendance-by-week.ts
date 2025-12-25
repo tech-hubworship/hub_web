@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 주차별 일차 범위 계산
     const weekNumber = parseInt(week as string);
     const startDay = (weekNumber - 1) * 7 + 1;
-    const endDay = weekNumber * 7;
+    const endDay = Math.min(weekNumber * 7, 26); // 4주차는 26일차까지만 (27일차, 28일차 제외)
 
     // 해당 주차의 출석 현황 조회
     const { data: attendanceList, error } = await supabaseAdmin

@@ -173,7 +173,7 @@ const EmptyStateTitle = styled.div`
 `;
 
 const EmptyStateSubtitle = styled.div`
-  font-size: 16px;
+    font-size: 16px;
   font-weight: 500;
   color: #9B7FD9;
   line-height: 1.6;
@@ -370,6 +370,86 @@ const CloseButton = styled(ModalButton)`
 
   &:hover {
     background: #4b5563;
+  }
+`;
+
+// 이벤트 종료 화면 스타일
+const EventEndedCard = styled(motion.div)`
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  padding: 60px 40px;
+  border-radius: 20px;
+  border: 2px solid rgba(206, 178, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(206, 178, 255, 0.2);
+  margin: 40px 0;
+  text-align: center;
+
+  @media (max-width: 768px) {
+    padding: 40px 24px;
+    margin: 30px 0;
+    border-radius: 16px;
+  }
+`;
+
+const EventEndedTitle = styled.div`
+  font-size: 32px;
+  font-weight: 800;
+  color: #CEB2FF;
+  margin-bottom: 16px;
+
+  @media (max-width: 768px) {
+    font-size: 24px;
+  }
+`;
+
+const EventEndedMessage = styled.div`
+  font-size: 18px;
+  color: #ffffff;
+  line-height: 1.8;
+  margin-bottom: 40px;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+    margin-bottom: 30px;
+  }
+`;
+
+const EventEndedButtonGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 400px;
+  margin: 0 auto;
+
+  @media (max-width: 768px) {
+    gap: 12px;
+  }
+`;
+
+const EventEndedButton = styled.button`
+  width: 100%;
+  padding: 18px 32px;
+  background: linear-gradient(135deg, #CEB2FF 0%, #9B7FD9 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(206, 178, 255, 0.3);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(206, 178, 255, 0.4);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 768px) {
+    padding: 16px 24px;
+    font-size: 16px;
   }
 `;
 
@@ -581,23 +661,6 @@ const AdventPage = () => {
   // 페이지당 아이템 수 (모바일: 5, PC: 8)
   const itemsPerPage = isMobile ? 5 : 8;
 
-  // post가 변경될 때마다 전체 묵상 가져오기
-  useEffect(() => {
-    if (post?.post_dt && !showMyMeditation) {
-      setCommentsPage(1);
-      fetchComments(post.post_dt, 1, itemsPerPage);
-    }
-  }, [post?.post_dt, showMyMeditation, fetchComments, itemsPerPage]);
-
-  // 사용자 묵상 가져오기 (내 묵상 보기 모드일 때)
-  useEffect(() => {
-    if (showMyMeditation && session?.user) {
-      setCommentsPage(1);
-      fetchUserComments(1, itemsPerPage);
-    } else if (showMyMeditation && !session?.user) {
-      setComments([]);
-    }
-  }, [showMyMeditation, session?.user, fetchUserComments, itemsPerPage]);
 
   // post가 변경될 때마다 이전 게시물 목록 업데이트
   useEffect(() => {
@@ -810,6 +873,45 @@ const AdventPage = () => {
 
   const firstDayTargetDate = getFirstDayTargetDate();
   const isDayZero = dayNumber === null || dayNumber <= 0;
+  
+  // 이벤트 종료 여부 확인 (2025년 12월 26일 이후)
+  // URL 쿼리의 날짜가 있으면 그 날짜를 기준으로, 없으면 현재 날짜를 기준으로 체크
+  const getCurrentDateStr = (): string => {
+    const now = new Date();
+    // 한국 시간대 (UTC+9) 계산
+    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    return koreanTime.toISOString().slice(0, 10).replace(/-/g, '');
+  };
+  
+  // URL 쿼리의 날짜 또는 현재 날짜를 기준으로 이벤트 종료 여부 확인
+  const dateToCheck = currentDateStr || getCurrentDateStr();
+  const isEventEnded = dateToCheck >= '20251226';
+
+  // post가 변경될 때마다 전체 묵상 가져오기
+  useEffect(() => {
+    if (post?.post_dt && !showMyMeditation && !isEventEnded) {
+      setCommentsPage(1);
+      fetchComments(post.post_dt, 1, itemsPerPage);
+    }
+  }, [post?.post_dt, showMyMeditation, fetchComments, itemsPerPage, isEventEnded]);
+
+  // 사용자 묵상 가져오기 (내 묵상 보기 모드일 때)
+  useEffect(() => {
+    if (showMyMeditation && session?.user && !isEventEnded) {
+      setCommentsPage(1);
+      fetchUserComments(1, itemsPerPage);
+    } else if (showMyMeditation && !session?.user) {
+      setComments([]);
+    }
+  }, [showMyMeditation, session?.user, fetchUserComments, itemsPerPage, isEventEnded]);
+
+  // 이벤트 종료 후 전체 내 묵상 자동 로드
+  useEffect(() => {
+    if (isEventEnded && session?.user && !loading) {
+      setShowMyMeditation(true);
+      fetchUserComments(1, itemsPerPage, true);
+    }
+  }, [isEventEnded, session?.user, loading, fetchUserComments, itemsPerPage]);
 
   return (
     <>
@@ -845,6 +947,84 @@ const AdventPage = () => {
           {/* 로딩 완료 후 IntroSection이 원래 위치로 돌아온 다음에만 다른 섹션들 표시 */}
           {!loading && !showFullScreenIntro && (
             <>
+              {/* 이벤트 종료 안내 (2025년 12월 26일 이후) */}
+              {isEventEnded && (
+                <>
+                  <SectionWrapper
+                    initial={isMobile ? false : { opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  >
+                    <EventEndedCard>
+                      <EventEndedTitle>대림절 이벤트가 종료되었습니다</EventEndedTitle>
+                      <EventEndedMessage>
+                        대림절 이벤트가 성공적으로 마무리되었습니다.{'\n'}
+                        참여해주신 모든 분들께 감사드립니다.{'\n\n'}
+                        아래에서 전체 출석 현황과 내 묵상을 확인하실 수 있습니다.
+                      </EventEndedMessage>
+                    </EventEndedCard>
+                  </SectionWrapper>
+
+                  {/* 전체 출석 현황 섹션 */}
+                  <SectionWrapper
+                    initial={isMobile ? false : { opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: isMobile ? 0 : 0.3 }}
+                    transition={{ duration: isMobile ? 0.2 : 0.6, delay: isMobile ? 0 : 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  >
+                    <AttendanceSection 
+                      currentDate="20251225"
+                      isLoggedIn={!!session?.user}
+                      commentText=""
+                      submitting={false}
+                      meditationSaved={false}
+                      onCommentTextChange={() => {}}
+                      onCommentSubmit={async () => false}
+                      onMeditationSavedChange={() => {}}
+                      isEventEnded={true}
+                    />
+                  </SectionWrapper>
+
+                  {/* 전체 내 묵상 보기 섹션 */}
+                  {session?.user && (
+                    <SectionWrapper
+                      initial={isMobile ? false : { opacity: 0, y: 30 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: isMobile ? "-50px" : "-100px", amount: isMobile ? 0 : 0.3 }}
+                      transition={{ duration: isMobile ? 0.2 : 0.6, delay: isMobile ? 0 : 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    >
+                      <MeditationSection
+                        comments={comments}
+                        totalComments={totalComments}
+                        currentPage={commentsPage}
+                        isLoggedIn={!!session?.user}
+                        showMyMeditation={true}
+                        loading={loadingComments}
+                        onToggleMyMeditation={async () => {
+                          // 이벤트 종료 후에는 내 묵상만 보이도록
+                          setCommentsPage(1);
+                          setLoadingComments(true);
+                          setComments([]);
+                          
+                          try {
+                            await fetchUserComments(1, itemsPerPage, true);
+                          } catch (err) {
+                            console.error('묵상 조회 오류:', err);
+                            setLoadingComments(false);
+                          }
+                        }}
+                        onPageChange={(page: number) => {
+                          setCommentsPage(page);
+                          fetchUserComments(page, itemsPerPage, true);
+                        }}
+                        isEventEnded={true}
+                      />
+                    </SectionWrapper>
+                  )}
+                </>
+              )}
+
               {error && (
                 <motion.div
                   initial={{ opacity: 0, y: -20 }}
@@ -855,7 +1035,7 @@ const AdventPage = () => {
                 </motion.div>
               )}
 
-              {!error && !post && (
+              {!error && !post && !isEventEnded && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -899,7 +1079,7 @@ const AdventPage = () => {
                 </motion.div>
               )}
 
-              {post && (
+              {post && !isEventEnded && (
                 <>
 
                   {/* 2. 이벤트 안내 섹션 */}
@@ -997,10 +1177,12 @@ const AdventPage = () => {
                               fetchComments(post.post_dt, page, itemsPerPage, true);
                             }
                           }}
+                          isEventEnded={false}
                         />
                       </div>
                     </>
                   )}
+
 
                   {/* 5. 지난 묵상 영상 섹션 */}
                   <SectionWrapper
