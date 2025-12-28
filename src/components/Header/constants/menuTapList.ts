@@ -3,8 +3,8 @@ import { MenuTapList, MenuTapType } from '../types';
 export const menuTapList: MenuTapList = [
   // {
   //   type: MenuTapType.SPECIAL,
-  //   title: '플레이',
-  //   href: '/play',
+  //   title: '앱',
+  //   href: '/apps',
   //   auth: false
   // },
   {

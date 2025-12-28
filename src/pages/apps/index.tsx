@@ -189,7 +189,7 @@ const AppLabel = styled.div`
   }
 `;
 
-const PlayPage = () => {
+const AppsPage = () => {
   const router = useRouter();
   const [hoveredApp, setHoveredApp] = useState<number | null>(null);
 
@@ -200,8 +200,8 @@ const PlayPage = () => {
   return (
     <>
       <Head>
-        <title>플레이 | HUB Worship</title>
-        <meta name="description" content="허브 공동체를 더 가깝게 이어주는 플레이 앱" />
+        <title>앱 | HUB Worship</title>
+        <meta name="description" content="허브 공동체를 더 가깝게 이어주는 앱" />
       </Head>
 
       <Header />
@@ -213,7 +213,7 @@ const PlayPage = () => {
           transition={{ duration: 0.3 }}
         >
           <AppHeader>
-            <AppTitle>PLAY</AppTitle>
+            <AppTitle>APPS</AppTitle>
           </AppHeader>
 
           <AppsGrid>
@@ -248,5 +248,5 @@ const PlayPage = () => {
   );
 };
 
-export default PlayPage;
+export default AppsPage;
 
