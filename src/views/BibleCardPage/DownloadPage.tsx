@@ -363,10 +363,6 @@ export default function BibleCardDownloadPage() {
               <InfoMessage>
                 🎉 새해 첫 날, 특별한 말씀카드가 공개됩니다!
               </InfoMessage>
-
-              <BackLink onClick={() => router.push('/bible-card')}>
-                ← 신청 내역으로 돌아가기
-              </BackLink>
             </Card>
           </ContentWrapper>
         </Container>
@@ -469,7 +465,7 @@ export default function BibleCardDownloadPage() {
                       onClick={() => handleDownload(currentDriveLink, currentCardIndex)}
                       disabled={downloading[currentCardIndex]}
                     >
-                      {downloading[currentCardIndex] ? '다운로드 중...' : `📥 말씀카드${hasTwoLinks ? ` ${currentCardIndex}` : ''} 다운로드`}
+                      {downloading[currentCardIndex] ? '다운로드 중...' : '다운로드'}
                     </DownloadButton>
                   ) : (
                     <NoLinkMessage>
@@ -519,10 +515,6 @@ export default function BibleCardDownloadPage() {
                 )}
               </>
             )}
-
-            <BackLink onClick={() => router.push('/bible-card')}>
-              ← 신청 내역으로 돌아가기
-            </BackLink>
           </Card>
         </ContentWrapper>
       </Container>
@@ -534,7 +526,7 @@ export default function BibleCardDownloadPage() {
 // Styled Components
 const Container = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
   padding-top: 80px;
   padding-bottom: 60px;
   box-sizing: border-box;
@@ -546,9 +538,9 @@ const Container = styled.div`
 `;
 
 const ContentWrapper = styled.div`
-  max-width: 500px;
+  max-width: 600px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 24px 12px;
   box-sizing: border-box;
 
   @media (max-width: 480px) {
@@ -564,11 +556,9 @@ const LoadingContainer = styled.div`
   justify-content: center;
   min-height: 400px;
   background: white;
-  border-radius: 20px;
 
   @media (max-width: 480px) {
     min-height: 300px;
-    border-radius: 16px;
   }
 `;
 
@@ -589,14 +579,11 @@ const LoadingText = styled.p`
 
 const Card = styled.div`
   background: white;
-  border-radius: 20px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
   padding: 32px;
   animation: ${fadeIn} 0.5s ease;
 
   @media (max-width: 480px) {
     padding: 24px 18px;
-    border-radius: 16px;
   }
 `;
 
@@ -984,7 +971,7 @@ const DownloadButton = styled.button<{ secondary?: boolean }>`
   display: block;
   width: 100%;
   padding: 16px;
-  background: #FF474A;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: white;
   border: none;
   border-radius: 12px;
@@ -997,9 +984,9 @@ const DownloadButton = styled.button<{ secondary?: boolean }>`
   box-sizing: border-box;
 
   &:hover:not(:disabled) {
-    background: rgb(216, 61, 63);
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 71, 74, 0.3);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
   }
 
   &:disabled {
