@@ -60,9 +60,9 @@ export default function BibleCardDownloadPage() {
   const isAdminMode = router.query.value === 'admin';
   const [isOpen, setIsOpen] = useState(isAdminMode);
   const [downloading, setDownloading] = useState<{ [key: number]: boolean }>({ 1: false, 2: false });
-  const [activeTab, setActiveTab] = useState<'card' | 'verse' | 'prayer'>('card');
-  const [imageLoading, setImageLoading] = useState(true);
-  const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'card' | 'card1' | 'card2' | 'verse' | 'prayer'>('card');
+  const [imageLoading, setImageLoading] = useState<{ [key: number]: boolean }>({ 1: true, 2: true });
+  const [imageBlobUrl, setImageBlobUrl] = useState<{ [key: number]: string | null }>({ 1: null, 2: null });
 
   // 내 신청 정보 조회
   const { data: myApplication, isLoading } = useQuery({
@@ -118,66 +118,86 @@ export default function BibleCardDownloadPage() {
     }
   }, [status, router]);
 
+  // 다운로드 페이지 접속 카운팅
+  useEffect(() => {
+    if (status === 'authenticated' && myApplication?.hasApplication && isOpen) {
+      // 페이지 접속 시 카운팅
+      fetch('/api/bible-card/track-visit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }).catch((error) => {
+        console.error('접속 카운팅 오류:', error);
+        // 카운팅 실패해도 페이지는 정상 동작
+      });
+    }
+  }, [status, myApplication?.hasApplication, isOpen]);
+
   // 이미지를 프록시 API를 통해 가져와서 Blob URL로 변환
   useEffect(() => {
-    // myApplication이 없거나 app이 없으면 실행하지 않음
-    if (!myApplication?.hasApplication || !myApplication?.application?.drive_link_1) {
-      setImageBlobUrl(null);
-      setImageLoading(false);
+    if (!myApplication?.hasApplication) {
+      setImageBlobUrl({ 1: null, 2: null });
+      setImageLoading({ 1: false, 2: false });
       return;
     }
 
     const app = myApplication.application;
-    const driveLink = app.drive_link_1;
-    let isCancelled = false;
+    const loadImageForLink = async (linkUrl: string | null, index: number) => {
+      if (!linkUrl) {
+        setImageLoading(prev => ({ ...prev, [index]: false }));
+        setImageBlobUrl(prev => ({ ...prev, [index]: null }));
+        return;
+      }
 
-    const loadImageViaProxy = async () => {
-      setImageLoading(true);
+      setImageLoading(prev => ({ ...prev, [index]: true }));
       try {
-        // 프록시 API를 통해 이미지 가져오기 (view 모드)
-        const proxyUrl = `/api/bible-card/download-proxy?url=${encodeURIComponent(driveLink)}&view=true`;
+        const proxyUrl = `/api/bible-card/download-proxy?url=${encodeURIComponent(linkUrl)}&view=true`;
         const response = await fetch(proxyUrl);
         
         if (!response.ok) {
           throw new Error(`이미지 로드 실패: ${response.status}`);
         }
 
-        // 취소되었는지 확인
-        if (isCancelled) return;
-
-        // Blob으로 변환
         const blob = await response.blob();
-        
-        if (isCancelled) {
-          window.URL.revokeObjectURL(window.URL.createObjectURL(blob));
-          return;
-        }
-
         const blobUrl = window.URL.createObjectURL(blob);
-        setImageBlobUrl(blobUrl);
-        setImageLoading(false);
+        
+        setImageBlobUrl(prev => {
+          // 이전 Blob URL이 있으면 해제
+          if (prev[index]) {
+            window.URL.revokeObjectURL(prev[index]!);
+          }
+          return { ...prev, [index]: blobUrl };
+        });
+        setImageLoading(prev => ({ ...prev, [index]: false }));
       } catch (error) {
-        if (!isCancelled) {
-          console.error('이미지 로드 오류:', error);
-          setImageLoading(false);
-          setImageBlobUrl(null);
-        }
+        console.error(`이미지 로드 오류 (링크 ${index}):`, error);
+        setImageLoading(prev => ({ ...prev, [index]: false }));
+        setImageBlobUrl(prev => ({ ...prev, [index]: null }));
       }
     };
 
-    loadImageViaProxy();
+    // 두 링크 모두 로드
+    loadImageForLink(app.drive_link_1, 1);
+    if (app.drive_link_2) {
+      loadImageForLink(app.drive_link_2, 2);
+    } else {
+      setImageLoading(prev => ({ ...prev, 2: false }));
+      setImageBlobUrl(prev => ({ ...prev, 2: null }));
+    }
 
-    // 클린업: 컴포넌트 언마운트 시 또는 drive_link_1 변경 시 Blob URL 해제
+    // 클린업
     return () => {
-      isCancelled = true;
       setImageBlobUrl((prev) => {
-        if (prev) {
-          window.URL.revokeObjectURL(prev);
-        }
-        return null;
+        Object.values(prev).forEach(url => {
+          if (url) {
+            window.URL.revokeObjectURL(url);
+          }
+        });
+        return { 1: null, 2: null };
       });
     };
-  }, [myApplication?.application?.drive_link_1]);
+  }, [myApplication?.application?.drive_link_1, myApplication?.application?.drive_link_2]);
 
   // 다운로드 핸들러
   const handleDownload = async (linkUrl: string, index: number) => {
@@ -271,6 +291,26 @@ export default function BibleCardDownloadPage() {
   }
 
   const app: ApplicationData = myApplication.application;
+  const hasTwoLinks = !!(app.drive_link_1 && app.drive_link_2);
+
+  // drive_link가 2개 있으면 초기 탭을 card1로 설정
+  useEffect(() => {
+    if (hasTwoLinks && activeTab === 'card') {
+      setActiveTab('card1');
+    } else if (!hasTwoLinks && (activeTab === 'card1' || activeTab === 'card2')) {
+      setActiveTab('card');
+    }
+  }, [hasTwoLinks, activeTab]);
+
+  // 현재 활성화된 카드 링크 인덱스 결정
+  const getCurrentCardIndex = () => {
+    if (activeTab === 'card1') return 1;
+    if (activeTab === 'card2') return 2;
+    return 1; // 기본값
+  };
+
+  const currentCardIndex = getCurrentCardIndex();
+  const currentDriveLink = currentCardIndex === 1 ? app.drive_link_1 : app.drive_link_2;
 
   // 오픈 전 - 카운트다운 표시
   if (!isOpen) {
@@ -349,12 +389,29 @@ export default function BibleCardDownloadPage() {
 
             {/* 탭 메뉴 */}
             <TabContainer>
-              <TabButton 
-                active={activeTab === 'card'} 
-                onClick={() => setActiveTab('card')}
-              >
-                말씀카드
-              </TabButton>
+              {hasTwoLinks ? (
+                <>
+                  <TabButton 
+                    active={activeTab === 'card1'} 
+                    onClick={() => setActiveTab('card1')}
+                  >
+                    말씀카드 1
+                  </TabButton>
+                  <TabButton 
+                    active={activeTab === 'card2'} 
+                    onClick={() => setActiveTab('card2')}
+                  >
+                    말씀카드 2
+                  </TabButton>
+                </>
+              ) : (
+                <TabButton 
+                  active={activeTab === 'card'} 
+                  onClick={() => setActiveTab('card')}
+                >
+                  말씀카드
+                </TabButton>
+              )}
               <TabButton 
                 active={activeTab === 'verse'} 
                 onClick={() => setActiveTab('verse')}
@@ -370,52 +427,52 @@ export default function BibleCardDownloadPage() {
             </TabContainer>
 
             {/* 탭 컨텐츠 */}
-            {activeTab === 'card' && (
+            {(activeTab === 'card' || activeTab === 'card1' || activeTab === 'card2') && (
               <>
                 {/* 말씀카드 이미지 */}
-                {app.drive_link_1 && (
+                {currentDriveLink && (
                   <CardImageContainer>
-                    {imageLoading && (
+                    {imageLoading[currentCardIndex] && (
                       <ImageSkeleton>
                         <SkeletonSpinner />
                         <SkeletonText>말씀카드를 불러오는 중...</SkeletonText>
                       </ImageSkeleton>
                     )}
-                    {imageBlobUrl && !imageLoading && (
+                    {imageBlobUrl[currentCardIndex] && !imageLoading[currentCardIndex] && (
                       <CardImage 
-                        src={imageBlobUrl} 
-                        alt={`${app.name}님의 말씀카드`}
+                        src={imageBlobUrl[currentCardIndex]!} 
+                        alt={`${app.name}님의 말씀카드 ${hasTwoLinks ? currentCardIndex : ''}`}
                         onError={() => {
-                          setImageLoading(false);
-                          setImageBlobUrl(null);
+                          setImageLoading(prev => ({ ...prev, [currentCardIndex]: false }));
+                          setImageBlobUrl(prev => ({ ...prev, [currentCardIndex]: null }));
                         }}
                       />
                     )}
-                    {!imageBlobUrl && !imageLoading && (
+                    {!imageBlobUrl[currentCardIndex] && !imageLoading[currentCardIndex] && (
                       <ImageError>
                         <ErrorIcon>⚠️</ErrorIcon>
                         <ErrorText>이미지를 불러올 수 없습니다.</ErrorText>
                       </ImageError>
                     )}
                   </CardImageContainer>
-            )}
+                )}
 
-            {/* 다운로드 버튼 */}
-            <DownloadSection>
-              {app.drive_link_1 ? (
-                  <DownloadButton 
-                    onClick={() => handleDownload(app.drive_link_1, 1)}
-                    disabled={downloading[1]}
-                  >
-                      {downloading[1] ? '다운로드 중...' : '📥 말씀카드 다운로드'}
-                  </DownloadButton>
-              ) : (
-                <NoLinkMessage>
-                  아직 다운로드 링크가 준비되지 않았습니다.<br />
-                  잠시 후 다시 확인해주세요.
-                </NoLinkMessage>
-              )}
-            </DownloadSection>
+                {/* 다운로드 버튼 */}
+                <DownloadSection>
+                  {currentDriveLink ? (
+                    <DownloadButton 
+                      onClick={() => handleDownload(currentDriveLink, currentCardIndex)}
+                      disabled={downloading[currentCardIndex]}
+                    >
+                      {downloading[currentCardIndex] ? '다운로드 중...' : `📥 말씀카드${hasTwoLinks ? ` ${currentCardIndex}` : ''} 다운로드`}
+                    </DownloadButton>
+                  ) : (
+                    <NoLinkMessage>
+                      아직 다운로드 링크가 준비되지 않았습니다.<br />
+                      잠시 후 다시 확인해주세요.
+                    </NoLinkMessage>
+                  )}
+                </DownloadSection>
               </>
             )}
 

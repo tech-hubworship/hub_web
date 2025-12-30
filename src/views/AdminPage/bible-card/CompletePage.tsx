@@ -38,6 +38,10 @@ export default function BibleCardCompletePage() {
   const [pastorFilter, setPastorFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [links, setLinks] = useState({ drive_link_1: '', drive_link_2: '' });
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [excelPreview, setExcelPreview] = useState<any[] | null>(null);
+  const [uploadingExcel, setUploadingExcel] = useState(false);
 
   // 완료된 신청 목록 조회 (completed, delivered 상태만)
   const { data: applicationsData, isLoading } = useQuery({
@@ -136,6 +140,105 @@ export default function BibleCardCompletePage() {
     window.open(`/api/bible-card/admin/export-csv?${params}`, '_blank');
   };
 
+  const handleExcelFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setExcelFile(file);
+    setExcelPreview(null);
+
+    try {
+      setUploadingExcel(true);
+      
+      // 파일을 ArrayBuffer로 읽기
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // ArrayBuffer를 Base64로 변환
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ''
+        )
+      );
+      const fileData = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
+
+      const response = await fetch('/api/bible-card/admin/upload-excel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileData,
+          fileName: file.name,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data.error || '엑셀 파일 파싱에 실패했습니다.');
+        if (data.errors && Array.isArray(data.errors)) {
+          alert(data.errors.join('\n'));
+        }
+        if (data.notFoundIds && Array.isArray(data.notFoundIds)) {
+          alert(`존재하지 않는 ID: ${data.notFoundIds.join(', ')}`);
+        }
+        setExcelFile(null);
+        return;
+      }
+
+      setExcelPreview(data.preview);
+    } catch (error) {
+      console.error('Excel upload error:', error);
+      alert('엑셀 파일 업로드 중 오류가 발생했습니다.');
+      setExcelFile(null);
+    } finally {
+      setUploadingExcel(false);
+    }
+  };
+
+  const updateLinksMutation = useMutation({
+    mutationFn: async (data: { id: number; drive_link: string }[]) => {
+      const response = await fetch('/api/bible-card/admin/update-links-from-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '링크 업데이트 실패');
+      }
+      return response.json();
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['bible-card-completed'] });
+      setIsExcelModalOpen(false);
+      setExcelFile(null);
+      setExcelPreview(null);
+      alert(`성공: ${result.successCount}건, 실패: ${result.failureCount}건`);
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
+
+  const handleConfirmExcelUpload = () => {
+    if (!excelPreview || excelPreview.length === 0) {
+      alert('업데이트할 데이터가 없습니다.');
+      return;
+    }
+
+    const updateData = excelPreview.map((item: any) => ({
+      id: item.id,
+      drive_link: item.new_link,
+    }));
+
+    if (!confirm(`${updateData.length}개의 링크를 업데이트하시겠습니까?`)) {
+      return;
+    }
+
+    updateLinksMutation.mutate(updateData);
+  };
+
   const getStatusBadge = (status: string) => {
     const styles: Record<string, { bg: string; color: string; label: string }> = {
       completed: { bg: '#d1fae5', color: '#065f46', label: '완료' },
@@ -152,9 +255,14 @@ export default function BibleCardCompletePage() {
           <Title>✅ 완료 관리</Title>
           <Subtitle>말씀 작성 완료된 목록 관리 및 CSV 추출</Subtitle>
         </HeaderLeft>
-        <ExportButton onClick={handleExportCSV}>
-          📥 CSV 다운로드
-        </ExportButton>
+        <HeaderRight>
+          <ExcelUploadButton onClick={() => setIsExcelModalOpen(true)}>
+            📤 엑셀 업로드
+          </ExcelUploadButton>
+          <ExportButton onClick={handleExportCSV}>
+            📥 CSV 다운로드
+          </ExportButton>
+        </HeaderRight>
       </Header>
 
       {/* 필터 */}
@@ -304,6 +412,88 @@ export default function BibleCardCompletePage() {
           </ModalContent>
         </Modal>
       )}
+
+      {/* 엑셀 업로드 모달 */}
+      {isExcelModalOpen && (
+        <Modal onClick={() => setIsExcelModalOpen(false)}>
+          <ExcelModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>📤 엑셀 파일 업로드</ModalTitle>
+              <CloseButton onClick={() => setIsExcelModalOpen(false)}>×</CloseButton>
+            </ModalHeader>
+
+            <ExcelSection>
+              <ExcelInfo>
+                엑셀 파일 형식: "말씀카드 신청 ID", "구글 드라이브 링크" 컬럼이 필요합니다.
+              </ExcelInfo>
+              
+              <FileInputWrapper>
+                <FileInput
+                  id="excel-file-input"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleExcelFileChange}
+                  disabled={uploadingExcel}
+                />
+                <FileInputLabel htmlFor="excel-file-input">
+                  {excelFile ? excelFile.name : '엑셀 파일 선택 (.xlsx, .xls)'}
+                </FileInputLabel>
+              </FileInputWrapper>
+
+              {uploadingExcel && (
+                <LoadingText>엑셀 파일을 읽는 중...</LoadingText>
+              )}
+
+              {excelPreview && excelPreview.length > 0 && (
+                <>
+                  <PreviewTitle>미리보기 ({excelPreview.length}건)</PreviewTitle>
+                  <PreviewTableContainer>
+                    <PreviewTable>
+                      <thead>
+                        <tr>
+                          <PreviewTh>ID</PreviewTh>
+                          <PreviewTh>이름</PreviewTh>
+                          <PreviewTh>현재 링크</PreviewTh>
+                          <PreviewTh>새 링크</PreviewTh>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {excelPreview.map((item: any, index: number) => (
+                          <tr key={index}>
+                            <PreviewTd>{item.id}</PreviewTd>
+                            <PreviewTd>{item.name}</PreviewTd>
+                            <PreviewTd>
+                              {item.current_link ? (
+                                <LinkPreview href={item.current_link} target="_blank" rel="noopener noreferrer">
+                                  {item.current_link.substring(0, 30)}...
+                                </LinkPreview>
+                              ) : (
+                                <NoLink>링크 없음</NoLink>
+                              )}
+                            </PreviewTd>
+                            <PreviewTd>
+                              <LinkPreview href={item.new_link} target="_blank" rel="noopener noreferrer">
+                                {item.new_link.substring(0, 30)}...
+                              </LinkPreview>
+                            </PreviewTd>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </PreviewTable>
+                  </PreviewTableContainer>
+
+                  <ConfirmButton
+                    onClick={handleConfirmExcelUpload}
+                    disabled={updateLinksMutation.isPending}
+                  >
+                    {updateLinksMutation.isPending ? '업데이트 중...' : '✅ 업데이트 실행'}
+                  </ConfirmButton>
+                </>
+              )}
+            </ExcelSection>
+          </ExcelModalContent>
+        </Modal>
+      )}
     </Container>
   );
 }
@@ -324,6 +514,11 @@ const Header = styled.div`
 
 const HeaderLeft = styled.div``;
 
+const HeaderRight = styled.div`
+  display: flex;
+  gap: 12px;
+`;
+
 const Title = styled.h1`
   font-size: 24px;
   font-weight: 700;
@@ -335,6 +530,23 @@ const Subtitle = styled.p`
   font-size: 14px;
   color: #64748b;
   margin: 0;
+`;
+
+const ExcelUploadButton = styled.button`
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
 `;
 
 const ExportButton = styled.button`
@@ -611,6 +823,134 @@ const SaveButton = styled.button`
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const ExcelModalContent = styled(ModalContent)`
+  max-width: 900px;
+`;
+
+const ExcelSection = styled.div`
+  padding: 0;
+`;
+
+const ExcelInfo = styled.div`
+  padding: 12px 16px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  color: #0369a1;
+  font-size: 13px;
+  margin-bottom: 20px;
+`;
+
+const FileInputWrapper = styled.div`
+  margin-bottom: 20px;
+`;
+
+const FileInputLabel = styled.label`
+  display: block;
+  padding: 12px 16px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #6366f1;
+    background: #f8fafc;
+  }
+`;
+
+const FileInput = styled.input`
+  display: none;
+`;
+
+const LoadingText = styled.div`
+  text-align: center;
+  padding: 20px;
+  color: #64748b;
+  font-size: 14px;
+`;
+
+const PreviewTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 24px 0 12px 0;
+`;
+
+const PreviewTableContainer = styled.div`
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 20px;
+`;
+
+const PreviewTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+`;
+
+const PreviewTh = styled.th`
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+`;
+
+const PreviewTd = styled.td`
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+`;
+
+const LinkPreview = styled.a`
+  color: #3b82f6;
+  text-decoration: none;
+  word-break: break-all;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const NoLink = styled.span`
+  color: #94a3b8;
+  font-style: italic;
+`;
+
+const ConfirmButton = styled.button`
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
   }
 
   &:disabled {
