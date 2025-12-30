@@ -102,19 +102,19 @@ export default async function handler(
       let bookFullName = '';
 
       while (hasMore) {
-        const { data, error } = await supabaseAdmin
-          .from('bible')
-          .select('chapter, book_full_name')
-          .eq('book_name', book)
+      const { data, error } = await supabaseAdmin
+        .from('bible')
+        .select('chapter, book_full_name')
+        .eq('book_name', book)
           .order('chapter', { ascending: true })
           .range(offset, offset + limit - 1);
 
-        if (error) {
-          console.error('Error fetching chapters:', error);
-          return res.status(500).json({ error: '장 목록 조회 실패' });
-        }
+      if (error) {
+        console.error('Error fetching chapters:', error);
+        return res.status(500).json({ error: '장 목록 조회 실패' });
+      }
 
-        if (!data || data.length === 0) {
+      if (!data || data.length === 0) {
           hasMore = false;
           break;
         }

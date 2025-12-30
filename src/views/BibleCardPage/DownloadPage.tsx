@@ -56,9 +56,9 @@ export default function BibleCardDownloadPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  // 쿼리 스트링에 value=admin이 있으면 시간 제한 없이 오픈
-  const isAdminMode = router.query.value === 'admin';
-  const [isOpen, setIsOpen] = useState(isAdminMode);
+  // 테스트 모드: 쿼리 스트링에 value=test 또는 value=admin이 있으면 시간 제한 없이 오픈
+  const isTestMode = router.query.value === 'test' || router.query.value === 'admin';
+  const [isOpen, setIsOpen] = useState(isTestMode);
   const [downloading, setDownloading] = useState<{ [key: number]: boolean }>({ 1: false, 2: false });
   const [activeTab, setActiveTab] = useState<'card' | 'card1' | 'card2' | 'verse' | 'prayer'>('card');
   const [imageLoading, setImageLoading] = useState<{ [key: number]: boolean }>({ 1: true, 2: true });
@@ -75,10 +75,10 @@ export default function BibleCardDownloadPage() {
     enabled: status === 'authenticated',
   });
 
-  // 카운트다운 계산 (admin 모드가 아닐 때만)
+  // 카운트다운 계산 (테스트 모드가 아닐 때만)
   useEffect(() => {
-    // admin 모드면 카운트다운 스킵
-    if (isAdminMode) {
+    // 테스트 모드면 카운트다운 스킵
+    if (isTestMode) {
       setIsOpen(true);
       return;
     }
@@ -109,7 +109,7 @@ export default function BibleCardDownloadPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isAdminMode]);
+  }, [isTestMode]);
 
   // 로그인 체크
   useEffect(() => {
@@ -133,6 +133,20 @@ export default function BibleCardDownloadPage() {
       });
     }
   }, [status, myApplication?.hasApplication, isOpen]);
+
+  // drive_link가 2개 있으면 초기 탭을 card1로 설정 (early return 전에 hooks 호출 필요)
+  useEffect(() => {
+    if (!myApplication?.hasApplication) return;
+    
+    const app = myApplication.application;
+    const hasTwoLinks = !!(app.drive_link_1 && app.drive_link_2);
+    
+    if (hasTwoLinks && activeTab === 'card') {
+      setActiveTab('card1');
+    } else if (!hasTwoLinks && (activeTab === 'card1' || activeTab === 'card2')) {
+      setActiveTab('card');
+    }
+  }, [myApplication?.hasApplication, myApplication?.application?.drive_link_1, myApplication?.application?.drive_link_2, activeTab]);
 
   // 이미지를 프록시 API를 통해 가져와서 Blob URL로 변환
   useEffect(() => {
@@ -292,15 +306,6 @@ export default function BibleCardDownloadPage() {
 
   const app: ApplicationData = myApplication.application;
   const hasTwoLinks = !!(app.drive_link_1 && app.drive_link_2);
-
-  // drive_link가 2개 있으면 초기 탭을 card1로 설정
-  useEffect(() => {
-    if (hasTwoLinks && activeTab === 'card') {
-      setActiveTab('card1');
-    } else if (!hasTwoLinks && (activeTab === 'card1' || activeTab === 'card2')) {
-      setActiveTab('card');
-    }
-  }, [hasTwoLinks, activeTab]);
 
   // 현재 활성화된 카드 링크 인덱스 결정
   const getCurrentCardIndex = () => {

@@ -201,6 +201,9 @@ const CountdownSeparator = styled.div`
 
 export default function BibleCardPromotion() {
   const router = useRouter();
+  // 테스트 모드: 쿼리 스트링에 value=test 또는 value=admin이 있으면 카운트다운 무시
+  const isTestMode = router.query.value === 'test' || router.query.value === 'admin';
+  
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
     hours: number;
@@ -224,6 +227,15 @@ export default function BibleCardPromotion() {
   const OPEN_DATE = new Date('2025-11-30T16:00:00+09:00');
 
   useEffect(() => {
+    // 테스트 모드: 카운트다운 무시하고 버튼 표시
+    if (isTestMode) {
+      setIsApplicationClosed(true);
+      setIsOpen(false);
+      setDistributionTimeLeft(null); // 카운트다운 없이 바로 버튼 표시
+      setTimeLeft(null);
+      return;
+    }
+
     const updateCountdown = () => {
       const now = new Date();
       
@@ -269,13 +281,15 @@ export default function BibleCardPromotion() {
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isTestMode]);
 
   const handleClick = () => {
     if (isOpen && !isApplicationClosed) {
       router.push('/bible-card');
     } else if (isApplicationClosed) {
-      router.push('/bible-card/download');
+      // 테스트 모드면 쿼리 스트링 전달
+      const url = isTestMode ? '/bible-card/download?value=test' : '/bible-card/download';
+      router.push(url);
     }
   };
 
