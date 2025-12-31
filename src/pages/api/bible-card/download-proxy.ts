@@ -76,7 +76,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 파일 다운로드 헤더 설정
     const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-    const finalFilename = typeof filename === 'string' ? filename : 'download.jpg';
+    
+    // Content-Type에 맞는 확장자 결정
+    let extension = '.jpg';
+    if (contentType.includes('png')) {
+      extension = '.png';
+    } else if (contentType.includes('webp')) {
+      extension = '.webp';
+    } else if (contentType.includes('gif')) {
+      extension = '.gif';
+    }
+    
+    // filename에서 기존 확장자 제거하고 새로운 확장자 추가
+    let finalFilename: string;
+    if (typeof filename === 'string' && filename.trim()) {
+      // 기존 확장자 제거 (마지막 .xxx 패턴)
+      const nameWithoutExt = filename.replace(/\.[^.]*$/, '');
+      finalFilename = nameWithoutExt + extension;
+    } else {
+      finalFilename = `download${extension}`;
+    }
     
     // 쿼리 파라미터로 view 모드 확인 (이미지 표시용)
     const isViewMode = req.query.view === 'true';

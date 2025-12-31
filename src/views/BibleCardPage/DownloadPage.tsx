@@ -221,16 +221,31 @@ export default function BibleCardDownloadPage() {
     try {
       setDownloading(prev => ({ ...prev, [index]: true }));
 
-      // 파일명 생성 (예: HUB_말씀카드_1.jpg)
+      // 파일명 생성 (예: HUB_말씀카드_1)
       const appName = myApplication?.application?.name || 'HUB';
-      const filename = `${appName}_말씀카드_${index}.jpg`;
+      const baseFilename = `${appName}_말씀카드_${index}`;
 
       // 프록시 API 호출
-      const proxyUrl = `/api/bible-card/download-proxy?url=${encodeURIComponent(linkUrl)}&filename=${encodeURIComponent(filename)}`;
+      const proxyUrl = `/api/bible-card/download-proxy?url=${encodeURIComponent(linkUrl)}&filename=${encodeURIComponent(baseFilename)}`;
       
       const response = await fetch(proxyUrl);
       if (!response.ok) {
         throw new Error('다운로드에 실패했습니다.');
+      }
+
+      // Content-Disposition 헤더에서 파일명 추출 (서버에서 확장자 포함하여 설정)
+      let filename = baseFilename + '.jpg'; // 기본값
+      const contentDisposition = response.headers.get('Content-Disposition');
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = decodeURIComponent(filenameMatch[1]);
+        } else {
+          const filenameMatch2 = contentDisposition.match(/filename="(.+)"/);
+          if (filenameMatch2 && filenameMatch2[1]) {
+            filename = filenameMatch2[1];
+          }
+        }
       }
 
       // Blob URL 생성
