@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/react';
 
 const SectionCard = styled.div`
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -201,8 +202,13 @@ const CountdownSeparator = styled.div`
 
 export default function BibleCardPromotion() {
   const router = useRouter();
+  const { data: session } = useSession();
   // 테스트 모드: 쿼리 스트링에 value=test 또는 value=admin이 있으면 카운트다운 무시
   const isTestMode = router.query.value === 'test' || router.query.value === 'admin';
+  
+  // 세션 이름이 고주원 또는 김형진일 때 특별한 텍스트 표시
+  const userName = session?.user?.name;
+  const isSpecialUser = userName === '고주원' || userName === '김형진';
   
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
@@ -302,7 +308,7 @@ export default function BibleCardPromotion() {
             <Title>신년 말씀카드</Title>
             {distributionTimeLeft ? (
               <CountdownWrapper>
-                <CountdownText>공개까지 남은 시간</CountdownText>
+                <CountdownText>{isSpecialUser ? '김형진 30살까지 남은 시간' : '공개까지 남은 시간'}</CountdownText>
                 <CountdownGrid>
                   <CountdownItem>
                     <CountdownNumber>{String(distributionTimeLeft.days).padStart(2, '0')}</CountdownNumber>
