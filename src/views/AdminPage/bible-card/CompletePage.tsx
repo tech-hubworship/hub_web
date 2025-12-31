@@ -36,6 +36,7 @@ export default function BibleCardCompletePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [pastorFilter, setPastorFilter] = useState('');
+  const [nameSearchQuery, setNameSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [links, setLinks] = useState({ drive_link_1: '', drive_link_2: '' });
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
@@ -45,7 +46,7 @@ export default function BibleCardCompletePage() {
 
   // 완료된 신청 목록 조회 (completed, delivered 상태만)
   const { data: applicationsData, isLoading } = useQuery({
-    queryKey: ['bible-card-completed', statusFilter, pastorFilter, currentPage],
+    queryKey: ['bible-card-completed', statusFilter, pastorFilter, nameSearchQuery, currentPage],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -68,6 +69,10 @@ export default function BibleCardCompletePage() {
       
       if (pastorFilter && pastorFilter.trim() !== '') {
         params.append('pastor_id', pastorFilter.trim());
+      }
+      
+      if (nameSearchQuery && nameSearchQuery.trim() !== '') {
+        params.append('search', nameSearchQuery.trim());
       }
       
       const response = await fetch(`/api/bible-card/admin/applications?${params}`);
@@ -136,6 +141,9 @@ export default function BibleCardCompletePage() {
     const params = new URLSearchParams();
     if (statusFilter) params.append('status', statusFilter);
     if (pastorFilter) params.append('pastor_id', pastorFilter);
+    if (nameSearchQuery && nameSearchQuery.trim() !== '') {
+      params.append('search', nameSearchQuery.trim());
+    }
     
     window.open(`/api/bible-card/admin/export-csv?${params}`, '_blank');
   };
@@ -293,6 +301,25 @@ export default function BibleCardCompletePage() {
             placeholder="전체 목회자"
           />
         </FilterGroup>
+        <SearchFilterGroup>
+          <SearchInputWrapper>
+            <FilterLabel>이름 검색</FilterLabel>
+            <SearchInput
+              type="text"
+              placeholder="이름으로 검색..."
+              value={nameSearchQuery}
+              onChange={(e) => setNameSearchQuery(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  setCurrentPage(1);
+                }
+              }}
+            />
+          </SearchInputWrapper>
+          <SearchButton onClick={() => setCurrentPage(1)} disabled={isLoading}>
+            {isLoading ? '조회 중...' : '🔍 조회'}
+          </SearchButton>
+        </SearchFilterGroup>
       </FilterSection>
 
       {/* 테이블 */}
@@ -574,6 +601,84 @@ const FilterSection = styled.div`
 `;
 
 const FilterGroup = styled.div``;
+
+const FilterLabel = styled.label`
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 4px;
+  display: block;
+`;
+
+const SearchFilterGroup = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+
+  @media (max-width: 768px) {
+    flex: 1;
+    min-width: 200px;
+    flex-shrink: 1;
+  }
+`;
+
+const SearchInputWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+
+  @media (max-width: 768px) {
+    min-width: 0;
+  }
+`;
+
+const SearchInput = styled.input`
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: #6366f1;
+  }
+`;
+
+const SearchButton = styled.button`
+  padding: 10px 20px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: fit-content;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
 
 const Select = styled.select`
   padding: 10px 14px;
