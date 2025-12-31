@@ -206,9 +206,10 @@ export default function BibleCardPromotion() {
   // 테스트 모드: 쿼리 스트링에 value=test 또는 value=admin이 있으면 카운트다운 무시
   const isTestMode = router.query.value === 'test' || router.query.value === 'admin';
   
-  // 세션 이름이 고주원 또는 김형진일 때 특별한 텍스트 표시
+  // 특별한 텍스트를 보여줄 사용자 목록
+  const specialUsers = ['고주원', '김형진', '정민정', '김현아', '남윤희', '김세인', '여기준', '오해성', '최주영'];
   const userName = session?.user?.name;
-  const isSpecialUser = userName === '고주원' || userName === '김형진';
+  const isSpecialUser = userName && specialUsers.includes(userName);
   
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
@@ -308,7 +309,7 @@ export default function BibleCardPromotion() {
             <Title>신년 말씀카드</Title>
             {distributionTimeLeft ? (
               <CountdownWrapper>
-                <CountdownText>{isSpecialUser ? '김형진 30살까지 남은 시간' : '공개까지 남은 시간'}</CountdownText>
+                <CountdownText>{isSpecialUser ? `${userName} 30살까지 남은 시간` : '공개까지 남은 시간'}</CountdownText>
                 <CountdownGrid>
                   <CountdownItem>
                     <CountdownNumber>{String(distributionTimeLeft.days).padStart(2, '0')}</CountdownNumber>
