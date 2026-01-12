@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
-import { Card, CardContent, CardHeader, CardTitle } from '@src/components/ui/card'; // @src 사용
-import { Combobox } from '@src/components/ui/combobox'; // Select 대신 Combobox 사용
+import { QRCodeSVG } from 'qrcode.react'; 
+import { Card, CardContent, CardHeader, CardTitle } from '@src/components/ui/card';
+import { Combobox } from '@src/components/ui/combobox';
 
 export default function QrGenerator() {
   const [qrToken, setQrToken] = useState('');
@@ -19,7 +19,7 @@ export default function QrGenerator() {
       
       if (res.ok) {
         setQrToken(data.token);
-        setTimeLeft(60); // 1분
+        setTimeLeft(60); 
       } else {
         alert(data.error);
       }
@@ -39,8 +39,9 @@ export default function QrGenerator() {
     };
   }, [qrToken]);
 
+  // ⭐️ [중요] QR URL을 'check-OD'로 변경했습니다.
   const qrUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/attendance/check?token=${qrToken}&category=${category}`
+    ? `${window.location.origin}/attendance/check-OD?token=${qrToken}&category=${category}`
     : '';
 
   return (
@@ -55,7 +56,6 @@ export default function QrGenerator() {
             <label style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px', display: 'block' }}>
               출석 카테고리
             </label>
-            {/* 기존 Combobox 컴포넌트 활용 */}
             <Combobox
               value={category}
               onChange={(val) => setCategory(val)}
@@ -64,7 +64,7 @@ export default function QrGenerator() {
                 { value: 'HUB_UP', label: '허브업' }
               ]}
               placeholder="카테고리 선택"
-              searchable={false}
+              searchable={false} 
             />
           </div>
 
@@ -79,20 +79,23 @@ export default function QrGenerator() {
                 borderRadius: '8px',
                 fontSize: '16px',
                 fontWeight: 600,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
               }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
             >
               QR 코드 생성 시작
             </button>
           ) : (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ background: 'white', padding: '16px', border: '1px solid #e5e7eb', borderRadius: '12px', display: 'inline-block', marginBottom: '16px' }}>
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+              <div style={{ background: 'white', padding: '16px', border: '1px solid #e5e7eb', borderRadius: '12px', display: 'inline-block' }}>
                 <QRCodeSVG value={qrUrl} size={300} level="H" />
               </div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2563eb', marginBottom: '8px' }}>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2563eb' }}>
                 {timeLeft}초 후 갱신됨
               </div>
-              <p style={{ color: '#6b7280', fontSize: '14px' }}>
+              <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>
                 * 이 화면을 스크린이나 모니터에 띄워주세요.
               </p>
             </div>
