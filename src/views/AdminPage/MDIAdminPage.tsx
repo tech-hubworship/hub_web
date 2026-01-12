@@ -36,8 +36,8 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'bible-card-pastor': BibleCardPastorPage,
   'bible-card-complete': BibleCardCompletePage,
   'menu-management': MenuManagementPage,
-  'attendance_qr': QrGenerator,
-  'attendance_list': AttendanceList,
+  'attendance-qr': QrGenerator,
+  'attendance-list': AttendanceList,
 };
 
 // 확장된 TabInfo 타입 (description 포함)
