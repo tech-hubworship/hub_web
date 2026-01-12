@@ -1,18 +1,38 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import * as S from '../users/style'; // 기존 스타일 재사용
+import * as S from '../users/style'; 
 import { Combobox } from '@src/components/ui/combobox';
+import { useGroups } from '@src/hooks/useGroups';
+import { useCells } from '@src/hooks/useCells';
 
 export default function AttendanceList() {
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [category, setCategory] = useState('OD');
+  
+  // 필터 상태
+  const [groupId, setGroupId] = useState('');
+  const [cellId, setCellId] = useState('');
   const [page, setPage] = useState(1);
 
+  // 🔴 [수정됨] 커스텀 훅 반환값 구조 수정 (data 프로퍼티 없음)
+  const { groups } = useGroups();
+  const { cells } = useCells(groupId ? Number(groupId) : ''); 
+
+  // 데이터 조회 쿼리
   const { data: attendanceData, isLoading, refetch } = useQuery({
-    queryKey: ['admin-attendance', date, category, page],
+    queryKey: ['admin-attendance', date, category, groupId, cellId, page],
     queryFn: async () => {
-      const params = new URLSearchParams({ date, category, page: page.toString() });
+      const params = new URLSearchParams({ 
+        date, 
+        category, 
+        page: page.toString(),
+        limit: '20'
+      });
+      
+      if (groupId) params.append('group_id', groupId);
+      if (cellId) params.append('cell_id', cellId);
+
       const res = await fetch(`/api/admin/attendance/list?${params}`);
       return res.json();
     }
@@ -20,30 +40,70 @@ export default function AttendanceList() {
 
   const list = attendanceData?.data || [];
   const pagination = attendanceData?.pagination;
+  const stats = attendanceData?.stats;
+
+  const handleGroupChange = (value: string) => {
+    setGroupId(value);
+    setCellId(''); 
+    setPage(1);
+  };
 
   return (
     <>
       <S.Header>
         <S.HeaderLeft>
           <S.Title>📋 출석 관리</S.Title>
-          <S.Subtitle>QR 출석 현황을 확인합니다.</S.Subtitle>
+          <S.Subtitle>QR 출석 현황 및 통계를 확인합니다.</S.Subtitle>
         </S.HeaderLeft>
       </S.Header>
 
       <S.Container>
+        {/* 통계 요약 카드 */}
+        {!isLoading && stats && (
+          <div style={{ 
+            marginBottom: '20px', 
+            padding: '20px', 
+            background: 'white', 
+            border: '1px solid #e2e8f0', 
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+          }}>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#1e293b', marginBottom: '4px' }}>
+                📊 출석 현황 요약
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748b' }}>
+                선택된 조건({date}, {category}, {groupId ? '그룹선택' : '전체'}) 기준입니다.
+              </p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2563eb' }}>
+                {stats.attended_count}명 <span style={{ fontSize: '16px', color: '#94a3b8' }}>/ {stats.total_members}명</span>
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: stats.attendance_rate >= 80 ? '#16a34a' : '#f59e0b' }}>
+                출석률 {stats.attendance_rate}%
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 필터 영역 */}
-        <div style={{ display: 'flex', gap: '16px', padding: '20px', background: '#f8fafc', borderRadius: '8px', marginBottom: '24px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '12px', padding: '20px', background: '#f8fafc', borderRadius: '8px', marginBottom: '24px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>날짜 선택</label>
+            <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>날짜</label>
             <input 
               type="date" 
               value={date} 
               onChange={(e) => setDate(e.target.value)}
-              style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', height: '42px' }} 
+              style={{ padding: '0 12px', border: '1px solid #d7d7d7', borderRadius: '6px', fontSize: '14px', height: '48px', boxSizing: 'border-box' }} 
             />
           </div>
           
-          <div style={{ width: '200px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ width: '140px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>카테고리</label>
             <Combobox 
               value={category}
@@ -52,12 +112,39 @@ export default function AttendanceList() {
               placeholder="선택"
             />
           </div>
+
+          <div style={{ width: '160px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>그룹</label>
+            <Combobox 
+              value={groupId}
+              onChange={handleGroupChange}
+              options={[
+                { value: '', label: '전체 그룹' },
+                ...(groups?.map(g => ({ value: g.id.toString(), label: g.name })) || [])
+              ]}
+              placeholder="그룹 선택"
+            />
+          </div>
+
+          <div style={{ width: '160px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>다락방</label>
+            <Combobox 
+              value={cellId}
+              onChange={setCellId}
+              options={[
+                { value: '', label: '전체 다락방' },
+                ...(cells?.map(c => ({ value: c.id.toString(), label: c.name })) || [])
+              ]}
+              placeholder="다락방 선택"
+              disabled={!groupId} 
+            />
+          </div>
           
           <button 
             onClick={() => refetch()}
-            style={{ padding: '10px 20px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', height: '42px' }}
+            style={{ padding: '0 20px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', height: '48px', marginLeft: 'auto' }}
           >
-            조회
+            조회하기
           </button>
         </div>
 
@@ -71,7 +158,7 @@ export default function AttendanceList() {
                 <S.TableHeader>
                   <S.TableRow>
                     <S.TableHead>이름</S.TableHead>
-                    <S.TableHead>소속 (그룹/다락방)</S.TableHead>
+                    <S.TableHead>소속 (그룹 / 다락방)</S.TableHead>
                     <S.TableHead>출석 시간</S.TableHead>
                     <S.TableHead>상태</S.TableHead>
                     <S.TableHead>지각비</S.TableHead>
