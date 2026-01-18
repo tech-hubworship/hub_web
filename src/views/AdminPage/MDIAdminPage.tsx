@@ -1,5 +1,3 @@
-// 파일 경로: src/views/AdminPage/MDIAdminPage.tsx
-
 import React from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
@@ -21,6 +19,8 @@ import MenuManagementPage from '@src/views/AdminPage/menu-management';
 import BibleCardAdminPage from '@src/views/AdminPage/bible-card';
 import BibleCardPastorPage from '@src/views/AdminPage/bible-card/PastorPage';
 import BibleCardCompletePage from '@src/views/AdminPage/bible-card/CompletePage';
+import QrGenerator from '@src/views/AdminPage/attendance/QrGenerator';
+import AttendanceList from '@src/views/AdminPage/attendance/AttendanceList';
 
 // 메뉴 ID와 컴포넌트 매핑 (동적 렌더링용)
 const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
@@ -36,6 +36,8 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'bible-card-pastor': BibleCardPastorPage,
   'bible-card-complete': BibleCardCompletePage,
   'menu-management': MenuManagementPage,
+  'attendance-qr': QrGenerator,
+  'attendance-list': AttendanceList,
 };
 
 // 확장된 TabInfo 타입 (description 포함)
@@ -73,7 +75,7 @@ export default function MDIAdminPage() {
 
   const roles = session?.user?.roles || [];
 
-  // DB에서 메뉴 목록 조회 (hooks는 항상 early return 이전에 호출되어야 함)
+  // DB에서 메뉴 목록 조회
   const { data: dbMenus } = useQuery<Array<{
     id: number;
     menu_id: string;
@@ -95,24 +97,15 @@ export default function MDIAdminPage() {
     enabled: !!session?.user?.isAdmin,
   });
 
-  // DB 메뉴를 TabInfo 형식으로 변환하고 권한 필터링 (hooks는 항상 early return 이전에 호출되어야 함)
+  // DB 메뉴를 TabInfo 형식으로 변환하고 권한 필터링
   const accessibleMenus = React.useMemo(() => {
-    if (!dbMenus) {
-      // DB 메뉴가 없으면 빈 배열 반환 (하위 호환성 제거)
-      return [];
-    }
+    if (!dbMenus) return [];
 
-    // 활성화된 메뉴만 필터링
     const activeMenus = dbMenus.filter(menu => menu.is_active);
 
-    // 사용자 권한과 메뉴 권한을 비교하여 접근 가능한 메뉴만 반환
     return activeMenus
       .filter(menu => {
-        // 권한이 설정되지 않은 메뉴는 모든 관리자에게 표시
-        if (!menu.roles || menu.roles.length === 0) {
-          return true;
-        }
-        // 사용자가 가진 권한 중 하나라도 메뉴 권한에 포함되면 표시
+        if (!menu.roles || menu.roles.length === 0) return true;
         return menu.roles.some(menuRole => roles.includes(menuRole));
       })
       .map(menu => ({
@@ -140,7 +133,6 @@ export default function MDIAdminPage() {
       const menu = accessibleMenus.find(m => m.id === tabId);
       if (menu && activeTabId !== tabId) {
         openTab(menu);
-        // 쿼리 파라미터 제거 (깔끔한 URL 유지)
         router.replace('/admin', undefined, { shallow: true });
       }
     }
@@ -155,23 +147,19 @@ export default function MDIAdminPage() {
     );
   }
 
-  // 메뉴 클릭 핸들러
   const handleMenuClick = (menu: TabInfo) => {
     openTab(menu);
   };
 
-  // 탭 클릭 핸들러
   const handleTabClick = (tabId: string) => {
     setActiveTab(tabId);
   };
 
-  // 탭 닫기 핸들러
   const handleTabClose = (e: React.MouseEvent, tabId: string) => {
     e.stopPropagation();
     closeTab(tabId);
   };
 
-  // 모바일 메뉴 토글
   const handleMobileMenuToggle = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
@@ -191,7 +179,18 @@ export default function MDIAdminPage() {
       );
     }
 
-    // 부모 메뉴가 서브메뉴 콘텐츠를 표시하는 경우 (photos, advent, bible-card)
+    // 출석 관리 서브메뉴 대시보드
+    if (activeTabId === 'attendance') {
+      return (
+        <AttendanceSubmenuContent 
+          session={session}
+          accessibleMenus={accessibleMenus}
+          onMenuClick={handleMenuClick}
+        />
+      );
+    }
+
+    // 사진팀 서브메뉴 대시보드
     if (activeTabId === 'photos') {
       return (
         <PhotosSubmenuContent 
@@ -201,6 +200,7 @@ export default function MDIAdminPage() {
         />
       );
     }
+    // 대림절 서브메뉴 대시보드
     if (activeTabId === 'advent') {
       return (
         <AdventSubmenuContent 
@@ -210,6 +210,7 @@ export default function MDIAdminPage() {
         />
       );
     }
+    // 말씀카드 서브메뉴 대시보드
     if (activeTabId === 'bible-card') {
       return (
         <BibleCardSubmenuContent 
@@ -226,33 +227,26 @@ export default function MDIAdminPage() {
       return <Component />;
     }
 
-    // 컴포넌트가 없는 경우 Coming Soon 표시
     return <ComingSoonContent title={activeMenu?.title || activeTabId} />;
   };
 
   return (
     <S.MDILayout>
-      {/* 사이드바 오버레이 (모바일) */}
       <S.SidebarOverlay 
         visible={!sidebarCollapsed} 
         onClick={() => setSidebarCollapsed(true)} 
       />
 
-      {/* 사이드바 */}
       <S.MDISidebar collapsed={sidebarCollapsed}>
         <S.SidebarHeader>
           <S.Logo style={{ justifyContent: sidebarCollapsed ? 'center' : 'space-between' }}>
             {sidebarCollapsed ? (
-              <S.ToggleButton onClick={() => setSidebarCollapsed(false)}>
-                ☰
-              </S.ToggleButton>
+              <S.ToggleButton onClick={() => setSidebarCollapsed(false)}>☰</S.ToggleButton>
             ) : (
               <>
                 <S.LogoIcon>⚡</S.LogoIcon>
                 <S.LogoText>HUB Admin</S.LogoText>
-                <S.ToggleButton onClick={() => setSidebarCollapsed(true)}>
-                  ←
-                </S.ToggleButton>
+                <S.ToggleButton onClick={() => setSidebarCollapsed(true)}>←</S.ToggleButton>
               </>
             )}
           </S.Logo>
@@ -262,18 +256,14 @@ export default function MDIAdminPage() {
           <S.NavGroup>
             {!sidebarCollapsed && <S.NavGroupTitle>메뉴</S.NavGroupTitle>}
             
-            {/* accessibleMenus를 기반으로 동적으로 메뉴 렌더링 */}
             {accessibleMenus
               .filter(menu => {
-                // 대시보드는 항상 표시
                 if (menu.id === 'dashboard') return true;
-                // 하위 메뉴는 별도 처리 (parent_id가 있는 메뉴는 하위 메뉴)
                 const dbMenu = dbMenus?.find(m => m.menu_id === menu.id);
                 if (dbMenu?.parent_id) return false;
                 return true;
               })
               .map(menu => {
-                // 하위 메뉴 찾기 (DB에서 parent_id로 찾기)
                 const dbMenu = dbMenus?.find(m => m.menu_id === menu.id);
                 const accessibleSubMenus: TabInfo[] = dbMenu
                   ? accessibleMenus
@@ -286,7 +276,7 @@ export default function MDIAdminPage() {
                         const menuB = dbMenus?.find(m => m.menu_id === b.id);
                         return (menuA?.order_index || 0) - (menuB?.order_index || 0);
                       })
-                  : []
+                  : [];
 
                 return (
                   <React.Fragment key={menu.id}>
@@ -297,7 +287,6 @@ export default function MDIAdminPage() {
                       <S.NavIcon collapsed={sidebarCollapsed}>{menu.icon}</S.NavIcon>
                       {!sidebarCollapsed && <S.NavText>{menu.title}</S.NavText>}
                     </S.NavItem>
-                    {/* 하위 메뉴 표시 */}
                     {!sidebarCollapsed && accessibleSubMenus.length > 0 && (
                       <>
                         {accessibleSubMenus.map(subMenu => (
@@ -319,7 +308,6 @@ export default function MDIAdminPage() {
           </S.NavGroup>
         </S.NavSection>
 
-        {/* 사용자 정보 */}
         <S.UserSection>
           <S.UserCard collapsed={sidebarCollapsed}>
             <S.UserAvatar>
@@ -335,13 +323,9 @@ export default function MDIAdminPage() {
         </S.UserSection>
       </S.MDISidebar>
 
-      {/* 메인 콘텐츠 영역 */}
       <S.MDIMain sidebarCollapsed={sidebarCollapsed}>
-        {/* 탭 바 */}
         <S.TabBar>
-          <S.MobileMenuButton onClick={handleMobileMenuToggle}>
-            ☰
-          </S.MobileMenuButton>
+          <S.MobileMenuButton onClick={handleMobileMenuToggle}>☰</S.MobileMenuButton>
           {openTabs.map((tab) => (
             <S.Tab
               key={tab.id}
@@ -350,17 +334,13 @@ export default function MDIAdminPage() {
             >
               <S.TabIcon>{tab.icon}</S.TabIcon>
               <S.TabTitle>{tab.title}</S.TabTitle>
-              {/* 대시보드 탭은 닫기 버튼 표시 안함 */}
               {tab.id !== 'dashboard' && (
-                <S.TabCloseButton onClick={(e) => handleTabClose(e, tab.id)}>
-                  ×
-                </S.TabCloseButton>
+                <S.TabCloseButton onClick={(e) => handleTabClose(e, tab.id)}>×</S.TabCloseButton>
               )}
             </S.Tab>
           ))}
         </S.TabBar>
 
-        {/* 콘텐츠 패널 */}
         <S.ContentPanel key={activeTabId}>
           {renderTabContent()}
         </S.ContentPanel>
@@ -379,21 +359,14 @@ interface DashboardContentProps {
 function DashboardContent({ session, accessibleMenus, onMenuClick }: DashboardContentProps) {
   const roles = session?.user?.roles || [];
   
-  // 빠른 액세스에는 최상위 메뉴만 표시 (하위 메뉴 제외) + 권한 필터링
   const menuItems = accessibleMenus.filter(m => {
-    // 대시보드는 제외
     if (m.id === 'dashboard') return false;
-    
-    // 권한 필터링: requiredRoles가 있으면 사용자가 해당 권한을 가져야 함
     if (m.requiredRoles && m.requiredRoles.length > 0) {
       const hasPermission = m.requiredRoles.some(role => roles.includes(role));
       if (!hasPermission) return false;
     }
-    
-    // 하위 메뉴는 제외 (parent_id가 있는 경우)
     const extendedMenu = m as ExtendedTabInfo;
     if (extendedMenu.parent_id) return false;
-    
     return true;
   });
 
@@ -401,9 +374,7 @@ function DashboardContent({ session, accessibleMenus, onMenuClick }: DashboardCo
     <>
       <S.DashboardWelcome>
         <S.WelcomeTitle>환영합니다, {session.user.name || '관리자'}님! 👋</S.WelcomeTitle>
-        <S.WelcomeSubtitle>
-          HUB 관리자 대시보드에서 시스템을 관리할 수 있습니다.
-        </S.WelcomeSubtitle>
+        <S.WelcomeSubtitle>HUB 관리자 대시보드에서 시스템을 관리할 수 있습니다.</S.WelcomeSubtitle>
       </S.DashboardWelcome>
 
       <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
@@ -425,27 +396,62 @@ function DashboardContent({ session, accessibleMenus, onMenuClick }: DashboardCo
   );
 }
 
-// 사진팀 서브메뉴 콘텐츠
+// 서브메뉴 콘텐츠 공통 인터페이스
 interface SubmenuContentProps {
   session?: any;
   accessibleMenus?: TabInfo[];
   onMenuClick: (menu: TabInfo) => void;
 }
 
-function PhotosSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
+// 출석 관리 서브메뉴
+function AttendanceSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
   const roles = session?.user?.roles || [];
   
-  // accessibleMenus에서 사진팀 관련 메뉴만 필터링 + 권한 필터링
-  const photosMenus = (accessibleMenus || []).filter(m => {
-    // 사진팀 관련 경로만
-    if (!m.path.includes('/admin/photos/')) return false;
-    
-    // 권한 필터링: requiredRoles가 있으면 사용자가 해당 권한을 가져야 함
+  const attendanceMenus = (accessibleMenus || []).filter(m => {
+    if (!m.path.includes('/admin/attendance/')) return false;
     if (m.requiredRoles && m.requiredRoles.length > 0) {
       const hasPermission = m.requiredRoles.some(role => roles.includes(role));
       if (!hasPermission) return false;
     }
-    
+    return true;
+  });
+
+  return (
+    <>
+      <S.DashboardWelcome>
+        <S.WelcomeTitle>출석 관리 대시보드 📅</S.WelcomeTitle>
+        <S.WelcomeSubtitle>QR 코드를 생성하거나 출석 내역을 조회할 수 있습니다.</S.WelcomeSubtitle>
+      </S.DashboardWelcome>
+
+      <S.SectionTitle>📋 메뉴 선택</S.SectionTitle>
+      <S.MenuGrid>
+        {attendanceMenus.map((menu) => {
+          const extendedMenu = menu as ExtendedTabInfo;
+          return (
+            <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
+              <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
+              <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
+              <S.MenuCardDescription>
+                {extendedMenu.description || '관리 메뉴'}
+              </S.MenuCardDescription>
+            </S.MenuCard>
+          );
+        })}
+      </S.MenuGrid>
+    </>
+  );
+}
+
+// 사진팀 서브메뉴
+function PhotosSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
+  const roles = session?.user?.roles || [];
+  
+  const photosMenus = (accessibleMenus || []).filter(m => {
+    if (!m.path.includes('/admin/photos/')) return false;
+    if (m.requiredRoles && m.requiredRoles.length > 0) {
+      const hasPermission = m.requiredRoles.some(role => roles.includes(role));
+      if (!hasPermission) return false;
+    }
     return true;
   });
 
@@ -453,9 +459,7 @@ function PhotosSubmenuContent({ session, accessibleMenus, onMenuClick }: Submenu
     <>
       <S.DashboardWelcome>
         <S.WelcomeTitle>사진팀 관리 대시보드 📷</S.WelcomeTitle>
-        <S.WelcomeSubtitle>
-          사진팀이 할 수 있는 업무를 선택해주세요.
-        </S.WelcomeSubtitle>
+        <S.WelcomeSubtitle>사진팀이 할 수 있는 업무를 선택해주세요.</S.WelcomeSubtitle>
       </S.DashboardWelcome>
 
       <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
@@ -477,21 +481,16 @@ function PhotosSubmenuContent({ session, accessibleMenus, onMenuClick }: Submenu
   );
 }
 
-// 대림절 서브메뉴 콘텐츠
+// 대림절 서브메뉴
 function AdventSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
   const roles = session?.user?.roles || [];
   
-  // accessibleMenus에서 대림절 관련 메뉴만 필터링 + 권한 필터링
   const adventMenus = (accessibleMenus || []).filter(m => {
-    // 대림절 관련 경로만
     if (!m.path.includes('/admin/advent/')) return false;
-    
-    // 권한 필터링: requiredRoles가 있으면 사용자가 해당 권한을 가져야 함
     if (m.requiredRoles && m.requiredRoles.length > 0) {
       const hasPermission = m.requiredRoles.some(role => roles.includes(role));
       if (!hasPermission) return false;
     }
-    
     return true;
   });
 
@@ -499,9 +498,7 @@ function AdventSubmenuContent({ session, accessibleMenus, onMenuClick }: Submenu
     <>
       <S.DashboardWelcome>
         <S.WelcomeTitle>대림절 관리 대시보드 🎄</S.WelcomeTitle>
-        <S.WelcomeSubtitle>
-          대림절 콘텐츠를 관리할 수 있습니다.
-        </S.WelcomeSubtitle>
+        <S.WelcomeSubtitle>대림절 콘텐츠를 관리할 수 있습니다.</S.WelcomeSubtitle>
       </S.DashboardWelcome>
 
       <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
@@ -523,21 +520,16 @@ function AdventSubmenuContent({ session, accessibleMenus, onMenuClick }: Submenu
   );
 }
 
-// 말씀카드 서브메뉴 콘텐츠
+// 말씀카드 서브메뉴
 function BibleCardSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
   const roles = session?.user?.roles || [];
   
-  // accessibleMenus에서 말씀카드 관련 메뉴만 필터링 + 권한 필터링
   const bibleCardMenus = (accessibleMenus || []).filter(m => {
-    // 말씀카드 관련 경로만
     if (!m.path.includes('/admin/bible-card/')) return false;
-    
-    // 권한 필터링: requiredRoles가 있으면 사용자가 해당 권한을 가져야 함
     if (m.requiredRoles && m.requiredRoles.length > 0) {
       const hasPermission = m.requiredRoles.some(role => roles.includes(role));
       if (!hasPermission) return false;
     }
-    
     return true;
   });
 
@@ -545,9 +537,7 @@ function BibleCardSubmenuContent({ session, accessibleMenus, onMenuClick }: Subm
     <>
       <S.DashboardWelcome>
         <S.WelcomeTitle>말씀카드 관리 대시보드 📜</S.WelcomeTitle>
-        <S.WelcomeSubtitle>
-          말씀카드 신청 현황 및 관리를 할 수 있습니다.
-        </S.WelcomeSubtitle>
+        <S.WelcomeSubtitle>말씀카드 신청 현황 및 관리를 할 수 있습니다.</S.WelcomeSubtitle>
       </S.DashboardWelcome>
 
       <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
@@ -569,15 +559,12 @@ function BibleCardSubmenuContent({ session, accessibleMenus, onMenuClick }: Subm
   );
 }
 
-// Coming Soon 콘텐츠 (아직 구현되지 않은 페이지용)
+// Coming Soon 콘텐츠
 function ComingSoonContent({ title }: { title: string }) {
   return (
     <S.DashboardWelcome>
       <S.WelcomeTitle>{title} 🚧</S.WelcomeTitle>
-      <S.WelcomeSubtitle>
-        이 기능은 현재 개발 중입니다. 곧 만나보실 수 있습니다!
-      </S.WelcomeSubtitle>
+      <S.WelcomeSubtitle>이 기능은 현재 개발 중입니다. 곧 만나보실 수 있습니다!</S.WelcomeSubtitle>
     </S.DashboardWelcome>
   );
 }
-
