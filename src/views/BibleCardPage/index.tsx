@@ -36,6 +36,7 @@ interface Profile {
 const COMMUNITIES = ['허브', '타공동체'];
 
 // 신청 마감 시간: 2025년 12월 15일 02시 (한국시간)
+// 신청 기간 체크 비활성화 (항상 신청 가능)
 const APPLICATION_CLOSE_DATE = new Date('2025-12-15T02:00:00+09:00');
 
 export default function BibleCardApplyPage() {
@@ -58,16 +59,18 @@ export default function BibleCardApplyPage() {
     prayer_request: '',
   });
 
-  // 신청 마감 시간 체크
+  // 신청 마감 시간 체크 (비활성화 - 항상 신청 가능)
   useEffect(() => {
-    const checkApplicationClosed = () => {
-      const now = new Date();
-      setIsApplicationClosed(now >= APPLICATION_CLOSE_DATE);
-    };
-    
-    checkApplicationClosed();
-    const interval = setInterval(checkApplicationClosed, 1000);
-    return () => clearInterval(interval);
+    // 신청 기간 체크 비활성화
+    setIsApplicationClosed(false);
+    // const checkApplicationClosed = () => {
+    //   const now = new Date();
+    //   setIsApplicationClosed(now >= APPLICATION_CLOSE_DATE);
+    // };
+    // 
+    // checkApplicationClosed();
+    // const interval = setInterval(checkApplicationClosed, 1000);
+    // return () => clearInterval(interval);
   }, []);
 
   // 내 신청 정보 조회

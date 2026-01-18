@@ -20,7 +20,7 @@ export default async function handler(
       return res.status(403).json({ error: '권한이 없습니다.' });
     }
 
-    const { status, pastor_id } = req.query;
+    const { status, pastor_id, search } = req.query;
 
     // 데이터 조회
     let query = supabaseAdmin
@@ -49,6 +49,9 @@ export default async function handler(
     }
     if (pastor_id && typeof pastor_id === 'string') {
       query = query.eq('assigned_pastor_id', pastor_id);
+    }
+    if (search && typeof search === 'string') {
+      query = query.ilike('name', `%${search}%`);
     }
 
     const { data, error } = await query;
