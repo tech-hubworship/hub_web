@@ -21,6 +21,7 @@ import BibleCardPastorPage from '@src/views/AdminPage/bible-card/PastorPage';
 import BibleCardCompletePage from '@src/views/AdminPage/bible-card/CompletePage';
 import QrGenerator from '@src/views/AdminPage/attendance/QrGenerator';
 import AttendanceList from '@src/views/AdminPage/attendance/AttendanceList';
+import CalendarAdminPage from '@src/views/AdminPage/calendar';
 
 // 메뉴 ID와 컴포넌트 매핑 (동적 렌더링용)
 const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
@@ -38,6 +39,7 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'menu-management': MenuManagementPage,
   'attendance-qr': QrGenerator,
   'attendance-list': AttendanceList,
+  'calendar': CalendarAdminPage,
 };
 
 // 확장된 TabInfo 타입 (description 포함)
