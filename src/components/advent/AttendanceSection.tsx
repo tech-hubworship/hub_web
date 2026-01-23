@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
 import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
 import { getDayNumber } from '@src/lib/advent/utils';
@@ -605,7 +604,6 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   onMeditationSavedChange,
   isEventEnded = false,
 }) => {
-  const router = useRouter();
   const [attendanceChecked, setAttendanceChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [attendanceMap, setAttendanceMap] = useState<AttendanceMap>({});
@@ -669,8 +667,8 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
   const handleMeditationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoggedIn) {
-      const currentPath = router.asPath;
-      router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+      const currentPath = window.location.pathname + window.location.search;
+      window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
       return;
     }
     await onCommentSubmit();
@@ -777,8 +775,8 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
 
   const handleAttendanceClick = async () => {
     if (!isLoggedIn) {
-      const currentPath = router.asPath;
-      router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+      const currentPath = window.location.pathname + window.location.search;
+      window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
       return;
     }
 

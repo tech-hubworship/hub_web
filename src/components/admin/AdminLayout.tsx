@@ -1,7 +1,7 @@
 // 파일 경로: src/components/admin/AdminLayout.tsx
 
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState, ReactNode } from 'react';
 import { useAdminMDI, TabInfo } from '@src/contexts/AdminMDIContext';
 import * as S from '@src/views/AdminPage/mdi-style';
@@ -32,7 +32,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       router.replace('/');
     }
     if (status === 'unauthenticated') {
-      const currentPath = router.asPath;
+      const currentPath = window.location.pathname + window.location.search;
       router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
     }
   }, [status, session, router]);

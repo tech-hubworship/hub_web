@@ -2,8 +2,7 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
-import Head from 'next/head';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PageLayout from '@src/components/common/PageLayout';
 import * as S from './style';
 import { Combobox } from '@src/components/ui/combobox';
@@ -51,7 +50,9 @@ const isOldEnough = (dateString: string): boolean => {
 export default function SignUpPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { role, completeGroup } = router.query;
+  const searchParams = useSearchParams();
+  const role = searchParams?.get('role') ?? '';
+  const completeGroup = searchParams?.get('completeGroup');
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -367,7 +368,6 @@ export default function SignUpPage() {
 
   return (
     <PageLayout>
-      <Head><title>회원가입</title></Head>
       <S.Wrapper>
         <S.Card>
           {renderStep()}

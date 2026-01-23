@@ -1,9 +1,8 @@
-import Link from 'next/link';
 import { useEffect } from 'react';
 import { menuTapList } from '../../constants/menuTapList';
 import { MenuState } from '../../types';
 import * as S from './style';
-import { useRouter } from 'next/router';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
 function useNoScroll(isMenuShown: MenuState) {
@@ -30,6 +29,7 @@ interface HeaderMenuProps {
 function HeaderMenu({ isMenuShown, handleHeaderToggleButton }: HeaderMenuProps) {
   useNoScroll(isMenuShown);
   const router = useRouter();
+  const pathname = usePathname();
   const { status } = useSession();
 
   // 페이지 이동 핸들러
@@ -45,7 +45,7 @@ function HeaderMenu({ isMenuShown, handleHeaderToggleButton }: HeaderMenuProps) 
 
   // 간단한 선택 상태 확인 함수
   const handleIsSelected = (href: string) => {
-    return router.pathname === href;
+    return pathname === href;
   };
 
   // 메뉴 리스트를 필터링하고 변환

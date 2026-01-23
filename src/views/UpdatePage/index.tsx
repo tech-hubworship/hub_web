@@ -1,7 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
-import Head from 'next/head';
+import { useRouter } from 'next/navigation';
 import PageLayout from '@src/components/common/PageLayout';
 import * as S from './style';
 import { Combobox } from '@src/components/ui/combobox';
@@ -266,9 +265,6 @@ export default function UpdatePage() {
 
   return (
     <PageLayout>
-      <Head>
-        <title>정보 업데이트</title>
-      </Head>
       <S.Wrapper>
         <S.Card>
           {currentStep === 'userInfo' ? (

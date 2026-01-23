@@ -3,8 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
-import Head from 'next/head';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import styled from '@emotion/styled';
 import { keyframes } from '@emotion/react';
@@ -55,9 +54,11 @@ const OPEN_DATE = new Date('2026-01-01T00:00:00+09:00');
 export default function BibleCardDownloadPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   // 테스트 모드: 쿼리 스트링에 value=test 또는 value=admin이 있으면 시간 제한 없이 오픈
-  const isTestMode = router.query.value === 'test' || router.query.value === 'admin';
+  const value = searchParams?.get('value');
+  const isTestMode = value === 'test' || value === 'admin';
   const [isOpen, setIsOpen] = useState(isTestMode);
   const [downloading, setDownloading] = useState<{ [key: number]: boolean }>({ 1: false, 2: false });
   const [activeTab, setActiveTab] = useState<'card' | 'card1' | 'card2' | 'verse' | 'prayer'>('card');
@@ -114,9 +115,9 @@ export default function BibleCardDownloadPage() {
   // 로그인 체크
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push(`/login?redirect=${encodeURIComponent('/bible-card/download')}`);
+      window.location.href = `/login?redirect=${encodeURIComponent('/bible-card/download')}`;
     }
-  }, [status, router]);
+  }, [status]);
 
   // 다운로드 페이지 접속 카운팅
   useEffect(() => {
@@ -275,9 +276,6 @@ export default function BibleCardDownloadPage() {
   if (status === 'loading' || isLoading) {
     return (
       <>
-        <Head>
-          <title>말씀카드 다운로드 | HUB Worship</title>
-        </Head>
         <Header />
         <Container>
           <ContentWrapper>
@@ -296,9 +294,6 @@ export default function BibleCardDownloadPage() {
   if (!myApplication?.hasApplication) {
     return (
       <>
-        <Head>
-          <title>말씀카드 다운로드 | HUB Worship</title>
-        </Head>
         <Header />
         <Container>
           <ContentWrapper>
@@ -336,10 +331,6 @@ export default function BibleCardDownloadPage() {
   if (!isOpen) {
     return (
       <>
-        <Head>
-          <title>말씀카드 오픈 카운트다운 | HUB Worship</title>
-          <meta name="description" content="말씀카드 오픈까지 남은 시간" />
-        </Head>
         <Header />
         <Container>
           <ContentWrapper>
@@ -390,10 +381,6 @@ export default function BibleCardDownloadPage() {
   // 오픈 후 - 다운로드 가능
   return (
     <>
-      <Head>
-        <title>말씀카드 다운로드 | HUB Worship</title>
-        <meta name="description" content="말씀카드 다운로드" />
-      </Head>
       <Header />
       <Container>
         <ContentWrapper>

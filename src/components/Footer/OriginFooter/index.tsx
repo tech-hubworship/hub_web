@@ -1,4 +1,3 @@
-import { useRouter } from "next/router";
 import { FC, useState } from "react";
 import Link from "next/link";
 import ArrowRight from "@src/assets/icons/arrow_right_16x16.svg";
@@ -6,7 +5,6 @@ import Channels from "@src/components/Footer/Channels";
 import * as St from "./style";
 
 const OriginFooter: FC = () => {
-  const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -134,7 +132,8 @@ const OriginFooter: FC = () => {
                     </St.FeedbackLinkText>
                     <St.FeedbackLinkButton
                       onClick={() => {
-                        router.push('/tech-inquiry-feedback');
+                        // pages/app router 공용: 라우터 컨텍스트에 의존하지 않고 이동
+                        window.location.href = '/tech-inquiry-feedback';
                         setIsModalOpen(false);
                       }}
                     >

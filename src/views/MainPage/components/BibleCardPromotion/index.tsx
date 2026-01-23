@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
-import { useRouter } from 'next/router';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
 const SectionCard = styled.div`
@@ -202,9 +202,11 @@ const CountdownSeparator = styled.div`
 
 export default function BibleCardPromotion() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   // 테스트 모드: 쿼리 스트링에 value=test 또는 value=admin이 있으면 카운트다운 무시
-  const isTestMode = router.query.value === 'test' || router.query.value === 'admin';
+  const v = searchParams?.get('value');
+  const isTestMode = v === 'test' || v === 'admin';
   
   // 특별한 텍스트를 보여줄 사용자 목록
   const specialUsers = ['고주원', '김형진', '정민정', '김현아', '남윤희', '김세인', '여기준', '오해성', '최주영'];

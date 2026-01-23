@@ -1,7 +1,7 @@
 // 파일 경로: /pages/admin/design.tsx
 
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import PageLayout from '@src/components/common/PageLayout';
 import * as S from "@src/views/AdminPage/style"; // 메인 레이아웃 스타일은 기존 것을 재활용
 import * as DesignS from "@src/views/AdminPage/design/style"; // ⭐️ 새로 만든 디자인 페이지 전용 스타일 import
@@ -15,7 +15,7 @@ interface SurveyStats {
 
 // 통계 정보를 가져오는 fetch 함수
 const fetchSurveyStats = async (surveyId: string): Promise<SurveyStats> => {
-    const response = await fetch(`/api/admin/survey-stats?surveyId=${surveyId}`);
+    const response = await fetch(`/api/admin/design/survey-stats?surveyId=${surveyId}`);
     if (!response.ok) {
         throw new Error('설문조사 통계 정보를 가져오는 데 실패했습니다.');
     }
@@ -38,7 +38,7 @@ export default function DesignAdminPage() {
     });
 
     const handleDownload = () => {
-        router.push(`/api/admin/download-survey-csv?surveyId=${surveyId}&page=${page}`);
+        window.location.href = `/api/admin/design/download-survey-csv?surveyId=${surveyId}&page=${page}`;
     };
 
     if (status === 'loading') {

@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import styled from '@emotion/styled';
 
 // 스타일 컴포넌트들
@@ -220,7 +220,7 @@ const MediaGallery = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [router]);
+  }, []);
 
   const handleGalleryClick = () => {
     router.push('/media-gallery');

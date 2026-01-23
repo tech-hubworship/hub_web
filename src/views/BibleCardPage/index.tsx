@@ -3,8 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
-import Head from 'next/head';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
 import { keyframes } from '@emotion/react';
@@ -42,6 +41,9 @@ const APPLICATION_CLOSE_DATE = new Date('2025-12-15T02:00:00+09:00');
 export default function BibleCardApplyPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchString = searchParams?.toString() ?? '';
   const queryClient = useQueryClient();
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -213,18 +215,15 @@ export default function BibleCardApplyPage() {
   // 로그인 체크
   useEffect(() => {
     if (status === 'unauthenticated') {
-      // 현재 경로를 redirect 파라미터로 전달
-      const currentPath = router.asPath || '/bible-card';
-      router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+      const currentPath =
+        pathname + (searchString ? `?${searchString}` : '');
+      window.location.href = `/login?redirect=${encodeURIComponent(currentPath || '/bible-card')}`;
     }
-  }, [status, router]);
+  }, [status, pathname, searchString]);
 
   if (status === 'loading' || isLoading) {
     return (
       <>
-        <Head>
-          <title>말씀카드 | HUB Worship</title>
-        </Head>
         <Header />
         <Container>
           <ContentWrapper>
@@ -243,9 +242,6 @@ export default function BibleCardApplyPage() {
   if (isApplicationClosed && !myApplication?.hasApplication) {
     return (
       <>
-        <Head>
-          <title>말씀카드 신청 기간 종료 | HUB Worship</title>
-        </Head>
         <Header />
         <Container>
           <ContentWrapper>
@@ -307,9 +303,6 @@ export default function BibleCardApplyPage() {
 
     return (
       <>
-        <Head>
-          <title>말씀카드 신청 내역 | HUB Worship</title>
-        </Head>
         <Header />
         <Container>
           <ContentWrapper>
@@ -443,10 +436,6 @@ export default function BibleCardApplyPage() {
 
   return (
     <>
-      <Head>
-        <title>말씀카드 신청 | HUB Worship</title>
-        <meta name="description" content="말씀카드 신청" />
-      </Head>
       <Header />
       <Container>
         <ContentWrapper>
@@ -663,7 +652,7 @@ export default function BibleCardApplyPage() {
                   목회자님께서 말씀을 준비해주시면<br />
                   알림을 통해 안내드리겠습니다.
                 </StepDescription>
-                <CompleteButton onClick={() => router.reload()}>
+                <CompleteButton onClick={() => window.location.reload()}>
                   신청 내역 확인하기
                 </CompleteButton>
               </StepContent>

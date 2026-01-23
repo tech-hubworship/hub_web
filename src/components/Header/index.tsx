@@ -17,7 +17,6 @@ import { usePathname } from "next/navigation";
 import MobileHeader from "./Mobile";
 import DesktopMenu from "./Desktop";
 import { imgLogoHub } from "@src/assets/mainLogo";
-import { useRouter } from "next/router";
 import * as S from "./style";
 import { MenuState } from "./types";
 
@@ -30,7 +29,6 @@ import { MenuState } from "./types";
 export function Header() {
   const pathname = usePathname();
   const isRootPath = pathname === "/"; // 홈페이지 여부 확인
-  const router = useRouter();
 
   // 스크롤 기반 투명도 상태
   const [opacity, setOpacity] = useState(0);
@@ -81,7 +79,8 @@ export function Header() {
   const handleLogoClick = () => {
     if (pathname !== "/") {
       setTimeout(() => {
-        router.push("/");
+        // pages/app router 공용: 라우터 컨텍스트에 의존하지 않고 이동
+        window.location.href = "/";
       }, 100);
     }
   };

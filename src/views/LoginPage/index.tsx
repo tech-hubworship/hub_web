@@ -1,9 +1,8 @@
 // 파일 경로: src/views/LoginPage/index.tsx
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/router";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
-import Head from "next/head";
 import PageLayout from "@src/components/common/PageLayout";
 import * as S from "@src/views/LoginPage/style";
 import { FaGoogle } from "react-icons/fa";
@@ -17,6 +16,7 @@ const ADMIN_ROLES = ["MC", "목회자"];
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
 
   const [specialMode, setSpecialMode] = useState(false);
@@ -30,12 +30,13 @@ export default function LoginPage() {
   const [isVerifying, setIsVerifying] = useState(false);
 
 
-  // URL 파라미터에서 redirect 정보 가져오기 (router.isReady 확인)
+  // URL 파라미터에서 redirect 정보 가져오기
   useEffect(() => {
-    if (router.isReady && router.query.redirect) {
-      localStorage.setItem(REDIRECT_KEY, router.query.redirect as string);
+    const redirect = searchParams?.get("redirect");
+    if (redirect) {
+      localStorage.setItem(REDIRECT_KEY, redirect);
     }
-  }, [router.isReady, router.query.redirect]);
+  }, [searchParams]);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -56,8 +57,9 @@ export default function LoginPage() {
     try {
       // redirect 값을 먼저 확인 (localStorage 또는 router.query에서)
       let redirectPath = localStorage.getItem(REDIRECT_KEY);
-      if (!redirectPath && router.isReady && router.query.redirect) {
-        redirectPath = router.query.redirect as string;
+      const redirectFromUrl = searchParams?.get("redirect");
+      if (!redirectPath && redirectFromUrl) {
+        redirectPath = redirectFromUrl;
         localStorage.setItem(REDIRECT_KEY, redirectPath);
       }
 
@@ -92,9 +94,8 @@ export default function LoginPage() {
     } catch (error) {
       console.error('프로필 확인 오류:', error);
       // 오류 발생 시 redirect 값 확인 후 리다이렉트
-      const redirectPath = localStorage.getItem(REDIRECT_KEY) || 
-                          (router.query.redirect as string) || 
-                          "/myinfo";
+      const redirectPath =
+        localStorage.getItem(REDIRECT_KEY) || searchParams?.get("redirect") || "/myinfo";
       localStorage.removeItem(REDIRECT_KEY);
       router.replace(redirectPath);
     }
@@ -150,8 +151,8 @@ export default function LoginPage() {
       sessionStorage.setItem(SIGNUP_ROLE_KEY, selectedRole);
       
       // redirect 값을 signIn 전에 다시 확인하여 저장
-      if (router.isReady && router.query.redirect) {
-        const redirectValue = router.query.redirect as string;
+      const redirectValue = searchParams?.get("redirect");
+      if (redirectValue) {
         localStorage.setItem(REDIRECT_KEY, redirectValue);
         signIn('google', { 
           prompt: 'select_account',
@@ -180,8 +181,8 @@ export default function LoginPage() {
     }
     
     // redirect 값을 signIn 전에 다시 확인하여 저장
-    if (router.isReady && router.query.redirect) {
-      const redirectValue = router.query.redirect as string;
+    const redirectValue = searchParams?.get("redirect");
+    if (redirectValue) {
       localStorage.setItem(REDIRECT_KEY, redirectValue);
       signIn('google', { 
         prompt: 'select_account',
@@ -206,7 +207,6 @@ export default function LoginPage() {
 
   return (
     <PageLayout>
-      <Head><title>로그인</title></Head>
       <S.Wrapper>
         <S.Card>
           <S.Title onClick={handleTitleClick}>로그인하고 모든 서비스를 이용해보세요</S.Title>

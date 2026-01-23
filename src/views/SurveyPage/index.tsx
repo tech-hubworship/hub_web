@@ -2,7 +2,6 @@
 
 import { useState, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
 import PageLayout from '@src/components/common/PageLayout';
 import * as S from './style'; // ⭐️ 새로 만든 스타일 파일 import
 
@@ -26,7 +25,6 @@ const StepComponent = ({ title, children, onBack, onNext, nextDisabled, finalSte
 
 export default function SurveyView() {
     const { status } = useSession({ required: true });
-    const router = useRouter(); // 사용되지 않지만, 나중에 리디렉션 등에 필요할 수 있어 유지
 
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({

@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import PageLayout from "@src/components/common/PageLayout";
-import { useRouter } from "next/router";
-import Head from "next/head";
+import { useRouter } from "next/navigation";
 import * as S from "@src/views/InfoPage/style";
 import { useSession, signOut } from 'next-auth/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -369,7 +368,6 @@ export default function MyInfoPage() {
   if (isLoading) {
     return (
       <PageLayout>
-        <Head><title>내 정보</title></Head>
         <S.LoadingText>정보를 불러오는 중...</S.LoadingText>
       </PageLayout>
     );
@@ -377,7 +375,6 @@ export default function MyInfoPage() {
 
   return (
     <PageLayout>
-      <Head><title>내 정보</title></Head>
       <S.Wrapper>
         {/* 헤더 섹션 */}
         <S.HeaderSection>

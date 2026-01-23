@@ -8,22 +8,15 @@ import { imgLogoHub } from '@src/assets/mainLogo';
 import { GrowDown } from '@src/lib/styles/animation';
 import { menuTapList } from '../constants/menuTapList';
 import { MenuTapType } from '../types';
-import { useRouter } from 'next/router';
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react'; // ⭐️ 1. useSession을 import 합니다.
 
 function DesktopHeader() {
-  const router = useRouter();
+  const pathname = usePathname();
   const { data: session, status } = useSession();
 
   const handleIsSelected = (href: string) => {
-    return router.pathname === href;
-  };
-
-  const handleNavigate = (href: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    setTimeout(() => {
-      router.push(href);
-    }, 100);
+    return pathname === href;
   };
 
   // 메뉴 리스트를 필터링하고 변환
@@ -55,12 +48,10 @@ function DesktopHeader() {
     <MenuTitlesWrapper>
       {displayMenuList.map((menuTap) => (
               <MenuTitle
-                as="a"
                 href={menuTap.href}
                 menuColor={menuTap.type}
           key={menuTap.href}
                 isSelected={handleIsSelected(menuTap.href)}
-                onClick={(e) => handleNavigate(menuTap.href, e)}
               >
                 {menuTap.title}
               </MenuTitle>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 const SectionCard = styled.div`
   background: #724886;

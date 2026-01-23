@@ -14,7 +14,6 @@
 import dynamic from 'next/dynamic';
 import { memo, ReactNode, useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
-import Head from 'next/head';
 import styled from '@emotion/styled';
 import { Header } from '@src/components/Header';
 import Footer from '@src/components/Footer';
@@ -167,17 +166,6 @@ const MainPage = memo(function MainPage() {
 
   return (
     <>
-      {/* SEO 및 성능 최적화를 위한 메타 태그 */}
-      <Head>
-        <title>HUB Worship</title>
-        <meta name="description" content="HUB Worship 공동체 웹사이트" />
-        {/* Google Fonts 프리로드 및 프리커넥트 */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-      </Head>
-      
       <Header />
 
       <Container>

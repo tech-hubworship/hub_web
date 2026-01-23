@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAdminMDI, TabInfo } from '@src/contexts/AdminMDIContext';
@@ -37,6 +37,8 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'bible-card-complete': BibleCardCompletePage,
   'menu-management': MenuManagementPage,
   'attendance-qr': QrGenerator,
+  // 레거시(underscore) 쿼리 파라미터 지원
+  'attendance_qr': QrGenerator,
   'attendance-list': AttendanceList,
 };
 
@@ -49,6 +51,8 @@ interface ExtendedTabInfo extends TabInfo {
 export default function MDIAdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     typeof window !== 'undefined' ? window.innerWidth <= 768 : false
   );
@@ -68,10 +72,11 @@ export default function MDIAdminPage() {
       router.replace('/');
     }
     if (status === 'unauthenticated') {
-      const currentPath = router.asPath;
+      const query = searchParams?.toString();
+      const currentPath = pathname + (query ? `?${query}` : '');
       router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
     }
-  }, [status, session, router]);
+  }, [status, session, router, pathname, searchParams]);
 
   const roles = session?.user?.roles || [];
 
@@ -128,15 +133,35 @@ export default function MDIAdminPage() {
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user?.isAdmin) return;
     
-    const tabId = router.query.tab as string | undefined;
-    if (tabId) {
-      const menu = accessibleMenus.find(m => m.id === tabId);
-      if (menu && activeTabId !== tabId) {
-        openTab(menu);
-        router.replace('/admin', undefined, { shallow: true });
-      }
+    const rawTabId = searchParams?.get('tab') ?? undefined;
+    if (!rawTabId) return;
+
+    const candidates = [
+      rawTabId,
+      rawTabId.includes('_') ? rawTabId.replace(/_/g, '-') : null,
+      rawTabId.includes('-') ? rawTabId.replace(/-/g, '_') : null,
+    ].filter(Boolean) as string[];
+
+    let menu = candidates
+      .map((id) => accessibleMenus.find((m) => m.id === id))
+      .find(Boolean);
+
+    // id로 못 찾으면(예: 메뉴 id는 dash인데 tab은 underscore), 컴포넌트 매핑 키로라도 열어줌
+    if (!menu && MENU_COMPONENTS[rawTabId]) {
+      menu = {
+        id: rawTabId,
+        title: rawTabId,
+        icon: '📌',
+        path: '/admin',
+        requiredRoles: [],
+      } as any;
     }
-  }, [router.query.tab, accessibleMenus, status, session, activeTabId, openTab, router]);
+
+    if (menu && activeTabId !== menu.id) {
+      openTab(menu);
+      router.replace('/admin');
+    }
+  }, [searchParams, accessibleMenus, status, session, activeTabId, openTab, router]);
 
   if (status === 'loading' || !session?.user?.isAdmin) {
     return (

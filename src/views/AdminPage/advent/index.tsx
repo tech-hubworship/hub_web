@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Eye, Calendar, Video, Image as ImageIcon, X } from 'lucide-react';
 import * as S from './style';
 
