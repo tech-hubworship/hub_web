@@ -25,10 +25,21 @@ interface Role {
   name: string;
 }
 
+// 메뉴 템플릿 인터페이스
+interface MenuTemplate {
+  menu_id: string;
+  title: string;
+  icon: string;
+  path: string;
+  description: string;
+  category: string;
+}
+
 export default function MenuManagementPage() {
   const queryClient = useQueryClient();
   const [selectedMenu, setSelectedMenu] = useState<AdminMenu | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [formData, setFormData] = useState({
     menu_id: '',
@@ -66,6 +77,19 @@ export default function MenuManagementPage() {
       if (!response.ok) throw new Error('역할 목록을 가져오는 데 실패했습니다.');
       return response.json();
     },
+  });
+
+  // 메뉴 템플릿 목록 조회 (자동 스캔)
+  const { data: menuTemplates, isLoading: isLoadingTemplates } = useQuery<MenuTemplate[]>({
+    queryKey: ['admin-menu-templates'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/menus/templates');
+      if (!response.ok) {
+        return [];
+      }
+      return response.json();
+    },
+    retry: 1,
   });
 
   // 메뉴 수정 뮤테이션
@@ -158,6 +182,25 @@ export default function MenuManagementPage() {
     setIsModalOpen(true);
   };
 
+  const handleSelectTemplate = (template: MenuTemplate) => {
+    // 템플릿 정보로 폼 데이터 설정
+    setSelectedMenu(null);
+    setIsCreateMode(true);
+    setFormData({
+      menu_id: template.menu_id,
+      title: template.title,
+      icon: template.icon,
+      path: template.path,
+      parent_id: null, // 템플릿 선택 후 수정 가능
+      order_index: 0,
+      description: template.description,
+      is_active: true,
+      roles: [],
+    });
+    setIsTemplateModalOpen(false);
+    setIsModalOpen(true);
+  };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedMenu(null);
@@ -209,9 +252,14 @@ export default function MenuManagementPage() {
           <Title>⚙️ 메뉴 관리</Title>
           <Subtitle>관리자 메뉴와 권한을 설정합니다</Subtitle>
         </HeaderLeft>
-        <AddButton onClick={() => handleOpenModal()}>
-          + 새 메뉴 추가
-        </AddButton>
+        <ButtonGroup>
+          <AddButton onClick={() => setIsTemplateModalOpen(true)}>
+            📋 템플릿에서 추가
+          </AddButton>
+          <AddButton onClick={() => handleOpenModal()}>
+            + 새 메뉴 추가
+          </AddButton>
+        </ButtonGroup>
       </Header>
 
       {isLoading ? (
@@ -282,6 +330,50 @@ export default function MenuManagementPage() {
         </TableContainer>
       ) : (
         <EmptyState>등록된 메뉴가 없습니다.</EmptyState>
+      )}
+
+      {/* 템플릿 선택 모달 */}
+      {isTemplateModalOpen && (
+        <Modal onClick={() => setIsTemplateModalOpen(false)}>
+          <TemplateModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>템플릿에서 메뉴 추가</ModalTitle>
+              <CloseButton onClick={() => setIsTemplateModalOpen(false)}>×</CloseButton>
+            </ModalHeader>
+
+            <TemplateDescription>
+              라우터를 자동으로 스캔하여 발견된 메뉴 템플릿을 선택하여 빠르게 추가할 수 있습니다.
+            </TemplateDescription>
+
+            {isLoadingTemplates ? (
+              <LoadingState>템플릿을 불러오는 중...</LoadingState>
+            ) : menuTemplates && menuTemplates.length > 0 ? (
+              <TemplateGrid>
+                {menuTemplates
+                  .filter((template) => !menus?.some(m => m.menu_id === template.menu_id))
+                  .map((template) => (
+                    <TemplateCard
+                      key={template.menu_id}
+                      onClick={() => handleSelectTemplate(template)}
+                    >
+                      <TemplateIcon>{template.icon}</TemplateIcon>
+                      <TemplateTitle>{template.title}</TemplateTitle>
+                      <TemplateCardDescription>{template.description}</TemplateCardDescription>
+                      <TemplatePath>{template.path}</TemplatePath>
+                    </TemplateCard>
+                  ))}
+              </TemplateGrid>
+            ) : (
+              <EmptyState>사용 가능한 템플릿이 없습니다.</EmptyState>
+            )}
+
+            <ButtonGroup>
+              <Button variant="secondary" onClick={() => setIsTemplateModalOpen(false)}>
+                취소
+              </Button>
+            </ButtonGroup>
+          </TemplateModalContent>
+        </Modal>
       )}
 
       {/* 메뉴 수정/생성 모달 */}
@@ -403,7 +495,7 @@ export default function MenuManagementPage() {
               </RoleCheckbox>
             </FormGroup>
 
-            <ButtonGroup>
+            <ModalButtonGroup>
               <Button variant="secondary" onClick={handleCloseModal}>
                 취소
               </Button>
@@ -414,7 +506,7 @@ export default function MenuManagementPage() {
               >
                 {updateMenuMutation.isPending || createMenuMutation.isPending ? '저장 중...' : '저장'}
               </Button>
-            </ButtonGroup>
+            </ModalButtonGroup>
           </ModalContent>
         </Modal>
       )}
@@ -738,13 +830,19 @@ const HelpText = styled.p`
   margin-top: 6px;
 `;
 
-const ButtonGroup = styled.div`
+const ModalButtonGroup = styled.div`
   display: flex;
   gap: 12px;
   justify-content: flex-end;
   margin-top: 24px;
   padding-top: 16px;
   border-top: 1px solid #e2e8f0;
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
 `;
 
 const Button = styled.button<{ variant: 'primary' | 'secondary' }>`
@@ -779,4 +877,79 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' }>`
     cursor: not-allowed;
   }
 `;
+
+const TemplateModalContent = styled.div`
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+`;
+
+const TemplateDescription = styled.p`
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+`;
+
+const TemplateCardDescription = styled.div`
+  font-size: 13px;
+  color: #64748b;
+  text-align: center;
+  margin-top: 4px;
+  line-height: 1.4;
+`;
+
+const TemplateGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+`;
+
+const TemplateCard = styled.div`
+  position: relative;
+  padding: 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #6366f1;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  }
+`;
+
+const TemplateIcon = styled.div`
+  font-size: 32px;
+  text-align: center;
+  margin-bottom: 12px;
+`;
+
+const TemplateTitle = styled.div`
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: center;
+  margin-bottom: 8px;
+`;
+
+const TemplatePath = styled.code`
+  display: block;
+  font-size: 11px;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #475569;
+  text-align: center;
+  margin-top: 8px;
+  word-break: break-all;
+`;
+
 

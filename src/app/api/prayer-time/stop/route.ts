@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@src/lib/auth";
 import { supabaseAdmin } from "@src/lib/supabase";
+import { getKoreanISOString } from "@src/lib/utils/date";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +18,9 @@ export async function POST() {
     }
 
     const userId = session.user.id;
-    const endTime = new Date();
+    // 한국 시간 기준으로 종료 시간 설정
+    const endTimeISO = getKoreanISOString();
+    const endTime = new Date(endTimeISO);
 
     // 진행 중인 기도 시간 레코드 찾기
     const { data: activePrayer, error: findError } = await supabaseAdmin
@@ -54,7 +57,7 @@ export async function POST() {
     const { data: updatedPrayer, error: updateError } = await supabaseAdmin
       .from("prayer_times")
       .update({
-        end_time: endTime.toISOString(),
+        end_time: endTimeISO,
         duration_seconds: durationSeconds,
       })
       .eq("id", activePrayer.id)

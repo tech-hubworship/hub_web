@@ -21,6 +21,7 @@ import BibleCardPastorPage from '@src/views/AdminPage/bible-card/PastorPage';
 import BibleCardCompletePage from '@src/views/AdminPage/bible-card/CompletePage';
 import QrGenerator from '@src/views/AdminPage/attendance/QrGenerator';
 import AttendanceList from '@src/views/AdminPage/attendance/AttendanceList';
+import GlossaryAdminPage from '@src/views/AdminPage/apps/glossary';
 
 // 메뉴 ID와 컴포넌트 매핑 (동적 렌더링용)
 const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
@@ -40,6 +41,8 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   // 레거시(underscore) 쿼리 파라미터 지원
   'attendance_qr': QrGenerator,
   'attendance-list': AttendanceList,
+  'glossary': GlossaryAdminPage,
+  'apps-glossary': GlossaryAdminPage,
 };
 
 // 확장된 TabInfo 타입 (description 포함)
@@ -239,6 +242,16 @@ export default function MDIAdminPage() {
     if (activeTabId === 'bible-card') {
       return (
         <BibleCardSubmenuContent 
+          session={session}
+          accessibleMenus={accessibleMenus}
+          onMenuClick={handleMenuClick}
+        />
+      );
+    }
+    // Apps 서브메뉴 대시보드
+    if (activeTabId === 'apps') {
+      return (
+        <AppsSubmenuContent 
           session={session}
           accessibleMenus={accessibleMenus}
           onMenuClick={handleMenuClick}
@@ -568,6 +581,45 @@ function BibleCardSubmenuContent({ session, accessibleMenus, onMenuClick }: Subm
       <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
       <S.MenuGrid>
         {bibleCardMenus.map((menu) => {
+          const extendedMenu = menu as ExtendedTabInfo;
+          return (
+            <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>
+              <S.MenuCardIcon>{menu.icon}</S.MenuCardIcon>
+              <S.MenuCardTitle>{menu.title}</S.MenuCardTitle>
+              <S.MenuCardDescription>
+                {extendedMenu.description || '관리 메뉴'}
+              </S.MenuCardDescription>
+            </S.MenuCard>
+          );
+        })}
+      </S.MenuGrid>
+    </>
+  );
+}
+
+// Apps 서브메뉴
+function AppsSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
+  const roles = session?.user?.roles || [];
+  
+  const appsMenus = (accessibleMenus || []).filter(m => {
+    if (!m.path.includes('/admin/apps/')) return false;
+    if (m.requiredRoles && m.requiredRoles.length > 0) {
+      const hasPermission = m.requiredRoles.some(role => roles.includes(role));
+      if (!hasPermission) return false;
+    }
+    return true;
+  });
+
+  return (
+    <>
+      <S.DashboardWelcome>
+        <S.WelcomeTitle>Apps 관리 대시보드 📱</S.WelcomeTitle>
+        <S.WelcomeSubtitle>허브 앱들을 관리할 수 있습니다.</S.WelcomeSubtitle>
+      </S.DashboardWelcome>
+
+      <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
+      <S.MenuGrid>
+        {appsMenus.map((menu) => {
           const extendedMenu = menu as ExtendedTabInfo;
           return (
             <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>

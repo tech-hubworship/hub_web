@@ -67,6 +67,13 @@ export async function GET() {
       };
     });
 
+    // 캐시 헤더 설정 (짧은 캐시로 실시간성 유지하면서 Edge request 감소)
+    const headers = new Headers();
+    headers.set(
+      "Cache-Control",
+      "public, s-maxage=3, stale-while-revalidate=5"
+    );
+
     return Response.json(
       {
         success: true,
@@ -75,7 +82,7 @@ export async function GET() {
           users: activeUsers,
         },
       },
-      { status: 200 }
+      { status: 200, headers }
     );
   } catch (error) {
     console.error("Prayer time active API error:", error);

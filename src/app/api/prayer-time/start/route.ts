@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@src/lib/auth";
 import { supabaseAdmin } from "@src/lib/supabase";
+import { getKoreanISOString } from "@src/lib/utils/date";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,14 +48,17 @@ export async function POST() {
       );
     }
 
-    const startTime = new Date();
+    // 한국 시간 기준으로 시작 시간 설정
+    // DB의 DEFAULT가 한국 시간이므로 직접 값을 넣지 않으면 자동으로 한국 시간이 저장됨
+    // 하지만 명시적으로 한국 시간을 사용하도록 설정
+    const startTimeISO = getKoreanISOString();
 
     // prayer_times 테이블에 레코드 생성
     const { data: prayerTime, error: prayerError } = await supabaseAdmin
       .from("prayer_times")
       .insert({
         user_id: userId,
-        start_time: startTime.toISOString(),
+        start_time: startTimeISO,
         end_time: null,
         duration_seconds: null,
       })
@@ -71,7 +75,7 @@ export async function POST() {
       .from("prayer_sessions")
       .insert({
         user_id: userId,
-        start_time: startTime.toISOString(),
+        start_time: startTimeISO,
       });
 
     if (sessionError) {
