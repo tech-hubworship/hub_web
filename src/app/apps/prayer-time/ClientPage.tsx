@@ -6,6 +6,7 @@ import { motion, type MotionProps, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
+import toast, { Toaster } from "react-hot-toast";
 import { supabase } from "@src/lib/supabase";
 import { Header } from "@src/components/Header";
 
@@ -22,151 +23,204 @@ const Footer = dynamic(() => import("@src/components/Footer"), { ssr: true });
 
 const Container = styled.div`
   min-height: 100vh;
-  background: #1a1a1a;
+  background: #121212;
+  background-image: url('/images/apps/notk/background.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   padding: 0;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow-x: hidden;
+  
+  /* 배경 이미지 위에 반투명 레이어 추가 (Figma 디자인: #1e1e1e 톤) */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(30, 30, 30, 0.8);
+    z-index: 0;
+  }
+  
+  /* 컨텐츠가 레이어 위에 오도록 */
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 `;
 
 const ContentWrapper = styled.div`
   max-width: 600px;
   margin: 0 auto;
-  padding: 80px 20px 100px;
   width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+`;
 
-  @media (max-width: 768px) {
-    padding: 60px 16px 80px;
+const InitialScreen = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - clamp(80px, 19.7vw, 160px));
+  padding: 60px clamp(16px, 5.33vw, 20px) clamp(20px, 5.2vw, 40px) clamp(16px, 5.33vw, 20px);
+`;
+
+const ScrollIndicatorWrapper = styled.div`
+  margin-top: clamp(16px, 3.94vw, 32px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ScrollIndicator = styled(motion.div)`
+  color: rgba(255, 255, 255, 0.6);
+  font-size: clamp(16px, 4.27vw, 24px);
+  animation: bounce 2s infinite;
+
+  @keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-10px);
+    }
+    60% {
+      transform: translateY(-5px);
+    }
   }
+`;
+
+const StatsSection = styled(motion.div)`
+  width: 100%;
 `;
 
 const CrossIcon = styled.div`
   width: 100%;
-  height: 200px;
+  height: 60vh;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
-
-  &::before {
-    content: "";
-    position: absolute;
-    width: 2px;
-    height: 100%;
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  &::after {
-    content: "";
-    position: absolute;
-    width: 100%;
-    height: 2px;
-    background: rgba(255, 255, 255, 0.1);
+  margin-bottom: clamp(10px, 2.46vw, 20px);
+  
+  img {
+    width: auto;
+    height: 60vh;
+    aspect-ratio: 220 / 366;
+    object-fit: contain;
+    opacity: 0.25; /* Figma 디자인: 더 낮은 opacity (0.2-0.4 범위) */
   }
 `;
 
 const TimerDisplay = styled.div`
-  font-size: 72px;
-  font-weight: 300;
-  color: #ffffff;
+  color: #FFF;
   text-align: center;
+  font-family: 'SUIT', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: clamp(56px, 13.33vw, 300px);
+  font-style: normal;
+  font-weight: 100;
+  line-height: 140%;
+  margin-bottom: clamp(20px, 4.93vw, 40px);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  margin-bottom: 40px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-
-  @media (max-width: 768px) {
-    font-size: 56px;
-    margin-bottom: 32px;
-  }
 `;
 
 const ButtonContainer = styled.div`
   display: flex;
-  gap: 12px;
+  gap: clamp(8px, 2.13vw, 16px);
   justify-content: center;
-  margin-bottom: 40px;
-
-  @media (max-width: 768px) {
-    gap: 10px;
-    margin-bottom: 32px;
-  }
+  margin-bottom: clamp(24px, 5.91vw, 48px);
+  align-items: center;
 `;
 
 const Button = styled(motion.button)<
   React.ComponentPropsWithoutRef<"button"> & MotionProps & { variant?: "primary" | "secondary" }
 >`
-  padding: 16px 32px;
-  border-radius: 12px;
+  display: flex;
+  padding: clamp(8px, 1.6vw, 12px) clamp(16px, 3.2vw, 24px);
+  justify-content: center;
+  align-items: center;
+  border-radius: clamp(12px, 2.13vw, 16px);
   border: none;
-  font-size: 16px;
-  font-weight: 600;
   cursor: pointer;
   color: #ffffff;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  font-size: clamp(14px, 2.67vw, 16px);
+  font-weight: 600;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   ${(props) =>
     props.variant === "primary"
       ? `
-      background: #8B4513;
+      /* 실제 적용된 스타일: 반투명 흰색 배경 */
+      background: rgba(255, 255, 255, 0.30);
       &:hover {
-        background: #A0522D;
+        background: rgba(255, 255, 255, 0.40);
+      }
+      &:active {
+        background: rgba(255, 255, 255, 0.25);
+        transform: scale(0.98);
       }
     `
       : `
-      background: transparent;
+      /* Secondary 버튼: 투명 배경에 테두리 */
+      background: rgba(255, 255, 255, 0.08);
       color: #ffffff;
       border: 1px solid rgba(255, 255, 255, 0.2);
       &:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+      &:active {
+        background: rgba(255, 255, 255, 0.05);
+        transform: scale(0.98);
       }
     `}
-
-  @media (max-width: 768px) {
-    padding: 14px 24px;
-    font-size: 14px;
-  }
 `;
 
 const LiveSection = styled(motion.div)`
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.05); /* Figma 디자인: 더 어두운 배경 */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Figma 디자인: 더 얇은 테두리 */
+  border-radius: clamp(10px, 1.6vw, 12px);
+  padding: clamp(12px, 2.13vw, 16px);
+  margin-bottom: clamp(16px, 2.96vw, 24px);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  transition: all 0.2s;
 
-  @media (max-width: 768px) {
-    padding: 14px;
-    margin-bottom: 20px;
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
   }
 `;
 
 const LiveText = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: clamp(6px, 1.07vw, 8px);
   color: #ffffff;
-  font-size: 16px;
+  font-size: clamp(14px, 2.67vw, 16px);
   font-weight: 500;
-
-  @media (max-width: 768px) {
-    font-size: 14px;
-  }
 `;
 
 const LiveBadge = styled.span`
-  background: #ff0000;
+  background: #ff3b30; /* Figma 디자인: iOS 스타일 빨간색 */
   color: #ffffff;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: clamp(3px, 0.53vw, 4px) clamp(6px, 1.07vw, 8px);
+  border-radius: clamp(4px, 0.8vw, 6px);
+  font-size: clamp(9px, 1.6vw, 11px);
   font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
 // Live Modal 스타일
@@ -190,7 +244,7 @@ const ModalOverlay = styled(motion.div)`
 `;
 
 const ModalContent = styled(motion.div)`
-  background: #1a1a1a;
+  background: #1e1e1e; /* Figma 디자인: #1e1e1e */
   width: 100%;
   max-width: 600px;
   max-height: 80vh;
@@ -250,7 +304,8 @@ const UserList = styled.div`
 `;
 
 const UserItem = styled(motion.div)`
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03); /* Figma 디자인: 더 어두운 배경 */
+  border: 1px solid rgba(255, 255, 255, 0.08); /* Figma 디자인: subtle border */
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -259,7 +314,8 @@ const UserItem = styled(motion.div)`
   transition: all 0.2s;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
   }
 `;
 
@@ -291,98 +347,78 @@ const EmptyState = styled.div`
 const StatsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
-
-  @media (max-width: 768px) {
-    gap: 12px;
-    margin-bottom: 20px;
-  }
+  gap: clamp(10px, 2.13vw, 16px);
+  margin-bottom: clamp(16px, 2.96vw, 24px);
 `;
 
 const StatCard = styled(motion.div)`
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 20px;
+  background: rgba(255, 255, 255, 0.03); /* Figma 디자인: 더 어두운 배경 */
+  border: 1px solid rgba(255, 255, 255, 0.08); /* Figma 디자인: subtle border */
+  border-radius: clamp(10px, 1.6vw, 12px);
+  padding: clamp(14px, 2.67vw, 20px);
   color: #ffffff;
+  transition: all 0.2s;
 
-  @media (max-width: 768px) {
-    padding: 16px;
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
   }
 `;
 
 const StatTitle = styled.div`
-  font-size: 14px;
+  font-size: clamp(12px, 2.13vw, 14px);
   color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 8px;
+  margin-bottom: clamp(6px, 1.07vw, 8px);
   font-weight: 500;
-
-  @media (max-width: 768px) {
-    font-size: 12px;
-    margin-bottom: 6px;
-  }
 `;
 
 const StatValue = styled.div`
-  font-size: 32px;
+  font-size: clamp(20px, 4.27vw, 32px);
   font-weight: 700;
   color: #ffffff;
-
-  @media (max-width: 768px) {
-    font-size: 24px;
-  }
 `;
 
 const CommunityCard = styled(motion.div)`
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.03); /* Figma 디자인: 더 어두운 배경 */
+  border: 1px solid rgba(255, 255, 255, 0.08); /* Figma 디자인: subtle border */
+  border-radius: clamp(10px, 1.6vw, 12px);
+  padding: clamp(14px, 2.67vw, 20px);
+  margin-bottom: clamp(16px, 2.96vw, 24px);
   color: #ffffff;
+  transition: all 0.2s;
 
-  @media (max-width: 768px) {
-    padding: 16px;
-    margin-bottom: 20px;
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
   }
 `;
 
 const CalendarSection = styled(motion.div)`
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 20px;
+  background: rgba(255, 255, 255, 0.03); /* Figma 디자인: 더 어두운 배경 */
+  border: 1px solid rgba(255, 255, 255, 0.08); /* Figma 디자인: subtle border */
+  border-radius: clamp(10px, 1.6vw, 12px);
+  padding: clamp(14px, 2.67vw, 20px);
   color: #ffffff;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
 `;
 
 const CalendarHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
-
-  @media (max-width: 768px) {
-    margin-bottom: 12px;
-  }
+  margin-bottom: clamp(10px, 1.97vw, 16px);
 `;
 
 const CalendarTitle = styled.div`
-  font-size: 16px;
+  font-size: clamp(14px, 2.67vw, 16px);
   font-weight: 600;
   color: #ffffff;
-
-  @media (max-width: 768px) {
-    font-size: 14px;
-  }
 `;
 
 const CalendarDays = styled.div`
   display: flex;
-  gap: 8px;
+  gap: clamp(6px, 1.07vw, 8px);
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding-bottom: clamp(6px, 1.07vw, 8px);
   -webkit-overflow-scrolling: touch;
 
   &::-webkit-scrollbar {
@@ -395,57 +431,56 @@ const CalendarDays = styled.div`
   }
 `;
 
-const CalendarDay = styled.div<{ active?: boolean }>`
+const CalendarDay = styled.div<{ active?: boolean; hasPrayer?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  min-width: 60px;
-  padding: 12px 8px;
-
-  @media (max-width: 768px) {
-    min-width: 50px;
-    padding: 10px 6px;
-    gap: 6px;
-  }
+  gap: clamp(6px, 1.07vw, 8px);
+  min-width: clamp(45px, 8vw, 60px);
+  padding: clamp(8px, 1.6vw, 12px) clamp(6px, 1.07vw, 8px);
+  opacity: ${(props) => (props.hasPrayer ? 1 : 0.4)}; /* Figma 디자인: 기도하지 않은 날 Opacity 4PXL */
 `;
 
 const DayCircle = styled.div<{ active?: boolean }>`
-  width: 40px;
-  height: 40px;
+  width: clamp(32px, 5.33vw, 40px);
+  height: clamp(32px, 5.33vw, 40px);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: clamp(14px, 2.13vw, 16px);
   font-weight: 600;
-  background: ${(props) => (props.active ? "#8B4513" : "rgba(255, 255, 255, 0.1)")};
+  /* Figma 디자인: active일 때 더 밝은 색상, 아닐 때는 어두운 배경 */
+  background: ${(props) => (props.active ? "#4a4a4c" : "rgba(255, 255, 255, 0.08)")};
   color: #ffffff;
+  transition: all 0.2s;
 
-  @media (max-width: 768px) {
-    width: 36px;
-    height: 36px;
-    font-size: 14px;
-  }
+  ${(props) =>
+    props.active &&
+    `
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  `}
 `;
 
 const DayTime = styled.div`
-  font-size: 12px;
+  font-size: clamp(10px, 1.6vw, 12px);
   color: rgba(255, 255, 255, 0.7);
   text-align: center;
-
-  @media (max-width: 768px) {
-    font-size: 11px;
-  }
 `;
 
 // ==================== Utility Functions ====================
 
-const formatTime = (seconds: number): string => {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+// 타이머 포맷: 00:00.00 (분:초.밀리초)
+const formatTime = (totalSeconds: number, includeMilliseconds: boolean = false): string => {
+  const minutes = Math.floor(totalSeconds / 60);
+  const secs = Math.floor(totalSeconds % 60);
+  
+  if (includeMilliseconds) {
+    // 밀리초 계산 (소수점 2자리)
+    const milliseconds = Math.floor((totalSeconds % 1) * 100);
+    return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${milliseconds.toString().padStart(2, "0")}`;
+  }
+  return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 };
 
 const formatMinutes = (seconds: number): string => {
@@ -464,8 +499,11 @@ const formatHoursMinutes = (seconds: number): string => {
 export default function PrayerTimeClientPage() {
   const { data: session } = useSession();
   const [isPraying, setIsPraying] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
+  const [pausedSeconds, setPausedSeconds] = useState(0); // 일시정지 시 누적된 시간
   const [startTime, setStartTime] = useState<Date | null>(null);
+  const [pauseStartTime, setPauseStartTime] = useState<Date | null>(null);
   const [myStats, setMyStats] = useState<{
     today_seconds: number;
     total_seconds: number;
@@ -491,24 +529,57 @@ export default function PrayerTimeClientPage() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [isLiveModalOpen, setIsLiveModalOpen] = useState(false);
+  const [showStats, setShowStats] = useState(false); // 초기 화면에서는 통계 숨김
+  const calendarDaysRef = React.useRef<HTMLDivElement>(null);
+  const todayDayRef = React.useRef<HTMLDivElement>(null);
+  const contentWrapperRef = React.useRef<HTMLDivElement>(null);
+  const statsSectionRef = React.useRef<HTMLDivElement>(null);
 
-  // 타이머 업데이트
+  // 스크롤 감지하여 통계 섹션 표시
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      if (scrollTop > 200) {
+        setShowStats(true);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // 스크롤 인디케이터 클릭 시 통계 섹션으로 스크롤
+  const handleScrollToStats = () => {
+    setShowStats(true);
+    setTimeout(() => {
+      if (statsSectionRef.current) {
+        statsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // statsSectionRef가 아직 없으면 window 스크롤
+        window.scrollTo({ top: window.innerHeight, behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
+  // 타이머 업데이트 (밀리초 포함)
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isPraying && startTime) {
+    if (isPraying && startTime && !isPaused) {
       interval = setInterval(() => {
         const now = new Date();
-        const elapsed = Math.max(0, Math.floor((now.getTime() - startTime.getTime()) / 1000));
+        const elapsed = Math.max(0, (now.getTime() - startTime.getTime()) / 1000 - pausedSeconds);
         setTimerSeconds(elapsed);
-      }, 1000);
+      }, 10); // 10ms마다 업데이트 (밀리초 표시용)
     } else {
-      // 기도 중이 아니면 타이머를 0으로 설정
-      setTimerSeconds(0);
+      // 기도 중이 아니거나 일시정지 중이면 타이머 업데이트 중지
+      // 일시정지 중에는 현재 timerSeconds 값 유지
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPraying, startTime]);
+  }, [isPraying, isPaused, startTime, pausedSeconds]);
 
   // 초기 기도 중인 사람 목록 로드 (한 번만)
   const { data: initialActiveUsers } = useQuery<{
@@ -683,19 +754,25 @@ export default function PrayerTimeClientPage() {
         // 진행 중인 세션이 있으면 타이머 시작
         if (myStatsData.data.active_session) {
           setIsPraying(true);
+          setIsPaused(false);
           // 서버에서 받은 UTC 시간을 로컬 시간대로 파싱
           const sessionStartTime = parseServerDate(myStatsData.data.active_session.start_time);
           setStartTime(sessionStartTime);
+          setPauseStartTime(null);
+          setPausedSeconds(0);
           // 클라이언트의 현재 시간 (한국 시간대)
           const now = new Date();
           // 음수 방지 및 정확한 계산
-          const elapsed = Math.max(0, Math.floor((now.getTime() - sessionStartTime.getTime()) / 1000));
+          const elapsed = Math.max(0, (now.getTime() - sessionStartTime.getTime()) / 1000);
           setTimerSeconds(elapsed);
         } else {
           // 진행 중인 세션이 없으면 타이머 초기화
           setIsPraying(false);
+          setIsPaused(false);
           setStartTime(null);
+          setPauseStartTime(null);
           setTimerSeconds(0);
+          setPausedSeconds(0);
         }
       }
 
@@ -747,7 +824,10 @@ export default function PrayerTimeClientPage() {
         // 서버에서 받은 UTC 시간을 로컬 시간대로 파싱
         const startTimeDate = parseServerDate(data.data.start_time);
         setIsPraying(true);
+        setIsPaused(false);
         setStartTime(startTimeDate);
+        setPauseStartTime(null);
+        setPausedSeconds(0);
         // 시작 시점이므로 0초부터 시작
         setTimerSeconds(0);
         await loadData();
@@ -761,8 +841,52 @@ export default function PrayerTimeClientPage() {
     }
   };
 
-  // 기도 종료
-  const handleStop = async () => {
+  // 일시정지
+  const handlePause = () => {
+    if (!isPraying || isPaused) return;
+    
+    const now = new Date();
+    setIsPaused(true);
+    setPauseStartTime(now);
+    
+    // 일시정지 시점까지의 경과 시간을 pausedSeconds에 저장
+    if (startTime) {
+      const elapsed = (now.getTime() - startTime.getTime()) / 1000;
+      setPausedSeconds(elapsed);
+    }
+    
+    // 토스트 메시지 표시 (Figma 디자인: "LIVE 1분 26.328 기도가 멈춤")
+    const minutes = Math.floor(timerSeconds / 60);
+    const seconds = Math.floor(timerSeconds % 60);
+    const milliseconds = Math.floor((timerSeconds % 1) * 100);
+    toast.success(`LIVE ${minutes}분 ${seconds}.${milliseconds.toString().padStart(2, "0")} 기도가 멈춤`, {
+      duration: 3000,
+      style: {
+        background: '#4ade80',
+        color: '#fff',
+        borderRadius: '8px',
+        padding: '12px 16px',
+      },
+    });
+  };
+
+  // 계속 (일시정지 해제)
+  const handleResume = () => {
+    if (!isPaused) return;
+    
+    setIsPaused(false);
+    // 일시정지 해제 시 시작 시간을 조정하여 일시정지 시간을 제외
+    const now = new Date();
+    if (startTime) {
+      // 일시정지된 시간만큼 시작 시간을 앞당김
+      const adjustedStartTime = new Date(now.getTime() - pausedSeconds * 1000);
+      setStartTime(adjustedStartTime);
+    }
+    setPauseStartTime(null);
+  };
+
+  // 완료 (기도 종료)
+  const handleComplete = async () => {
     if (!session?.user?.id) {
       alert("로그인이 필요합니다.");
       return;
@@ -777,8 +901,11 @@ export default function PrayerTimeClientPage() {
 
       if (res.ok) {
         setIsPraying(false);
+        setIsPaused(false);
         setStartTime(null);
+        setPauseStartTime(null);
         setTimerSeconds(0);
+        setPausedSeconds(0);
         
         // LIVE 목록에서 즉시 제거 (Realtime 이벤트 대기 전에)
         setActiveUsers((prev) => prev.filter((u) => u.user_id !== userId));
@@ -791,16 +918,6 @@ export default function PrayerTimeClientPage() {
     } catch (error) {
       console.error("Error stopping prayer:", error);
       alert("기도 종료에 실패했습니다.");
-    }
-  };
-
-  // 초기화
-  const handleReset = () => {
-    if (isPraying) {
-      if (!confirm("기도를 종료하시겠습니까?")) return;
-      handleStop();
-    } else {
-      setTimerSeconds(0);
     }
   };
 
@@ -825,9 +942,32 @@ export default function PrayerTimeClientPage() {
 
   const monthDays = getCurrentMonthDays();
   const currentMonth = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long" });
+  const today = new Date().getDate();
 
   // 날짜별 통계 맵 생성
   const dailyStatsMap = new Map(dailyStats.map((stat) => [stat.date, stat.total_seconds]));
+
+  // 현재 날짜로 스크롤
+  useEffect(() => {
+    if (todayDayRef.current && calendarDaysRef.current && !loading) {
+      // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 스크롤
+      setTimeout(() => {
+        if (todayDayRef.current && calendarDaysRef.current) {
+          const container = calendarDaysRef.current;
+          const target = todayDayRef.current;
+          const containerRect = container.getBoundingClientRect();
+          const targetRect = target.getBoundingClientRect();
+          
+          // 현재 날짜가 보이도록 스크롤
+          const scrollLeft = targetRect.left - containerRect.left + container.scrollLeft - 16; // 16px 패딩
+          container.scrollTo({
+            left: Math.max(0, scrollLeft),
+            behavior: 'smooth',
+          });
+        }
+      }, 100);
+    }
+  }, [loading, monthDays]);
 
   if (loading) {
     return (
@@ -845,50 +985,118 @@ export default function PrayerTimeClientPage() {
 
   return (
     <>
+      <Toaster position="top-center" />
       <Header />
 
       <Container>
-        <ContentWrapper>
-          <CrossIcon />
+        <ContentWrapper ref={contentWrapperRef}>
+          {/* 초기 화면: 타이머, 십자가, 버튼만 표시 */}
+          <InitialScreen>
+            <CrossIcon>
+              <img src="/images/apps/notk/theCross.svg" alt="Cross" />
+            </CrossIcon>
 
-          <TimerDisplay>{formatTime(timerSeconds)}</TimerDisplay>
+            <TimerDisplay>{formatTime(timerSeconds, true)}</TimerDisplay>
 
-          <ButtonContainer>
-            <Button variant="secondary" onClick={handleReset} whileTap={{ scale: 0.95 }}>
-              초기화
-            </Button>
-            <Button variant="primary" onClick={isPraying ? handleStop : handleStart} whileTap={{ scale: 0.95 }}>
-              {isPraying ? "중지" : "기도 시작"}
-            </Button>
-          </ButtonContainer>
+            <ButtonContainer>
+              {!isPraying ? (
+                // 초기 상태 또는 일시정지 후: "기도 시작" 버튼만
+                <Button variant="primary" onClick={handleStart} whileTap={{ scale: 0.95 }}>
+                  기도 시작
+                </Button>
+              ) : isPaused ? (
+                // 일시정지 상태: "완료" / "계속" 버튼
+                <>
+                  <Button variant="secondary" onClick={handleComplete} whileTap={{ scale: 0.95 }}>
+                    완료
+                  </Button>
+                  <Button variant="primary" onClick={handleResume} whileTap={{ scale: 0.95 }}>
+                    계속
+                  </Button>
+                </>
+              ) : (
+                // 진행 중: "완료" / "일시" 버튼
+                <>
+                  <Button variant="secondary" onClick={handleComplete} whileTap={{ scale: 0.95 }}>
+                    완료
+                  </Button>
+                  <Button variant="primary" onClick={handlePause} whileTap={{ scale: 0.95 }}>
+                    일시
+                  </Button>
+                </>
+              )}
+            </ButtonContainer>
 
-          {activeUsers.length > 0 && (
-            <LiveSection
+            {/* 스크롤 인디케이터 (초기 화면에서만 표시) */}
+            {!isPraying && !showStats && (
+              <ScrollIndicatorWrapper onClick={handleScrollToStats}>
+                <ScrollIndicator
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  ↓
+                </ScrollIndicator>
+              </ScrollIndicatorWrapper>
+            )}
+          </InitialScreen>
+
+          {/* 통계 섹션 (스크롤 시 표시) */}
+          {showStats && (
+            <StatsSection
+              ref={statsSectionRef}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.02 }}
-              onTap={() => setIsLiveModalOpen(true)}
+              transition={{ duration: 0.5 }}
             >
-              <LiveText>
-                <LiveBadge>LIVE</LiveBadge>
-                {activeUsers.length}명 기도 중
-              </LiveText>
-              <div style={{ color: "rgba(255, 255, 255, 0.7)" }}>→</div>
-            </LiveSection>
+
+          {activeUsers.length > 0 && (
+            <div onClick={() => setIsLiveModalOpen(true)}>
+              <LiveSection
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.02 }}
+              >
+                <LiveText>
+                  <LiveBadge>LIVE</LiveBadge>
+                  {activeUsers.length}명 기도 중
+                </LiveText>
+                <div style={{ color: "rgba(255, 255, 255, 0.7)" }}>→</div>
+              </LiveSection>
+            </div>
+          )}
+
+          {/* Figma 디자인: "LIVE 14일 기도함" 텍스트 추가 */}
+          {dailyStats.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              style={{
+                textAlign: "center",
+                marginBottom: "32px",
+                color: "#ffffff",
+                fontSize: "20px",
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              LIVE {dailyStats.length}일 기도함
+            </motion.div>
           )}
 
           <StatsGrid>
-            <StatCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <StatCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               <StatTitle>오늘 나의 기도 시간</StatTitle>
               <StatValue>{formatMinutes(myStats?.today_seconds || 0)}</StatValue>
             </StatCard>
-            <StatCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <StatCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
               <StatTitle>나의 총 기도 시간</StatTitle>
               <StatValue>{formatMinutes(myStats?.total_seconds || 0)}</StatValue>
             </StatCard>
           </StatsGrid>
 
-          <CommunityCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <CommunityCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
             <StatTitle>허브 총 기도 시간</StatTitle>
             <StatValue>{formatHoursMinutes(communityStats?.total_seconds || 0)}</StatValue>
           </CommunityCard>
@@ -898,14 +1106,20 @@ export default function PrayerTimeClientPage() {
               <CalendarTitle>{currentMonth}</CalendarTitle>
               <div style={{ color: "rgba(255, 255, 255, 0.7)" }}>→</div>
             </CalendarHeader>
-            <CalendarDays>
+            <CalendarDays ref={calendarDaysRef}>
               {monthDays.map(({ date, day }) => {
                 const dateKey = date.toISOString().split("T")[0];
                 const seconds = dailyStatsMap.get(dateKey) || 0;
                 const hasPrayer = seconds > 0;
+                const isToday = day === today;
 
                 return (
-                  <CalendarDay key={day} active={hasPrayer}>
+                  <CalendarDay
+                    key={day}
+                    active={hasPrayer}
+                    hasPrayer={hasPrayer}
+                    ref={isToday ? todayDayRef : null}
+                  >
                     <DayCircle active={hasPrayer}>{day}</DayCircle>
                     <DayTime>{hasPrayer ? formatMinutes(seconds) : "0"}</DayTime>
                   </CalendarDay>
@@ -913,6 +1127,8 @@ export default function PrayerTimeClientPage() {
               })}
             </CalendarDays>
           </CalendarSection>
+            </StatsSection>
+          )}
         </ContentWrapper>
       </Container>
 
