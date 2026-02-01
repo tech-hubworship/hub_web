@@ -21,7 +21,11 @@ import BibleCardPastorPage from '@src/views/AdminPage/bible-card/PastorPage';
 import BibleCardCompletePage from '@src/views/AdminPage/bible-card/CompletePage';
 import QrGenerator from '@src/views/AdminPage/attendance/QrGenerator';
 import AttendanceList from '@src/views/AdminPage/attendance/AttendanceList';
+<<<<<<< HEAD
 import GlossaryAdminPage from '@src/views/AdminPage/apps/glossary';
+=======
+import CalendarAdminPage from '@src/views/AdminPage/calendar';
+>>>>>>> 510292cc436ac920139e159c698be1a915a107a3
 
 // 메뉴 ID와 컴포넌트 매핑 (동적 렌더링용)
 const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
@@ -41,8 +45,12 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   // 레거시(underscore) 쿼리 파라미터 지원
   'attendance_qr': QrGenerator,
   'attendance-list': AttendanceList,
+<<<<<<< HEAD
   'glossary': GlossaryAdminPage,
   'apps-glossary': GlossaryAdminPage,
+=======
+  'calendar': CalendarAdminPage,
+>>>>>>> 510292cc436ac920139e159c698be1a915a107a3
 };
 
 // 확장된 TabInfo 타입 (description 포함)
