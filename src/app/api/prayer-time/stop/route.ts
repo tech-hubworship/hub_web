@@ -32,24 +32,25 @@ export async function POST() {
       .limit(1)
       .single();
 
+    // 이미 종료된 경우(중복 클릭·다른 탭에서 종료 등): 200으로 성공 처리해 클라이언트가 상태 초기화
     if (findError || !activePrayer) {
       return Response.json(
-        { error: "진행 중인 기도 시간이 없습니다." },
-        { status: 400 }
+        {
+          success: true,
+          data: null,
+          message: "이미 종료된 기도입니다.",
+        },
+        { status: 200 }
       );
     }
 
     // 기도 시간 계산: start_time은 DB 저장값 그대로 파싱, end는 Date.now()로 비교
     const startTimeMs = new Date(activePrayer.start_time).getTime();
-    const durationSeconds = Math.floor((endTimeMs - startTimeMs) / 1000);
+    let durationSeconds = Math.floor((endTimeMs - startTimeMs) / 1000);
 
-    // 최소 1초 이상이어야 함
-    if (durationSeconds < 1) {
-      return Response.json(
-        { error: "기도 시간이 너무 짧습니다. 최소 1초 이상이어야 합니다." },
-        { status: 400 }
-      );
-    }
+    // 시계 오차로 음수면 0, 1초 미만이면 1초로 저장(최소 1초 이상만 허용하던 검증 완화)
+    if (durationSeconds < 0) durationSeconds = 0;
+    if (durationSeconds < 1) durationSeconds = 1;
 
     // prayer_times 테이블 업데이트 (DB 저장용 종료 시각은 한국 시간 문자열 유지)
     const { data: updatedPrayer, error: updateError } = await supabaseAdmin
