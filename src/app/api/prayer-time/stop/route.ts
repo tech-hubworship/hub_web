@@ -18,9 +18,9 @@ export async function POST() {
     }
 
     const userId = session.user.id;
-    // 한국 시간 기준으로 종료 시간 설정
+    // 종료 시각: 서버 현재 시각(UTC)으로 계산해 시간대/파싱 오차 방지
+    const endTimeMs = Date.now();
     const endTimeISO = getKoreanISOString();
-    const endTime = new Date(endTimeISO);
 
     // 진행 중인 기도 시간 레코드 찾기
     const { data: activePrayer, error: findError } = await supabaseAdmin
@@ -39,11 +39,9 @@ export async function POST() {
       );
     }
 
-    // 기도 시간 계산 (초 단위)
-    const startTime = new Date(activePrayer.start_time);
-    const durationSeconds = Math.floor(
-      (endTime.getTime() - startTime.getTime()) / 1000
-    );
+    // 기도 시간 계산: start_time은 DB 저장값 그대로 파싱, end는 Date.now()로 비교
+    const startTimeMs = new Date(activePrayer.start_time).getTime();
+    const durationSeconds = Math.floor((endTimeMs - startTimeMs) / 1000);
 
     // 최소 1초 이상이어야 함
     if (durationSeconds < 1) {
@@ -53,7 +51,7 @@ export async function POST() {
       );
     }
 
-    // prayer_times 테이블 업데이트
+    // prayer_times 테이블 업데이트 (DB 저장용 종료 시각은 한국 시간 문자열 유지)
     const { data: updatedPrayer, error: updateError } = await supabaseAdmin
       .from("prayer_times")
       .update({
