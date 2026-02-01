@@ -1,0 +1,78 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@src/lib/auth";
+import { supabaseAdmin } from "@src/lib/supabase";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import { methodNotAllowed } from "@src/lib/api/response";
+import { calculateLateFee } from "@src/lib/attendance/late-fee";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!(session?.user as any)?.isAdmin && !(session?.user as any)?.roles?.includes("MC")) {
+    return Response.json({ error: "권한이 없습니다." }, { status: 403 });
+  }
+
+  try {
+    const body = await req.json().catch(() => null);
+    const { userId, weekDate, category = "OD", attendedAt } = body ?? {};
+
+    if (!userId || !weekDate) {
+      return Response.json({ error: "userId, weekDate가 필요합니다." }, { status: 400 });
+    }
+
+    const checkInTime = attendedAt
+      ? dayjs(attendedAt).tz("Asia/Seoul")
+      : dayjs().tz("Asia/Seoul");
+
+    const baseDate = typeof weekDate === "string" ? weekDate.split("T")[0] : dayjs(weekDate).format("YYYY-MM-DD");
+    const { status, lateFee, isReportRequired } = calculateLateFee(checkInTime, baseDate);
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from("weekly_attendance")
+      .insert({
+        user_id: userId,
+        category,
+        status,
+        late_fee: lateFee,
+        is_report_required: isReportRequired,
+        week_date: baseDate,
+        attended_at: checkInTime.toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if ((error as any).code === "23505") {
+        const { data: existing } = await supabaseAdmin
+          .from("weekly_attendance")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("week_date", baseDate)
+          .eq("category", category)
+          .single();
+        return Response.json({
+          message: "이미 출석 처리되어 있습니다.",
+          result: existing,
+        }, { status: 200 });
+      }
+      console.error(error);
+      return Response.json({ error: "저장 실패" }, { status: 500 });
+    }
+
+    return Response.json({ message: "출석 처리되었습니다.", result: inserted }, { status: 200 });
+  } catch (e) {
+    console.error(e);
+    return Response.json({ error: "서버 오류" }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  return methodNotAllowed(["POST"]);
+}

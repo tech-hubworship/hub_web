@@ -21,11 +21,14 @@ import BibleCardPastorPage from '@src/views/AdminPage/bible-card/PastorPage';
 import BibleCardCompletePage from '@src/views/AdminPage/bible-card/CompletePage';
 import QrGenerator from '@src/views/AdminPage/attendance/QrGenerator';
 import AttendanceList from '@src/views/AdminPage/attendance/AttendanceList';
-<<<<<<< HEAD
 import GlossaryAdminPage from '@src/views/AdminPage/apps/glossary';
-=======
+import PrayerTimeAdminPage from '@src/views/AdminPage/apps/prayer-time';
 import CalendarAdminPage from '@src/views/AdminPage/calendar';
->>>>>>> 510292cc436ac920139e159c698be1a915a107a3
+
+// DB에 없어도 사이드바에 표시할 기본 탭 (MDI 전용 탭)
+const BUILTIN_TABS: TabInfo[] = [
+  { id: 'calendar', title: '캘린더', icon: '📅', path: '/admin', requiredRoles: [] },
+];
 
 // 메뉴 ID와 컴포넌트 매핑 (동적 렌더링용)
 const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
@@ -45,12 +48,11 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   // 레거시(underscore) 쿼리 파라미터 지원
   'attendance_qr': QrGenerator,
   'attendance-list': AttendanceList,
-<<<<<<< HEAD
   'glossary': GlossaryAdminPage,
   'apps-glossary': GlossaryAdminPage,
-=======
+  'prayer-time': PrayerTimeAdminPage,
+  'apps-prayer-time': PrayerTimeAdminPage,
   'calendar': CalendarAdminPage,
->>>>>>> 510292cc436ac920139e159c698be1a915a107a3
 };
 
 // 확장된 TabInfo 타입 (description 포함)
@@ -113,31 +115,35 @@ export default function MDIAdminPage() {
     enabled: !!session?.user?.isAdmin,
   });
 
-  // DB 메뉴를 TabInfo 형식으로 변환하고 권한 필터링
+  // DB 메뉴를 TabInfo 형식으로 변환하고 권한 필터링 + DB에 없는 기본 탭(캘린더 등) 병합
   const accessibleMenus = React.useMemo(() => {
-    if (!dbMenus) return [];
+    const fromDb: ExtendedTabInfo[] = !dbMenus
+      ? []
+      : dbMenus
+          .filter(menu => menu.is_active)
+          .filter(menu => {
+            if (!menu.roles || menu.roles.length === 0) return true;
+            return menu.roles.some(menuRole => roles.includes(menuRole));
+          })
+          .map(menu => ({
+            id: menu.menu_id,
+            title: menu.title,
+            icon: menu.icon,
+            path: menu.path,
+            requiredRoles: menu.roles || [],
+            description: menu.description || '',
+            parent_id: menu.parent_id,
+          } as ExtendedTabInfo))
+          .sort((a, b) => {
+            const menuA = dbMenus.find(m => m.menu_id === a.id);
+            const menuB = dbMenus.find(m => m.menu_id === b.id);
+            return (menuA?.order_index || 0) - (menuB?.order_index || 0);
+          });
 
-    const activeMenus = dbMenus.filter(menu => menu.is_active);
-
-    return activeMenus
-      .filter(menu => {
-        if (!menu.roles || menu.roles.length === 0) return true;
-        return menu.roles.some(menuRole => roles.includes(menuRole));
-      })
-      .map(menu => ({
-        id: menu.menu_id,
-        title: menu.title,
-        icon: menu.icon,
-        path: menu.path,
-        requiredRoles: menu.roles || [],
-        description: menu.description || '',
-        parent_id: menu.parent_id,
-      } as ExtendedTabInfo))
-      .sort((a, b) => {
-        const menuA = dbMenus.find(m => m.menu_id === a.id);
-        const menuB = dbMenus.find(m => m.menu_id === b.id);
-        return (menuA?.order_index || 0) - (menuB?.order_index || 0);
-      });
+    if (!dbMenus) return fromDb;
+    const dbIds = new Set(fromDb.map(m => m.id));
+    const builtInToAdd = BUILTIN_TABS.filter(t => !dbIds.has(t.id));
+    return [...fromDb, ...builtInToAdd];
   }, [dbMenus, roles]);
 
   // URL 쿼리 파라미터로 탭 자동 열기

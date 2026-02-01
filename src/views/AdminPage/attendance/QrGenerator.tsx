@@ -60,7 +60,7 @@ export default function QrGenerator() {
               value={category}
               onChange={(val) => setCategory(val)}
               options={[
-                { value: 'OD', label: 'OD (리더십)' },
+                { value: 'OD', label: 'OD' },
                 { value: 'HUB_UP', label: '허브업' }
               ]}
               placeholder="카테고리 선택"

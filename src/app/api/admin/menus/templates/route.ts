@@ -15,7 +15,10 @@ interface MenuTemplate {
 // 아이콘 매핑 (메뉴 ID 기반)
 const ICON_MAP: Record<string, string> = {
   'glossary': '📖',
+  'apps-glossary': '📖',
   'prayer-time': '⏱️',
+  'apps-prayer-time': '⏱️',
+  'calendar': '📅',
   'ice-breaking': '🎲',
   'bible-card': '📿',
   'photos': '📷',
@@ -28,6 +31,9 @@ const ICON_MAP: Record<string, string> = {
 
 // 기본 아이콘
 const DEFAULT_ICON = '📋';
+
+// 템플릿 목록에서 제외할 메뉴 ID (DB 추가 없이 항상 표시되는 메뉴만)
+const EXCLUDED_FROM_TEMPLATES: string[] = [];
 
 // 메타데이터에서 정보 추출
 async function extractMetadataFromPage(filePath: string): Promise<{ title?: string; description?: string }> {
@@ -91,17 +97,43 @@ async function scanAdminAppsDirectory(): Promise<MenuTemplate[]> {
   }
 }
 
-// 재귀적으로 디렉토리 스캔
+// 재귀적으로 디렉토리 스캔 (현재 디렉터리의 page.tsx + 하위 디렉터리)
 async function scanDirectoryRecursive(
   dirPath: string,
   basePath: string,
   category: string
 ): Promise<MenuTemplate[]> {
   const templates: MenuTemplate[] = [];
-  
+
   try {
+    // 현재 디렉터리에 page.tsx가 있으면 템플릿으로 추가 (예: admin/calendar/page.tsx)
+    const currentPagePath = join(dirPath, 'page.tsx');
+    try {
+      const currentPageStats = await stat(currentPagePath);
+      if (currentPageStats.isFile()) {
+        const metadata = await extractMetadataFromPage(currentPagePath);
+        const relativePath = basePath.replace(/^\//, '');
+        const menuId = relativePath.replace(/\//g, '-');
+        const path = `/admin/${relativePath}`;
+        const lastSegment = basePath.split('/').pop() || basePath;
+        const title = metadata.title || lastSegment;
+        const description = metadata.description || `${title} 관리`;
+        const icon = ICON_MAP[menuId] || ICON_MAP[lastSegment] || DEFAULT_ICON;
+        templates.push({
+          menu_id: menuId,
+          title,
+          icon,
+          path,
+          description,
+          category,
+        });
+      }
+    } catch {
+      // 현재 디렉터리에 page.tsx 없음 → 하위만 스캔
+    }
+
     const entries = await readdir(dirPath, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       
@@ -200,12 +232,12 @@ export async function GET(req: Request) {
     // 다른 Admin 디렉토리 스캔
     const otherTemplates = await scanAdminDirectory();
     
-    // 중복 제거 (menu_id 기준)
+    // 중복 제거 (menu_id 기준) + 템플릿 추가에서 제외할 메뉴 필터
     const allTemplates = [...appsTemplates, ...otherTemplates];
     const uniqueTemplates = Array.from(
       new Map(allTemplates.map(t => [t.menu_id, t])).values()
-    );
-    
+    ).filter((t) => !EXCLUDED_FROM_TEMPLATES.includes(t.menu_id));
+
     return NextResponse.json(uniqueTemplates);
   } catch (error) {
     return NextResponse.json(

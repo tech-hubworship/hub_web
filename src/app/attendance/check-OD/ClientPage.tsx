@@ -55,6 +55,9 @@ export default function AttendanceCheckODPage() {
           }
           setStep("error");
           setMessage("리더십 권한이 없습니다.");
+        } else if (data.code === "NOT_OD_TARGET") {
+          setStep("error");
+          setMessage("OD 출석 대상이 아닙니다. 관리자에게 문의하세요.");
         } else {
           setStep("error");
           setMessage(data.error || "출석 처리에 실패했습니다.");
@@ -136,6 +139,9 @@ export default function AttendanceCheckODPage() {
             border: `2px solid ${textColor}`,
           }}
         >
+          <p style={{ fontSize: "16px", color: "#4b5563", marginBottom: "8px" }}>
+            출석 시간: <strong>{result?.attended_at ? new Date(result.attended_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-"}</strong>
+          </p>
           <p style={{ fontSize: "18px", fontWeight: "bold", color: "#374151", marginBottom: "8px" }}>
             상태: <span style={{ color: textColor, fontSize: "20px" }}>{isLate ? "지각" : "정상 출석"}</span>
           </p>

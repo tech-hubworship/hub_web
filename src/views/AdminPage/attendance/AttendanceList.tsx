@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import * as S from '../users/style'; 
 import { Combobox } from '@src/components/ui/combobox';
 import { useGroups } from '@src/hooks/useGroups';
 import { useCells } from '@src/hooks/useCells';
+import ManualUserSearch from './ManualUserSearch';
 
 export default function AttendanceList() {
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
@@ -14,6 +15,15 @@ export default function AttendanceList() {
   const [groupId, setGroupId] = useState('');
   const [cellId, setCellId] = useState('');
   const [page, setPage] = useState(1);
+
+  // OD 대상 업로드 & 수동 출석
+  const [uploadingOd, setUploadingOd] = useState(false);
+  const [manualUserId, setManualUserId] = useState('');
+  const [manualUserName, setManualUserName] = useState('');
+  const [manualCheckInAt, setManualCheckInAt] = useState(dayjs().format('YYYY-MM-DDTHH:mm'));
+  const [manualChecking, setManualChecking] = useState(false);
+  const excelInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   // 🔴 [수정됨] 커스텀 훅 반환값 구조 수정 (data 프로퍼티 없음)
   const { groups } = useGroups();
@@ -33,7 +43,7 @@ export default function AttendanceList() {
       if (groupId) params.append('group_id', groupId);
       if (cellId) params.append('cell_id', cellId);
 
-      const res = await fetch(`/api/admin/attendance/list?${params}`);
+      const res = await fetch(`/api/attendance/list?${params}`);
       return res.json();
     }
   });
@@ -58,6 +68,119 @@ export default function AttendanceList() {
       </S.Header>
 
       <S.Container>
+        {/* OD 대상 엑셀 업로드 (OD 카테고리일 때만) */}
+        {category === 'OD' && (
+          <div style={{ marginBottom: '20px', padding: '20px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '12px' }}>
+            <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#92400e', marginBottom: '12px' }}>
+              📤 OD 대상 명단 업로드
+            </h4>
+            <p style={{ fontSize: '13px', color: '#a16207', marginBottom: '12px' }}>
+              엑셀에 &apos;이름&apos;(또는 name) 컬럼이 있어야 합니다. 이메일 컬럼이 있으면 매칭 정확도가 높아집니다.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                ref={excelInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploadingOd(true);
+                  try {
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                      const base64 = (reader.result as string)?.split(',')[1] || reader.result;
+                      const res = await fetch('/api/admin/attendance/od-targets/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ fileData: base64, weekDate: date, category }),
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        alert(`매칭 ${data.matched}명 저장됨${data.unmatched?.length ? `\n매칭 안됨: ${data.unmatched.join(', ')}` : ''}`);
+                        queryClient.invalidateQueries({ queryKey: ['admin-attendance'] });
+                      } else {
+                        alert(data.error || '업로드 실패');
+                      }
+                      setUploadingOd(false);
+                      e.target.value = '';
+                    };
+                    reader.readAsDataURL(file);
+                  } catch {
+                    setUploadingOd(false);
+                    alert('업로드 중 오류 발생');
+                  }
+                }}
+              />
+              <button
+                onClick={() => excelInputRef.current?.click()}
+                disabled={uploadingOd}
+                style={{ padding: '10px 20px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: uploadingOd ? 'not-allowed' : 'pointer' }}
+              >
+                {uploadingOd ? '업로드 중...' : '엑셀 파일 선택'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 수동 출석체크 */}
+        <div style={{ marginBottom: '20px', padding: '20px', background: '#f0f9ff', border: '1px solid #7dd3fc', borderRadius: '12px' }}>
+          <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#0369a1', marginBottom: '12px' }}>
+            ✏️ 수동 출석체크
+          </h4>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <ManualUserSearch
+              value={manualUserId}
+              displayName={manualUserName}
+              onSelect={(id, name) => { setManualUserId(id); setManualUserName(name || ''); }}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', color: '#64748b' }}>출석 시간</label>
+              <input
+                type="datetime-local"
+                value={manualCheckInAt}
+                onChange={(e) => setManualCheckInAt(e.target.value)}
+                style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }}
+              />
+            </div>
+            <button
+              onClick={async () => {
+                if (!manualUserId) { alert('회원을 선택해주세요.'); return; }
+                setManualChecking(true);
+                try {
+                  const res = await fetch('/api/admin/attendance/manual-check-in', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId: manualUserId,
+                      weekDate: date,
+                      category,
+                      attendedAt: manualCheckInAt ? new Date(manualCheckInAt).toISOString() : undefined,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    alert(data.message || '출석 처리되었습니다. 지각비는 출석 시간에 맞게 자동 계산됩니다.');
+                    setManualUserId(''); setManualUserName('');
+                    queryClient.invalidateQueries({ queryKey: ['admin-attendance'] });
+                  } else {
+                    alert(data.error || '처리 실패');
+                  }
+                } catch {
+                  alert('오류 발생');
+                } finally {
+                  setManualChecking(false);
+                }
+              }}
+              disabled={manualChecking || !manualUserId}
+              style={{ padding: '10px 20px', background: '#0284c7', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: manualChecking || !manualUserId ? 'not-allowed' : 'pointer' }}
+            >
+              {manualChecking ? '처리 중...' : '출석 처리'}
+            </button>
+          </div>
+        </div>
+
         {/* 통계 요약 카드 */}
         {!isLoading && stats && (
           <div style={{ 
@@ -162,12 +285,13 @@ export default function AttendanceList() {
                     <S.TableHead>출석 시간</S.TableHead>
                     <S.TableHead>상태</S.TableHead>
                     <S.TableHead>지각비</S.TableHead>
+                    <S.TableHead>OD 보고서</S.TableHead>
                   </S.TableRow>
                 </S.TableHeader>
                 <tbody>
                   {list.length === 0 ? (
                     <S.TableRow>
-                      <S.TableData colSpan={5} style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
+                      <S.TableData colSpan={6} style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
                         출석 데이터가 없습니다.
                       </S.TableData>
                     </S.TableRow>
@@ -203,6 +327,11 @@ export default function AttendanceList() {
                               <span style={{ color: '#dc2626', fontWeight: 'bold' }}>
                                 {item.late_fee.toLocaleString()}원
                               </span>
+                            ) : '-'}
+                          </S.TableData>
+                          <S.TableData>
+                            {item.is_report_required ? (
+                              <span style={{ color: '#dc2626', fontWeight: '600', fontSize: '13px' }}>📝 대상</span>
                             ) : '-'}
                           </S.TableData>
                         </S.TableRow>

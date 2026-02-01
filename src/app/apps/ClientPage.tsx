@@ -309,6 +309,65 @@ const GlossaryIconImage = styled(motion.div)`
   }
 `;
 
+const CalendarIconInner = styled.div`
+  width: 80%;
+  height: 80%;
+  background: #ffffff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+  &::before {
+    content: "📅";
+    font-size: 24px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  @media (max-width: 768px) {
+    &::before {
+      font-size: 20px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    &::before {
+      font-size: 18px;
+    }
+  }
+`;
+
+const CalendarIconImage = styled(motion.div)`
+  width: 72px;
+  height: 72px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.2);
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+  }
+
+  @media (max-width: 480px) {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+  }
+`;
+
 export default function AppsClientPage() {
   const router = useRouter();
   const [hoveredApp, setHoveredApp] = useState<number | null>(null);
@@ -406,6 +465,33 @@ export default function AppsClientPage() {
                   허브
                   <br />
                   용어사전
+                </AppLabel>
+              </AppIcon>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.3 }}
+            >
+              <AppIcon
+                onClick={() => handleAppClick("/calendar")}
+                onMouseEnter={() => setHoveredApp(3)}
+                onMouseLeave={() => setHoveredApp(null)}
+              >
+                <CalendarIconImage
+                  whileHover={{ scale: 1.1, y: -4 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <CardIcon>
+                    <CalendarIconInner />
+                  </CardIcon>
+                </CalendarIconImage>
+                <AppLabel>
+                  허브
+                  <br />
+                  캘린더
                 </AppLabel>
               </AppIcon>
             </motion.div>

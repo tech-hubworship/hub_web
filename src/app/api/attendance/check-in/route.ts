@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { methodNotAllowed } from "@src/lib/api/response";
+import { calculateLateFee } from "@src/lib/attendance/late-fee";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -46,43 +47,26 @@ export async function POST(req: Request) {
       );
 
       if (!hasLeadership) {
-        return Response.json(
-          { error: "리더십 권한이 필요합니다.", code: "REQUIRE_LEADERSHIP" },
-          { status: 403 }
-        );
+        const baseDate = now.format("YYYY-MM-DD");
+        const { data: odTarget } = await supabaseAdmin
+          .from("attendance_od_targets")
+          .select("id")
+          .eq("week_date", baseDate)
+          .eq("category", "OD")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        if (!odTarget) {
+          return Response.json(
+            { error: "OD 출석 대상이 아닙니다. 관리자에게 문의하세요.", code: "NOT_OD_TARGET" },
+            { status: 403 }
+          );
+        }
       }
     }
 
     const baseDate = now.format("YYYY-MM-DD");
-    const startTime = dayjs(`${baseDate} 10:00:00`).tz(TZ_KR);
-
-    let status = "present";
-    let lateFee = 0;
-    let isReportRequired = false;
-
-    if (now.isAfter(startTime)) {
-      const diffSeconds = now.diff(startTime, "second");
-      if (diffSeconds < 2400) {
-        status = "present";
-      } else if (diffSeconds < 3000) {
-        status = "late";
-        lateFee = 1000;
-      } else if (diffSeconds < 3600) {
-        status = "late";
-        lateFee = 2000;
-      } else if (diffSeconds < 4200) {
-        status = "late";
-        lateFee = 3000;
-      } else if (diffSeconds < 4800) {
-        status = "late";
-        lateFee = 4000;
-        isReportRequired = true;
-      } else {
-        status = "unexcused_absence";
-        lateFee = 5000;
-        isReportRequired = true;
-      }
-    }
+    const { status, lateFee, isReportRequired } = calculateLateFee(now, baseDate);
 
     const { data: insertedData, error: insertError } = await supabaseAdmin
       .from("weekly_attendance")
@@ -91,7 +75,7 @@ export async function POST(req: Request) {
         category,
         status,
         late_fee: lateFee,
-        is_report_required: isReportRequired,
+        is_report_required: isReportRequired ?? false,
         week_date: baseDate,
         attended_at: now.toISOString(),
       })
