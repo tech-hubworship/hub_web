@@ -13,18 +13,12 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const weekDate = url.searchParams.get("week_date");
   const category = url.searchParams.get("category") || "OD";
-
-  if (!weekDate) {
-    return Response.json({ error: "week_date가 필요합니다." }, { status: 400 });
-  }
 
   try {
     const { data, error } = await supabaseAdmin
       .from("attendance_od_targets")
-      .select("id, user_id, name, week_date, category")
-      .eq("week_date", weekDate)
+      .select("id, user_id, name, category")
       .eq("category", category)
       .order("name");
 
@@ -37,6 +31,38 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST() {
-  return methodNotAllowed(["GET"]);
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!(session?.user as any)?.isAdmin && !(session?.user as any)?.roles?.includes("MC")) {
+    return Response.json({ error: "권한이 없습니다." }, { status: 403 });
+  }
+
+  try {
+    const body = await req.json().catch(() => null);
+    const { userId, category = "OD", name } = body ?? {};
+
+    if (!userId) {
+      return Response.json({ error: "userId가 필요합니다." }, { status: 400 });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("attendance_od_targets")
+      .upsert(
+        {
+          category,
+          user_id: userId,
+          name: name || null,
+          created_by: (session?.user as any)?.id,
+        },
+        { onConflict: "user_id,category" }
+      )
+      .select()
+      .single();
+
+    if (error) throw error;
+    return Response.json({ data }, { status: 200 });
+  } catch (error) {
+    console.error(error);
+    return Response.json({ error: "추가 실패" }, { status: 500 });
+  }
 }

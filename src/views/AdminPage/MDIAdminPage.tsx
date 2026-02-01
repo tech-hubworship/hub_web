@@ -21,6 +21,7 @@ import BibleCardPastorPage from '@src/views/AdminPage/bible-card/PastorPage';
 import BibleCardCompletePage from '@src/views/AdminPage/bible-card/CompletePage';
 import QrGenerator from '@src/views/AdminPage/attendance/QrGenerator';
 import AttendanceList from '@src/views/AdminPage/attendance/AttendanceList';
+import OdRosterManage from '@src/views/AdminPage/attendance/OdRosterManage';
 import GlossaryAdminPage from '@src/views/AdminPage/apps/glossary';
 import PrayerTimeAdminPage from '@src/views/AdminPage/apps/prayer-time';
 import CalendarAdminPage from '@src/views/AdminPage/calendar';
@@ -48,6 +49,7 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   // 레거시(underscore) 쿼리 파라미터 지원
   'attendance_qr': QrGenerator,
   'attendance-list': AttendanceList,
+  'attendance-od-roster': OdRosterManage,
   'glossary': GlossaryAdminPage,
   'apps-glossary': GlossaryAdminPage,
   'prayer-time': PrayerTimeAdminPage,

@@ -42,13 +42,10 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json().catch(() => null);
-    const { fileData, weekDate, category = "OD" } = body ?? {};
+    const { fileData, category = "OD" } = body ?? {};
 
     if (!fileData) {
       return Response.json({ error: "엑셀 파일 데이터가 필요합니다." }, { status: 400 });
-    }
-    if (!weekDate || typeof weekDate !== "string") {
-      return Response.json({ error: "출석 날짜(weekDate)가 필요합니다." }, { status: 400 });
     }
 
     const base64Data = String(fileData).split(",")[1] || String(fileData);
@@ -109,7 +106,6 @@ export async function POST(req: Request) {
     }
 
     const toInsert = matched.map((m) => ({
-      week_date: weekDate,
       category,
       user_id: m.user_id,
       name: m.name,
@@ -119,7 +115,7 @@ export async function POST(req: Request) {
     const { error: insertError } = await supabaseAdmin
       .from("attendance_od_targets")
       .upsert(toInsert, {
-        onConflict: "week_date,category,user_id",
+        onConflict: "user_id,category",
         ignoreDuplicates: false,
       });
 

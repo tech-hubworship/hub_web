@@ -47,11 +47,9 @@ export async function POST(req: Request) {
       );
 
       if (!hasLeadership) {
-        const baseDate = now.format("YYYY-MM-DD");
         const { data: odTarget } = await supabaseAdmin
           .from("attendance_od_targets")
           .select("id")
-          .eq("week_date", baseDate)
           .eq("category", "OD")
           .eq("user_id", session.user.id)
           .maybeSingle();

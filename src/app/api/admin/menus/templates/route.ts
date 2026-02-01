@@ -23,6 +23,7 @@ const ICON_MAP: Record<string, string> = {
   'bible-card': '📿',
   'photos': '📷',
   'attendance': '✅',
+  'attendance-od-roster': '📋',
   'advent': '🎄',
   'users': '👥',
   'roles': '🔐',

@@ -25,7 +25,14 @@ export default function ManualUserSearch({ value, displayName, onSelect }: Manua
     enabled: open,
   });
 
-  const users = (usersData?.data || usersData?.users || []) as Array<{ user_id: string; name?: string; email?: string }>;
+  const users = (usersData?.data || usersData?.users || []) as Array<{
+    user_id: string;
+    name?: string;
+    email?: string;
+    community?: string | null;
+    group_name?: string | null;
+    cell_name?: string | null;
+  }>;
 
   const handleSelect = useCallback(
     (u: { user_id: string; name?: string }) => {
@@ -61,7 +68,7 @@ export default function ManualUserSearch({ value, displayName, onSelect }: Manua
             left: 0,
             right: 0,
             marginTop: "4px",
-            maxHeight: "240px",
+            maxHeight: "320px",
             overflowY: "auto",
             background: "white",
             border: "1px solid #e2e8f0",
@@ -97,8 +104,15 @@ export default function ManualUserSearch({ value, displayName, onSelect }: Manua
                   e.currentTarget.style.background = "transparent";
                 }}
               >
-                <span style={{ fontWeight: "600" }}>{u.name || "-"}</span>
-                {u.email && <span style={{ color: "#94a3b8", marginLeft: "8px", fontSize: "12px" }}>{u.email}</span>}
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "6px 12px" }}>
+                  <span style={{ fontWeight: "600" }}>{u.name || "-"}</span>
+                  {u.email && <span style={{ color: "#94a3b8", fontSize: "12px" }}>{u.email}</span>}
+                </div>
+                {(u.community || u.group_name || u.cell_name) && (
+                  <div style={{ marginTop: "4px", fontSize: "12px", color: "#64748b" }}>
+                    {[u.community, u.group_name, u.cell_name].filter(Boolean).join(" · ")}
+                  </div>
+                )}
               </button>
             ))
           )}

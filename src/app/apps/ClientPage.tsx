@@ -475,7 +475,7 @@ export default function AppsClientPage() {
               transition={{ delay: 0.4, duration: 0.3 }}
             >
               <AppIcon
-                onClick={() => handleAppClick("/calendar")}
+                onClick={() => handleAppClick("/apps/calendar")}
                 onMouseEnter={() => setHoveredApp(3)}
                 onMouseLeave={() => setHoveredApp(null)}
               >

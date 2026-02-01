@@ -7,6 +7,7 @@
  * https://www.figma.com/design/xwGBRQQLtFqblqCwwNFvCY/UI-Design?node-id=84-4381&m=dev
  * - 배경: background.svg 전체 (메인·통계 경계 없음, 오버레이 fixed)
  * - 84-4381: LIVE N명 기도 중, 오늘/총/허브 기도 시간 카드, 월 그리드 캘린더(일~토, 기도 안 한 날 40% opacity)
+ * - 81-3419: 통계 화면 (LIVE 빨간색, 카드 값 크기, 캘린더 +N 빨간색)
  */
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "@emotion/styled";
@@ -202,6 +203,13 @@ const LiveDot = styled.span`
   }
 `;
 
+/* Figma 81-3419: LIVE 텍스트 빨간색 */
+const LiveLabel = styled.span`
+  color: #ff453a;
+  font-weight: 600;
+  margin-right: 4px;
+`;
+
 const Card = styled(motion.div)`
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
@@ -218,8 +226,13 @@ const CardLabel = styled.div`
 `;
 
 const CardValue = styled.div`
-  font-size: 22px;
+  font-size: clamp(20px, 5vw, 26px);
   font-weight: 700;
+`;
+
+/* Figma 81-3419: 허브 총 기도 시간 값은 더 크게 */
+const CardValueLarge = styled(CardValue)`
+  font-size: clamp(22px, 5.5vw, 30px);
 `;
 
 const Grid2 = styled.div`
@@ -287,10 +300,11 @@ const CalendarCell = styled.div<{ $empty?: boolean; $hasPrayer?: boolean; $today
   border-radius: 8px;
 `;
 
+/* Figma 81-3419: 캘린더 날짜 아래 +N 빨간색 */
 const CalendarCellDuration = styled.div`
   font-size: 10px;
   font-weight: 500;
-  color: rgba(255,255,255,0.7);
+  color: #ff453a;
   margin-top: 2px;
 `;
 
@@ -736,7 +750,8 @@ export default function PrayerTimeClientPage() {
                 <LiveChip onClick={() => setLiveModalOpen(true)} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
                   <span>
                     <LiveDot />
-                    LIVE {activeUsers.length}명 기도 중
+                    <LiveLabel>LIVE</LiveLabel>
+                    {activeUsers.length}명 기도 중
                   </span>
                   <span style={{ color: "rgba(255,255,255,0.6)" }}>▼</span>
                 </LiveChip>
@@ -758,7 +773,7 @@ export default function PrayerTimeClientPage() {
               </Grid2>
               <Card initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                 <CardLabel>허브 총 기도 시간</CardLabel>
-                <CardValue>{formatHoursMinutes(communityStats?.total_seconds ?? 0)}</CardValue>
+                <CardValueLarge>{formatHoursMinutes(communityStats?.total_seconds ?? 0)}</CardValueLarge>
               </Card>
               <CalendarWrap initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
                 <CalendarHeader>

@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@src/lib/auth";
 import { supabaseAdmin } from "@src/lib/supabase";
+import { getKoreanDateFormatted } from "@src/lib/utils/date";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,18 +19,20 @@ export async function GET() {
 
     const userId = session.user.id;
 
-    // 오늘 나의 기도 시간
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // 오늘 나의 기도 시간 (한국 시간 KST 기준 오늘 00:00 ~ 내일 00:00)
+    const kstToday = getKoreanDateFormatted(); // YYYY-MM-DD
+    const todayStartISO = `${kstToday}T00:00:00.000+09:00`;
+    const tomorrowKst = new Date(`${kstToday}T00:00:00+09:00`);
+    tomorrowKst.setDate(tomorrowKst.getDate() + 1);
+    const tomorrowStr = tomorrowKst.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+    const todayEndISO = `${tomorrowStr}T00:00:00.000+09:00`;
 
     const { data: todayPrayers, error: todayError } = await supabaseAdmin
       .from("prayer_times")
       .select("duration_seconds")
       .eq("user_id", userId)
-      .gte("start_time", today.toISOString())
-      .lt("start_time", tomorrow.toISOString())
+      .gte("start_time", todayStartISO)
+      .lt("start_time", todayEndISO)
       .not("duration_seconds", "is", null);
 
     if (todayError) {

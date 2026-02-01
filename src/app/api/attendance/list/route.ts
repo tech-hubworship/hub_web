@@ -6,6 +6,8 @@ import { methodNotAllowed } from "@src/lib/api/response";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const CATEGORY_OD = "OD";
+
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
 
@@ -15,65 +17,110 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const date = url.searchParams.get("date");
-  const category = url.searchParams.get("category");
-  const group_id = url.searchParams.get("group_id");
-  const cell_id = url.searchParams.get("cell_id");
-  const page = url.searchParams.get("page") ?? "1";
-  const limit = url.searchParams.get("limit") ?? "20";
-  const offset = (Number(page) - 1) * Number(limit);
+
+  if (!date) {
+    return Response.json({ error: "date가 필요합니다." }, { status: 400 });
+  }
 
   try {
-    let query = supabaseAdmin
+    // 1. OD 명단 전체 (attendance_od_targets)
+    const { data: roster, error: rosterError } = await supabaseAdmin
+      .from("attendance_od_targets")
+      .select("id, user_id, name")
+      .eq("category", CATEGORY_OD)
+      .order("name");
+
+    if (rosterError) throw rosterError;
+
+    if (!roster || roster.length === 0) {
+      return Response.json(
+        {
+          data: [],
+          stats: { total_members: 0, attended_count: 0, attendance_rate: 0 },
+          pagination: { page: 1, limit: 0, total: 0, totalPages: 0 },
+        },
+        { status: 200 }
+      );
+    }
+
+    const userIds = roster.map((r: any) => r.user_id);
+
+    // 2. 해당 날짜 OD 출석 기록
+    const { data: attendanceRows, error: attError } = await supabaseAdmin
       .from("weekly_attendance")
+      .select("user_id, attended_at, status, late_fee, is_report_required")
+      .eq("week_date", date)
+      .eq("category", CATEGORY_OD)
+      .in("user_id", userIds);
+
+    if (attError) throw attError;
+
+    const attendanceByUser = new Map(
+      (attendanceRows || []).map((a: any) => [a.user_id, a])
+    );
+
+    // 3. profiles에서 그룹/다락방 이름 조회
+    const { data: profiles, error: profError } = await supabaseAdmin
+      .from("profiles")
       .select(
         `
-        *,
-        profiles!inner (
-          name,
-          group_id,
-          cell_id,
-          groups:group_id(name),
-          cells:cell_id(name)
-        )
-      `,
-        { count: "exact" }
-      );
+        user_id,
+        name,
+        group_id,
+        cell_id,
+        hub_groups:group_id(id, name),
+        hub_cells:cell_id(id, name)
+      `
+      )
+      .in("user_id", userIds);
 
-    if (date) query = query.eq("week_date", date);
-    if (category) query = query.eq("category", category);
-    if (group_id) query = query.eq("profiles.group_id", group_id);
-    if (cell_id) query = query.eq("profiles.cell_id", cell_id);
+    if (profError) throw profError;
 
-    query = query.order("attended_at", { ascending: false }).range(offset, offset + Number(limit) - 1);
+    const profileByUser = new Map(
+      (profiles || []).map((p: any) => [
+        p.user_id,
+        {
+          name: p.name,
+          group_name: p.hub_groups?.name || null,
+          cell_name: p.hub_cells?.name || null,
+        },
+      ])
+    );
 
-    const { data, error, count } = await query;
-    if (error) throw error;
+    // 4. OD 명단 순서대로 병합 (이름순)
+    const data = roster.map((r: any) => {
+      const profile = profileByUser.get(r.user_id) || {};
+      const att = attendanceByUser.get(r.user_id);
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        name: profile.name || r.name || "-",
+        group_name: profile.group_name || "-",
+        cell_name: profile.cell_name || "-",
+        attended_at: att?.attended_at ?? null,
+        status: att?.status ?? null,
+        late_fee: att?.late_fee ?? 0,
+        is_report_required: att?.is_report_required ?? false,
+      };
+    });
 
-    let totalMembersQuery = supabaseAdmin
-      .from("profiles")
-      .select("user_id", { count: "exact", head: true })
-      .eq("community", "허브")
-      .eq("status", "활성");
-
-    if (group_id) totalMembersQuery = totalMembersQuery.eq("group_id", group_id);
-    if (cell_id) totalMembersQuery = totalMembersQuery.eq("cell_id", cell_id);
-
-    const { count: totalCount } = await totalMembersQuery;
-    const attendedCount = count || 0;
+    const attendedCount = attendanceByUser.size;
+    const totalMembers = roster.length;
+    const attendanceRate = totalMembers ? Math.round((attendedCount / totalMembers) * 100) : 0;
 
     return Response.json(
       {
         data,
         stats: {
-          total_members: totalCount || 0,
+          total_members: totalMembers,
           attended_count: attendedCount,
-          attendance_rate: totalCount ? Math.round((attendedCount / totalCount) * 100) : 0,
+          attendance_rate: attendanceRate,
         },
         pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total: count,
-          totalPages: Math.ceil(((count as any) || 0) / Number(limit)),
+          page: 1,
+          limit: data.length,
+          total: data.length,
+          totalPages: 1,
         },
       },
       { status: 200 }
@@ -87,4 +134,3 @@ export async function GET(req: Request) {
 export async function POST() {
   return methodNotAllowed(["GET"]);
 }
-

@@ -7,34 +7,24 @@ import { Global, css } from "@emotion/react";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
 import type { CalendarEvent } from "@src/lib/calendar/types";
-import { Header } from "@src/components/Header";
 import dynamic from "next/dynamic";
 
 const Footer = dynamic(() => import("@src/components/Footer"), { ssr: true });
 
-// iOS 스타일 컬러
-const ios = {
-  red: "#FF3B30", // today
-  blue: "#007AFF",
-  green: "#34C759",
-  orange: "#FF9500",
-  purple: "#AF52DE",
-  gray1: "#8E8E93",
-  gray2: "#AEAEB2",
-  gray3: "#C7C7CC",
-  gray4: "#D1D1D6",
-  gray5: "#E5E5EA",
-  gray6: "#F2F2F7",
-  label: "#000000",
-  secondaryLabel: "#3C3C43",
-  tertiaryLabel: "#3C3C4399",
-  separator: "#3C3C4329",
-  systemBackground: "#FFFFFF",
-  secondarySystemBackground: "#F2F2F7",
-  groupedBackground: "#F2F2F7",
+// 용어사전과 동일한 컬러 (glossary style)
+const theme = {
+  primary: "#0066ff",
+  text: "#1f2a5c",
+  textSecondary: "rgba(31, 42, 92, 0.7)",
+  textTertiary: "rgba(31, 42, 92, 0.5)",
+  border: "rgba(31, 42, 92, 0.12)",
+  today: "#FF3B30",
+  white: "#ffffff",
+  grayHover: "rgba(31, 42, 92, 0.06)",
+  grayActive: "rgba(31, 42, 92, 0.1)",
 };
 
-const EVENT_DOT_COLORS = [ios.blue, ios.green, ios.orange, ios.purple, ios.red];
+const EVENT_DOT_COLORS = ["#0066ff", "#34C759", "#FF9500", "#AF52DE", "#FF3B30"];
 
 const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -109,119 +99,187 @@ export default function CalendarClientPage() {
   return (
     <>
       <Global styles={globalStyles} />
-      <Header />
-      <PageWrap>
-        <CalendarSection>
-          <MonthHeader>
-            <NavButton type="button" onClick={goPrevMonth} aria-label="이전 달">
-              ‹
-            </NavButton>
-            <MonthTitle>{viewDate.format("YYYY년 M월")}</MonthTitle>
-            <NavButton type="button" onClick={goNextMonth} aria-label="다음 달">
-              ›
-            </NavButton>
-          </MonthHeader>
+      <Container>
+        <Title>📅 허브 캘린더</Title>
+        <Subtitle>공동체 일정을 확인하세요</Subtitle>
 
-          <WeekdayRow>
-            {WEEKDAYS_KO.map((d) => (
-              <WeekdayCell key={d}>{d}</WeekdayCell>
-            ))}
-          </WeekdayRow>
+        <ContentWrap>
+          <CalendarCard>
+            <CalendarSection>
+              <MonthHeader>
+                <NavButton type="button" onClick={goPrevMonth} aria-label="이전 달">
+                  ‹
+                </NavButton>
+                <MonthTitle>{viewDate.format("YYYY년 M월")}</MonthTitle>
+                <NavButton type="button" onClick={goNextMonth} aria-label="다음 달">
+                  ›
+                </NavButton>
+              </MonthHeader>
 
-          <Grid>
-            {calendarDays.map((d) => {
-              const key = formatYYYYMMDD(d);
-              const isCurrentMonth = d.month() === viewDate.month();
-              const isToday = key === todayKey;
-              const isSelected = key === selectedKey;
-              const dayEvents = eventsByDate.get(key) || [];
+              <WeekdayRow>
+                {WEEKDAYS_KO.map((d) => (
+                  <WeekdayCell key={d}>{d}</WeekdayCell>
+                ))}
+              </WeekdayRow>
 
-              return (
-                <DayCell
-                  key={key}
-                  $isCurrentMonth={isCurrentMonth}
-                  $isToday={isToday}
-                  $isSelected={isSelected}
-                  onClick={() => setSelectedDate(d)}
-                >
-                  <DayNumber $isToday={isToday} $isSelected={isSelected}>
-                    {d.date()}
-                  </DayNumber>
-                  {dayEvents.length > 0 && (
-                    <DotsRow>
-                      {dayEvents.slice(0, 3).map((ev, i) => (
-                        <EventDot
-                          key={ev.id}
-                          $color={EVENT_DOT_COLORS[i % EVENT_DOT_COLORS.length]}
-                        />
-                      ))}
-                    </DotsRow>
-                  )}
-                </DayCell>
-              );
-            })}
-          </Grid>
-        </CalendarSection>
+              <Grid>
+                {calendarDays.map((d) => {
+                  const key = formatYYYYMMDD(d);
+                  const isCurrentMonth = d.month() === viewDate.month();
+                  const isToday = key === todayKey;
+                  const isSelected = key === selectedKey;
+                  const dayEvents = eventsByDate.get(key) || [];
 
-        <EventsSection>
-          <SectionTitle>{selectedDate.format("M월 D일")} 일정</SectionTitle>
-          {error ? (
-            <ErrorMessage>
-              {(error as Error)?.message || "일정을 불러오지 못했습니다."}
-            </ErrorMessage>
-          ) : isLoading ? (
-            <EmptyState>불러오는 중...</EmptyState>
-          ) : selectedEvents.length === 0 ? (
-            <EmptyState>등록된 일정이 없습니다.</EmptyState>
-          ) : (
-            <EventList>
-              {selectedEvents.map((ev, idx) => (
-                <EventRow key={ev.id}>
-                  <EventBar
-                    $color={EVENT_DOT_COLORS[idx % EVENT_DOT_COLORS.length]}
-                  />
-                  <EventContent>
-                    <EventTime>
-                      {ev.all_day
-                        ? "종일"
-                        : `${dayjs(ev.start_at).format("HH:mm")}${
-                            ev.end_at
-                              ? ` – ${dayjs(ev.end_at).format("HH:mm")}`
-                              : ""
-                          }`}
-                    </EventTime>
-                    <EventTitle>{ev.title}</EventTitle>
-                    {ev.location ? (
-                      <EventLocation>{ev.location}</EventLocation>
-                    ) : null}
-                  </EventContent>
-                </EventRow>
-              ))}
-            </EventList>
-          )}
-        </EventsSection>
-      </PageWrap>
+                  return (
+                    <DayCell
+                      key={key}
+                      $isCurrentMonth={isCurrentMonth}
+                      $isToday={isToday}
+                      $isSelected={isSelected}
+                      onClick={() => setSelectedDate(d)}
+                    >
+                      <DayNumber $isToday={isToday} $isSelected={isSelected}>
+                        {d.date()}
+                      </DayNumber>
+                      {dayEvents.length > 0 && (
+                        <DotsRow>
+                          {dayEvents.slice(0, 3).map((ev, i) => (
+                            <EventDot
+                              key={ev.id}
+                              $color={EVENT_DOT_COLORS[i % EVENT_DOT_COLORS.length]}
+                            />
+                          ))}
+                        </DotsRow>
+                      )}
+                    </DayCell>
+                  );
+                })}
+              </Grid>
+            </CalendarSection>
+          </CalendarCard>
+
+          <EventsCard>
+            <SectionTitle>{selectedDate.format("M월 D일")} 일정</SectionTitle>
+            {error ? (
+              <ErrorMessage>
+                {(error as Error)?.message || "일정을 불러오지 못했습니다."}
+              </ErrorMessage>
+            ) : isLoading ? (
+              <EmptyState>불러오는 중...</EmptyState>
+            ) : selectedEvents.length === 0 ? (
+              <EmptyState>등록된 일정이 없습니다.</EmptyState>
+            ) : (
+              <EventList>
+                {selectedEvents.map((ev, idx) => (
+                  <EventRow key={ev.id}>
+                    <EventBar
+                      $color={EVENT_DOT_COLORS[idx % EVENT_DOT_COLORS.length]}
+                    />
+                    <EventContent>
+                      <EventTime>
+                        {ev.all_day
+                          ? "종일"
+                          : `${dayjs(ev.start_at).format("HH:mm")}${
+                              ev.end_at
+                                ? ` – ${dayjs(ev.end_at).format("HH:mm")}`
+                                : ""
+                            }`}
+                      </EventTime>
+                      <EventTitle>{ev.title}</EventTitle>
+                      {ev.location ? (
+                        <EventLocation>{ev.location}</EventLocation>
+                      ) : null}
+                    </EventContent>
+                  </EventRow>
+                ))}
+              </EventList>
+            )}
+          </EventsCard>
+        </ContentWrap>
+      </Container>
       <Footer />
     </>
   );
 }
 
 const globalStyles = css`
-  .hub-calendar-ios {
+  .hub-calendar-page {
     -webkit-tap-highlight-color: transparent;
   }
 `;
 
-const PageWrap = styled.div`
+// 용어사전과 동일한 레이아웃 (glossary style)
+const Container = styled.div`
   min-height: 100vh;
-  background: ${ios.systemBackground};
-  padding: 0 16px 100px;
-  max-width: 520px;
-  margin: 0 auto;
+  background: linear-gradient(160deg, #f7f8fb 0%, #eff2f8 50%, #e0e7ff 100%);
+  padding: 44px 20px 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow-x: hidden;
+`;
+
+const Title = styled.h1`
+  font-size: 38px;
+  font-weight: 800;
+  color: #1f2a5c;
+  text-align: center;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+
+  @media (max-width: 768px) {
+    font-size: 26px;
+  }
+`;
+
+const Subtitle = styled.p`
+  font-size: 17px;
+  color: rgba(31, 42, 92, 0.7);
+  text-align: center;
+  margin-bottom: 30px;
+  max-width: 460px;
+
+  @media (max-width: 768px) {
+    font-size: 14px;
+    margin-bottom: 22px;
+  }
+`;
+
+const ContentWrap = styled.div`
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  @media (min-width: 1024px) {
+    flex-direction: row;
+    gap: 32px;
+    align-items: flex-start;
+  }
+`;
+
+const CalendarCard = styled.div`
+  background: ${theme.white};
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  @media (min-width: 1024px) {
+    flex: 0 0 560px;
+  }
 `;
 
 const CalendarSection = styled.section`
-  padding: 24px 0 20px;
+  padding: 0;
 `;
 
 const MonthHeader = styled.header`
@@ -229,6 +287,10 @@ const MonthHeader = styled.header`
   align-items: center;
   justify-content: space-between;
   padding: 0 8px 16px;
+
+  @media (min-width: 1024px) {
+    padding: 0 0 20px;
+  }
 `;
 
 const NavButton = styled.button`
@@ -239,7 +301,7 @@ const NavButton = styled.button`
   justify-content: center;
   border: none;
   background: transparent;
-  color: ${ios.blue};
+  color: ${theme.primary};
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
@@ -247,19 +309,29 @@ const NavButton = styled.button`
   padding: 0;
   font-weight: 300;
   &:hover {
-    background: ${ios.gray5};
+    background: ${theme.grayHover};
   }
   &:active {
-    background: ${ios.gray4};
+    background: ${theme.grayActive};
+  }
+
+  @media (min-width: 1024px) {
+    width: 40px;
+    height: 40px;
+    font-size: 32px;
   }
 `;
 
-const MonthTitle = styled.h1`
+const MonthTitle = styled.h2`
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: ${ios.label};
+  color: ${theme.text};
   letter-spacing: -0.02em;
+
+  @media (min-width: 1024px) {
+    font-size: 22px;
+  }
 `;
 
 const WeekdayRow = styled.div`
@@ -267,14 +339,22 @@ const WeekdayRow = styled.div`
   grid-template-columns: repeat(7, 1fr);
   gap: 0;
   padding: 0 0 8px;
-  border-bottom: 1px solid ${ios.separator};
+  border-bottom: 1px solid ${theme.border};
+
+  @media (min-width: 1024px) {
+    padding: 0 0 12px;
+  }
 `;
 
 const WeekdayCell = styled.div`
   text-align: center;
   font-size: 12px;
   font-weight: 500;
-  color: ${ios.tertiaryLabel};
+  color: ${theme.textTertiary};
+
+  @media (min-width: 1024px) {
+    font-size: 13px;
+  }
 `;
 
 const Grid = styled.div`
@@ -282,6 +362,10 @@ const Grid = styled.div`
   grid-template-columns: repeat(7, 1fr);
   gap: 0;
   padding-top: 4px;
+
+  @media (min-width: 1024px) {
+    padding-top: 8px;
+  }
 `;
 
 const DayCell = styled.button<{
@@ -299,13 +383,18 @@ const DayCell = styled.button<{
   background: transparent;
   cursor: pointer;
   border-radius: 10px;
-  color: ${(p) =>
-    p.$isCurrentMonth ? ios.label : ios.tertiaryLabel};
+  color: ${(p) => (p.$isCurrentMonth ? theme.text : theme.textTertiary)};
   &:hover {
-    background: ${ios.gray5};
+    background: ${theme.grayHover};
   }
   &:active {
-    background: ${ios.gray4};
+    background: ${theme.grayActive};
+  }
+
+  @media (min-width: 1024px) {
+    min-height: 52px;
+    padding: 6px 0 8px;
+    border-radius: 12px;
   }
 `;
 
@@ -323,7 +412,7 @@ const DayNumber = styled.span<{ $isToday: boolean; $isSelected: boolean }>`
   ${(p) =>
     p.$isToday &&
     `
-    background: ${ios.red};
+    background: ${theme.today};
     color: #fff;
     font-weight: 500;
   `}
@@ -331,9 +420,15 @@ const DayNumber = styled.span<{ $isToday: boolean; $isSelected: boolean }>`
     p.$isSelected &&
     !p.$isToday &&
     `
-    background: ${ios.label};
+    background: ${theme.text};
     color: #fff;
   `}
+
+  @media (min-width: 1024px) {
+    width: 36px;
+    height: 36px;
+    font-size: 17px;
+  }
 `;
 
 const DotsRow = styled.div`
@@ -343,6 +438,11 @@ const DotsRow = styled.div`
   gap: 4px;
   margin-top: 4px;
   min-height: 6px;
+
+  @media (min-width: 1024px) {
+    margin-top: 6px;
+    gap: 5px;
+  }
 `;
 
 const EventDot = styled.span<{ $color: string }>`
@@ -351,36 +451,62 @@ const EventDot = styled.span<{ $color: string }>`
   border-radius: 50%;
   background: ${(p) => p.$color};
   flex-shrink: 0;
+
+  @media (min-width: 1024px) {
+    width: 6px;
+    height: 6px;
+  }
 `;
 
-const EventsSection = styled.section`
-  background: ${ios.groupedBackground};
-  border-radius: 12px;
-  padding: 16px;
-  margin-top: 8px;
+const EventsCard = styled.section`
+  background: ${theme.white};
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  @media (min-width: 1024px) {
+    flex: 1;
+    min-width: 0;
+  }
 `;
 
 const SectionTitle = styled.h2`
-  margin: 0 0 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: ${ios.secondaryLabel};
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 700;
+  color: ${theme.text};
   letter-spacing: -0.01em;
+
+  @media (min-width: 1024px) {
+    margin: 0 0 20px;
+    font-size: 20px;
+  }
 `;
 
 const EmptyState = styled.p`
   margin: 0;
-  padding: 24px 0;
+  padding: 32px 0;
   font-size: 15px;
-  color: ${ios.tertiaryLabel};
+  color: ${theme.textTertiary};
   text-align: center;
+
+  @media (min-width: 1024px) {
+    padding: 48px 24px;
+  }
 `;
 
 const ErrorMessage = styled.p`
   margin: 0;
   padding: 16px 0;
   font-size: 15px;
-  color: ${ios.red};
+  color: ${theme.today};
 `;
 
 const EventList = styled.ul`
@@ -393,43 +519,49 @@ const EventRow = styled.li`
   display: flex;
   align-items: stretch;
   gap: 0;
-  background: ${ios.systemBackground};
-  border-radius: 10px;
+  background: #f8fafc;
+  border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid ${theme.border};
   &:last-child {
     margin-bottom: 0;
+  }
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 102, 255, 0.08);
+    border-color: rgba(0, 102, 255, 0.2);
   }
 `;
 
 const EventBar = styled.div<{ $color: string }>`
-  width: 4px;
+  width: 5px;
   flex-shrink: 0;
   background: ${(p) => p.$color};
 `;
 
 const EventContent = styled.div`
   flex: 1;
-  padding: 12px 14px;
+  padding: 16px 18px;
   min-width: 0;
 `;
 
 const EventTime = styled.div`
-  font-size: 13px;
-  color: ${ios.tertiaryLabel};
-  margin-bottom: 2px;
+  font-size: 14px;
+  color: ${theme.textTertiary};
+  margin-bottom: 4px;
 `;
 
 const EventTitle = styled.div`
-  font-size: 16px;
-  font-weight: 500;
-  color: ${ios.label};
+  font-size: 17px;
+  font-weight: 600;
+  color: ${theme.text};
   line-height: 1.3;
 `;
 
 const EventLocation = styled.div`
   font-size: 14px;
-  color: ${ios.secondaryLabel};
+  color: ${theme.textSecondary};
   margin-top: 4px;
 `;
