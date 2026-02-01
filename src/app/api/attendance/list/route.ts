@@ -76,7 +76,8 @@ export async function GET(req: Request) {
 
     if (profError) throw profError;
 
-    const profileByUser = new Map(
+    type ProfileInfo = { name?: string; group_name?: string | null; cell_name?: string | null };
+    const profileByUser = new Map<string, ProfileInfo>(
       (profiles || []).map((p: any) => [
         p.user_id,
         {
@@ -89,7 +90,7 @@ export async function GET(req: Request) {
 
     // 4. OD 명단 순서대로 병합 (이름순)
     const data = roster.map((r: any) => {
-      const profile = profileByUser.get(r.user_id) || {};
+      const profile: ProfileInfo = profileByUser.get(r.user_id) || {};
       const att = attendanceByUser.get(r.user_id);
       return {
         id: r.id,
