@@ -26,15 +26,19 @@ export default function AttendanceList() {
   const list = attendanceData?.data || [];
   const stats = attendanceData?.stats;
 
-  // 상태 변경 핸들러
-  const handleUpdateStatus = async (userId: string, newStatus: string) => {
+  // 상태 변경 핸들러 (사유 입력 추가)
+  const handleUpdateStatus = async (userId: string, newStatus: string, currentNote: string = "") => {
     let statusText = newStatus;
     if (newStatus === 'excused') statusText = '사유 인정(면제)';
     if (newStatus === 'present') statusText = '정상 출석';
     if (newStatus === 'unexcused_absence') statusText = '무단 결석';
     if (newStatus === 'late') statusText = '지각';
 
-    if (!confirm(`해당 회원의 상태를 '${statusText}'(으)로 변경하시겠습니까?`)) return;
+    // ⭐️ [변경] 사유 입력 받기
+    const note = prompt(`'${statusText}' 처리 사유를 입력하세요 (선택사항):`, currentNote);
+    
+    // 취소 버튼 누르면 중단
+    if (note === null) return;
 
     try {
       const res = await fetch('/api/admin/attendance/update-status', {
@@ -44,12 +48,13 @@ export default function AttendanceList() {
           userId,
           weekDate: date,
           status: newStatus,
+          note: note, // 입력받은 사유 전송
           category: 'OD'
         }),
       });
 
       if (res.ok) {
-        alert("상태가 변경되었습니다.");
+        alert("저장되었습니다.");
         refetch(); // 리스트 새로고침
       } else {
         const err = await res.json();
@@ -188,24 +193,24 @@ export default function AttendanceList() {
                   <S.TableHead>소속 (그룹 / 다락방)</S.TableHead>
                   <S.TableHead>출석 시간</S.TableHead>
                   <S.TableHead>상태</S.TableHead>
+                  <S.TableHead>비고</S.TableHead> {/* ⭐️ 비고 컬럼 추가 */}
                   <S.TableHead>지각비</S.TableHead>
-                  <S.TableHead>보고서</S.TableHead>
+                  <S.TableHead>OD 보고서</S.TableHead>
                   <S.TableHead>관리</S.TableHead>
                 </S.TableRow>
               </S.TableHeader>
               <tbody>
                 {list.length === 0 ? (
                   <S.TableRow>
-                    <S.TableData colSpan={7} style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
+                    <S.TableData colSpan={8} style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
                       OD 명단이 비어 있습니다. OD 명단 관리에서 회원을 추가해주세요.
                     </S.TableData>
                   </S.TableRow>
                 ) : (
                   list.map((item: any) => {
                     const hasAttended = item.attended_at != null;
-                    
                     const isExcused = item.status === 'excused';
-                    const isUnexcusedAbsence = item.status === 'unexcused_absence'; // 무단 결석 (변경된 상태값 확인)
+                    const isUnexcusedAbsence = item.status === 'unexcused_absence';
                     const isLate = item.status === 'late';
                     
                     return (
@@ -241,6 +246,15 @@ export default function AttendanceList() {
                             </span>
                           )}
                         </S.TableData>
+
+                        {/* ⭐️ 비고(사유) 표시 컬럼 */}
+                        <S.TableData>
+                          {item.note ? (
+                            <span title={item.note} style={{ cursor: 'help', borderBottom: '1px dotted #999', fontSize: '13px' }}>
+                              💬 {item.note.length > 10 ? item.note.slice(0, 10) + '...' : item.note}
+                            </span>
+                          ) : '-'}
+                        </S.TableData>
                         
                         <S.TableData>
                           {item.late_fee > 0 ? (
@@ -261,13 +275,14 @@ export default function AttendanceList() {
                               padding: '6px', 
                               fontSize: '12px', 
                               border: '1px solid #cbd5e1', 
-                              borderRadius: '6px',
+                              borderRadius: '6px', 
                               background: 'white',
                               cursor: 'pointer'
                             }}
                             onChange={(e) => {
                               if (e.target.value) {
-                                handleUpdateStatus(item.user_id, e.target.value);
+                                // 현재 사유를 기본값으로 띄워줌
+                                handleUpdateStatus(item.user_id, e.target.value, item.note); 
                                 e.target.value = '';
                               }
                             }}
