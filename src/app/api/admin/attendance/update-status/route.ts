@@ -9,27 +9,36 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
+  // 권한 체크
   if (!(session?.user as any)?.isAdmin && !(session?.user as any)?.roles?.includes("MC")) {
     return jsonError("권한이 없습니다.", 403);
   }
 
   const body = await req.json().catch(() => ({}));
-  // note 추가
   const { userId, weekDate, status, note, category = "OD" } = body;
 
   if (!userId || !weekDate || !status) {
     return jsonError("필수 정보가 누락되었습니다.", 400);
   }
 
+  // 사유 필수 체크
+  if (!note || typeof note !== "string" || note.trim() === "") {
+    return jsonError("변경 사유는 필수입니다.", 400);
+  }
+
   try {
-    let updateData: any = { status };
+    const adminName = session?.user?.name || (session?.user as any)?.email || "관리자";
+    const now = new Date().toISOString(); // 현재 시간
 
-    // note가 있으면 업데이트 데이터에 포함
-    if (typeof note === "string") {
-      updateData.note = note;
-    }
+    // ⭐️ [핵심] 상태뿐만 아니라 '출석 시간(attended_at)'도 함께 업데이트
+    let updateData: any = {
+      status: status,
+      note: note,
+      updated_by: adminName,
+      attended_at: now, // 👈 이걸 추가해야 UI에서 '미출석'이 아닌 상태로 인식합니다.
+    };
 
-    // 상태에 따른 지각비 자동 설정
+    // 상태에 따른 지각비 및 보고서 로직
     if (status === "excused" || status === "present") {
       updateData.late_fee = 0;
       updateData.is_report_required = false;
@@ -37,6 +46,7 @@ export async function POST(req: Request) {
       updateData.late_fee = 5000;
       updateData.is_report_required = true;
     } else if (status === "late") {
+      // 수동 지각 처리 시 기본값 (필요 시 수정 가능)
       updateData.late_fee = 3000;
       updateData.is_report_required = false;
     }
@@ -53,7 +63,7 @@ export async function POST(req: Request) {
     let result;
 
     if (existing) {
-      // 업데이트
+      // [UPDATE] 기존 기록이 있다면 시간과 상태를 덮어씁니다.
       const { data, error } = await supabaseAdmin
         .from("weekly_attendance")
         .update(updateData)
@@ -64,16 +74,14 @@ export async function POST(req: Request) {
       if (error) throw error;
       result = data;
     } else {
-      // 신규 생성 (미출석자 처리)
-      const shouldSetTime = ["present", "late", "excused"].includes(status);
+      // [INSERT] 미출석자라면 새로 만듭니다.
       const { data, error } = await supabaseAdmin
         .from("weekly_attendance")
         .insert({
           user_id: userId,
           week_date: weekDate,
           category,
-          attended_at: shouldSetTime ? new Date().toISOString() : null,
-          ...updateData,
+          ...updateData, // 여기에 attended_at이 포함되어 있음
         })
         .select()
         .single();
@@ -82,7 +90,7 @@ export async function POST(req: Request) {
       result = data;
     }
 
-    return jsonOk({ message: "저장되었습니다.", result }, 200);
+    return jsonOk({ message: "상태가 변경되었습니다.", result }, 200);
 
   } catch (error) {
     console.error("Update Status Error:", error);

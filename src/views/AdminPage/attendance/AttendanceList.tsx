@@ -14,7 +14,7 @@ export default function AttendanceList() {
   
   const queryClient = useQueryClient();
 
-  // 데이터 조회
+  // ⚠️ 중요: 조회 API(src/app/api/attendance/list/route.ts)에서 'updated_by', 'note'도 select 해야 함
   const { data: attendanceData, isLoading, refetch } = useQuery({
     queryKey: ['admin-attendance', date],
     queryFn: async () => {
@@ -26,19 +26,26 @@ export default function AttendanceList() {
   const list = attendanceData?.data || [];
   const stats = attendanceData?.stats;
 
-  // 상태 변경 핸들러 (사유 입력 추가)
-  const handleUpdateStatus = async (userId: string, newStatus: string, currentNote: string = "") => {
+  // 상태 변경 핸들러
+  // currentNote 인자를 제거했습니다. 항상 빈 칸으로 시작합니다.
+  const handleUpdateStatus = async (userId: string, newStatus: string) => {
     let statusText = newStatus;
     if (newStatus === 'excused') statusText = '사유 인정(면제)';
     if (newStatus === 'present') statusText = '정상 출석';
     if (newStatus === 'unexcused_absence') statusText = '무단 결석';
     if (newStatus === 'late') statusText = '지각';
 
-    // ⭐️ [변경] 사유 입력 받기
-    const note = prompt(`'${statusText}' 처리 사유를 입력하세요 (선택사항):`, currentNote);
+    // ⭐️ [수정] 기본값을 ""(빈 문자열)로 설정하여 입력창을 깨끗하게 비움
+    const note = prompt(`'${statusText}' 처리 사유를 입력해주세요. (필수 입력)\n예: 다리 부상, 사전 연락됨`, "");
     
-    // 취소 버튼 누르면 중단
-    if (note === null) return;
+    // 취소 버튼을 눌렀으면 중단
+    if (note === null) return; 
+    
+    // ⭐️ [방어] 빈 값이나 공백만 입력하고 엔터치면 경고 후 중단
+    if (note.trim() === "") {
+      alert("변경 사유는 필수입니다. 내용을 입력해주세요.");
+      return;
+    }
 
     try {
       const res = await fetch('/api/admin/attendance/update-status', {
@@ -55,7 +62,7 @@ export default function AttendanceList() {
 
       if (res.ok) {
         alert("저장되었습니다.");
-        refetch(); // 리스트 새로고침
+        refetch(); 
       } else {
         const err = await res.json();
         alert(err.error || "변경 실패");
@@ -193,7 +200,7 @@ export default function AttendanceList() {
                   <S.TableHead>소속 (그룹 / 다락방)</S.TableHead>
                   <S.TableHead>출석 시간</S.TableHead>
                   <S.TableHead>상태</S.TableHead>
-                  <S.TableHead>비고</S.TableHead> {/* ⭐️ 비고 컬럼 추가 */}
+                  <S.TableHead>비고 (수정 사유)</S.TableHead>
                   <S.TableHead>지각비</S.TableHead>
                   <S.TableHead>OD 보고서</S.TableHead>
                   <S.TableHead>관리</S.TableHead>
@@ -247,12 +254,19 @@ export default function AttendanceList() {
                           )}
                         </S.TableData>
 
-                        {/* ⭐️ 비고(사유) 표시 컬럼 */}
+                        {/* 비고(사유) 및 변경자 표시 컬럼 */}
                         <S.TableData>
                           {item.note ? (
-                            <span title={item.note} style={{ cursor: 'help', borderBottom: '1px dotted #999', fontSize: '13px' }}>
-                              💬 {item.note.length > 10 ? item.note.slice(0, 10) + '...' : item.note}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-start' }}>
+                              <span title={item.note} style={{ fontSize: '13px', color: '#374151', textAlign: 'left' }}>
+                                {item.note.length > 15 ? item.note.slice(0, 15) + '...' : item.note}
+                              </span>
+                              {item.updated_by && (
+                                <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+                                  (by {item.updated_by})
+                                </span>
+                              )}
+                            </div>
                           ) : '-'}
                         </S.TableData>
                         
@@ -281,8 +295,8 @@ export default function AttendanceList() {
                             }}
                             onChange={(e) => {
                               if (e.target.value) {
-                                // 현재 사유를 기본값으로 띄워줌
-                                handleUpdateStatus(item.user_id, e.target.value, item.note); 
+                                // ⭐️ [수정] 더 이상 기존 사유(item.note)를 넘기지 않습니다.
+                                handleUpdateStatus(item.user_id, e.target.value); 
                                 e.target.value = '';
                               }
                             }}

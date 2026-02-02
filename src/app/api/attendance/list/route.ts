@@ -45,10 +45,11 @@ export async function GET(req: Request) {
 
     const userIds = roster.map((r: any) => r.user_id);
 
-    // 2. 해당 날짜 OD 출석 기록
+    // 2. 해당 날짜 OD 출석 기록 조회 (수정됨: note, updated_by 추가)
     const { data: attendanceRows, error: attError } = await supabaseAdmin
       .from("weekly_attendance")
-      .select("user_id, attended_at, status, late_fee, is_report_required")
+      // ⭐️ 여기에 note와 updated_by를 반드시 추가해야 합니다.
+      .select("user_id, attended_at, status, late_fee, is_report_required, note, updated_by")
       .eq("week_date", date)
       .eq("category", CATEGORY_OD)
       .in("user_id", userIds);
@@ -92,6 +93,7 @@ export async function GET(req: Request) {
     const data = roster.map((r: any) => {
       const profile: ProfileInfo = profileByUser.get(r.user_id) || {};
       const att = attendanceByUser.get(r.user_id);
+      
       return {
         id: r.id,
         user_id: r.user_id,
@@ -102,6 +104,9 @@ export async function GET(req: Request) {
         status: att?.status ?? null,
         late_fee: att?.late_fee ?? 0,
         is_report_required: att?.is_report_required ?? false,
+        // ⭐️ UI로 전달할 데이터 매핑 추가
+        note: att?.note || null,
+        updated_by: att?.updated_by || null,
       };
     });
 
