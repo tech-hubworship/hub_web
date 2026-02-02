@@ -7,7 +7,6 @@ import ManualUserSearch from './ManualUserSearch';
 export default function AttendanceList() {
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
 
-  // 수동 출석 체크용 State
   const [manualUserId, setManualUserId] = useState('');
   const [manualUserName, setManualUserName] = useState('');
   const [manualCheckInAt, setManualCheckInAt] = useState(dayjs().format('YYYY-MM-DDTHH:mm'));
@@ -27,13 +26,14 @@ export default function AttendanceList() {
   const list = attendanceData?.data || [];
   const stats = attendanceData?.stats;
 
-  // 상태 변경 핸들러 (사유 인정 등)
+  // 상태 변경 핸들러
   const handleUpdateStatus = async (userId: string, newStatus: string) => {
-    // 확인 메시지
-    const statusText = newStatus === 'excused' ? '사유 인정(면제)' : 
-                       newStatus === 'present' ? '정상 출석' : 
-                       newStatus === 'absent' ? '결석' : newStatus;
-                       
+    let statusText = newStatus;
+    if (newStatus === 'excused') statusText = '사유 인정(면제)';
+    if (newStatus === 'present') statusText = '정상 출석';
+    if (newStatus === 'unexcused_absence') statusText = '무단 결석';
+    if (newStatus === 'late') statusText = '지각';
+
     if (!confirm(`해당 회원의 상태를 '${statusText}'(으)로 변경하시겠습니까?`)) return;
 
     try {
@@ -50,8 +50,7 @@ export default function AttendanceList() {
 
       if (res.ok) {
         alert("상태가 변경되었습니다.");
-        // 데이터 갱신
-        refetch(); 
+        refetch(); // 리스트 새로고침
       } else {
         const err = await res.json();
         alert(err.error || "변경 실패");
@@ -71,7 +70,7 @@ export default function AttendanceList() {
       </S.Header>
 
       <S.Container>
-        {/* 1. 수동 출석체크 섹션 */}
+        {/* 수동 출석체크 */}
         <div style={{ marginBottom: '20px', padding: '20px', background: '#f0f9ff', border: '1px solid #7dd3fc', borderRadius: '12px' }}>
           <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#0369a1', marginBottom: '12px' }}>
             ✏️ 수동 출석체크
@@ -128,7 +127,7 @@ export default function AttendanceList() {
           </div>
         </div>
 
-        {/* 2. 통계 요약 카드 */}
+        {/* 통계 요약 카드 */}
         {!isLoading && stats && (
           <div style={{ 
             marginBottom: '20px', 
@@ -160,7 +159,7 @@ export default function AttendanceList() {
           </div>
         )}
 
-        {/* 3. 날짜 선택 */}
+        {/* 날짜 선택 */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap' }}>
           <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>날짜</label>
           <input
@@ -177,7 +176,7 @@ export default function AttendanceList() {
           </button>
         </div>
 
-        {/* 4. 테이블 영역 */}
+        {/* 테이블 영역 */}
         {isLoading ? (
           <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>데이터를 불러오는 중...</div>
         ) : (
@@ -190,8 +189,8 @@ export default function AttendanceList() {
                   <S.TableHead>출석 시간</S.TableHead>
                   <S.TableHead>상태</S.TableHead>
                   <S.TableHead>지각비</S.TableHead>
-                  <S.TableHead>OD 보고서</S.TableHead>
-                  <S.TableHead>관리</S.TableHead> {/* 관리 컬럼 추가 */}
+                  <S.TableHead>보고서</S.TableHead>
+                  <S.TableHead>관리</S.TableHead>
                 </S.TableRow>
               </S.TableHeader>
               <tbody>
@@ -204,8 +203,10 @@ export default function AttendanceList() {
                 ) : (
                   list.map((item: any) => {
                     const hasAttended = item.attended_at != null;
-                    const isExcused = item.status === 'excused'; // 사유 인정 여부
-                    const isLate = item.status !== 'present' && !isExcused && item.status != null;
+                    
+                    const isExcused = item.status === 'excused';
+                    const isUnexcusedAbsence = item.status === 'unexcused_absence'; // 무단 결석 (변경된 상태값 확인)
+                    const isLate = item.status === 'late';
                     
                     return (
                       <S.TableRow key={item.id}>
@@ -218,33 +219,29 @@ export default function AttendanceList() {
                         <S.TableData>
                           {hasAttended ? dayjs(item.attended_at).format('HH:mm:ss') : '-'}
                         </S.TableData>
+                        
                         <S.TableData>
                           {!hasAttended ? (
                             <span style={{ color: '#94a3b8', fontSize: '13px' }}>미출석</span>
                           ) : isExcused ? (
-                            <span style={{ 
-                              color: '#059669', 
-                              fontWeight: 'bold', 
-                              padding: '4px 8px', 
-                              background: '#d1fae5', 
-                              borderRadius: '4px', 
-                              fontSize: '13px' 
-                            }}>
+                            <span style={{ color: '#059669', background: '#d1fae5', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
                               사유 인정
                             </span>
+                          ) : isUnexcusedAbsence ? (
+                            <span style={{ color: '#ffffff', background: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
+                              무단 결석
+                            </span>
+                          ) : isLate ? (
+                            <span style={{ color: '#dc2626', background: '#fef2f2', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
+                              지각
+                            </span>
                           ) : (
-                            <span style={{
-                              color: isLate ? '#dc2626' : '#16a34a',
-                              fontWeight: 'bold',
-                              padding: '4px 8px',
-                              background: isLate ? '#fef2f2' : '#f0fdf4',
-                              borderRadius: '4px',
-                              fontSize: '13px'
-                            }}>
-                              {isLate ? '지각' : '정상'}
+                            <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
+                              정상
                             </span>
                           )}
                         </S.TableData>
+                        
                         <S.TableData>
                           {item.late_fee > 0 ? (
                             <span style={{ color: '#dc2626', fontWeight: 'bold' }}>
@@ -258,7 +255,6 @@ export default function AttendanceList() {
                           ) : '-'}
                         </S.TableData>
                         
-                        {/* 관리 기능 셀 */}
                         <S.TableData>
                           <select
                             style={{ 
@@ -272,7 +268,7 @@ export default function AttendanceList() {
                             onChange={(e) => {
                               if (e.target.value) {
                                 handleUpdateStatus(item.user_id, e.target.value);
-                                e.target.value = ''; // 선택 후 초기화
+                                e.target.value = '';
                               }
                             }}
                             defaultValue=""
@@ -280,8 +276,8 @@ export default function AttendanceList() {
                             <option value="" disabled>상태 변경</option>
                             <option value="excused">✅ 사유 인정 (면제)</option>
                             <option value="present">⏰ 정상 출석 처리</option>
-                            {/* 필요시 아래 옵션 주석 해제하여 사용 */}
-                            {/* <option value="absent">🚫 결석 처리</option> */}
+                            <option value="late">⚠️ 지각 처리</option>
+                            <option value="unexcused_absence">🚨 무단 결석 처리</option>
                           </select>
                         </S.TableData>
                       </S.TableRow>
