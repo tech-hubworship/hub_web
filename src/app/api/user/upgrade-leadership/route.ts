@@ -10,38 +10,43 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return jsonError("로그인이 필요합니다.", 401);
 
-  // 🗑️ 기존 인증 문구(phrase) 확인 로직 제거함
-  // 별도의 입력값 없이 요청만 오면 바로 권한 부여 진행
-
   try {
-    // 1. '리더십' 역할 ID 조회
-    const { data: roleData } = await supabaseAdmin
-      .from("roles")
-      .select("id")
-      .eq("name", "리더십")
-      .single();
+    const { error: targetError } = await supabaseAdmin
+      .from("attendance_od_targets")
+      .upsert(
+        {
+          category: "OD",
+          user_id: session.user.id,
+          name: session.user.name || "이름 없음",
+          created_by: session.user.id,
+        },
+        { onConflict: "user_id,category" }
+      );
 
-    if (!roleData) return jsonError("시스템에 리더십 역할이 없습니다.", 500);
-
-    // 2. 해당 유저에게 리더십 역할 부여 (admin_roles 테이블)
-    const { error } = await supabaseAdmin
-      .from("admin_roles")
-      .insert({ user_id: session.user.id, role_id: (roleData as any).id })
-      .select()
-      .single();
-
-    // 이미 권한이 있는 경우(중복 키 에러 23505)도 성공으로 간주
-    if (error && (error as any).code !== "23505") {
-      console.error(error);
-      return jsonError("권한 부여 실패", 500);
+    if (targetError) {
+      console.error("OD Target Add Error:", targetError);
+      return jsonError("명단 등록에 실패했습니다. 관리자에게 문의하세요.", 500);
     }
 
-    return jsonOk({ message: "리더십 권한이 설정되었습니다." }, 200);
+    return jsonOk({ message: "리더십(OD 명단) 등록이 완료되었습니다." }, 200);
   } catch (err) {
+    console.error(err);
     return jsonError("Server Error", 500);
   }
 }
 
 export async function GET() {
+  return methodNotAllowed(["POST"]);
+}
+
+export async function PUT() {
+  return methodNotAllowed(["POST"]);
+}
+
+export async function PATCH() {
+  return methodNotAllowed(["POST"]);
+}
+
+export async function DELETE() {
   return methodNotAllowed(["POST"]);
 }
