@@ -7,12 +7,15 @@ import ManualUserSearch from './ManualUserSearch';
 export default function AttendanceList() {
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
 
+  // 수동 출석 체크용 State
   const [manualUserId, setManualUserId] = useState('');
   const [manualUserName, setManualUserName] = useState('');
   const [manualCheckInAt, setManualCheckInAt] = useState(dayjs().format('YYYY-MM-DDTHH:mm'));
   const [manualChecking, setManualChecking] = useState(false);
+  
   const queryClient = useQueryClient();
 
+  // 데이터 조회
   const { data: attendanceData, isLoading, refetch } = useQuery({
     queryKey: ['admin-attendance', date],
     queryFn: async () => {
@@ -24,6 +27,41 @@ export default function AttendanceList() {
   const list = attendanceData?.data || [];
   const stats = attendanceData?.stats;
 
+  // 상태 변경 핸들러 (사유 인정 등)
+  const handleUpdateStatus = async (userId: string, newStatus: string) => {
+    // 확인 메시지
+    const statusText = newStatus === 'excused' ? '사유 인정(면제)' : 
+                       newStatus === 'present' ? '정상 출석' : 
+                       newStatus === 'absent' ? '결석' : newStatus;
+                       
+    if (!confirm(`해당 회원의 상태를 '${statusText}'(으)로 변경하시겠습니까?`)) return;
+
+    try {
+      const res = await fetch('/api/admin/attendance/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          weekDate: date,
+          status: newStatus,
+          category: 'OD'
+        }),
+      });
+
+      if (res.ok) {
+        alert("상태가 변경되었습니다.");
+        // 데이터 갱신
+        refetch(); 
+      } else {
+        const err = await res.json();
+        alert(err.error || "변경 실패");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("오류가 발생했습니다.");
+    }
+  };
+
   return (
     <>
       <S.Header>
@@ -33,7 +71,7 @@ export default function AttendanceList() {
       </S.Header>
 
       <S.Container>
-        {/* 수동 출석체크 */}
+        {/* 1. 수동 출석체크 섹션 */}
         <div style={{ marginBottom: '20px', padding: '20px', background: '#f0f9ff', border: '1px solid #7dd3fc', borderRadius: '12px' }}>
           <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#0369a1', marginBottom: '12px' }}>
             ✏️ 수동 출석체크
@@ -70,7 +108,7 @@ export default function AttendanceList() {
                   });
                   const data = await res.json();
                   if (res.ok) {
-                    alert(data.message || '출석 처리되었습니다. 지각비는 출석 시간에 맞게 자동 계산됩니다.');
+                    alert(data.message || '출석 처리되었습니다.');
                     setManualUserId(''); setManualUserName('');
                     queryClient.invalidateQueries({ queryKey: ['admin-attendance'] });
                   } else {
@@ -90,7 +128,7 @@ export default function AttendanceList() {
           </div>
         </div>
 
-        {/* 통계 요약 카드 */}
+        {/* 2. 통계 요약 카드 */}
         {!isLoading && stats && (
           <div style={{ 
             marginBottom: '20px', 
@@ -122,7 +160,7 @@ export default function AttendanceList() {
           </div>
         )}
 
-        {/* 날짜 선택 */}
+        {/* 3. 날짜 선택 */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap' }}>
           <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>날짜</label>
           <input
@@ -139,81 +177,120 @@ export default function AttendanceList() {
           </button>
         </div>
 
-        {/* 테이블 영역 */}
+        {/* 4. 테이블 영역 */}
         {isLoading ? (
           <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>데이터를 불러오는 중...</div>
         ) : (
-          <>
-            <S.TableContainer>
-              <S.Table>
-                <S.TableHeader>
+          <S.TableContainer>
+            <S.Table>
+              <S.TableHeader>
+                <S.TableRow>
+                  <S.TableHead>이름</S.TableHead>
+                  <S.TableHead>소속 (그룹 / 다락방)</S.TableHead>
+                  <S.TableHead>출석 시간</S.TableHead>
+                  <S.TableHead>상태</S.TableHead>
+                  <S.TableHead>지각비</S.TableHead>
+                  <S.TableHead>OD 보고서</S.TableHead>
+                  <S.TableHead>관리</S.TableHead> {/* 관리 컬럼 추가 */}
+                </S.TableRow>
+              </S.TableHeader>
+              <tbody>
+                {list.length === 0 ? (
                   <S.TableRow>
-                    <S.TableHead>이름</S.TableHead>
-                    <S.TableHead>소속 (그룹 / 다락방)</S.TableHead>
-                    <S.TableHead>출석 시간</S.TableHead>
-                    <S.TableHead>상태</S.TableHead>
-                    <S.TableHead>지각비</S.TableHead>
-                    <S.TableHead>OD 보고서</S.TableHead>
+                    <S.TableData colSpan={7} style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
+                      OD 명단이 비어 있습니다. OD 명단 관리에서 회원을 추가해주세요.
+                    </S.TableData>
                   </S.TableRow>
-                </S.TableHeader>
-                <tbody>
-                  {list.length === 0 ? (
-                    <S.TableRow>
-                      <S.TableData colSpan={6} style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
-                        OD 명단이 비어 있습니다. OD 명단 관리에서 회원을 추가해주세요.
-                      </S.TableData>
-                    </S.TableRow>
-                  ) : (
-                    list.map((item: any) => {
-                      const hasAttended = item.attended_at != null;
-                      const isLate = item.status !== 'present' && item.status != null;
-                      return (
-                        <S.TableRow key={item.id}>
-                          <S.TableData>
-                            <span style={{ fontWeight: 'bold', fontSize: '15px' }}>{item.name}</span>
-                          </S.TableData>
-                          <S.TableData>
-                            {item.group_name || '-'} / {item.cell_name || '-'}
-                          </S.TableData>
-                          <S.TableData>
-                            {hasAttended ? dayjs(item.attended_at).format('HH:mm:ss') : '-'}
-                          </S.TableData>
-                          <S.TableData>
-                            {!hasAttended ? (
-                              <span style={{ color: '#94a3b8', fontSize: '13px' }}>미출석</span>
-                            ) : (
-                              <span style={{
-                                color: isLate ? '#dc2626' : '#16a34a',
-                                fontWeight: 'bold',
-                                padding: '4px 8px',
-                                background: isLate ? '#fef2f2' : '#f0fdf4',
-                                borderRadius: '4px',
-                                fontSize: '13px'
-                              }}>
-                                {isLate ? '지각' : '정상'}
-                              </span>
-                            )}
-                          </S.TableData>
-                          <S.TableData>
-                            {item.late_fee > 0 ? (
-                              <span style={{ color: '#dc2626', fontWeight: 'bold' }}>
-                                {item.late_fee.toLocaleString()}원
-                              </span>
-                            ) : '-'}
-                          </S.TableData>
-                          <S.TableData>
-                            {item.is_report_required ? (
-                              <span style={{ color: '#dc2626', fontWeight: '600', fontSize: '13px' }}>📝 대상</span>
-                            ) : '-'}
-                          </S.TableData>
-                        </S.TableRow>
-                      );
-                    })
-                  )}
-                </tbody>
-              </S.Table>
-            </S.TableContainer>
-          </>
+                ) : (
+                  list.map((item: any) => {
+                    const hasAttended = item.attended_at != null;
+                    const isExcused = item.status === 'excused'; // 사유 인정 여부
+                    const isLate = item.status !== 'present' && !isExcused && item.status != null;
+                    
+                    return (
+                      <S.TableRow key={item.id}>
+                        <S.TableData>
+                          <span style={{ fontWeight: 'bold', fontSize: '15px' }}>{item.name}</span>
+                        </S.TableData>
+                        <S.TableData>
+                          {item.group_name || '-'} / {item.cell_name || '-'}
+                        </S.TableData>
+                        <S.TableData>
+                          {hasAttended ? dayjs(item.attended_at).format('HH:mm:ss') : '-'}
+                        </S.TableData>
+                        <S.TableData>
+                          {!hasAttended ? (
+                            <span style={{ color: '#94a3b8', fontSize: '13px' }}>미출석</span>
+                          ) : isExcused ? (
+                            <span style={{ 
+                              color: '#059669', 
+                              fontWeight: 'bold', 
+                              padding: '4px 8px', 
+                              background: '#d1fae5', 
+                              borderRadius: '4px', 
+                              fontSize: '13px' 
+                            }}>
+                              사유 인정
+                            </span>
+                          ) : (
+                            <span style={{
+                              color: isLate ? '#dc2626' : '#16a34a',
+                              fontWeight: 'bold',
+                              padding: '4px 8px',
+                              background: isLate ? '#fef2f2' : '#f0fdf4',
+                              borderRadius: '4px',
+                              fontSize: '13px'
+                            }}>
+                              {isLate ? '지각' : '정상'}
+                            </span>
+                          )}
+                        </S.TableData>
+                        <S.TableData>
+                          {item.late_fee > 0 ? (
+                            <span style={{ color: '#dc2626', fontWeight: 'bold' }}>
+                              {item.late_fee.toLocaleString()}원
+                            </span>
+                          ) : '-'}
+                        </S.TableData>
+                        <S.TableData>
+                          {item.is_report_required ? (
+                            <span style={{ color: '#dc2626', fontWeight: '600', fontSize: '13px' }}>📝 대상</span>
+                          ) : '-'}
+                        </S.TableData>
+                        
+                        {/* 관리 기능 셀 */}
+                        <S.TableData>
+                          <select
+                            style={{ 
+                              padding: '6px', 
+                              fontSize: '12px', 
+                              border: '1px solid #cbd5e1', 
+                              borderRadius: '6px',
+                              background: 'white',
+                              cursor: 'pointer'
+                            }}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleUpdateStatus(item.user_id, e.target.value);
+                                e.target.value = ''; // 선택 후 초기화
+                              }
+                            }}
+                            defaultValue=""
+                          >
+                            <option value="" disabled>상태 변경</option>
+                            <option value="excused">✅ 사유 인정 (면제)</option>
+                            <option value="present">⏰ 정상 출석 처리</option>
+                            {/* 필요시 아래 옵션 주석 해제하여 사용 */}
+                            {/* <option value="absent">🚫 결석 처리</option> */}
+                          </select>
+                        </S.TableData>
+                      </S.TableRow>
+                    );
+                  })
+                )}
+              </tbody>
+            </S.Table>
+          </S.TableContainer>
         )}
       </S.Container>
     </>
