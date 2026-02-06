@@ -60,10 +60,14 @@ export default function BibleCardAdminPage() {
   const [selectedPastorId, setSelectedPastorId] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
+  const [groupFilter, setGroupFilter] = useState('');
+  const [cellFilter, setCellFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   
   // 실제 조회에 사용되는 필터 상태
   const [appliedStatusFilter, setAppliedStatusFilter] = useState('');
+  const [appliedGroupFilter, setAppliedGroupFilter] = useState('');
+  const [appliedCellFilter, setAppliedCellFilter] = useState('');
   const [appliedSearchQuery, setAppliedSearchQuery] = useState('');
   
   // 실시간 업데이트 상태
@@ -91,6 +95,8 @@ export default function BibleCardAdminPage() {
   // 조회 버튼 클릭 핸들러
   const handleSearch = () => {
     setAppliedStatusFilter(statusFilter);
+    setAppliedGroupFilter(groupFilter);
+    setAppliedCellFilter(cellFilter);
     setAppliedSearchQuery(searchQuery);
     setCurrentPage(1);
     // 조회 버튼 클릭 시 강제 새로고침 (필터가 모두 "전체"일 때도 조회 가능)
@@ -99,13 +105,15 @@ export default function BibleCardAdminPage() {
 
   // 신청 목록 조회 - applied 필터 사용
   const { data: applicationsData, isLoading } = useQuery({
-    queryKey: ['bible-card-applications', currentPage, appliedStatusFilter, appliedSearchQuery],
+    queryKey: ['bible-card-applications', currentPage, appliedStatusFilter, appliedGroupFilter, appliedCellFilter, appliedSearchQuery],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: '20',
       });
       if (appliedStatusFilter) params.append('status', appliedStatusFilter);
+      if (appliedGroupFilter) params.append('group_id', appliedGroupFilter);
+      if (appliedCellFilter) params.append('cell_id', appliedCellFilter);
       if (appliedSearchQuery) params.append('search', appliedSearchQuery);
       
       const response = await fetch(`/api/bible-card/admin/applications?${params}`);
@@ -141,6 +149,17 @@ export default function BibleCardAdminPage() {
       return response.json();
     },
   });
+
+  // 다락방 목록 조회 (그룹/다락방 필터용)
+  const { data: cellsData } = useQuery<{ cells?: { id: number; name: string; group_id: number }[] }>({
+    queryKey: ['common-cells'],
+    queryFn: async () => {
+      const response = await fetch('/api/common/cells');
+      if (!response.ok) throw new Error('다락방 조회 실패');
+      return response.json();
+    },
+  });
+  const cells = cellsData?.cells ?? [];
 
   // 목회자 배정 뮤테이션
   const assignMutation = useMutation({
@@ -289,6 +308,15 @@ export default function BibleCardAdminPage() {
     return <StatusBadge bg={style.bg} textColor={style.color}>{style.label}</StatusBadge>;
   };
 
+  const cellOptions = groupFilter
+    ? cells
+        .filter((c) => String(c.group_id) === groupFilter)
+        .map((c) => ({ value: String(c.id), label: c.name }))
+    : cells.map((c) => {
+        const groupName = groupsWithPastors?.find((g) => g.id === c.group_id)?.name ?? '';
+        return { value: String(c.id), label: groupName ? `${groupName} / ${c.name}` : c.name };
+      });
+
   return (
     <Container>
       <Header>
@@ -351,6 +379,24 @@ export default function BibleCardAdminPage() {
               { value: 'delivered', label: '전달완료' },
             ]}
             placeholder="전체 상태"
+          />
+          <Combobox
+            value={groupFilter}
+            onChange={(value) => {
+              setGroupFilter(value);
+              setCellFilter(''); // 그룹 변경 시 다락방 초기화
+            }}
+            options={[
+              { value: '', label: '전체 그룹' },
+              ...(groupsWithPastors?.map((g) => ({ value: String(g.id), label: g.name })) ?? []),
+            ]}
+            placeholder="전체 그룹"
+          />
+          <Combobox
+            value={cellFilter}
+            onChange={(value) => { setCellFilter(value); }}
+            options={[{ value: '', label: '전체 다락방' }, ...cellOptions]}
+            placeholder="전체 다락방"
           />
           <SearchInput
             type="text"

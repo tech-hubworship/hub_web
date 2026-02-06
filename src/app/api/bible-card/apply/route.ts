@@ -6,8 +6,15 @@ import { methodNotAllowed } from "@src/lib/api/response";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// 신청 종료 (2025년 12월 15일 이후)
+const APPLICATION_CLOSED = true;
+
 export async function POST(req: Request) {
   try {
+    if (APPLICATION_CLOSED) {
+      return Response.json({ error: "말씀카드 신청이 종료되었습니다." }, { status: 400 });
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });

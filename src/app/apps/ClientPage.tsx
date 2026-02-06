@@ -368,6 +368,124 @@ const CalendarIconImage = styled(motion.div)`
   }
 `;
 
+const LostFoundIconInner = styled.div`
+  width: 80%;
+  height: 80%;
+  background: #ffffff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+  &::before {
+    content: "🔍";
+    font-size: 24px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  @media (max-width: 768px) {
+    &::before {
+      font-size: 20px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    &::before {
+      font-size: 18px;
+    }
+  }
+`;
+
+const LostFoundIconImage = styled(motion.div)`
+  width: 72px;
+  height: 72px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+  }
+
+  @media (max-width: 480px) {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+  }
+`;
+
+const RestaurantIconInner = styled.div`
+  width: 80%;
+  height: 80%;
+  background: #ffffff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+  &::before {
+    content: "🗺️";
+    font-size: 24px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  @media (max-width: 768px) {
+    &::before {
+      font-size: 20px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    &::before {
+      font-size: 18px;
+    }
+  }
+`;
+
+const RestaurantIconImage = styled(motion.div)`
+  width: 72px;
+  height: 72px;
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.2);
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+  }
+
+  @media (max-width: 480px) {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+  }
+`;
+
 export default function AppsClientPage() {
   const router = useRouter();
   const [hoveredApp, setHoveredApp] = useState<number | null>(null);
@@ -492,6 +610,60 @@ export default function AppsClientPage() {
                   허브
                   <br />
                   캘린더
+                </AppLabel>
+              </AppIcon>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.3 }}
+            >
+              <AppIcon
+                onClick={() => handleAppClick("/apps/lost-found")}
+                onMouseEnter={() => setHoveredApp(4)}
+                onMouseLeave={() => setHoveredApp(null)}
+              >
+                <LostFoundIconImage
+                  whileHover={{ scale: 1.1, y: -4 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <CardIcon>
+                    <LostFoundIconInner />
+                  </CardIcon>
+                </LostFoundIconImage>
+                <AppLabel>
+                  분실물
+                  <br />
+                  찾기
+                </AppLabel>
+              </AppIcon>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.3 }}
+            >
+              <AppIcon
+                onClick={() => handleAppClick("/apps/restaurant")}
+                onMouseEnter={() => setHoveredApp(5)}
+                onMouseLeave={() => setHoveredApp(null)}
+              >
+                <RestaurantIconImage
+                  whileHover={{ scale: 1.1, y: -4 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <CardIcon>
+                    <RestaurantIconInner />
+                  </CardIcon>
+                </RestaurantIconImage>
+                <AppLabel>
+                  허브
+                  <br />
+                  맛집지도
                 </AppLabel>
               </AppIcon>
             </motion.div>

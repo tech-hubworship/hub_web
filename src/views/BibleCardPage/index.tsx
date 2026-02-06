@@ -34,10 +34,6 @@ interface Profile {
 
 const COMMUNITIES = ['허브', '타공동체'];
 
-// 신청 마감 시간: 2025년 12월 15일 02시 (한국시간)
-// 신청 기간 체크 비활성화 (항상 신청 가능)
-const APPLICATION_CLOSE_DATE = new Date('2025-12-15T02:00:00+09:00');
-
 export default function BibleCardApplyPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -61,18 +57,9 @@ export default function BibleCardApplyPage() {
     prayer_request: '',
   });
 
-  // 신청 마감 시간 체크 (비활성화 - 항상 신청 가능)
+  // 신청 종료 (2025년 12월 15일 이후 신청 마감)
   useEffect(() => {
-    // 신청 기간 체크 비활성화
-    setIsApplicationClosed(false);
-    // const checkApplicationClosed = () => {
-    //   const now = new Date();
-    //   setIsApplicationClosed(now >= APPLICATION_CLOSE_DATE);
-    // };
-    // 
-    // checkApplicationClosed();
-    // const interval = setInterval(checkApplicationClosed, 1000);
-    // return () => clearInterval(interval);
+    setIsApplicationClosed(true);
   }, []);
 
   // 내 신청 정보 조회
@@ -238,7 +225,7 @@ export default function BibleCardApplyPage() {
     );
   }
 
-  // 신청 기간 종료 화면
+  // 신청 종료 화면 (신청하지 않은 사용자에게 표시)
   if (isApplicationClosed && !myApplication?.hasApplication) {
     return (
       <>
@@ -251,7 +238,7 @@ export default function BibleCardApplyPage() {
               </CardHeader>
               <ClosedMessage>
                 <ClosedIcon>⏰</ClosedIcon>
-                <ClosedTitle>신청 기간이 종료되었습니다</ClosedTitle>
+                <ClosedTitle>신청종료</ClosedTitle>
                 <ClosedDescription>
                   말씀카드 신청 기간이 지났습니다.<br />
                   이미 신청하신 분들은 2026년 1월 1일부터<br />

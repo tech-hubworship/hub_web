@@ -24,7 +24,9 @@ import AttendanceList from '@src/views/AdminPage/attendance/AttendanceList';
 import OdRosterManage from '@src/views/AdminPage/attendance/OdRosterManage';
 import GlossaryAdminPage from '@src/views/AdminPage/apps/glossary';
 import PrayerTimeAdminPage from '@src/views/AdminPage/apps/prayer-time';
+import LostFoundAdminPage from '@src/views/AdminPage/apps/lost-found';
 import CalendarAdminPage from '@src/views/AdminPage/calendar';
+import RestaurantAdminPage from '@src/views/AdminPage/apps/restaurant';
 
 // DB에 없어도 사이드바에 표시할 기본 탭 (MDI 전용 탭)
 const BUILTIN_TABS: TabInfo[] = [
@@ -54,7 +56,11 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'apps-glossary': GlossaryAdminPage,
   'prayer-time': PrayerTimeAdminPage,
   'apps-prayer-time': PrayerTimeAdminPage,
+  'lost-found': LostFoundAdminPage,
+  'apps-lost-found': LostFoundAdminPage,
   'calendar': CalendarAdminPage,
+  'restaurant': RestaurantAdminPage,
+  'apps-restaurant': RestaurantAdminPage,
 };
 
 // 확장된 TabInfo 타입 (description 포함)

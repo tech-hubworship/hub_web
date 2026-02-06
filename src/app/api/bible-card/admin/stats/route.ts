@@ -13,42 +13,96 @@ export async function GET() {
       return Response.json({ error: "권한이 없습니다." }, { status: 403 });
     }
 
-    const { data: allApplications } = await supabaseAdmin
-      .from("bible_card_applications")
-      .select("status");
-
-    const stats = {
-      total: allApplications?.length || 0,
-      pending: allApplications?.filter((a: any) => a.status === "pending").length || 0,
-      assigned: allApplications?.filter((a: any) => a.status === "assigned").length || 0,
-      completed: allApplications?.filter((a: any) => a.status === "completed").length || 0,
-      delivered: allApplications?.filter((a: any) => a.status === "delivered").length || 0,
+    // Supabase 1000행 제한 회피: count 쿼리 사용 (head: true는 행을 반환하지 않음)
+    const runCount = async (filter?: { column: string; value: string | null }) => {
+      let q = supabaseAdmin
+        .from("bible_card_applications")
+        .select("id", { count: "exact", head: true });
+      if (filter) {
+        if (filter.value === null) {
+          q = q.is(filter.column, null);
+        } else {
+          q = q.eq(filter.column, filter.value);
+        }
+      }
+      const { count } = await q;
+      return count ?? 0;
     };
 
-    const { data: byCommunity } = await supabaseAdmin
-      .from("bible_card_applications")
-      .select("community, status");
-
-    const communityStats: Record<string, any> = {};
-    byCommunity?.forEach((app: any) => {
-      const comm = app.community || "미지정";
-      if (!communityStats[comm]) {
-        communityStats[comm] = { total: 0, pending: 0, assigned: 0, completed: 0, delivered: 0 };
+    const runCountByStatus = async (status: string, filter?: { column: string; value: string | null }) => {
+      let q = supabaseAdmin
+        .from("bible_card_applications")
+        .select("id", { count: "exact", head: true })
+        .eq("status", status);
+      if (filter) {
+        if (filter.value === null) {
+          q = q.is(filter.column, null);
+        } else {
+          q = q.eq(filter.column, filter.value);
+        }
       }
-      communityStats[comm].total++;
-      communityStats[comm][app.status]++;
-    });
+      const { count } = await q;
+      return count ?? 0;
+    };
 
+    const [
+      total,
+      pending,
+      assigned,
+      completed,
+      delivered,
+      hubTotal,
+      hubPending,
+      hubAssigned,
+      hubCompleted,
+      hubDelivered,
+      otherTotal,
+      otherPending,
+      otherAssigned,
+      otherCompleted,
+      otherDelivered,
+      unspecifiedTotal,
+      unspecifiedPending,
+      unspecifiedAssigned,
+      unspecifiedCompleted,
+      unspecifiedDelivered,
+    ] = await Promise.all([
+      runCount(),
+      runCountByStatus("pending"),
+      runCountByStatus("assigned"),
+      runCountByStatus("completed"),
+      runCountByStatus("delivered"),
+      runCount({ column: "community", value: "허브" }),
+      runCountByStatus("pending", { column: "community", value: "허브" }),
+      runCountByStatus("assigned", { column: "community", value: "허브" }),
+      runCountByStatus("completed", { column: "community", value: "허브" }),
+      runCountByStatus("delivered", { column: "community", value: "허브" }),
+      runCount({ column: "community", value: "타공동체" }),
+      runCountByStatus("pending", { column: "community", value: "타공동체" }),
+      runCountByStatus("assigned", { column: "community", value: "타공동체" }),
+      runCountByStatus("completed", { column: "community", value: "타공동체" }),
+      runCountByStatus("delivered", { column: "community", value: "타공동체" }),
+      runCount({ column: "community", value: null }),
+      runCountByStatus("pending", { column: "community", value: null }),
+      runCountByStatus("assigned", { column: "community", value: null }),
+      runCountByStatus("completed", { column: "community", value: null }),
+      runCountByStatus("delivered", { column: "community", value: null }),
+    ]);
+
+    const stats = { total, pending, assigned, completed, delivered };
+
+    const communityStats: Record<string, any> = {
+      허브: { total: hubTotal, pending: hubPending, assigned: hubAssigned, completed: hubCompleted, delivered: hubDelivered },
+      타공동체: { total: otherTotal, pending: otherPending, assigned: otherAssigned, completed: otherCompleted, delivered: otherDelivered },
+      미지정: { total: unspecifiedTotal, pending: unspecifiedPending, assigned: unspecifiedAssigned, completed: unspecifiedCompleted, delivered: unspecifiedDelivered },
+    };
+
+    // byPastor: 목회자별 통계는 count 쿼리로 구현하려면 목회자 목록 필요 → 기존 로직 유지 (1000행 이하일 때만 정확)
     const { data: byPastor } = await supabaseAdmin
       .from("bible_card_applications")
-      .select(
-        `
-        status,
-        assigned_pastor_id,
-        pastor:assigned_pastor_id(name)
-      `
-      )
-      .not("assigned_pastor_id", "is", null);
+      .select("status, assigned_pastor_id, pastor:assigned_pastor_id(name)")
+      .not("assigned_pastor_id", "is", null)
+      .limit(1000);
 
     const pastorStats: Record<string, any> = {};
     byPastor?.forEach((app: any) => {

@@ -19,6 +19,8 @@ export async function GET(req: Request) {
     const status = url.searchParams.get("status");
     const statuses = url.searchParams.get("statuses");
     const community = url.searchParams.get("community");
+    const group_id = url.searchParams.get("group_id");
+    const cell_id = url.searchParams.get("cell_id");
     const search = url.searchParams.get("search");
     const pastor_id = url.searchParams.get("pastor_id");
 
@@ -41,6 +43,8 @@ export async function GET(req: Request) {
     }
 
     if (community) countQuery = countQuery.eq("community", community);
+    if (group_id) countQuery = countQuery.eq("group_id", group_id);
+    if (cell_id) countQuery = countQuery.eq("cell_id", cell_id);
     if (pastor_id) countQuery = countQuery.eq("assigned_pastor_id", pastor_id);
     if (search) countQuery = countQuery.ilike("name", `%${search}%`);
 
@@ -68,6 +72,8 @@ export async function GET(req: Request) {
       query = query.eq("status", status.trim());
     }
     if (community) query = query.eq("community", community);
+    if (group_id) query = query.eq("group_id", group_id);
+    if (cell_id) query = query.eq("cell_id", cell_id);
     if (pastor_id) query = query.eq("assigned_pastor_id", pastor_id);
     if (search) query = query.ilike("name", `%${search}%`);
 
