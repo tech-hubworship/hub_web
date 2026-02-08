@@ -24,17 +24,28 @@ export async function POST(req: Request) {
   const category = body?.category;
   const now = dayjs().tz(TZ_KR);
 
+  // 토큰 허용: 현재 유효하거나, 만료 후 2분 이내 (59초에 찍고 요청이 늦게 도착한 경우 대비)
+  const GRACE_SECONDS = 120;
+
   try {
     const { data: validToken, error: tokenError } = await supabaseAdmin
       .from("qr_tokens")
-      .select("*")
+      .select("id, token, category, start_hour, start_minute, expires_at")
       .eq("token", token)
-      .gt("expires_at", now.toISOString())
       .single();
 
     if (tokenError || !validToken) {
-      return Response.json({ error: "유효하지 않거나 만료된 QR 코드입니다." }, { status: 400 });
+      return Response.json({ error: "유효하지 않은 QR 코드입니다." }, { status: 400 });
     }
+
+    const expiresAt = dayjs(validToken.expires_at).tz(TZ_KR);
+    const graceCutoff = now.subtract(GRACE_SECONDS, "second");
+    if (expiresAt.isBefore(graceCutoff)) {
+      return Response.json({ error: "만료된 QR 코드입니다. 새 QR 코드를 스캔해 주세요." }, { status: 400 });
+    }
+
+    const startHour = validToken.start_hour != null ? Math.min(23, Math.max(0, Number(validToken.start_hour))) : 10;
+    const startMinute = validToken.start_minute != null ? Math.min(59, Math.max(0, Number(validToken.start_minute))) : 0;
 
     if (category === "OD") {
       const { data: userRoles } = await supabaseAdmin
@@ -64,7 +75,7 @@ export async function POST(req: Request) {
     }
 
     const baseDate = now.format("YYYY-MM-DD");
-    const { status, lateFee, isReportRequired } = calculateLateFee(now, baseDate);
+    const { status, lateFee, isReportRequired } = calculateLateFee(now, baseDate, startHour, startMinute);
 
     const { data: insertedData, error: insertError } = await supabaseAdmin
       .from("weekly_attendance")

@@ -22,6 +22,8 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null);
   const category = body?.category;
+  const startHour = body?.startHour != null ? Math.min(23, Math.max(0, parseInt(String(body.startHour), 10) || 0)) : 10;
+  const startMinute = body?.startMinute != null ? Math.min(59, Math.max(0, parseInt(String(body.startMinute), 10) || 0)) : 0;
   const now = dayjs().tz("Asia/Seoul");
 
   if (!category) {
@@ -38,6 +40,8 @@ export async function POST(req: Request) {
     category,
     created_by: (session?.user as any)?.id,
     expires_at: expiresAt,
+    start_hour: startHour,
+    start_minute: startMinute,
   });
 
   if (error) {
