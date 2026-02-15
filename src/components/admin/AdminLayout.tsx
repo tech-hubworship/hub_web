@@ -98,7 +98,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <S.NavGroup>
             {!sidebarCollapsed && <S.NavGroupTitle>메뉴</S.NavGroupTitle>}
             {accessibleMenus
-              .filter(menu => !menu.path.includes('/admin/photos/') && !menu.path.includes('/admin/advent/'))
+              .filter(menu => !menu.path.includes('/admin/photos/') && !menu.path.includes('/admin/video-event/'))
               .map((menu) => (
                 <S.NavItem
                   key={menu.id}

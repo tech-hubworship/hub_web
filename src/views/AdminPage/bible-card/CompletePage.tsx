@@ -44,6 +44,16 @@ export default function BibleCardCompletePage() {
   const [excelPreview, setExcelPreview] = useState<any[] | null>(null);
   const [uploadingExcel, setUploadingExcel] = useState(false);
 
+  // 배정됨 현황 (배정됨 수, 배정됨+말씀입력 수)
+  const { data: assignedStats } = useQuery<{ assignedCount: number; assignedWithVerseCount: number }>({
+    queryKey: ['bible-card-assigned-stats'],
+    queryFn: async () => {
+      const response = await fetch('/api/bible-card/admin/assigned-stats');
+      if (!response.ok) throw new Error('현황 조회 실패');
+      return response.json();
+    },
+  });
+
   // 완료된 신청 목록 조회 (completed, delivered 상태만)
   const { data: applicationsData, isLoading } = useQuery({
     queryKey: ['bible-card-completed', statusFilter, pastorFilter, nameSearchQuery, currentPage],
@@ -139,7 +149,7 @@ export default function BibleCardCompletePage() {
 
   const handleExportCSV = () => {
     const params = new URLSearchParams();
-    if (statusFilter) params.append('status', statusFilter);
+    params.append('status', 'completed'); // 작성완료 상태만 다운로드
     if (pastorFilter) params.append('pastor_id', pastorFilter);
     if (nameSearchQuery && nameSearchQuery.trim() !== '') {
       params.append('search', nameSearchQuery.trim());
@@ -203,6 +213,28 @@ export default function BibleCardCompletePage() {
       setUploadingExcel(false);
     }
   };
+
+  // 일괄 작성완료 뮤테이션
+  const bulkCompleteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/bible-card/admin/bulk-complete', {
+        method: 'PUT',
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '일괄 처리 실패');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['bible-card-completed'] });
+      queryClient.invalidateQueries({ queryKey: ['bible-card-assigned-stats'] });
+      alert(data.message);
+    },
+    onError: (error: Error) => {
+      alert(error.message);
+    },
+  });
 
   const updateLinksMutation = useMutation({
     mutationFn: async (data: { id: number; drive_link: string }[]) => {
@@ -272,6 +304,38 @@ export default function BibleCardCompletePage() {
           </ExportButton>
         </HeaderRight>
       </Header>
+
+      {/* 배정됨 현황 & 일괄 작성완료 */}
+      <StatsSection>
+        <StatsGrid>
+          <StatCard>
+            <StatIcon>✍️</StatIcon>
+            <StatContent>
+              <StatValue>{assignedStats?.assignedCount ?? 0}</StatValue>
+              <StatLabel>배정됨</StatLabel>
+            </StatContent>
+          </StatCard>
+          <StatCard>
+            <StatIcon>📖</StatIcon>
+            <StatContent>
+              <StatValue>{assignedStats?.assignedWithVerseCount ?? 0}</StatValue>
+              <StatLabel>배정됨 + 말씀 입력됨</StatLabel>
+            </StatContent>
+          </StatCard>
+        </StatsGrid>
+        {(assignedStats?.assignedWithVerseCount ?? 0) > 0 && (
+          <BulkCompleteButton
+            onClick={() => {
+              if (confirm(`${assignedStats?.assignedWithVerseCount}명의 말씀 입력 완료분을 작성완료 상태로 변경하시겠습니까?`)) {
+                bulkCompleteMutation.mutate();
+              }
+            }}
+            disabled={bulkCompleteMutation.isPending}
+          >
+            {bulkCompleteMutation.isPending ? '처리 중...' : '✅ 일괄 작성완료'}
+          </BulkCompleteButton>
+        )}
+      </StatsSection>
 
       {/* 필터 */}
       <FilterSection>
@@ -557,6 +621,69 @@ const Subtitle = styled.p`
   font-size: 14px;
   color: #64748b;
   margin: 0;
+`;
+
+const StatsSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+`;
+
+const StatsGrid = styled.div`
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const StatCard = styled.div`
+  background: white;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const StatIcon = styled.span`
+  font-size: 24px;
+`;
+
+const StatContent = styled.div``;
+
+const StatValue = styled.div`
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+`;
+
+const StatLabel = styled.div`
+  font-size: 12px;
+  color: #64748b;
+`;
+
+const BulkCompleteButton = styled.button`
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const ExcelUploadButton = styled.button`

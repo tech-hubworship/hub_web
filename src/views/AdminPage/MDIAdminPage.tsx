@@ -10,9 +10,11 @@ import * as S from './mdi-style';
 import UsersAdminPage from '@src/views/AdminPage/users';
 import RolesAdminPage from '@src/views/AdminPage/roles';
 import TechInquiriesPage from '@src/views/AdminPage/tech-inquiries';
-import AdventPostsAdminPage from '@src/views/AdminPage/advent';
-import AttendanceContent from '@src/views/AdminPage/advent/AttendanceContent';
-import AdventStatsPage from '@src/views/AdminPage/advent/StatsContent';
+import VideoEventPostsAdminPage from '@src/views/AdminPage/video-event';
+import VideoEventAttendanceContent from '@src/views/AdminPage/video-event/AttendanceContent';
+import VideoEventStatsPage from '@src/views/AdminPage/video-event/StatsContent';
+import VideoEventCommentsContent from '@src/views/AdminPage/video-event/CommentsContent';
+import { VIDEO_EVENT } from '@src/lib/video-event/constants';
 import ManageContent from '@src/views/AdminPage/photos/ManageContent';
 import ReservationsContent from '@src/views/AdminPage/photos/ReservationsContent';
 import MenuManagementPage from '@src/views/AdminPage/menu-management';
@@ -28,9 +30,23 @@ import LostFoundAdminPage from '@src/views/AdminPage/apps/lost-found';
 import CalendarAdminPage from '@src/views/AdminPage/calendar';
 import RestaurantAdminPage from '@src/views/AdminPage/apps/restaurant';
 
+// 확장된 TabInfo 타입 (description 포함)
+interface ExtendedTabInfo extends TabInfo {
+  description?: string;
+  parent_id?: number | null;
+}
+
 // DB에 없어도 사이드바에 표시할 기본 탭 (MDI 전용 탭)
 const BUILTIN_TABS: TabInfo[] = [
   { id: 'calendar', title: '캘린더', icon: '📅', path: '/admin', requiredRoles: [] },
+];
+
+// 영상 이벤트 대시보드에 DB 없이 항상 표시할 서브메뉴 (게시물·출석·통계)
+const VIDEO_EVENT_BUILTIN_SUBMENUS: ExtendedTabInfo[] = [
+  { id: 'video-event-posts', title: '게시글 관리', icon: '📝', path: '/admin/video-event/posts', description: '영상 이벤트 게시물 등록·수정·삭제' },
+  { id: 'video-event-attendance', title: '출석 관리', icon: '✅', path: '/admin/video-event/attendance', description: '출석 현황 및 수동 처리' },
+  { id: 'video-event-comments', title: '묵상 관리', icon: '💬', path: '/admin/video-event/comments', description: '묵상(댓글) 목록 조회' },
+  { id: 'video-event-stats', title: '통계', icon: '📊', path: '/admin/video-event/stats', description: '출석·묵상 통계' },
 ];
 
 // 메뉴 ID와 컴포넌트 매핑 (동적 렌더링용)
@@ -38,9 +54,10 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'users': UsersAdminPage,
   'roles': RolesAdminPage,
   'tech-inquiries': TechInquiriesPage,
-  'advent-posts': AdventPostsAdminPage,
-  'advent-attendance': AttendanceContent,
-  'advent-stats': AdventStatsPage,
+  'video-event-posts': VideoEventPostsAdminPage,
+  'video-event-attendance': VideoEventAttendanceContent,
+  'video-event-comments': VideoEventCommentsContent,
+  'video-event-stats': VideoEventStatsPage,
   'photos-manage': ManageContent,
   'photos-reservations': ReservationsContent,
   'bible-card-applications': BibleCardAdminPage,
@@ -62,12 +79,6 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'restaurant': RestaurantAdminPage,
   'apps-restaurant': RestaurantAdminPage,
 };
-
-// 확장된 TabInfo 타입 (description 포함)
-interface ExtendedTabInfo extends TabInfo {
-  description?: string;
-  parent_id?: number | null;
-}
 
 export default function MDIAdminPage() {
   const { data: session, status } = useSession();
@@ -250,10 +261,10 @@ export default function MDIAdminPage() {
         />
       );
     }
-    // 대림절 서브메뉴 대시보드
-    if (activeTabId === 'advent') {
+    // 영상 이벤트 서브메뉴 대시보드
+    if (activeTabId === 'video-event') {
       return (
-        <AdventSubmenuContent 
+        <VideoEventSubmenuContent
           session={session}
           accessibleMenus={accessibleMenus}
           onMenuClick={handleMenuClick}
@@ -541,12 +552,12 @@ function PhotosSubmenuContent({ session, accessibleMenus, onMenuClick }: Submenu
   );
 }
 
-// 대림절 서브메뉴
-function AdventSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
+// 영상 이벤트 서브메뉴
+function VideoEventSubmenuContent({ session, accessibleMenus, onMenuClick }: SubmenuContentProps) {
   const roles = session?.user?.roles || [];
   
-  const adventMenus = (accessibleMenus || []).filter(m => {
-    if (!m.path.includes('/admin/advent/')) return false;
+  const videoEventMenus = (accessibleMenus || []).filter(m => {
+    if (!m.path.includes('/admin/video-event/')) return false;
     if (m.requiredRoles && m.requiredRoles.length > 0) {
       const hasPermission = m.requiredRoles.some(role => roles.includes(role));
       if (!hasPermission) return false;
@@ -554,16 +565,19 @@ function AdventSubmenuContent({ session, accessibleMenus, onMenuClick }: Submenu
     return true;
   });
 
+  // DB에 영상 이벤트 하위 메뉴가 없으면 기본 서브메뉴(게시글·출석·통계) 표시
+  const displayMenus = videoEventMenus.length > 0 ? videoEventMenus : VIDEO_EVENT_BUILTIN_SUBMENUS;
+
   return (
     <>
       <S.DashboardWelcome>
-        <S.WelcomeTitle>대림절 관리 대시보드 🎄</S.WelcomeTitle>
-        <S.WelcomeSubtitle>대림절 콘텐츠를 관리할 수 있습니다.</S.WelcomeSubtitle>
+        <S.WelcomeTitle>{VIDEO_EVENT.DISPLAY_NAME_ADMIN} 대시보드 🎬</S.WelcomeTitle>
+        <S.WelcomeSubtitle>{VIDEO_EVENT.DISPLAY_NAME} 콘텐츠를 관리할 수 있습니다.</S.WelcomeSubtitle>
       </S.DashboardWelcome>
 
       <S.SectionTitle>📋 빠른 액세스</S.SectionTitle>
       <S.MenuGrid>
-        {adventMenus.map((menu) => {
+        {displayMenus.map((menu) => {
           const extendedMenu = menu as ExtendedTabInfo;
           return (
             <S.MenuCard key={menu.id} onClick={() => onMenuClick(menu)}>

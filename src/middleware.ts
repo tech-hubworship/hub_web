@@ -3,9 +3,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { getVideoEventPath } from '@src/lib/video-event/constants';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // /video-event → 현재 이벤트 슬러그 경로로 리다이렉트 (예: /advent, /lent)
+  if (pathname === '/video-event' || pathname === '/video-event/') {
+    const url = request.nextUrl.clone();
+    url.pathname = getVideoEventPath();
+    return NextResponse.redirect(url);
+  }
 
   // favicon.ico 요청 최적화 - 긴 캐시 시간 설정
   if (pathname === '/favicon.ico') {
@@ -60,6 +68,8 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/favicon.ico',
+    '/video-event',
+    '/video-event/',
     '/api/auth/session',
     '/admin/:path*',
   ],

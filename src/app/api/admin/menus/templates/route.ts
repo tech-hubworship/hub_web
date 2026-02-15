@@ -28,7 +28,7 @@ const ICON_MAP: Record<string, string> = {
   'photos': '📷',
   'attendance': '✅',
   'attendance-od-roster': '📋',
-  'advent': '🎄',
+  'video-event': '🎬',
   'users': '👥',
   'roles': '🔐',
   'tech-inquiries': '💬',

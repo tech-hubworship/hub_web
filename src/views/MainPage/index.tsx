@@ -34,9 +34,9 @@ const Main = dynamic(() => import('./components/Main'), {
   ssr: false,
   loading: () => <div style={{ minHeight: '52px', background: '#f8f9fa' }}></div>
 });
-const AdventPromotion = dynamic(() => import('./components/AdventPromotion'), { 
+const VideoEventPromotion = dynamic(() => import('./components/VideoEventPromotion'), { 
   ssr: false,
-  loading: () => <div style={{ minHeight: '400px', background: '#724886' }}></div>
+  loading: () => <div style={{ minHeight: '400px', background: '#EF0017' }}></div>
 });
 const BibleCardPromotion = dynamic(() => import('./components/BibleCardPromotion'), { 
   ssr: false,
@@ -184,9 +184,9 @@ const MainPage = memo(function MainPage() {
           <BibleCardPromotion />
         </LazyLoadSection>
         
-        {/* 대림절 페이지 광고 섹션 - 세 번째 섹션 (전체 너비) */}
-        <LazyLoadSection id="advent-promotion-section" priority={true}>
-          <AdventPromotion />
+        {/* 영상 이벤트 프로모션 섹션 - 세 번째 섹션 (전체 너비) */}
+        <LazyLoadSection id="video-event-promotion-section" priority={true}>
+          <VideoEventPromotion />
         </LazyLoadSection>
         
         {/* 콘텐츠 배너 섹션 (전체 너비) */}
