@@ -1,7 +1,14 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@src/lib/auth";
 import { supabaseAdmin } from "@src/lib/supabase";
+import { calculateLateFeeWithThreshold, buildLateThresholdForDate } from "@src/lib/attendance/late-fee";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { jsonError, jsonOk, methodNotAllowed } from "@src/lib/api/response";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,27 +35,42 @@ export async function POST(req: Request) {
 
   try {
     const adminName = session?.user?.name || (session?.user as any)?.email || "관리자";
-    const now = new Date().toISOString(); // 현재 시간
+    const now = dayjs().tz("Asia/Seoul");
+    const nowIso = now.toISOString();
+    const baseDate = typeof weekDate === "string" ? weekDate.split("T")[0] : weekDate;
 
-    // ⭐️ [핵심] 상태뿐만 아니라 '출석 시간(attended_at)'도 함께 업데이트
-    let updateData: any = {
+    let updateData: Record<string, any> = {
       status: status,
-      note: note,
+      note: note.trim(),
       updated_by: adminName,
-      attended_at: now, // 👈 이걸 추가해야 UI에서 '미출석'이 아닌 상태로 인식합니다.
+      attended_at: nowIso,
     };
 
-    // 상태에 따른 지각비 및 보고서 로직
-    if (status === "excused" || status === "present") {
+    // 출석 버튼 클릭 시: 버튼 눌린 시각(현재)으로 지각 여부 자동 판단
+    if (status === "present") {
+      const { data: recentToken } = await supabaseAdmin
+        .from("qr_tokens")
+        .select("late_at")
+        .eq("category", category)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const lateAtSource = (recentToken as any)?.late_at
+        ? dayjs((recentToken as any).late_at).tz("Asia/Seoul")
+        : now.startOf("day").add(10, "hour");
+      const lateThreshold = buildLateThresholdForDate(baseDate, lateAtSource);
+
+      const { status: calcStatus, lateFee, isReportRequired } = calculateLateFeeWithThreshold(now, lateThreshold);
+      updateData.status = calcStatus;
+      updateData.late_fee = lateFee;
+      updateData.is_report_required = isReportRequired;
+    } else if (status === "excused") {
       updateData.late_fee = 0;
       updateData.is_report_required = false;
     } else if (status === "unexcused_absence") {
       updateData.late_fee = 5000;
       updateData.is_report_required = true;
-    } else if (status === "late") {
-      // 수동 지각 처리 시 기본값 (필요 시 수정 가능)
-      updateData.late_fee = 3000;
-      updateData.is_report_required = false;
     }
 
     // 기존 데이터 확인

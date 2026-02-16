@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const category = url.searchParams.get("category") || "OD";
 
   try {
-    const { data, error } = await supabaseAdmin
+    const { data: roster, error } = await supabaseAdmin
       .from("attendance_od_targets")
       .select("id, user_id, name, category")
       .eq("category", category)
@@ -24,7 +24,45 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    return Response.json({ data: data || [] }, { status: 200 });
+    if (!roster || roster.length === 0) {
+      return Response.json({ data: [] }, { status: 200 });
+    }
+
+    const userIds = roster.map((r: any) => r.user_id);
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select(
+        "user_id, name, email, group_id, cell_id, hub_groups:group_id(id, name), hub_cells:cell_id(id, name)"
+      )
+      .in("user_id", userIds);
+
+    type ProfileInfo = { name?: string; email?: string | null; group_name?: string | null; cell_name?: string | null };
+    const profileByUser = new Map<string, ProfileInfo>(
+      (profiles || []).map((p: any) => [
+        p.user_id,
+        {
+          name: p.name,
+          email: p.email ?? null,
+          group_name: p.hub_groups?.name ?? null,
+          cell_name: p.hub_cells?.name ?? null,
+        },
+      ])
+    );
+
+    const data = roster.map((r: any) => {
+      const profile = profileByUser.get(r.user_id) ?? { group_name: null, cell_name: null, email: null };
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        name: profile.name ?? r.name ?? "-",
+        email: profile.email ?? "-",
+        category: r.category,
+        group_name: profile.group_name ?? "-",
+        cell_name: profile.cell_name ?? "-",
+      };
+    });
+
+    return Response.json({ data }, { status: 200 });
   } catch (error) {
     console.error(error);
     return Response.json({ error: "조회 실패" }, { status: 500 });

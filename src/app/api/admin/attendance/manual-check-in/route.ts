@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { methodNotAllowed } from "@src/lib/api/response";
-import { calculateLateFee } from "@src/lib/attendance/late-fee";
+import { calculateLateFeeWithThreshold, buildLateThresholdForDate } from "@src/lib/attendance/late-fee";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -32,7 +32,21 @@ export async function POST(req: Request) {
       : dayjs().tz("Asia/Seoul");
 
     const baseDate = typeof weekDate === "string" ? weekDate.split("T")[0] : dayjs(weekDate).format("YYYY-MM-DD");
-    const { status, lateFee, isReportRequired } = calculateLateFee(checkInTime, baseDate);
+
+    const { data: recentToken } = await supabaseAdmin
+      .from("qr_tokens")
+      .select("late_at")
+      .eq("category", category)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const lateAtSource = (recentToken as any)?.late_at
+      ? dayjs((recentToken as any).late_at).tz("Asia/Seoul")
+      : checkInTime.clone().startOf("day").add(10, "hour");
+    const lateThreshold = buildLateThresholdForDate(baseDate, lateAtSource);
+
+    const { status, lateFee, isReportRequired } = calculateLateFeeWithThreshold(checkInTime, lateThreshold);
 
     const { data: inserted, error } = await supabaseAdmin
       .from("weekly_attendance")

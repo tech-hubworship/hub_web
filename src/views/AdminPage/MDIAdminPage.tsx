@@ -24,6 +24,7 @@ import BibleCardCompletePage from '@src/views/AdminPage/bible-card/CompletePage'
 import QrGenerator from '@src/views/AdminPage/attendance/QrGenerator';
 import AttendanceList from '@src/views/AdminPage/attendance/AttendanceList';
 import OdRosterManage from '@src/views/AdminPage/attendance/OdRosterManage';
+import LateFeeManage from '@src/views/AdminPage/attendance/LateFeeManage';
 import GlossaryAdminPage from '@src/views/AdminPage/apps/glossary';
 import PrayerTimeAdminPage from '@src/views/AdminPage/apps/prayer-time';
 import LostFoundAdminPage from '@src/views/AdminPage/apps/lost-found';
@@ -69,6 +70,7 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'attendance_qr': QrGenerator,
   'attendance-list': AttendanceList,
   'attendance-od-roster': OdRosterManage,
+  'attendance-late-fees': LateFeeManage,
   'glossary': GlossaryAdminPage,
   'apps-glossary': GlossaryAdminPage,
   'prayer-time': PrayerTimeAdminPage,

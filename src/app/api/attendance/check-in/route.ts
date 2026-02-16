@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { methodNotAllowed } from "@src/lib/api/response";
-import { calculateLateFee } from "@src/lib/attendance/late-fee";
+import { calculateLateFeeWithThreshold, buildLateThresholdForDate } from "@src/lib/attendance/late-fee";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   try {
     const { data: validToken, error: tokenError } = await supabaseAdmin
       .from("qr_tokens")
-      .select("id, token, category, start_hour, start_minute, expires_at")
+      .select("id, token, category, late_at, expires_at")
       .eq("token", token)
       .single();
 
@@ -44,8 +44,9 @@ export async function POST(req: Request) {
       return Response.json({ error: "만료된 QR 코드입니다. 새 QR 코드를 스캔해 주세요." }, { status: 400 });
     }
 
-    const startHour = validToken.start_hour != null ? Math.min(23, Math.max(0, Number(validToken.start_hour))) : 10;
-    const startMinute = validToken.start_minute != null ? Math.min(59, Math.max(0, Number(validToken.start_minute))) : 0;
+    const baseDate = now.format("YYYY-MM-DD");
+    const lateAtSource = validToken.late_at ? dayjs(validToken.late_at).tz(TZ_KR) : now.startOf("day").add(10, "hour");
+    const lateThreshold = buildLateThresholdForDate(baseDate, lateAtSource);
 
     if (category === "OD") {
       const { data: userRoles } = await supabaseAdmin
@@ -74,8 +75,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const baseDate = now.format("YYYY-MM-DD");
-    const { status, lateFee, isReportRequired } = calculateLateFee(now, baseDate, startHour, startMinute);
+    const { status, lateFee, isReportRequired } = calculateLateFeeWithThreshold(now, lateThreshold);
 
     const { data: insertedData, error: insertError } = await supabaseAdmin
       .from("weekly_attendance")

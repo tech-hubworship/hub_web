@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react'; 
 import { Card, CardContent, CardHeader, CardTitle } from '@src/components/ui/card';
 import { Combobox } from '@src/components/ui/combobox';
@@ -8,7 +8,34 @@ export default function QrGenerator() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [category, setCategory] = useState('OD');
   const [startHour, setStartHour] = useState(10);
-  const [startMinute, setStartMinute] = useState(0);
+  const [startMinute, setStartMinute] = useState(40);
+  const [checkingCurrent, setCheckingCurrent] = useState(true);
+  const refreshedAtZeroRef = useRef(false);
+
+  const fetchCurrentQr = async () => {
+    setCheckingCurrent(true);
+    try {
+      const res = await fetch(`/api/attendance/generate-qr?category=${encodeURIComponent(category)}`);
+      const data = await res.json();
+      if (res.ok && data.token) {
+        setQrToken(data.token);
+        if (data.expiresAt) {
+          const remain = Math.max(0, Math.ceil((new Date(data.expiresAt).getTime() - Date.now()) / 1000));
+          setTimeLeft(remain);
+        } else {
+          setTimeLeft(60);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCheckingCurrent(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCurrentQr();
+  }, [category]);
 
   const fetchQr = async () => {
     try {
@@ -30,15 +57,23 @@ export default function QrGenerator() {
     }
   };
 
+  // 카운트다운이 0이 되면 새 QR 요청 (기존 QR 로드 시 남은 시간이 적어도 바로 갱신)
+  useEffect(() => {
+    if (timeLeft !== 0 || !qrToken) {
+      if (timeLeft !== 0) refreshedAtZeroRef.current = false;
+      return;
+    }
+    if (refreshedAtZeroRef.current) return;
+    refreshedAtZeroRef.current = true;
+    fetchQr();
+  }, [timeLeft, qrToken]);
+
   useEffect(() => {
     if (!qrToken) return;
-    const interval = setInterval(fetchQr, 60000);
-    const timer = setInterval(() => setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0)), 1000);
-    
-    return () => {
-      clearInterval(interval);
-      clearInterval(timer);
-    };
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
   }, [qrToken]);
 
   const qrUrl = typeof window !== 'undefined' 
@@ -95,7 +130,9 @@ export default function QrGenerator() {
             </div>
           </div>
 
-          {!qrToken ? (
+          {checkingCurrent ? (
+            <div style={{ padding: '24px', color: '#64748b' }}>기존 QR 확인 중...</div>
+          ) : !qrToken ? (
             <button 
               onClick={fetchQr} 
               style={{

@@ -1,7 +1,13 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@src/lib/auth";
 import { supabaseAdmin } from "@src/lib/supabase";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { methodNotAllowed } from "@src/lib/api/response";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,9 +39,18 @@ export async function GET(req: Request) {
     if (rosterError) throw rosterError;
 
     if (!roster || roster.length === 0) {
+      const { data: token } = await supabaseAdmin
+        .from("qr_tokens")
+        .select("late_at")
+        .eq("category", CATEGORY_OD)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const lateAt = (token as any)?.late_at ? dayjs((token as any).late_at).tz("Asia/Seoul") : dayjs().tz("Asia/Seoul").startOf("day").add(10, "hour");
       return Response.json(
         {
           data: [],
+          late_criteria: { start_hour: lateAt.hour(), start_minute: lateAt.minute() },
           stats: { total_members: 0, attended_count: 0, attendance_rate: 0 },
           pagination: { page: 1, limit: 0, total: 0, totalPages: 0 },
         },
@@ -114,9 +129,23 @@ export async function GET(req: Request) {
     const totalMembers = roster.length;
     const attendanceRate = totalMembers ? Math.round((attendedCount / totalMembers) * 100) : 0;
 
+    // 5. 출석 기준 시각 (qr_tokens 최근 late_at → 시/분으로 표시)
+    const { data: recentToken } = await supabaseAdmin
+      .from("qr_tokens")
+      .select("late_at")
+      .eq("category", CATEGORY_OD)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const lateAt = (recentToken as any)?.late_at
+      ? dayjs((recentToken as any).late_at).tz("Asia/Seoul")
+      : dayjs().tz("Asia/Seoul").startOf("day").add(10, "hour");
+
     return Response.json(
       {
         data,
+        late_criteria: { start_hour: lateAt.hour(), start_minute: lateAt.minute() },
         stats: {
           total_members: totalMembers,
           attended_count: attendedCount,

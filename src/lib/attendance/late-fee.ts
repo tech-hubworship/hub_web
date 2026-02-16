@@ -1,4 +1,9 @@
 import dayjs, { Dayjs } from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export interface LateFeeResult {
   status: "present" | "late" | "unexcused_absence";
@@ -7,53 +12,45 @@ export interface LateFeeResult {
 }
 
 /**
- * 출석 기준 시간(10:00) 대비 지각비 계산
- * - 0~40분: 정상 출석
- * - 40~50분: 1,000원
- * - 50~60분: 2,000원
- * - 60~70분: 3,000원
- * - 70~80분: 4,000원 + OD 보고서 대상
- * - 80분 초과: 5,000원 + OD 보고서 대상 (무단결석)
+ * 지각 기준 시각(late_at) 대비 지각비 계산
+ * - 지각 시작 시각 전: 정상 출석
+ * - 지각 시작 시각부터: 지각 (구간별 지각비)
+ *   - 10분까지: 1,000원
+ *   - 20분까지: 2,000원
+ *   - 30분까지: 3,000원
+ *   - 30분 초과: 4,000원
+ * - 무단 결석(5,000원)은 출석 관리에서 무단 결석 버튼으로만 처리 (이 함수에서는 반환하지 않음)
  */
-export function calculateLateFee(
+export function calculateLateFeeWithThreshold(
   checkInTime: Dayjs,
-  baseDate: string,
-  startHour = 10,
-  startMinute = 0
+  lateThreshold: Dayjs
 ): LateFeeResult {
-  // 기준 시간 생성
-  // 주의: 서버 타임존 설정에 따라 동작이 달라질 수 있으므로, 
-  // 실제 사용 시 checkInTime과 동일한 타임존(Asia/Seoul)으로 처리되는지 확인이 필요할 수 있습니다.
-  const startTime = dayjs(`${baseDate} ${String(startHour).padStart(2, "0")}:${String(startMinute).padStart(2, "0")}:00`);
-
-  // 기준 시간 이전이면 정상
-  if (!checkInTime.isAfter(startTime)) {
+  if (!checkInTime.isAfter(lateThreshold)) {
     return { status: "present", lateFee: 0, isReportRequired: false };
   }
+  const diffSeconds = checkInTime.diff(lateThreshold, "second");
 
-  const diffSeconds = checkInTime.diff(startTime, "second");
-
-  // 40분 미만 (2400초)
-  if (diffSeconds < 2400) {
-    return { status: "present", lateFee: 0, isReportRequired: false };
-  }
-  // 50분 미만 (3000초)
-  if (diffSeconds < 3000) {
+  // 10분 미만
+  if (diffSeconds < 600) {
     return { status: "late", lateFee: 1000, isReportRequired: false };
   }
-  // 60분 미만 (3600초)
-  if (diffSeconds < 3600) {
+  // 20분 미만
+  if (diffSeconds < 1200) {
     return { status: "late", lateFee: 2000, isReportRequired: false };
   }
-  // 70분 미만 (4200초)
-  if (diffSeconds < 4200) {
+  // 30분 미만
+  if (diffSeconds < 1800) {
     return { status: "late", lateFee: 3000, isReportRequired: false };
   }
-  // 80분 미만 (4800초)
-  if (diffSeconds < 4800) {
-    return { status: "late", lateFee: 4000, isReportRequired: true };
-  }
-  
-  // 80분 초과 -> 무단 결석 (unexcused_absence)
-  return { status: "unexcused_absence", lateFee: 5000, isReportRequired: true };
+  // 30분 이상
+  return { status: "late", lateFee: 4000, isReportRequired: false };
+}
+
+/**
+ * 특정 날짜(baseDate)에 대해 late_at 시각의 "시:분"만 적용한 기준 시각 생성.
+ * (qr_tokens.late_at은 토큰 생성일 기준이므로, 다른 날짜 출석 시 해당 날짜 + 동일 시각으로 사용)
+ */
+export function buildLateThresholdForDate(baseDate: string, lateAt: Dayjs): Dayjs {
+  const timePart = lateAt.format("HH:mm:ss");
+  return dayjs.tz(`${baseDate} ${timePart}`, "YYYY-MM-DD HH:mm:ss", "Asia/Seoul");
 }
