@@ -15,6 +15,19 @@ const SectionCard = styled(motion.div)<{ isFullScreen: boolean }>`
   background-position: center;
   background-attachment: scroll;
   position: relative;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding: 0;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+    width: 100vw;
+    max-width: 100vw;
+    /* 이미지 비율 360x520 유지, 좌우 여백 없음 */
+    height: calc(100vw * 520 / 360) !important;
+    min-height: 0;
+    overflow: hidden;
+  }
 `;
 
 const SpinnerContainer = styled(motion.div)`

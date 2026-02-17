@@ -390,49 +390,58 @@ const WeekSelectorTitle = styled.div`
 `;
 
 const WeekTabs = styled.div`
-  display: flex;
-  gap: 12px;
+  display: inline-flex;
+  gap: 0;
   margin-bottom: 24px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  overflow-y: hidden;
+  padding: 4px;
   justify-content: center;
-  scrollbar-width: thin;
-  scrollbar-color: #EF0017 transparent;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
 
   &::-webkit-scrollbar {
-    height: 6px;
+    display: none;
   }
 
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #EF0017;
-    border-radius: 3px;
+  @media (max-width: 768px) {
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: 100vw;
+    margin-left: -24px;
+    margin-right: -24px;
+    padding-left: 24px;
+    padding-right: 24px;
+    scroll-snap-type: x proximity;
   }
 `;
 
 const WeekTab = styled.button<{ active: boolean }>`
-  padding: 12px 24px;
-  background: ${props => props.active ? '#EF0017' : 'transparent'};
-  color: #ffffff;
-  border: 2px solid #EF0017;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
+  padding: 10px 20px;
+  background: ${props => props.active ? '#ffffff' : 'transparent'};
+  color: ${props => props.active ? '#000000' : 'rgba(255, 255, 255, 0.9)'};
+  border: none;
+  border-radius: 18px;
+  font-size: 15px;
+  font-weight: ${props => props.active ? '600' : '500'};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
   white-space: nowrap;
   flex-shrink: 0;
 
   &:hover {
-    background: ${props => props.active ? '#EF0017' : 'rgba(239, 0, 23, 0.2)'};
+    background: ${props => props.active ? '#ffffff' : 'rgba(255, 255, 255, 0.08)'};
   }
 
   @media (max-width: 768px) {
-    padding: 10px 20px;
+    padding: 8px 16px;
     font-size: 14px;
+    border-radius: 16px;
+    scroll-snap-align: start;
   }
 `;
 
@@ -463,6 +472,73 @@ const SectionTitle = styled.div`
   font-weight: 600;
   color: #ffffff;
   margin-bottom: 16px;
+`;
+
+/** 한국 달력 주차별 출석 (일월화수목금토) */
+const CalendarTable = styled.table`
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    font-size: 12px;
+  }
+`;
+
+const CalendarHeaderCell = styled.th`
+  padding: 12px 8px;
+  color: #ffffff;
+  font-weight: 700;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+  width: 14.28%;
+
+  @media (max-width: 768px) {
+    padding: 8px 4px;
+  }
+`;
+
+const CalendarCell = styled.td<{ $isEmpty?: boolean }>`
+  padding: 8px;
+  vertical-align: middle;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  min-height: 64px;
+  ${props => props.$isEmpty && 'background: rgba(255,255,255,0.03);'}
+
+  @media (max-width: 768px) {
+    min-height: 52px;
+  }
+`;
+
+const CalendarCellInner = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+`;
+
+const WeekBlock = styled.div`
+  margin-bottom: 32px;
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+`;
+
+const WeekLabel = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 16px;
+  text-align: center;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
 `;
 
 const LoadingLogo = styled.div`
@@ -575,7 +651,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
 
   const handleViewAllClick = () => {
     setShowWeekView(true);
-    // 전체 출석 현황을 표시하기 위해 전체 출석 데이터 가져오기
+    setSelectedWeek(1);
     fetchAttendance();
   };
 
@@ -590,23 +666,35 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     fetchWeekAttendance(week);
   };
 
-  const renderWeekIcons = (startDay: number, endDay: number) => {
-    // 27일차, 28일차 제외
+  /** 1주차: 1-4일, 2주차: 5-11일, 3주차: 12-18일, 4주차: 19-25일, 5주차: 26-32일, 6주차: 33-40일 */
+  const WEEK_DAY_RANGES: [number, number][] = [[1, 4], [5, 11], [12, 18], [19, 25], [26, 32], [33, 40]];
+  const getWeekRange = (week: number): [number, number] => WEEK_DAY_RANGES[week - 1] ?? [1, 4];
+  const getWeekForDay = (day: number): number => {
+    if (day <= 4) return 1;
+    if (day <= 11) return 2;
+    if (day <= 18) return 3;
+    if (day <= 25) return 4;
+    if (day <= 32) return 5;
+    return 6;
+  };
+
+  const renderWeekIcons = (startDay: number, endDay: number, dataMap?: AttendanceMap) => {
+    const map = dataMap ?? weekAttendanceMap;
     const days = Array.from({ length: endDay - startDay + 1 }, (_, i) => startDay + i)
-      .filter(day => day <= 26);
+      .filter(day => day <= 40);
     const firstRowDays = days.slice(0, 4);
-    const secondRowDays = days.slice(4, 7);
-    
+    const secondRowDays = days.slice(4);
+
     return (
       <>
         {firstRowDays.length > 0 && (
           <IconRow>
-            {firstRowDays.map((day) => renderUnionIcon(day, weekAttendanceMap))}
+            {firstRowDays.map((day) => renderUnionIcon(day, map))}
           </IconRow>
         )}
         {secondRowDays.length > 0 && (
           <IconRow>
-            {secondRowDays.map((day) => renderUnionIcon(day, weekAttendanceMap))}
+            {secondRowDays.map((day) => renderUnionIcon(day, map))}
           </IconRow>
         )}
       </>
@@ -729,22 +817,13 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
 
   const renderUnionIcons = () => {
     if (!dayNumber) return null;
-    
-    // 현재 날짜가 속한 범위 계산 (7일씩)
-    // 1-7일차, 8-14일차, 15-21일차, 22-26일차 (27일차, 28일차 제외)
-    const currentRange = Math.ceil(dayNumber / 7);
-    const startDay = (currentRange - 1) * 7 + 1;
-    const endDay = Math.min(currentRange * 7, 26); // 28에서 26으로 변경
-    
-    // 해당 범위의 일차만 필터링 (27일차, 28일차 제외)
+    const week = getWeekForDay(dayNumber);
+    const [startDay, endDay] = getWeekRange(week);
     const days = Array.from({ length: endDay - startDay + 1 }, (_, i) => startDay + i)
-      .filter(day => day <= 26); // 27일차, 28일차 필터링
-    
-    // 첫 번째 줄 (1-4 또는 8-11, 15-18, 22-25)
+      .filter(day => day <= 40);
     const firstRowDays = days.slice(0, 4);
-    // 두 번째 줄 (5-7 또는 12-14, 19-21, 26)
-    const secondRowDays = days.slice(4, 7);
-    
+    const secondRowDays = days.slice(4);
+
     return (
       <>
         {firstRowDays.length > 0 && (
@@ -782,7 +861,52 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     );
   };
 
-  // 이벤트 종료 후에는 출석 버튼 숨기고 전체 출석 현황만 표시
+  /** 한국 달력: 일(0)월(1)화(2)수(3)목(4)금(5)토(6). 2026-02-18=수요일 → day1이 column 3 */
+  const getDayNumberForCell = (week: number, col: number): number | null => {
+    const dayNum = (week - 1) * 7 + (col + 4) % 7 + 1;
+    return dayNum <= 26 ? dayNum : null;
+  };
+
+  const renderCalendarView = () => {
+    const weekLabels = ['일', '월', '화', '수', '목', '금', '토'];
+    const totalWeeks = 4;
+    return (
+      <CalendarTable>
+        <thead>
+          <tr>
+            {weekLabels.map((label) => (
+              <CalendarHeaderCell key={label}>{label}</CalendarHeaderCell>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: totalWeeks }, (_, w) => w + 1).map((week) => (
+            <tr key={week}>
+              {Array.from({ length: 7 }, (_, c) => c).map((col) => {
+                const dayNum = getDayNumberForCell(week, col);
+                const isEmpty = dayNum === null;
+                const isAttended = dayNum !== null && !!attendanceMap[dayNum];
+                return (
+                  <CalendarCell key={col} $isEmpty={isEmpty} style={dayNum && isAttended ? { background: '#2E2E2E' } : undefined}>
+                    <CalendarCellInner>
+                      {dayNum !== null && (
+                        <span style={{ color: '#ffffff', fontSize: 'inherit', fontWeight: 600 }}>
+                          {dayNum}
+                          {isAttended && ' ✓'}
+                        </span>
+                      )}
+                    </CalendarCellInner>
+                  </CalendarCell>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </CalendarTable>
+    );
+  };
+
+  // 이벤트 종료 후에는 출석 버튼 숨기고 전체 출석 현황만 표시 (한국 달력 주차별)
   if (isEventEnded && isLoggedIn) {
     return (
       <SectionCard>
@@ -794,11 +918,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
               </LogoContainer>
               <CompletionText>전체 출석 현황</CompletionText>
             </CompletionHeader>
-            {showTable && (
-              <UnionGrid>
-                {renderAllDaysIcons()}
-              </UnionGrid>
-            )}
+            {showTable && renderCalendarView()}
           </AttendanceContent>
         </ContentWrapper>
       </SectionCard>
@@ -962,9 +1082,32 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
               )}
 
               {showTable && showWeekView && (
-                <UnionGrid>
-                  {renderAllDaysIcons()}
-                </UnionGrid>
+                <>
+                  <WeekTabs>
+                    {[1, 2, 3, 4, 5, 6].map((week) => (
+                      <WeekTab
+                        key={week}
+                        active={selectedWeek === week}
+                        onClick={() => setSelectedWeek(week)}
+                      >
+                        {week}주차
+                      </WeekTab>
+                    ))}
+                  </WeekTabs>
+                  {selectedWeek !== null && (() => {
+                    const [start, end] = getWeekRange(selectedWeek);
+                    return (
+                      <WeekBlock>
+                        <UnionGrid>
+                          {renderWeekIcons(start, end, attendanceMap)}
+                        </UnionGrid>
+                      </WeekBlock>
+                    );
+                  })()}
+                  <BackButton onClick={handleBackToCurrent} style={{ marginTop: 24 }}>
+                    현재 주로 돌아가기
+                  </BackButton>
+                </>
               )}
             </AttendanceComplete>
           )}

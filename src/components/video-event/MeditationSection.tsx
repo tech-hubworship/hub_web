@@ -90,7 +90,7 @@ const MeditationList = styled(motion.div)`
   }
 `;
 
-const MeditationPostIt = styled(motion.div)<{ colorIndex: number }>`
+const MeditationPostIt = styled(motion.div)<{ $rowIndex: number }>`
   position: relative;
   padding: 16px;
   border-radius: 8px;
@@ -109,10 +109,7 @@ const MeditationPostIt = styled(motion.div)<{ colorIndex: number }>`
     z-index: 10;
   }
 
-  background: ${props => {
-    const colors = ['#FFFFFF', '#EE9EEA', '#EF0017', '#EF0017'];
-    return colors[props.colorIndex % colors.length];
-  }};
+  background: ${props => (props.$rowIndex % 2 === 0 ? '#262424' : '#353535')};
   color: #ffffff;
 
   @media (max-width: 768px) {
@@ -304,7 +301,7 @@ const ModalOverlay = styled.div`
   padding: 20px;
 `;
 
-const ModalContent = styled.div<{ colorIndex: number }>`
+const ModalContent = styled.div<{ $rowIndex?: number }>`
   position: relative;
   max-width: 600px;
   width: 100%;
@@ -314,11 +311,7 @@ const ModalContent = styled.div<{ colorIndex: number }>`
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   z-index: 100000;
-
-  background: ${props => {
-    const colors = ['#FFFFFF', '#EE9EEA', '#EF0017', '#EF0017'];
-    return colors[props.colorIndex % colors.length];
-  }};
+  background: #262424;
 
   @media (max-width: 768px) {
     padding: 24px;
@@ -669,24 +662,19 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
           ) : (
             comments.map((comment, index) => {
               const dayNumber = getDayNumber(comment.post_dt);
-              const userName = comment.user_name || '익명';
-              const userAffiliation = comment.user_affiliation || '';
               const dayText = dayNumber ? `${dayNumber}일차 묵상` : '묵상';
               const isLong = comment.content.length > 100;
-              // comment_id를 기반으로 색상 결정 (각 댓글마다 고유한 색상)
-              const colorIdx = comment.comment_id % 4;
-              
+              const anonymousNum = (currentPage - 1) * itemsPerPage + index + 1;
               return (
                 <MeditationPostIt
-                  key={comment.comment_id} 
-                  colorIndex={colorIdx}
+                  key={comment.comment_id}
+                  $rowIndex={index}
                   variants={postItItemVariants}
                   onTap={() => setSelectedComment(comment)}
                   style={{ cursor: 'pointer' }}
                 >
                   <MeditationHeader>
-                    <MeditationTitle>{userName}님의 {dayText}</MeditationTitle>
-                    {userAffiliation && <MeditationAffiliation>{userAffiliation}</MeditationAffiliation>}
+                    <MeditationTitle>#{anonymousNum} {dayText}</MeditationTitle>
                   </MeditationHeader>
                   <MeditationContent>
                     {truncateContent(comment.content)}
@@ -735,18 +723,18 @@ export const MeditationSection: React.FC<MeditationSectionProps> = ({
       {/* 모달 - Portal을 사용하여 body에 직접 렌더링 */}
       {selectedComment && typeof window !== 'undefined' && createPortal(
         <ModalOverlay onClick={() => setSelectedComment(null)}>
-          <ModalContent 
-            colorIndex={selectedComment.comment_id % 4}
+          <ModalContent
+            $rowIndex={0}
             onClick={(e) => e.stopPropagation()}
           >
             <ModalHeader>
               <div>
                 <ModalTitle>
-                  {selectedComment.user_name || '익명'}님의 {getDayNumber(selectedComment.post_dt) ? `${getDayNumber(selectedComment.post_dt)}일차 묵상` : '묵상'}
+                  #{(() => {
+                    const idx = comments.findIndex(c => c.comment_id === selectedComment.comment_id);
+                    return idx >= 0 ? (currentPage - 1) * itemsPerPage + idx + 1 : 1;
+                  })()} {getDayNumber(selectedComment.post_dt) ? `${getDayNumber(selectedComment.post_dt)}일차 묵상` : '묵상'}
                 </ModalTitle>
-                {selectedComment.user_affiliation && (
-                  <ModalAffiliation>{selectedComment.user_affiliation}</ModalAffiliation>
-                )}
               </div>
               <CloseButton onClick={() => setSelectedComment(null)}>✕</CloseButton>
             </ModalHeader>
