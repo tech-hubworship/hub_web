@@ -33,7 +33,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <RecoilRoot>
-      <SessionProvider>
+      <SessionProvider refetchOnWindowFocus={false}>
         {/* Jennifer Analytics 추적코드 */}
         <Script
           id="jennifer-script"
@@ -59,7 +59,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <MotionConfig isValidProp={isValidProp}>
             {children}
             <Analytics />
-            <SpeedInsights />
+            <SpeedInsights sampleRate={0.2} />
           </MotionConfig>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>

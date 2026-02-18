@@ -5,9 +5,15 @@ import { supabaseAdmin } from "@src/lib/supabase";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** start_time을 한국 시간 기준 날짜(YYYY-MM-DD)로 반환 */
+function getDateKeyInKorea(isoString: string): string {
+  return new Date(isoString).toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+}
+
 /**
  * 날짜별 기도 시간 조회 API
  * GET /api/prayer-time/daily
+ * start_date, end_date는 한국 시간(KST) 기준 날짜(YYYY-MM-DD)로 해석합니다.
  */
 export async function GET(req: Request) {
   try {
@@ -23,33 +29,33 @@ export async function GET(req: Request) {
     const end_date = url.searchParams.get("end_date");
     const user_id = url.searchParams.get("user_id");
 
-    // 관리자가 다른 사용자의 데이터를 조회할 수 있도록 user_id 파라미터 지원 (기존 동작 유지)
     const targetUserId = user_id || userId;
 
-    // 날짜 범위 설정
-    let startDate: Date;
-    let endDate: Date;
+    // 한국 시간(KST) 기준으로 구간 설정 (오늘 나의 기도 시간과 동일한 기준)
+    let rangeStart: string;
+    let rangeEnd: string;
+    let resStart = start_date ?? "";
+    let resEnd = end_date ?? "";
 
     if (start_date && end_date) {
-      startDate = new Date(start_date);
-      endDate = new Date(end_date);
+      rangeStart = `${start_date}T00:00:00.000+09:00`;
+      rangeEnd = `${end_date}T23:59:59.999+09:00`;
     } else {
-      // 기본값: 현재 월의 첫날부터 오늘까지
       const now = new Date();
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      endDate = new Date(now);
+      const kstDate = now.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+      const [y, m] = kstDate.split("-");
+      rangeStart = `${y}-${m}-01T00:00:00.000+09:00`;
+      rangeEnd = `${kstDate}T23:59:59.999+09:00`;
+      resStart = `${y}-${m}-01`;
+      resEnd = kstDate;
     }
 
-    startDate.setHours(0, 0, 0, 0);
-    endDate.setHours(23, 59, 59, 999);
-
-    // 날짜별 기도 시간 집계
     const { data: prayers, error } = await supabaseAdmin
       .from("prayer_times")
       .select("start_time, duration_seconds")
       .eq("user_id", targetUserId)
-      .gte("start_time", startDate.toISOString())
-      .lte("start_time", endDate.toISOString())
+      .gte("start_time", rangeStart)
+      .lte("start_time", rangeEnd)
       .not("duration_seconds", "is", null);
 
     if (error) {
@@ -60,13 +66,11 @@ export async function GET(req: Request) {
       );
     }
 
-    // 날짜별로 집계
+    // 한국 시간 기준 날짜별로 집계 (캘린더가 오늘 나의 기도 시간과 일치)
     const dailyStatsMap = new Map<string, number>();
     prayers?.forEach((prayer: any) => {
-      const date = new Date(prayer.start_time);
-      const dateKey = date.toISOString().split("T")[0]; // YYYY-MM-DD
+      const dateKey = getDateKeyInKorea(prayer.start_time);
       const duration = prayer.duration_seconds || 0;
-
       dailyStatsMap.set(dateKey, (dailyStatsMap.get(dateKey) || 0) + duration);
     });
 
@@ -80,8 +84,8 @@ export async function GET(req: Request) {
         success: true,
         data: {
           user_id: targetUserId,
-          start_date: startDate.toISOString().split("T")[0],
-          end_date: endDate.toISOString().split("T")[0],
+          start_date: resStart,
+          end_date: resEnd,
           daily_stats: dailyStats,
         },
       },

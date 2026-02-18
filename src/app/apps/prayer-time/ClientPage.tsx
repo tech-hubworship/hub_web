@@ -9,19 +9,39 @@
  * - 84-4381: LIVE N명 기도 중, 오늘/총/허브 기도 시간 카드, 월 그리드 캘린더(일~토, 기도 안 한 날 40% opacity)
  * - 81-3419: 통계 화면 (LIVE 빨간색, 카드 값 크기, 캘린더 +N 빨간색)
  */
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import styled from "@emotion/styled";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
-import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import toast, { Toaster } from "react-hot-toast";
-import { supabase } from "@src/lib/supabase";
 import { Header } from "@src/components/Header";
+import { usePrayerTime } from "./usePrayerTime";
 
 const Footer = dynamic(() => import("@src/components/Footer"), { ssr: true });
 
-const parseServerDate = (dateString: string): Date => new Date(dateString);
+// Figma 81-2976: 토스트 성공 아이콘 (녹색 원 + 흰 체크)
+const TOAST_SUCCESS_GREEN = "#34CB76"; // rgb(52, 203, 118)
+const ToastSuccessIcon = () => (
+  <span
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: 20,
+      height: 20,
+      aspectRatio: "1 / 1",
+      borderRadius: "50%",
+      background: TOAST_SUCCESS_GREEN,
+      color: "#fff",
+    }}
+    aria-hidden
+  >
+    <svg width="12" height="9" viewBox="0 0 14 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M1 5.5L5 9.5L13 1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  </span>
+);
 
 // ——— 유틸 ———
 const formatTime = (totalSeconds: number, withMs = false): string => {
@@ -88,7 +108,6 @@ const Cross = styled.div`
     height: auto;
     aspect-ratio: 220 / 366;
     object-fit: contain;
-    opacity: 0.2;
   }
 `;
 
@@ -107,6 +126,8 @@ const BtnRow = styled.div`
   gap: 12px;
   flex-wrap: wrap;
   justify-content: center;
+  min-height: 48px;
+  min-width: 220px;
 `;
 
 type BtnVariant = "gray" | "red" | "blue";
@@ -136,9 +157,17 @@ const Btn = styled(motion.button)<{ $variant?: BtnVariant } & React.ComponentPro
   }
 `;
 
+/* 레이아웃 유지: 기도 시작 후에도 통계 보기 영역 높이 확보 */
+const ScrollHintWrap = styled.div<{ $visible: boolean }>`
+  min-height: 56px;
+  margin-top: 24px;
+  opacity: ${(p) => (p.$visible ? 1 : 0)};
+  pointer-events: ${(p) => (p.$visible ? "auto" : "none")};
+  visibility: ${(p) => (p.$visible ? "visible" : "hidden")};
+`;
+
 /* Figma 81-2941: 통계 보기 화살표 (아래꺽쇠 + 동동 뜨는 인터랙션) */
 const ScrollHint = styled(motion.div)<React.ComponentPropsWithoutRef<"div">>`
-  margin-top: 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -169,6 +198,7 @@ const ScrollHintIcon = styled.span`
 const StatsBlock = styled.section`
   width: 100%;
   margin-top: 32px;
+  scroll-margin-top: 140px; /* 버튼 클릭 시 덜 내려가도록 */
 `;
 
 const LiveChip = styled(motion.button)<React.ComponentPropsWithoutRef<"button">>`
@@ -269,21 +299,20 @@ const CalendarNav = styled.button`
   &:hover { color: #fff; }
 `;
 
-const WeekdayRow = styled.div`
+/* 요일·날짜 한 그리드로 묶어 열 정렬 보장 */
+const CalendarTable = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
-  margin-bottom: 8px;
+  width: 100%;
+`;
+
+const WeekdayCell = styled.div`
   text-align: center;
   font-size: 11px;
   color: rgba(255,255,255,0.6);
   font-weight: 500;
-`;
-
-const CalendarGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  padding-bottom: 8px;
 `;
 
 const CalendarCell = styled.div<{ $empty?: boolean; $hasPrayer?: boolean; $today?: boolean }>`
@@ -330,13 +359,12 @@ const ModalPanel = styled(motion.div)<React.ComponentPropsWithoutRef<"div">>`
   @media (min-width: 500px) { border-radius: 20px; }
 `;
 
+/* Figma 116-9199: 기도방 모달 */
 const ModalHead = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 16px;
 `;
 
 const ModalTitle = styled.h2`
@@ -344,327 +372,163 @@ const ModalTitle = styled.h2`
   font-size: 18px;
   font-weight: 700;
   color: #fff;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  flex: 1;
+  text-align: center;
 `;
 
 const ModalClose = styled.button`
   background: none;
   border: none;
   color: rgba(255,255,255,0.7);
-  font-size: 24px;
+  font-size: 22px;
   cursor: pointer;
   padding: 4px 8px;
   line-height: 1;
+  width: 36px;
   &:hover { color: #fff; }
 `;
 
 const UserRow = styled(motion.div)`
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  margin-bottom: 8px;
-  background: rgba(255,255,255,0.04);
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.06);
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  &:last-of-type { border-bottom: none; }
 `;
 
-const UserName = styled.span`font-weight: 600; color: #fff;`;
-const UserDuration = styled.span`font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.7); font-size: 14px;`;
+const UserAvatar = styled.div`
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  flex-shrink: 0;
+`;
+
+const UserInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const UserName = styled.div`
+  font-weight: 600;
+  font-size: 15px;
+  color: #fff;
+  margin-bottom: 2px;
+`;
+
+const UserGroup = styled.div`
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+`;
+
+const UserTimeWrap = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+`;
+
+const UserDuration = styled.span`
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  color: rgba(255,255,255,0.8);
+`;
 
 // ——— 컴포넌트 ———
 export default function PrayerTimeClientPage() {
   const { data: session } = useSession();
-  const [isPraying, setIsPraying] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [pausedSeconds, setPausedSeconds] = useState(0);
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [pauseStartTime, setPauseStartTime] = useState<Date | null>(null);
-  const [myStats, setMyStats] = useState<{
-    today_seconds: number;
-    total_seconds: number;
-    active_session: { start_time: string } | null;
-  } | null>(null);
-  const [communityStats, setCommunityStats] = useState<{
-    total_seconds: number;
-    user_stats: Array<{ user_id: string; name: string; total_seconds: number }>;
-  } | null>(null);
-  const [activeUsers, setActiveUsers] = useState<Array<{
-    user_id: string;
-    name: string;
-    duration_seconds: number;
-    start_time?: string;
-  }>>([]);
-  const [dailyStats, setDailyStats] = useState<Array<{ date: string; total_seconds: number }>>([]);
-  const [loading, setLoading] = useState(true);
+  const userId = session?.user?.id;
+  const {
+    loading,
+    timer,
+    stats,
+    activeUsers,
+    daily,
+  } = usePrayerTime(userId ?? undefined);
+
   const [liveModalOpen, setLiveModalOpen] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const statsRef = useRef<HTMLElement>(null);
-  const [userNameCache, setUserNameCache] = useState<Map<string, string>>(new Map());
-  const [calendarMonth, setCalendarMonth] = useState(() => {
-    const n = new Date();
-    return { year: n.getFullYear(), month: n.getMonth() };
-  });
 
-  // 타이머 틱
-  useEffect(() => {
-    if (!isPraying || !startTime || isPaused) return;
-    const interval = setInterval(() => {
-      const elapsed = Math.max(0, (Date.now() - startTime.getTime()) / 1000 - pausedSeconds);
-      setTimerSeconds(elapsed);
-    }, 10);
-    return () => clearInterval(interval);
-  }, [isPraying, isPaused, startTime, pausedSeconds]);
-
-  // 초기 기도 중인 사람
-  const { data: initialActive } = useQuery({
-    queryKey: ["prayer-time-active"],
-    queryFn: async () => {
-      const res = await fetch("/api/prayer-time/active");
-      if (!res.ok) throw new Error("active failed");
-      const json = await res.json();
-      return json.data?.users ?? [];
-    },
-    enabled: !!session?.user?.id,
-    staleTime: Infinity,
-  });
-
-  useEffect(() => {
-    if (initialActive?.length) {
-      setActiveUsers(initialActive);
-      const cache = new Map<string, string>();
-      initialActive.forEach((u: { user_id: string; name: string }) => cache.set(u.user_id, u.name));
-      setUserNameCache(cache);
-    }
-  }, [initialActive]);
-
-  // LIVE 목록 duration 1초마다 갱신
-  useEffect(() => {
-    if (activeUsers.length === 0) return;
-    const interval = setInterval(() => {
-      setActiveUsers((prev) =>
-        prev.map((u) => {
-          const start = (u as { start_time?: string }).start_time ? parseServerDate((u as { start_time: string }).start_time) : null;
-          if (!start) return u;
-          const dur = Math.floor((Date.now() - start.getTime()) / 1000);
-          return { ...u, duration_seconds: dur };
-        })
-      );
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [activeUsers.length]);
-
-  // Supabase Realtime
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    const channel = supabase
-      .channel("prayer-sessions")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "prayer_sessions" },
-        async (payload) => {
-          const row = payload.new as { user_id: string; start_time: string };
-          let name = userNameCache.get(row.user_id);
-          if (!name) {
-            try {
-              const r = await fetch(`/api/prayer-time/user-name?user_id=${row.user_id}`);
-              const d = r.ok ? await r.json() : {};
-              name = d.name ?? "알 수 없음";
-              setUserNameCache((prev) => new Map(prev).set(row.user_id, name!));
-            } catch {
-              name = "알 수 없음";
-            }
-          }
-          setActiveUsers((prev) =>
-            prev.some((u) => u.user_id === row.user_id)
-              ? prev
-              : [...prev, { user_id: row.user_id, name: name!, duration_seconds: 0, start_time: row.start_time }]
-          );
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "prayer_sessions" },
-        (payload) => {
-          const old = payload.old as { user_id?: string };
-          if (old?.user_id) {
-            setActiveUsers((prev) => prev.filter((u) => u.user_id !== old.user_id));
-          } else {
-            fetch("/api/prayer-time/active")
-              .then((res) => res.json())
-              .then((data) => {
-                if (data.data?.users) setActiveUsers(data.data.users);
-              })
-              .catch(() => {});
-          }
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [session?.user?.id, userNameCache]);
-
-  const loadData = useCallback(async () => {
-    if (!session?.user?.id) {
-      setLoading(false);
+  const handleStart = useCallback(async () => {
+    if (!userId) {
+      toast.error("로그인이 필요합니다.");
       return;
     }
     try {
-      const [myRes, communityRes] = await Promise.all([
-        fetch("/api/prayer-time/my-stats"),
-        fetch("/api/prayer-time/community"),
-      ]);
-      if (myRes.ok) {
-        const data = (await myRes.json()).data;
-        setMyStats(data);
-        if (data?.active_session) {
-          setIsPraying(true);
-          setIsPaused(false);
-          const st = parseServerDate(data.active_session.start_time);
-          setStartTime(st);
-          setPauseStartTime(null);
-          setPausedSeconds(0);
-          setTimerSeconds(Math.max(0, (Date.now() - st.getTime()) / 1000));
-        } else {
-          setIsPraying(false);
-          setIsPaused(false);
-          setStartTime(null);
-          setPauseStartTime(null);
-          setTimerSeconds(0);
-          setPausedSeconds(0);
-        }
-      }
-      if (communityRes.ok) {
-        const data = (await communityRes.json()).data;
-        setCommunityStats(data);
-      }
+      await timer.start();
     } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+      toast.error(e instanceof Error ? e.message : "시작 실패");
     }
-  }, [session?.user?.id]);
+  }, [userId, timer]);
 
-  useEffect(() => {
-    loadData();
-    const t = setInterval(loadData, 60000);
-    return () => clearInterval(t);
-  }, [loadData]);
-
-  // 캘린더 월별 daily 통계 (Figma 84-4381)
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    const { year, month } = calendarMonth;
-    const start = new Date(year, month, 1);
-    const end = new Date(year, month + 1, 0);
-    const startStr = start.toISOString().slice(0, 10);
-    const endStr = end.toISOString().slice(0, 10);
-    fetch(`/api/prayer-time/daily?start_date=${startStr}&end_date=${endStr}`)
-      .then((res) => (res.ok ? res.json() : { data: {} }))
-      .then((json) => setDailyStats(json.data?.daily_stats ?? []))
-      .catch(() => setDailyStats([]));
-  }, [session?.user?.id, calendarMonth.year, calendarMonth.month]);
-
-  const handleStart = async () => {
-    if (!session?.user?.id) {
+  const handleComplete = useCallback(async () => {
+    if (!userId) {
       toast.error("로그인이 필요합니다.");
       return;
     }
     try {
-      const res = await fetch("/api/prayer-time/start", { method: "POST" });
-      if (!res.ok) {
-        const err = await res.json();
-        toast.error(err?.error ?? "시작 실패");
-        return;
-      }
-      const { data } = await res.json();
-      const st = parseServerDate(data.start_time);
-      setIsPraying(true);
-      setIsPaused(false);
-      setStartTime(st);
-      setPauseStartTime(null);
-      setPausedSeconds(0);
-      setTimerSeconds(0);
-      await loadData();
-    } catch {
-      toast.error("기도 시작에 실패했습니다.");
-    }
-  };
-
-  const handlePause = () => {
-    if (!isPraying || isPaused) return;
-    setIsPaused(true);
-    setPauseStartTime(new Date());
-    if (startTime) setPausedSeconds((Date.now() - startTime.getTime()) / 1000);
-  };
-
-  const handleResume = () => {
-    if (!isPaused) return;
-    setIsPaused(false);
-    setPauseStartTime(null);
-    setStartTime(new Date(Date.now() - pausedSeconds * 1000));
-  };
-
-  const handleComplete = async () => {
-    if (!session?.user?.id) {
-      toast.error("로그인이 필요합니다.");
-      return;
-    }
-    const recordedSeconds = timerSeconds;
-    const m = Math.floor(recordedSeconds / 60);
-    const s = Math.floor(recordedSeconds % 60);
-    const ms = Math.floor((recordedSeconds % 1) * 100);
-    const toastMessage = `${m}분 ${s}.${String(ms).padStart(2, "0")}초 기록되었어요`;
-    try {
-      const res = await fetch("/api/prayer-time/stop", { method: "POST" });
-      if (!res.ok) {
-        const err = await res.json();
-        toast.error(err?.error ?? "종료 실패");
-        return;
-      }
-      toast.success(toastMessage, {
+      const recorded = await timer.complete();
+      const m = Math.floor(recorded / 60);
+      const s = Math.floor(recorded % 60);
+      toast.success(`${m}분 ${s}초 기록되었어요`, {
         duration: 3000,
         style: {
-          background: "rgba(48, 209, 88, 0.15)",
-          color: "#fff",
-          border: "1px solid rgba(48, 209, 88, 0.5)",
-          borderRadius: "12px",
+          borderRadius: "16px",
+          background: "rgba(255, 255, 255, 0.10)",
+          backdropFilter: "blur(28px)",
+          color: "#FFF",
+          textAlign: "center",
+          fontFamily: "Pretendard, sans-serif",
+          fontSize: "14px",
+          fontStyle: "normal",
+          fontWeight: 500,
+          lineHeight: "150%",
           padding: "12px 16px",
         },
-        icon: "✓",
-        iconTheme: { primary: "#30d158", secondary: "#fff" },
+        icon: <ToastSuccessIcon />,
       });
-    } catch {
-      toast.error("기도 종료에 실패했습니다.");
-      return;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "종료 실패");
     }
-    setIsPraying(false);
-    setIsPaused(false);
-    setStartTime(null);
-    setPauseStartTime(null);
-    setTimerSeconds(0);
-    setPausedSeconds(0);
-    setActiveUsers((prev) => prev.filter((u) => u.user_id !== session!.user!.id));
-    await loadData();
-  };
+  }, [userId, timer]);
 
-  const scrollToStats = () => {
-    setShowStats(true);
-    setTimeout(() => statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
-  };
+  const scrollToStats = useCallback(() => {
+    statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
-  const dailyMap = new Map(dailyStats.map((s) => [s.date, s.total_seconds]));
-  const now = new Date();
-  const todayNum = now.getDate();
-  const todayMonth = now.getMonth();
-  const todayYear = now.getFullYear();
+  // 스크롤이 발생하면 통계 힌트 숨김 + 버튼 클릭과 동일한 위치로 스크롤
+  useEffect(() => {
+    const onScroll = () => {
+      if (window.scrollY > 80) {
+        setShowStats((prev) => {
+          if (!prev) {
+            requestAnimationFrame(() => {
+              statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+            return true;
+          }
+          return prev;
+        });
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-  // Figma 84-4381: 월 그리드 (일~토, 기도 안 한 날 opacity 40%)
-  const { year: calYear, month: calMonth } = calendarMonth;
+  const dailyMap = new Map(daily.dailyStats.map((s) => [s.date, s.total_seconds]));
+  const koreaNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+  const todayNum = koreaNow.getDate();
+  const todayMonth = koreaNow.getMonth();
+  const todayYear = koreaNow.getFullYear();
+  const { year: calYear, month: calMonth } = daily.calendarMonth;
   const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
   const lastDate = new Date(calYear, calMonth + 1, 0).getDate();
   const calendarCells: (number | null)[] = [
@@ -676,17 +540,6 @@ export default function PrayerTimeClientPage() {
     year: "numeric",
     month: "long",
   });
-
-  const goPrevMonth = () => {
-    setCalendarMonth((prev) =>
-      prev.month === 0 ? { year: prev.year - 1, month: 11 } : { year: prev.year, month: prev.month - 1 }
-    );
-  };
-  const goNextMonth = () => {
-    setCalendarMonth((prev) =>
-      prev.month === 11 ? { year: prev.year + 1, month: 0 } : { year: prev.year, month: prev.month + 1 }
-    );
-  };
 
   if (loading) {
     return (
@@ -704,7 +557,25 @@ export default function PrayerTimeClientPage() {
 
   return (
     <>
-      <Toaster position="top-center" />
+      <Toaster
+        position="top-center"
+        containerStyle={{ marginTop: 72 }}
+        toastOptions={{
+          style: {
+            borderRadius: "16px",
+            background: "rgba(255, 255, 255, 0.10)",
+            backdropFilter: "blur(28px)",
+            color: "#FFF",
+            textAlign: "center",
+            fontFamily: "Pretendard, sans-serif",
+            fontSize: "14px",
+            fontStyle: "normal",
+            fontWeight: 500,
+            lineHeight: "150%",
+            padding: "12px 16px",
+          },
+        }}
+      />
       <Header />
       <Page>
         <Main>
@@ -712,88 +583,79 @@ export default function PrayerTimeClientPage() {
             <Cross>
               <img src="/images/apps/notk/theCross.svg" alt="십자가" />
             </Cross>
-            <Timer>{formatTime(timerSeconds, true)}</Timer>
+            <Timer>{formatTime(timer.displaySeconds)}</Timer>
             <BtnRow>
-              {!isPraying && (
+              {!timer.isPraying && (
                 <Btn $variant="gray" onClick={handleStart} whileTap={{ scale: 0.98 }}>
                   기도 시작
                 </Btn>
               )}
-              {isPraying && !isPaused && (
+              {timer.isPraying && !timer.isPaused && (
                 <>
                   <Btn $variant="gray" onClick={handleComplete} whileTap={{ scale: 0.98 }}>완료</Btn>
-                  <Btn $variant="red" onClick={handlePause} whileTap={{ scale: 0.98 }}>중지</Btn>
+                  <Btn $variant="red" onClick={timer.pause} whileTap={{ scale: 0.98 }}>중지</Btn>
                 </>
               )}
-              {isPraying && isPaused && (
+              {timer.isPraying && timer.isPaused && (
                 <>
                   <Btn $variant="gray" onClick={handleComplete} whileTap={{ scale: 0.98 }}>초기화</Btn>
-                  <Btn $variant="blue" onClick={handleResume} whileTap={{ scale: 0.98 }}>계속</Btn>
+                  <Btn $variant="blue" onClick={timer.resume} whileTap={{ scale: 0.98 }}>계속</Btn>
                 </>
               )}
             </BtnRow>
-            {!isPraying && !showStats && (
+            <ScrollHintWrap $visible={!timer.isPraying && !showStats}>
               <ScrollHint onClick={scrollToStats} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>
-                <ScrollHintIcon className="scroll-hint-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <ScrollHintIcon className="scroll-hint-icon" aria-hidden>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M7 9.5l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                   </svg>
                 </ScrollHintIcon>
-                <span>통계 보기</span>
               </ScrollHint>
-            )}
+            </ScrollHintWrap>
           </Hero>
 
-          {showStats && (
-            <StatsBlock ref={statsRef}>
-              {activeUsers.length > 0 && (
-                <LiveChip onClick={() => setLiveModalOpen(true)} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                  <span>
-                    <LiveDot />
-                    <LiveLabel>LIVE</LiveLabel>
-                    {activeUsers.length}명 기도 중
-                  </span>
-                  <span style={{ color: "rgba(255,255,255,0.6)" }}>▼</span>
-                </LiveChip>
-              )}
-              {dailyStats.length > 0 && (
-                <div style={{ textAlign: "center", marginBottom: 16, color: "#fff", fontSize: 16, fontWeight: 600 }}>
-                  이번 달 {dailyStats.length}일 기도함
-                </div>
-              )}
-              <Grid2>
+          <StatsBlock ref={statsRef}>
+            {activeUsers.length > 0 && (
+              <LiveChip onClick={() => setLiveModalOpen(true)} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                <span>
+                  <LiveDot />
+                  <LiveLabel>LIVE</LiveLabel>
+                  {activeUsers.length}명 기도 중
+                </span>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>▼</span>
+              </LiveChip>
+            )}
+            <Grid2>
                 <Card initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                   <CardLabel>오늘 나의 기도 시간</CardLabel>
-                  <CardValue>{formatMinutes(myStats?.today_seconds ?? 0)}</CardValue>
+                  <CardValue>{formatMinutes(stats.myStats?.today_seconds ?? 0)}</CardValue>
                 </Card>
                 <Card initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                   <CardLabel>나의 총 기도 시간</CardLabel>
-                  <CardValue>{formatMinutes(myStats?.total_seconds ?? 0)}</CardValue>
+                  <CardValue>{formatMinutes(stats.myStats?.total_seconds ?? 0)}</CardValue>
                 </Card>
               </Grid2>
               <Card initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                 <CardLabel>허브 총 기도 시간</CardLabel>
-                <CardValueLarge>{formatHoursMinutes(communityStats?.total_seconds ?? 0)}</CardValueLarge>
+                <CardValueLarge>{formatHoursMinutes(stats.communityStats?.total_seconds ?? 0)}</CardValueLarge>
               </Card>
               <CalendarWrap initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
                 <CalendarHeader>
                   <CalendarTitle>{calendarMonthLabel}</CalendarTitle>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <CalendarNav type="button" onClick={goPrevMonth} aria-label="이전 달">‹</CalendarNav>
-                    <CalendarNav type="button" onClick={goNextMonth} aria-label="다음 달">›</CalendarNav>
+                    <CalendarNav type="button" onClick={daily.goPrevMonth} aria-label="이전 달">‹</CalendarNav>
+                    <CalendarNav type="button" onClick={daily.goNextMonth} aria-label="다음 달">›</CalendarNav>
                   </div>
                 </CalendarHeader>
-                <WeekdayRow>
+                <CalendarTable>
                   {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-                    <span key={d}>{d}</span>
+                    <WeekdayCell key={d}>{d}</WeekdayCell>
                   ))}
-                </WeekdayRow>
-                <CalendarGrid>
                   {calendarCells.map((day, i) => {
                     const empty = day === null;
                     const dateKey =
                       !empty && day !== null
-                        ? new Date(calYear, calMonth, day).toISOString().slice(0, 10)
+                        ? `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
                         : "";
                     const sec = empty ? 0 : dailyMap.get(dateKey) ?? 0;
                     const hasPrayer = sec > 0;
@@ -816,10 +678,9 @@ export default function PrayerTimeClientPage() {
                       </CalendarCell>
                     );
                   })}
-                </CalendarGrid>
+                </CalendarTable>
               </CalendarWrap>
-            </StatsBlock>
-          )}
+          </StatsBlock>
         </Main>
       </Page>
 
@@ -839,11 +700,8 @@ export default function PrayerTimeClientPage() {
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
               <ModalHead>
-                <ModalTitle>
-                  <LiveDot />
-                  기도 중인 사람들
-                </ModalTitle>
-                <ModalClose onClick={() => setLiveModalOpen(false)}>×</ModalClose>
+                <ModalTitle>기도방</ModalTitle>
+                <ModalClose onClick={() => setLiveModalOpen(false)} aria-label="닫기">×</ModalClose>
               </ModalHead>
               {activeUsers.length > 0 ? (
                 activeUsers
@@ -855,12 +713,18 @@ export default function PrayerTimeClientPage() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.04 }}
                     >
-                      <UserName>{user.name}</UserName>
-                      <UserDuration>{formatTime(user.duration_seconds ?? 0)}</UserDuration>
+                      <UserAvatar>{user.name?.slice(0, 1) || "?"}</UserAvatar>
+                      <UserInfo>
+                        <UserName>{user.name}</UserName>
+                        <UserGroup>허브인</UserGroup>
+                      </UserInfo>
+                        <UserTimeWrap>
+                          <UserDuration>{formatTime(user.duration_seconds ?? 0)}</UserDuration>
+                        </UserTimeWrap>
                     </UserRow>
                   ))
               ) : (
-                <div style={{ textAlign: "center", padding: 32, color: "rgba(255,255,255,0.5)" }}>
+                <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
                   현재 기도 중인 사람이 없습니다.
                 </div>
               )}

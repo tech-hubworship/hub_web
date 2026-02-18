@@ -9,8 +9,9 @@ export const dynamic = "force-dynamic";
 /**
  * 기도 종료 API
  * POST /api/prayer-time/stop
+ * Body: { duration_seconds?: number } — 클라이언트가 측정한 실제 기도 시간(중지 시간 제외). 없으면 서버 계산.
  */
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -18,9 +19,18 @@ export async function POST() {
     }
 
     const userId = session.user.id;
-    // 종료 시각: 서버 현재 시각(UTC)으로 계산해 시간대/파싱 오차 방지
-    const endTimeMs = Date.now();
     const endTimeISO = getKoreanISOString();
+
+    // 클라이언트가 보낸 실제 기도 시간(토스트에 표시된 값과 동일하게 저장)
+    let durationSeconds: number | null = null;
+    try {
+      const body = await req.json();
+      if (typeof body?.duration_seconds === "number" && body.duration_seconds >= 0) {
+        durationSeconds = Math.floor(body.duration_seconds);
+      }
+    } catch {
+      // body 없거나 파싱 실패 시 무시
+    }
 
     // 진행 중인 기도 시간 레코드 찾기
     const { data: activePrayer, error: findError } = await supabaseAdmin
@@ -44,11 +54,13 @@ export async function POST() {
       );
     }
 
-    // 기도 시간 계산: start_time은 DB 저장값 그대로 파싱, end는 Date.now()로 비교
-    const startTimeMs = new Date(activePrayer.start_time).getTime();
-    let durationSeconds = Math.floor((endTimeMs - startTimeMs) / 1000);
-
-    // 시계 오차로 음수면 0, 1초 미만이면 1초로 저장(최소 1초 이상만 허용하던 검증 완화)
+    // duration이 없으면 서버에서 start~now로 계산(기존 동작)
+    if (durationSeconds == null) {
+      const startTimeMs = new Date(activePrayer.start_time).getTime();
+      durationSeconds = Math.floor((Date.now() - startTimeMs) / 1000);
+    }
+    // 상한: 24시간 (시계 오차·오용 방지)
+    if (durationSeconds > 86400) durationSeconds = 86400;
     if (durationSeconds < 0) durationSeconds = 0;
     if (durationSeconds < 1) durationSeconds = 1;
 
