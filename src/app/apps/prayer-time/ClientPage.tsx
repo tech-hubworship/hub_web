@@ -60,24 +60,42 @@ const formatHoursMinutes = (seconds: number) => {
   return `${h}시간 ${m}분`;
 };
 
-// ——— 스타일 (Figma: background.svg 전체 배경, 메인·통계 경계 없음) ———
-const Page = styled.div`
-  min-height: 100vh;
-  min-height: 100dvh; /* 모바일 주소창 높이 변동 대응 */
+// ——— 스타일 (Figma: background.svg 고정 배경 - iOS에서도 스크롤 시 고정) ———
+/* 배경: position fixed div 사용 (iOS Safari는 background-attachment: fixed 미지원) */
+const FixedBackground = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 0;
   background: #121212;
   background-image: url("/images/apps/notk/background.svg");
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
-  padding-bottom: env(safe-area-inset-bottom, 0); /* 노치/홈 인디케이터 아래까지 배경 유지 */
-  &::before {
+  &::after {
     content: "";
-    position: fixed;
+    position: absolute;
     inset: 0;
     background: rgba(18, 18, 18, 0.55);
-    z-index: 0;
-    pointer-events: none;
   }
+`;
+
+/* 아이폰 하단 safe area 밝음 방지: 고정된 어두운 막대 */
+const SafeAreaBottomFill = styled.div`
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background: #121212;
+  z-index: 1;
+  pointer-events: none;
+`;
+
+const Page = styled.div`
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0);
   > * { position: relative; z-index: 1; }
 `;
 
@@ -508,7 +526,7 @@ export default function PrayerTimeClientPage() {
   const [showStats, setShowStats] = useState(false);
   const statsRef = useRef<HTMLElement>(null);
 
-  // 모바일에서 아래로 오버스크롤 시 밝게 보이는 현상 방지: body 배경을 페이지와 동일하게
+  // 아이폰 오버스크롤 시 밝게 보이는 현상 방지
   useEffect(() => {
     const prev = document.body.style.backgroundColor;
     document.body.style.backgroundColor = "#121212";
@@ -604,6 +622,8 @@ export default function PrayerTimeClientPage() {
   if (isInitialLoading) {
     return (
       <>
+        <FixedBackground aria-hidden />
+        <SafeAreaBottomFill aria-hidden />
         <Header />
         <Page>
           <Main />
@@ -637,6 +657,8 @@ export default function PrayerTimeClientPage() {
           },
         }}
       />
+      <FixedBackground aria-hidden />
+      <SafeAreaBottomFill aria-hidden />
       <Header />
       <Page>
         <Main>

@@ -1,10 +1,17 @@
 import React from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import ClientPage from "./ClientPage";
 
 export const metadata: Metadata = {
   title: "기도 시간",
   description: "허브 기도 시간 측정 앱",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#121212",
 };
 
 export default function Page() {
