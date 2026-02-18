@@ -145,7 +145,7 @@ export default function UsersAdminPage() {
       return response.json();
     },
     enabled: true, // 항상 활성화 (초기 로드 시에도 조회)
-    refetchInterval: autoRefresh ? 30000 : false, // 실시간 업데이트 토글
+    refetchInterval: autoRefresh ? 60000 : false, // 1분 간격 (Edge 요청 절감)
   });
 
   // 그룹 목록 조회 (hub_groups 테이블에는 community 컬럼이 없으므로 모든 그룹 반환)

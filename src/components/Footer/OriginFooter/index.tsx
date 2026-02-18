@@ -83,13 +83,13 @@ const OriginFooter: FC<{ variant?: "default" | "dark" }> = ({ variant = "default
             <ArrowRight />
           </St.TitleButton>
           <St.LegalLinks>
-            <Link href="/law/intro" passHref legacyBehavior>
+            <Link href="/law/intro" passHref legacyBehavior prefetch={false}>
               <St.LegalLink>사이트 소개</St.LegalLink>
             </Link>
-            <Link href="/law/terms" passHref legacyBehavior>
+            <Link href="/law/terms" passHref legacyBehavior prefetch={false}>
               <St.LegalLink>이용약관</St.LegalLink>
             </Link>
-            <Link href="/law/privacy" passHref legacyBehavior>
+            <Link href="/law/privacy" passHref legacyBehavior prefetch={false}>
               <St.LegalLink>개인정보 처리방침</St.LegalLink>
             </Link>
           </St.LegalLinks>

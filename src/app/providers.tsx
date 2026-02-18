@@ -5,6 +5,7 @@ import { Global } from "@emotion/react";
 import { MotionConfig } from "framer-motion";
 import Script from "next/script";
 import React from "react";
+import { usePathname } from "next/navigation";
 import { RecoilRoot } from "recoil";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -30,6 +31,8 @@ function makeQueryClient() {
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = React.useState(makeQueryClient);
+  const pathname = usePathname();
+  const isAdmin = pathname?.startsWith("/admin") ?? false;
 
   return (
     <RecoilRoot>
@@ -58,8 +61,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <MotionConfig isValidProp={isValidProp}>
             {children}
-            <Analytics />
-            <SpeedInsights sampleRate={0.2} />
+            {!isAdmin && <Analytics />}
+            <SpeedInsights sampleRate={0.1} />
           </MotionConfig>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>

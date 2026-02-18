@@ -2,6 +2,8 @@ import React from "react";
 import type { Metadata } from "next";
 import ClientPage from "./ClientPage";
 
+export const dynamic = "force-static";
+
 export const metadata: Metadata = {
   title: "사이트 소개",
   description: "HUB Worship 웹사이트 소개",

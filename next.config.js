@@ -67,8 +67,9 @@ const nextConfig = {
           },
         ],
       },
+      // 아이콘 전체 장기 캐시 (Edge 요청 절감)
       {
-        source: '/icons/advent_logo.svg',
+        source: '/icons/:path*',
         headers: [
           {
             key: 'Cache-Control',
