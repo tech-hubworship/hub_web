@@ -63,11 +63,13 @@ const formatHoursMinutes = (seconds: number) => {
 // ——— 스타일 (Figma: background.svg 전체 배경, 메인·통계 경계 없음) ———
 const Page = styled.div`
   min-height: 100vh;
+  min-height: 100dvh; /* 모바일 주소창 높이 변동 대응 */
   background: #121212;
   background-image: url("/images/apps/notk/background.svg");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
+  padding-bottom: env(safe-area-inset-bottom, 0); /* 노치/홈 인디케이터 아래까지 배경 유지 */
   &::before {
     content: "";
     position: fixed;
@@ -77,6 +79,42 @@ const Page = styled.div`
     pointer-events: none;
   }
   > * { position: relative; z-index: 1; }
+`;
+
+const SplashScreen = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #121212;
+  background-image: url("/images/apps/notk/background.svg");
+  background-size: cover;
+  background-position: center;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(18, 18, 18, 0.55);
+  }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+  font-weight: 500;
+`;
+
+const SplashSpinner = styled.div`
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  animation: splash-spin 0.8s linear infinite;
+  @keyframes splash-spin {
+    to { transform: rotate(360deg); }
+  }
 `;
 
 const Main = styled.main`
@@ -90,13 +128,28 @@ const Main = styled.main`
   background: transparent;
 `;
 
+/* 첫 화면: 타이머 ~ 아래 화살표까지 한 뷰포트에 맞춤 (헤더 높이 제외) */
+const FirstScreen = styled.section`
+  width: 100%;
+  min-height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0 0;
+  box-sizing: border-box;
+  @media (min-width: 58.75rem) {
+    min-height: calc(100vh - 80px);
+  }
+`;
+
 const Hero = styled.section`
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 0 32px;
+  padding: 24px 0 16px;
 `;
 
 const Cross = styled.div`
@@ -145,8 +198,6 @@ const Btn = styled(motion.button)<{ $variant?: BtnVariant } & React.ComponentPro
       : p.$variant === "blue"
         ? "#0a84ff"
         : "rgba(255,255,255,0.12)"};
-  border: ${(p) =>
-    p.$variant !== "red" && p.$variant !== "blue" ? "1px solid rgba(255,255,255,0.2)" : "none"};
   &:hover {
     background: ${(p) =>
       p.$variant === "red"
@@ -159,8 +210,9 @@ const Btn = styled(motion.button)<{ $variant?: BtnVariant } & React.ComponentPro
 
 /* 레이아웃 유지: 기도 시작 후에도 통계 보기 영역 높이 확보 */
 const ScrollHintWrap = styled.div<{ $visible: boolean }>`
-  min-height: 56px;
-  margin-top: 24px;
+  flex-shrink: 0;
+  min-height: 48px;
+  padding-bottom: 8px;
   opacity: ${(p) => (p.$visible ? 1 : 0)};
   pointer-events: ${(p) => (p.$visible ? "auto" : "none")};
   visibility: ${(p) => (p.$visible ? "visible" : "hidden")};
@@ -209,7 +261,6 @@ const LiveChip = styled(motion.button)<React.ComponentPropsWithoutRef<"button">>
   padding: 14px 16px;
   margin-bottom: 20px;
   background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 12px;
   color: #fff;
   font-size: 15px;
@@ -242,7 +293,6 @@ const LiveLabel = styled.span`
 
 const Card = styled(motion.div)`
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
   padding: 16px 18px;
   margin-bottom: 12px;
@@ -443,7 +493,7 @@ const UserDuration = styled.span`
 
 // ——— 컴포넌트 ———
 export default function PrayerTimeClientPage() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const userId = session?.user?.id;
   const {
     loading,
@@ -452,10 +502,20 @@ export default function PrayerTimeClientPage() {
     activeUsers,
     daily,
   } = usePrayerTime(userId ?? undefined);
+  const isInitialLoading = sessionStatus === "loading" || loading;
 
   const [liveModalOpen, setLiveModalOpen] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const statsRef = useRef<HTMLElement>(null);
+
+  // 모바일에서 아래로 오버스크롤 시 밝게 보이는 현상 방지: body 배경을 페이지와 동일하게
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "#121212";
+    return () => {
+      document.body.style.backgroundColor = prev;
+    };
+  }, []);
 
   const handleStart = useCallback(async () => {
     if (!userId) {
@@ -541,16 +601,17 @@ export default function PrayerTimeClientPage() {
     month: "long",
   });
 
-  if (loading) {
+  if (isInitialLoading) {
     return (
       <>
         <Header />
         <Page>
-          <Main>
-            <div style={{ color: "rgba(255,255,255,0.6)", padding: 48 }}>로딩 중...</div>
-          </Main>
+          <Main />
         </Page>
-        <Footer />
+        <SplashScreen aria-live="polite" aria-busy="true">
+          <SplashSpinner aria-hidden />
+          <span>기도 시간</span>
+        </SplashScreen>
       </>
     );
   }
@@ -579,30 +640,32 @@ export default function PrayerTimeClientPage() {
       <Header />
       <Page>
         <Main>
-          <Hero>
-            <Cross>
-              <img src="/images/apps/notk/theCross.svg" alt="십자가" />
-            </Cross>
-            <Timer>{formatTime(timer.displaySeconds)}</Timer>
-            <BtnRow>
-              {!timer.isPraying && (
-                <Btn $variant="gray" onClick={handleStart} whileTap={{ scale: 0.98 }}>
-                  기도 시작
-                </Btn>
-              )}
-              {timer.isPraying && !timer.isPaused && (
-                <>
-                  <Btn $variant="gray" onClick={handleComplete} whileTap={{ scale: 0.98 }}>완료</Btn>
-                  <Btn $variant="red" onClick={timer.pause} whileTap={{ scale: 0.98 }}>중지</Btn>
-                </>
-              )}
-              {timer.isPraying && timer.isPaused && (
-                <>
-                  <Btn $variant="gray" onClick={handleComplete} whileTap={{ scale: 0.98 }}>초기화</Btn>
-                  <Btn $variant="blue" onClick={timer.resume} whileTap={{ scale: 0.98 }}>계속</Btn>
-                </>
-              )}
-            </BtnRow>
+          <FirstScreen>
+            <Hero>
+              <Cross>
+                <img src="/images/apps/notk/theCross.svg" alt="십자가" />
+              </Cross>
+              <Timer>{formatTime(timer.displaySeconds)}</Timer>
+              <BtnRow>
+                {!timer.isPraying && (
+                  <Btn $variant="gray" onClick={handleStart} whileTap={{ scale: 0.98 }}>
+                    기도 시작
+                  </Btn>
+                )}
+                {timer.isPraying && !timer.isPaused && (
+                  <>
+                    <Btn $variant="gray" onClick={handleComplete} whileTap={{ scale: 0.98 }}>완료</Btn>
+                    <Btn $variant="red" onClick={timer.pause} whileTap={{ scale: 0.98 }}>중지</Btn>
+                  </>
+                )}
+                {timer.isPraying && timer.isPaused && (
+                  <>
+                    <Btn $variant="gray" onClick={handleComplete} whileTap={{ scale: 0.98 }}>초기화</Btn>
+                    <Btn $variant="blue" onClick={timer.resume} whileTap={{ scale: 0.98 }}>계속</Btn>
+                  </>
+                )}
+              </BtnRow>
+            </Hero>
             <ScrollHintWrap $visible={!timer.isPraying && !showStats}>
               <ScrollHint onClick={scrollToStats} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>
                 <ScrollHintIcon className="scroll-hint-icon" aria-hidden>
@@ -612,7 +675,7 @@ export default function PrayerTimeClientPage() {
                 </ScrollHintIcon>
               </ScrollHint>
             </ScrollHintWrap>
-          </Hero>
+          </FirstScreen>
 
           <StatsBlock ref={statsRef}>
             {activeUsers.length > 0 && (
@@ -733,7 +796,7 @@ export default function PrayerTimeClientPage() {
         )}
       </AnimatePresence>
 
-      <Footer />
+      <Footer variant="dark" />
     </>
   );
 }

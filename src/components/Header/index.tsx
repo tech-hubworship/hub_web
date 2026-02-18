@@ -29,6 +29,7 @@ import { MenuState } from "./types";
 export function Header() {
   const pathname = usePathname();
   const isRootPath = pathname === "/"; // 홈페이지 여부 확인
+  const darkMode = pathname?.includes("/apps/prayer-time") ?? false;
 
   // 스크롤 기반 투명도 상태
   const [opacity, setOpacity] = useState(0);
@@ -86,22 +87,21 @@ export function Header() {
   };
 
   return (
-    <S.Wrapper opacity={1} isMenuOpen={isMenuOpen}>
+    <S.Wrapper opacity={darkMode ? 1 : 1} isMenuOpen={isMenuOpen} darkMode={darkMode}>
       {/* 로고 - 클릭 시 홈페이지로 이동 */}
-      <Logo
-        onClick={handleLogoClick}
-        opacity={1}
-      />
+      <Logo onClick={handleLogoClick} opacity={1} $darkMode={darkMode} />
 
-      {/* 데스크톱 헤더 메뉴 - 우측 끝 */}
-      <DesktopMenuWrapper>
-        <DesktopMenu />
-      </DesktopMenuWrapper>
-
-      {/* 모바일 헤더 메뉴 - 우측 끝 */}
-      <MobileMenuWrapper>
-      <MobileHeader onMenuStateChange={handleMenuStateChange} />
-      </MobileMenuWrapper>
+      {/* 데스크톱/모바일 메뉴 - 다크 모드(기도시간)에서는 숨김 */}
+      {!darkMode && (
+        <>
+          <DesktopMenuWrapper>
+            <DesktopMenu />
+          </DesktopMenuWrapper>
+          <MobileMenuWrapper>
+            <MobileHeader onMenuStateChange={handleMenuStateChange} />
+          </MobileMenuWrapper>
+        </>
+      )}
     </S.Wrapper>
   );
 }
@@ -113,7 +113,7 @@ export function Header() {
  * 
  * @param opacity 로고의 투명도 (0-1)
  */
-export const Logo = styled.button<{ opacity: number }>`
+export const Logo = styled.button<{ opacity: number; $darkMode?: boolean }>`
   width: 168.03px;
   height: 14.69px;
   margin-left: 0;
@@ -122,6 +122,7 @@ export const Logo = styled.button<{ opacity: number }>`
   cursor: pointer;
   opacity: ${({ opacity }) => opacity};
   transition: opacity 0.3s ease;
+  ${({ $darkMode }) => $darkMode && "filter: brightness(0) invert(1);"}
 
   @media (min-width: 58.75rem) {
     width: 240px;

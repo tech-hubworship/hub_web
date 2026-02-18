@@ -1,10 +1,10 @@
 import styled from '@emotion/styled';
 import { colors } from '@sopt-makers/colors';
 
-export const Root = styled.footer`
+export const Root = styled.footer<{ variant?: "default" | "dark" }>`
   width: 100%;
   min-height: 162px;
-  background-color: #202020;
+  background-color: ${({ variant }) => (variant === "dark" ? "#121212" : "#202020")};
 
   /* 태블릿 + 데스크탑 뷰 */
   @media (min-width: 47.875rem) {

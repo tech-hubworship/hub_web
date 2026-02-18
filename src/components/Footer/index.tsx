@@ -15,14 +15,9 @@ import OriginFooter from "./OriginFooter";
 
 /**
  * Footer 컴포넌트
- * 
- * 메인 푸터 컴포넌트를 렌더링합니다.
- * OriginFooter 컴포넌트를 포함하여 전체 푸터 기능을 제공합니다.
+ *
+ * @param variant "dark"면 페이지와 동일한 어두운 배경(#121212). 기도시간 등 앱 화면에서 사용.
  */
-export default function Footer() {
-  return (
-    <>
-      <OriginFooter />
-    </>
-  );
+export default function Footer({ variant }: { variant?: "default" | "dark" }) {
+  return <OriginFooter variant={variant} />;
 }

@@ -4,7 +4,7 @@ import ArrowRight from "@src/assets/icons/arrow_right_16x16.svg";
 import Channels from "@src/components/Footer/Channels";
 import * as St from "./style";
 
-const OriginFooter: FC = () => {
+const OriginFooter: FC<{ variant?: "default" | "dark" }> = ({ variant = "default" }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -75,7 +75,7 @@ const OriginFooter: FC = () => {
   };
 
   return (
-    <St.Root>
+    <St.Root variant={variant}>
       <St.ContentWrap>
         <div>
           <St.TitleButton onClick={handleClick}>
