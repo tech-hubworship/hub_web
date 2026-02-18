@@ -5,6 +5,13 @@ export const Root = styled.footer<{ variant?: "default" | "dark" }>`
   width: 100%;
   min-height: 162px;
   background-color: ${({ variant }) => (variant === "dark" ? "#121212" : "#202020")};
+  position: relative;
+  z-index: 2;
+  ${({ variant }) =>
+    variant === "dark" &&
+    `
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  `}
 
   /* 태블릿 + 데스크탑 뷰 */
   @media (min-width: 47.875rem) {

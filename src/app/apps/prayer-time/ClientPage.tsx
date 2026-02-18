@@ -78,18 +78,6 @@ const FixedBackground = styled.div`
   }
 `;
 
-/* 아이폰 하단 safe area 밝음 방지: 고정된 어두운 막대 */
-const SafeAreaBottomFill = styled.div`
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-bottom, 0px);
-  background: #121212;
-  z-index: 1;
-  pointer-events: none;
-`;
-
 const Page = styled.div`
   position: relative;
   z-index: 1;
@@ -623,7 +611,6 @@ export default function PrayerTimeClientPage() {
     return (
       <>
         <FixedBackground aria-hidden />
-        <SafeAreaBottomFill aria-hidden />
         <Header />
         <Page>
           <Main />
@@ -658,7 +645,6 @@ export default function PrayerTimeClientPage() {
         }}
       />
       <FixedBackground aria-hidden />
-      <SafeAreaBottomFill aria-hidden />
       <Header />
       <Page>
         <Main>
