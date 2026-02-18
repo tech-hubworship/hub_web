@@ -11,7 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { SessionProvider } from "next-auth/react";
 import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+// import { SpeedInsights } from "@vercel/speed-insights/next"; // 무료 플랜 소진으로 미사용
 import { global } from "@src/lib/styles/global";
 
 function makeQueryClient() {
@@ -62,7 +62,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <MotionConfig isValidProp={isValidProp}>
             {children}
             {!isAdmin && <Analytics />}
-            <SpeedInsights sampleRate={0.1} />
+            {/* <SpeedInsights sampleRate={0.1} /> 무료 플랜 소진으로 미사용 */}
           </MotionConfig>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
