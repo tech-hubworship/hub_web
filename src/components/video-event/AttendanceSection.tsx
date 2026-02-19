@@ -771,7 +771,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     const isPast = dayNumber ? day < dayNumber : false;
     const isToday = day === dayNumber;
     
-    const borderColor = isAttended ? '#2E2E2E' : (isPast ? '#4B4B4B' : '#ffffff');
+    const borderColor = isAttended ? '#5C0000' : (isPast ? '#4B4B4B' : '#ffffff');
     const textColor = isAttended ? '#ffffff' : (isPast ? '#4B4B4B' : '#ffffff');
 
     return (
@@ -788,7 +788,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
           fill="none" 
           xmlns="http://www.w3.org/2000/svg"
           color={borderColor}
-          fillColor={isAttended ? '#2E2E2E' : undefined}
+          fillColor={isAttended ? '#5C0000' : undefined}
         >
           <mask id={`path-1-inside-1_${day}`} fill="white">
             <path d="M30.9639 0C40.125 6.57003e-05 47.5573 7.3962 47.6182 16.543H61.9277V83.4736H0V16.543H14.3096C14.3705 7.39616 21.8027 0 30.9639 0Z"/>
@@ -887,7 +887,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
                 const isEmpty = dayNum === null;
                 const isAttended = dayNum !== null && !!attendanceMap[dayNum];
                 return (
-                  <CalendarCell key={col} $isEmpty={isEmpty} style={dayNum && isAttended ? { background: '#2E2E2E' } : undefined}>
+                  <CalendarCell key={col} $isEmpty={isEmpty} style={dayNum && isAttended ? { background: '#5C0000' } : undefined}>
                     <CalendarCellInner>
                       {dayNum !== null && (
                         <span style={{ color: '#ffffff', fontSize: 'inherit', fontWeight: 600 }}>

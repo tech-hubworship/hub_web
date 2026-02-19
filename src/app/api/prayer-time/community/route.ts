@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@src/lib/auth";
 import { supabaseAdmin } from "@src/lib/supabase";
+import { getKoreanDateFormatted } from "@src/lib/utils/date";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,11 +18,13 @@ export async function GET(req: Request) {
     }
 
     const url = new URL(req.url);
-    const date = url.searchParams.get("date");
-    const targetDate = date ? new Date(date) : new Date();
-    targetDate.setHours(0, 0, 0, 0);
-    const nextDate = new Date(targetDate);
-    nextDate.setDate(nextDate.getDate() + 1);
+    const dateParam = url.searchParams.get("date");
+    const dateKey = dateParam ?? getKoreanDateFormatted();
+    const todayStartISO = `${dateKey}T00:00:00.000+09:00`;
+    const startOfDayKst = new Date(`${dateKey}T00:00:00+09:00`);
+    const startOfNextDayKst = new Date(startOfDayKst.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowStr = startOfNextDayKst.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+    const todayEndISO = `${tomorrowStr}T00:00:00.000+09:00`;
 
     // 허브 전체 기도 시간 합계
     const { data: allPrayers, error: allError } = await supabaseAdmin
@@ -41,12 +44,12 @@ export async function GET(req: Request) {
       allPrayers?.reduce((sum, p: any) => sum + (p.duration_seconds || 0), 0) ||
       0;
 
-    // 각 허브 지체의 기도 시간 목록 (오늘 기준)
+    // 각 허브 지체의 기도 시간 목록 (한국 시간 기준 오늘)
     const { data: todayPrayers, error: todayError } = await supabaseAdmin
       .from("prayer_times")
       .select("user_id, duration_seconds")
-      .gte("start_time", targetDate.toISOString())
-      .lt("start_time", nextDate.toISOString())
+      .gte("start_time", todayStartISO)
+      .lt("start_time", todayEndISO)
       .not("duration_seconds", "is", null);
 
     if (todayError) {
@@ -106,7 +109,7 @@ export async function GET(req: Request) {
         data: {
           total_seconds: totalSeconds,
           user_stats: userStats,
-          date: targetDate.toISOString().split("T")[0],
+          date: dateKey,
         },
       },
       { status: 200 }

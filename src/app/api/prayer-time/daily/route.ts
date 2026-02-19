@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@src/lib/auth";
 import { supabaseAdmin } from "@src/lib/supabase";
+import { getKoreanDateFormatted } from "@src/lib/utils/date";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,8 +42,7 @@ export async function GET(req: Request) {
       rangeStart = `${start_date}T00:00:00.000+09:00`;
       rangeEnd = `${end_date}T23:59:59.999+09:00`;
     } else {
-      const now = new Date();
-      const kstDate = now.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+      const kstDate = getKoreanDateFormatted();
       const [y, m] = kstDate.split("-");
       rangeStart = `${y}-${m}-01T00:00:00.000+09:00`;
       rangeEnd = `${kstDate}T23:59:59.999+09:00`;

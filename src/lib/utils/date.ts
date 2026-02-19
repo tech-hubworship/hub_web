@@ -1,13 +1,18 @@
 /**
- * 한국 시간(KST, UTC+9) 관련 유틸리티 함수들
+ * 한국 시간(KST, Asia/Seoul) 관련 유틸리티 함수들
+ * 서버(UTC)와 로컬 환경에서 동일한 날짜가 나오도록 timeZone을 명시해 사용합니다.
  */
 
+/** 한국 시간 기준 오늘 날짜 문자열 YYYY-MM-DD (로컬/서버 공통) */
+function getKoreanDateStringInternal(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+}
+
 /**
- * 한국 시간 기준 현재 Date 객체 반환
+ * 한국 시간 기준 현재 Date 객체 반환 (한국 0시 기준이 아닌, 현재 시각의 KST 반영)
  */
 export const getKoreanDate = (): Date => {
   const now = new Date();
-  // UTC 시간에 9시간(한국 시간대)을 더함
   return new Date(now.getTime() + (9 * 60 * 60 * 1000));
 };
 
@@ -15,16 +20,15 @@ export const getKoreanDate = (): Date => {
  * 한국 시간 기준 현재 날짜를 YYYYMMDD 형식으로 반환
  */
 export const getKoreanDateString = (): string => {
-  const koreanDate = getKoreanDate();
-  return koreanDate.toISOString().slice(0, 10).replace(/-/g, '');
+  return getKoreanDateStringInternal().replace(/-/g, "");
 };
 
 /**
  * 한국 시간 기준 현재 날짜를 YYYY-MM-DD 형식으로 반환
+ * (서버 UTC 환경에서도 하루 밀리지 않도록 timeZone 명시)
  */
 export const getKoreanDateFormatted = (): string => {
-  const koreanDate = getKoreanDate();
-  return koreanDate.toISOString().slice(0, 10);
+  return getKoreanDateStringInternal();
 };
 
 /**
@@ -34,8 +38,7 @@ export const getKoreanDateFormatted = (): string => {
 export const getKoreanISOString = (): string => {
   const now = new Date();
   const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-  // ISO 형식으로 변환 (밀리초 포함)
-  return koreanTime.toISOString().replace('Z', '+09:00');
+  return koreanTime.toISOString().replace("Z", "+09:00");
 };
 
 /**
@@ -45,7 +48,7 @@ export const getKoreanISOString = (): string => {
 export const getKoreanTimestamp = (): string => {
   const now = new Date();
   const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-  return koreanTime.toISOString().replace('T', ' ').replace('Z', '');
+  return koreanTime.toISOString().replace("T", " ").replace("Z", "");
 };
 
 /**
