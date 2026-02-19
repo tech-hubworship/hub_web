@@ -160,16 +160,13 @@ const Hero = styled.section`
 
 const Cross = styled.div`
   width: 100%;
-  max-width: 120px;
+  max-width: 200px;
   margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.9);
-  svg {
+  img {
     width: 100%;
     height: auto;
-    max-height: 160px;
+    aspect-ratio: 220 / 366;
+    object-fit: contain;
   }
 `;
 
@@ -653,11 +650,8 @@ export default function PrayerTimeClientPage() {
         <Main>
           <FirstScreen>
             <Hero>
-              <Cross aria-hidden>
-                <svg viewBox="0 0 56 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                  {/* 라틴 십자가: 세로 막대 + 가로 막대(위쪽 1/3) */}
-                  <path d="M28 4v72M10 28h36" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-                </svg>
+              <Cross>
+                <img src="/images/apps/notk/theCross.svg" alt="십자가" />
               </Cross>
               <Timer>{formatTime(timer.displaySeconds)}</Timer>
               <BtnRow>
