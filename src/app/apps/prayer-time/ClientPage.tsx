@@ -5,7 +5,7 @@
  * Figma: 메인 84-4370, 통계·캘린더 84-4381
  * https://www.figma.com/design/xwGBRQQLtFqblqCwwNFvCY/UI-Design?node-id=84-4370&m=dev
  * https://www.figma.com/design/xwGBRQQLtFqblqCwwNFvCY/UI-Design?node-id=84-4381&m=dev
- * - 배경: background.svg 전체 (메인·통계 경계 없음, 오버레이 fixed)
+ * - 배경: background.webp 전체 (메인·통계 경계 없음, 오버레이 fixed)
  * - 84-4381: LIVE N명 기도 중, 오늘/총/허브 기도 시간 카드, 월 그리드 캘린더(일~토, 기도 안 한 날 40% opacity)
  * - 81-3419: 통계 화면 (LIVE 빨간색, 카드 값 크기, 캘린더 +N 빨간색)
  */
@@ -60,14 +60,14 @@ const formatHoursMinutes = (seconds: number) => {
   return `${h}시간 ${m}분`;
 };
 
-// ——— 스타일 (Figma: background.svg 고정 배경 - iOS에서도 스크롤 시 고정) ———
+// ——— 스타일 (Figma: background.webp 고정 배경 - iOS에서도 스크롤 시 고정) ———
 /* 배경: position fixed div 사용 (iOS Safari는 background-attachment: fixed 미지원) */
 const FixedBackground = styled.div`
   position: fixed;
   inset: 0;
   z-index: 0;
   background: #121212;
-  background-image: url("/images/apps/notk/background.svg");
+  background-image: url("/images/apps/notk/background.webp");
   background-size: cover;
   background-position: center;
   &::after {
@@ -92,7 +92,7 @@ const SplashScreen = styled.div`
   inset: 0;
   z-index: 50;
   background: #121212;
-  background-image: url("/images/apps/notk/background.svg");
+  background-image: url("/images/apps/notk/background.webp");
   background-size: cover;
   background-position: center;
   &::before {
@@ -160,13 +160,16 @@ const Hero = styled.section`
 
 const Cross = styled.div`
   width: 100%;
-  max-width: 200px;
+  max-width: 120px;
   margin-bottom: 24px;
-  img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+  svg {
     width: 100%;
     height: auto;
-    aspect-ratio: 220 / 366;
-    object-fit: contain;
+    max-height: 160px;
   }
 `;
 
@@ -650,8 +653,11 @@ export default function PrayerTimeClientPage() {
         <Main>
           <FirstScreen>
             <Hero>
-              <Cross>
-                <img src="/images/apps/notk/theCross.svg" alt="십자가" />
+              <Cross aria-hidden>
+                <svg viewBox="0 0 56 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  {/* 라틴 십자가: 세로 막대 + 가로 막대(위쪽 1/3) */}
+                  <path d="M28 4v72M10 28h36" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                </svg>
               </Cross>
               <Timer>{formatTime(timer.displaySeconds)}</Timer>
               <BtnRow>

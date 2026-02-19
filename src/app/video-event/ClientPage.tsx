@@ -554,21 +554,21 @@ export default function VideoEventClientPage() {
     }
   }, []);
 
-  const fetchPreviousPosts = useCallback(async (currentPostDt?: string) => {
-    try {
-      setLoadingPrevious(true);
-      const response = await fetch("/api/video-event/posts-list?limit=12", { cache: "default" });
-      const data = await response.json();
-
-      if (response.ok) {
-        const filtered = data.posts?.filter((p: PreviousPost) => p.post_dt !== currentPostDt) || [];
-        setPreviousPosts(filtered.slice(0, 12));
-      }
-    } catch (err) {
-      console.error("지난 게시물 조회 오류:", err);
-    } finally {
-      setLoadingPrevious(false);
-    }
+  // 미사용: posts-list 호출 비활성화 (지난 영상 목록 미표시)
+  const fetchPreviousPosts = useCallback(async (_currentPostDt?: string) => {
+    // try {
+    //   setLoadingPrevious(true);
+    //   const response = await fetch("/api/video-event/posts-list?limit=12", { cache: "default" });
+    //   const data = await response.json();
+    //   if (response.ok) {
+    //     const filtered = data.posts?.filter((p: PreviousPost) => p.post_dt !== currentPostDt) || [];
+    //     setPreviousPosts(filtered.slice(0, 12));
+    //   }
+    // } catch (err) {
+    //   console.error("지난 게시물 조회 오류:", err);
+    // } finally {
+    //   setLoadingPrevious(false);
+    // }
   }, []);
 
   // URL 쿼리 date 사용 (없으면 fallback)
@@ -583,11 +583,12 @@ export default function VideoEventClientPage() {
   // 페이지당 아이템 수 (모바일: 5, PC: 8)
   const itemsPerPage = isMobile ? 5 : 8;
 
-  useEffect(() => {
-    if (post?.post_dt && !loading) {
-      fetchPreviousPosts(post.post_dt);
-    }
-  }, [post?.post_dt, loading, fetchPreviousPosts]);
+  // 미사용: posts-list 기반 지난 영상 목록 로드 비활성화
+  // useEffect(() => {
+  //   if (post?.post_dt && !loading) {
+  //     fetchPreviousPosts(post.post_dt);
+  //   }
+  // }, [post?.post_dt, loading, fetchPreviousPosts]);
 
   const handleCommentSubmit = useCallback(async (): Promise<boolean> => {
     if (!session?.user) {
