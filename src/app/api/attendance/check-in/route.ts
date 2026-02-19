@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
         if (!odTarget) {
           return Response.json(
-            { error: "OD 출석 대상이 아닙니다. 관리자에게 문의하세요.", code: "NOT_OD_TARGET" },
+            { error: "명단에 없습니다.", code: "NOT_OD_TARGET" },
             { status: 403 }
           );
         }

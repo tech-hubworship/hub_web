@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import * as S from "../users/style";
 
 export default function LateFeeManage() {
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
+  const [settleModalOpen, setSettleModalOpen] = useState(false);
+  const [settleAmount, setSettleAmount] = useState("");
+  const [settleNote, setSettleNote] = useState("");
+  const [settleSubmitting, setSettleSubmitting] = useState(false);
 
   const { data: listData, isLoading } = useQuery({
     queryKey: ["admin-late-fees"],
@@ -17,6 +21,7 @@ export default function LateFeeManage() {
     },
   });
 
+  const queryClient = useQueryClient();
   const { data: detailData, isLoading: detailLoading } = useQuery({
     queryKey: ["admin-late-fees-detail", detailUserId],
     queryFn: async () => {
@@ -26,11 +31,60 @@ export default function LateFeeManage() {
     },
     enabled: !!detailUserId,
   });
+  useEffect(() => {
+    if (detailUserId && detailData?.totalLateFee != null && settleModalOpen) {
+      setSettleAmount(String(detailData.totalLateFee));
+    }
+  }, [detailUserId, detailData?.totalLateFee, settleModalOpen]);
+
+  const openSettleModal = () => {
+    setSettleAmount(String(totalLateFee));
+    setSettleNote("");
+    setSettleModalOpen(true);
+  };
+
+  const submitSettle = async () => {
+    if (!detailUserId) return;
+    const amountNum = parseInt(settleAmount, 10);
+    if (Number.isNaN(amountNum) || amountNum < 0) {
+      alert("0 이상의 금액을 입력해주세요.");
+      return;
+    }
+    setSettleSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/attendance/late-fees/settle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: detailUserId,
+          amount: amountNum,
+          note: settleNote.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSettleModalOpen(false);
+        queryClient.invalidateQueries({ queryKey: ["admin-late-fees-detail", detailUserId] });
+        queryClient.invalidateQueries({ queryKey: ["admin-late-fees"] });
+        alert(data.message || "정산 기록되었습니다.");
+      } else {
+        alert(data.error || "저장 실패");
+      }
+    } catch {
+      alert("오류가 발생했습니다.");
+    } finally {
+      setSettleSubmitting(false);
+    }
+  };
 
   const list = listData?.data || [];
   const stats = listData?.stats || {};
   const detailLogs = detailData?.logs || [];
+  const detailSettlements = detailData?.settlements || [];
   const detailName = detailData?.name || "-";
+  const totalLateFee = detailData?.totalLateFee ?? 0;
+  const totalSettled = detailData?.totalSettled ?? 0;
+  const remaining = (detailData?.remaining ?? Math.max(0, totalLateFee - totalSettled)) as number;
 
   return (
     <>
@@ -101,7 +155,9 @@ export default function LateFeeManage() {
                 <S.TableRow>
                   <S.TableHead>이름</S.TableHead>
                   <S.TableHead>소속 (그룹 / 다락방)</S.TableHead>
-                  <S.TableHead>총 지각비</S.TableHead>
+                  <S.TableHead>지각비</S.TableHead>
+                  <S.TableHead>정산된 지각비</S.TableHead>
+                  <S.TableHead>잔여 지각비</S.TableHead>
                   <S.TableHead>상세</S.TableHead>
                 </S.TableRow>
               </S.TableHeader>
@@ -117,6 +173,16 @@ export default function LateFeeManage() {
                     <S.TableData>
                       <span style={{ color: "#dc2626", fontWeight: "bold" }}>
                         {item.total_late_fee.toLocaleString()}원
+                      </span>
+                    </S.TableData>
+                    <S.TableData>
+                      <span style={{ color: "#15803d", fontWeight: "600" }}>
+                        {(item.total_settled ?? 0).toLocaleString()}원
+                      </span>
+                    </S.TableData>
+                    <S.TableData>
+                      <span style={{ color: (item.remaining ?? item.total_late_fee) > 0 ? "#dc2626" : "#16a34a", fontWeight: "bold" }}>
+                        {(item.remaining ?? item.total_late_fee).toLocaleString()}원
                       </span>
                     </S.TableData>
                     <S.TableData>
@@ -185,87 +251,306 @@ export default function LateFeeManage() {
               <h3 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>
                 {detailName} 지각비 로그
               </h3>
-              <button
-                type="button"
-                onClick={() => setDetailUserId(null)}
-                style={{
-                  padding: "6px 12px",
-                  background: "#e2e8f0",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                }}
-              >
-                닫기
-              </button>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={openSettleModal}
+                  style={{
+                    padding: "6px 12px",
+                    background: "#059669",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                  }}
+                >
+                  정산하기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailUserId(null)}
+                  style={{
+                    padding: "6px 12px",
+                    background: "#e2e8f0",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                  }}
+                >
+                  닫기
+                </button>
+              </div>
             </div>
 
             {detailLoading ? (
               <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
                 로딩 중...
               </div>
-            ) : detailLogs.length === 0 ? (
-              <div style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>
-                지각비 로그가 없습니다.
-              </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {detailLogs.map((log: any) => (
+              <>
+                <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
                   <div
-                    key={log.id}
                     style={{
-                      padding: "14px 16px",
-                      background: "#f8fafc",
+                      padding: "12px",
+                      background: "#eff6ff",
                       borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontWeight: "bold",
+                      color: "#1e40af",
                     }}
                   >
+                    <span>지각비 합계</span>
+                    <span>{detailData?.totalLateFee?.toLocaleString() || 0}원</span>
+                  </div>
+                  {totalSettled > 0 && (
                     <div
                       style={{
+                        padding: "12px",
+                        background: "#ecfdf5",
+                        borderRadius: "8px",
                         display: "flex",
                         justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        marginBottom: "6px",
+                        alignItems: "center",
+                        fontWeight: "bold",
+                        color: "#047857",
                       }}
                     >
-                      <span style={{ fontWeight: "600", color: "#1e293b" }}>
-                        {dayjs(log.week_date).format("YYYY-MM-DD")}
-                      </span>
-                      <span style={{ color: "#dc2626", fontWeight: "bold" }}>
-                        +{log.late_fee?.toLocaleString()}원
-                      </span>
+                      <span>정산된 지각비</span>
+                      <span>-{totalSettled.toLocaleString()}원</span>
                     </div>
-                    {log.attended_at && (
-                      <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "4px" }}>
-                        출석 시간: {dayjs(log.attended_at).format("HH:mm:ss")}
-                      </div>
-                    )}
-                    {log.note && (
-                      <div style={{ fontSize: "13px", color: "#475569" }}>비고: {log.note}</div>
-                    )}
-                    {log.updated_by && (
-                      <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>
-                        by {log.updated_by}
-                      </div>
-                    )}
+                  )}
+                  <div
+                    style={{
+                      padding: "12px",
+                      background: remaining > 0 ? "#fef2f2" : "#f0fdf4",
+                      borderRadius: "8px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontWeight: "bold",
+                      color: remaining > 0 ? "#dc2626" : "#16a34a",
+                    }}
+                  >
+                    <span>남은 지각비</span>
+                    <span>{remaining.toLocaleString()}원</span>
                   </div>
-                ))}
-                <div
+                </div>
+
+                {(() => {
+                  const logEntries: { type: "late_fee" | "settlement"; sortKey: string; data: any }[] = [];
+                  (detailLogs || []).forEach((log: any) => {
+                    logEntries.push({
+                      type: "late_fee",
+                      sortKey: dayjs(log.week_date).valueOf().toString().padStart(14) + "0",
+                      data: log,
+                    });
+                  });
+                  (detailSettlements || []).forEach((s: any) => {
+                    logEntries.push({
+                      type: "settlement",
+                      sortKey: dayjs(s.settled_at).valueOf().toString().padStart(14) + "1",
+                      data: s,
+                    });
+                  });
+                  logEntries.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+                  if (logEntries.length === 0) {
+                    return (
+                      <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>
+                        지각비·정산 내역이 없습니다.
+                      </div>
+                    );
+                  }
+                  return (
+                    <>
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#475569", marginBottom: "10px" }}>
+                        내역 (지각비 · 정산 통합)
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {logEntries.map((entry, idx) =>
+                        entry.type === "late_fee" ? (
+                          <div
+                            key={`log-${entry.data.id}`}
+                            style={{
+                              padding: "12px 16px",
+                              background: "#f8fafc",
+                              borderRadius: "8px",
+                              borderLeft: "4px solid #dc2626",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              gap: "12px",
+                            }}
+                          >
+                            <div>
+                              <span style={{ fontWeight: "600", color: "#1e293b" }}>
+                                {dayjs(entry.data.week_date).format("YYYY-MM-DD")}
+                              </span>
+                              <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "12px" }}>지각비</span>
+                              {entry.data.attended_at && (
+                                <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
+                                  출석 {dayjs(entry.data.attended_at).format("HH:mm:ss")}
+                                  {entry.data.updated_by ? ` · ${entry.data.updated_by}` : ""}
+                                </div>
+                              )}
+                              {entry.data.note && (
+                                <div style={{ fontSize: "12px", color: "#475569", marginTop: "2px" }}>{entry.data.note}</div>
+                              )}
+                            </div>
+                            <span style={{ color: "#dc2626", fontWeight: "bold", whiteSpace: "nowrap" }}>
+                              +{entry.data.late_fee?.toLocaleString()}원
+                            </span>
+                          </div>
+                        ) : (
+                          <div
+                            key={`set-${entry.data.id}`}
+                            style={{
+                              padding: "12px 16px",
+                              background: "#f0fdf4",
+                              borderRadius: "8px",
+                              borderLeft: "4px solid #22c55e",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              gap: "12px",
+                            }}
+                          >
+                            <div>
+                              <span style={{ fontWeight: "600", color: "#166534" }}>
+                                {dayjs(entry.data.settled_at).format("YYYY-MM-DD HH:mm")}
+                              </span>
+                              <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "12px" }}>정산</span>
+                              {entry.data.settled_by && (
+                                <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
+                                  by {entry.data.settled_by}
+                                </div>
+                              )}
+                              {entry.data.note && (
+                                <div style={{ fontSize: "12px", color: "#475569", marginTop: "2px" }}>{entry.data.note}</div>
+                              )}
+                            </div>
+                            <span style={{ color: "#15803d", fontWeight: "bold", whiteSpace: "nowrap" }}>
+                              -{Number(entry.data.amount).toLocaleString()}원
+                            </span>
+                          </div>
+                        )
+                      )}
+                      </div>
+                    </>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 정산하기 모달 */}
+      {settleModalOpen && detailUserId && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1001,
+          }}
+          onClick={() => !settleSubmitting && setSettleModalOpen(false)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: "12px",
+              padding: "24px",
+              maxWidth: "400px",
+              width: "90%",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 style={{ fontSize: "16px", fontWeight: "600", margin: "0 0 16px 0" }}>
+              지각비 정산 기록
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div>
+                <label style={{ fontSize: "13px", color: "#64748b", display: "block", marginBottom: "4px" }}>
+                  금액 (원)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={settleAmount}
+                  onChange={(e) => setSettleAmount(e.target.value)}
+                  placeholder={String(totalLateFee)}
                   style={{
-                    marginTop: "12px",
-                    padding: "12px",
-                    background: "#eff6ff",
+                    padding: "8px 12px",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    width: "100%",
+                  }}
+                />
+                <span style={{ fontSize: "12px", color: "#94a3b8" }}>
+                  미입력 시 지각비 합계 {totalLateFee.toLocaleString()}원
+                </span>
+              </div>
+              <div>
+                <label style={{ fontSize: "13px", color: "#64748b", display: "block", marginBottom: "4px" }}>
+                  비고 (선택)
+                </label>
+                <input
+                  type="text"
+                  value={settleNote}
+                  onChange={(e) => setSettleNote(e.target.value)}
+                  placeholder="예: 현금 정산 완료"
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    width: "100%",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => !settleSubmitting && setSettleModalOpen(false)}
+                  style={{
+                    padding: "10px 20px",
+                    background: "#e2e8f0",
+                    border: "none",
                     borderRadius: "8px",
-                    textAlign: "right",
-                    fontWeight: "bold",
-                    color: "#1e40af",
+                    cursor: "pointer",
+                    fontWeight: "600",
                   }}
                 >
-                  합계: {detailData?.totalLateFee?.toLocaleString() || 0}원
-                </div>
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={submitSettle}
+                  disabled={settleSubmitting}
+                  style={{
+                    padding: "10px 20px",
+                    background: settleSubmitting ? "#94a3b8" : "#059669",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor: settleSubmitting ? "not-allowed" : "pointer",
+                    fontWeight: "600",
+                  }}
+                >
+                  {settleSubmitting ? "저장 중…" : "정산 기록"}
+                </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}

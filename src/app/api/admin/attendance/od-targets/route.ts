@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   try {
     const { data: roster, error } = await supabaseAdmin
       .from("attendance_od_targets")
-      .select("id, user_id, name, category")
+      .select("id, user_id, name, category, is_group_leader, is_cell_leader")
       .eq("category", category)
       .order("name");
 
@@ -50,7 +50,7 @@ export async function GET(req: Request) {
     );
 
     const data = roster.map((r: any) => {
-      const profile = profileByUser.get(r.user_id) ?? { group_name: null, cell_name: null, email: null };
+      const profile = profileByUser.get(r.user_id) ?? { group_name: null, cell_name: null, email: null, name: null };
       return {
         id: r.id,
         user_id: r.user_id,
@@ -59,7 +59,18 @@ export async function GET(req: Request) {
         category: r.category,
         group_name: profile.group_name ?? "-",
         cell_name: profile.cell_name ?? "-",
+        is_group_leader: !!r.is_group_leader,
+        is_cell_leader: !!r.is_cell_leader,
       };
+    });
+
+    // 정렬: 그룹 → 다락방 → 이름
+    data.sort((a: any, b: any) => {
+      const g = (a.group_name || "").localeCompare(b.group_name || "");
+      if (g !== 0) return g;
+      const c = (a.cell_name || "").localeCompare(b.cell_name || "");
+      if (c !== 0) return c;
+      return (a.name || "").localeCompare(b.name || "");
     });
 
     return Response.json({ data }, { status: 200 });

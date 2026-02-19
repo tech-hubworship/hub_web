@@ -36,14 +36,17 @@ export async function POST(req: Request) {
       .eq("category", category)
       .maybeSingle();
 
+    // 예외 처리 전용 컬럼: is_excused. status는 출석 상태(present/late/absent)만 유지
     const updateData: Record<string, any> = {
-      status: "excused",
+      is_excused: true,
       note: note.trim(),
       updated_by: adminName,
     };
     if (!existing?.id) {
       updateData.attended_at = new Date().toISOString();
+      updateData.status = "present";
     }
+    // 기존 행은 status 변경 없이 예외만 적용
 
     if (excuseLateFee) updateData.late_fee = 0;
     if (excuseReport) updateData.is_report_required = false;
@@ -67,6 +70,7 @@ export async function POST(req: Request) {
           user_id: userId,
           week_date: baseDate,
           category,
+          status: "present",
           ...updateData,
           late_fee: 0,
           is_report_required: false,

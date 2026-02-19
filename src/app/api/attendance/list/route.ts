@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     // 1. OD 명단 전체 (attendance_od_targets)
     const { data: roster, error: rosterError } = await supabaseAdmin
       .from("attendance_od_targets")
-      .select("id, user_id, name")
+      .select("id, user_id, name, is_group_leader, is_cell_leader")
       .eq("category", CATEGORY_OD)
       .order("name");
 
@@ -63,8 +63,7 @@ export async function GET(req: Request) {
     // 2. 해당 날짜 OD 출석 기록 조회 (수정됨: note, updated_by 추가)
     const { data: attendanceRows, error: attError } = await supabaseAdmin
       .from("weekly_attendance")
-      // ⭐️ 여기에 note와 updated_by를 반드시 추가해야 합니다.
-      .select("user_id, attended_at, status, late_fee, is_report_required, note, updated_by")
+      .select("user_id, attended_at, status, is_excused, late_fee, is_report_required, note, updated_by")
       .eq("week_date", date)
       .eq("category", CATEGORY_OD)
       .in("user_id", userIds);
@@ -104,25 +103,34 @@ export async function GET(req: Request) {
       ])
     );
 
-    // 4. OD 명단 순서대로 병합 (이름순)
+    // 4. OD 명단 기준 병합 후 정렬 (그룹 → 다락방 → 이름)
     const data = roster.map((r: any) => {
       const profile: ProfileInfo = profileByUser.get(r.user_id) || {};
       const att = attendanceByUser.get(r.user_id);
-      
       return {
         id: r.id,
         user_id: r.user_id,
         name: profile.name || r.name || "-",
         group_name: profile.group_name || "-",
         cell_name: profile.cell_name || "-",
+        is_group_leader: !!r.is_group_leader,
+        is_cell_leader: !!r.is_cell_leader,
         attended_at: att?.attended_at ?? null,
         status: att?.status ?? null,
+        is_excused: att?.is_excused ?? false,
         late_fee: att?.late_fee ?? 0,
         is_report_required: att?.is_report_required ?? false,
-        // ⭐️ UI로 전달할 데이터 매핑 추가
         note: att?.note || null,
         updated_by: att?.updated_by || null,
       };
+    });
+
+    data.sort((a: any, b: any) => {
+      const g = (a.group_name || "").localeCompare(b.group_name || "");
+      if (g !== 0) return g;
+      const c = (a.cell_name || "").localeCompare(b.cell_name || "");
+      if (c !== 0) return c;
+      return (a.name || "").localeCompare(b.name || "");
     });
 
     const attendedCount = attendanceByUser.size;

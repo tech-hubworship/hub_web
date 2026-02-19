@@ -20,10 +20,10 @@ export async function GET(req: Request) {
 
   try {
     if (userId) {
-      // 사용자별 지각비 로그 조회
+      // 사용자별 지각비 로그 + 정산 로그 조회
       const { data: logs, error } = await supabaseAdmin
         .from("weekly_attendance")
-        .select("id, week_date, status, late_fee, is_report_required, attended_at, note, updated_by")
+        .select("id, week_date, status, is_excused, late_fee, is_report_required, attended_at, note, updated_by")
         .eq("user_id", userId)
         .eq("category", CATEGORY_OD)
         .gt("late_fee", 0)
@@ -31,18 +31,32 @@ export async function GET(req: Request) {
 
       if (error) throw error;
 
+      const { data: settlements, error: setError } = await supabaseAdmin
+        .from("late_fee_settlements")
+        .select("id, amount, note, settled_by, settled_at")
+        .eq("user_id", userId)
+        .eq("category", CATEGORY_OD)
+        .order("settled_at", { ascending: false });
+
+      if (setError) throw setError;
+
       const { data: profile } = await supabaseAdmin
         .from("profiles")
         .select("name")
         .eq("user_id", userId)
         .single();
 
+      const totalLateFee = (logs || []).reduce((sum, r) => sum + (r.late_fee || 0), 0);
+      const totalSettled = (settlements || []).reduce((sum, r) => sum + (r.amount || 0), 0);
       return Response.json(
         {
           userId,
           name: (profile as any)?.name || "-",
           logs: logs || [],
-          totalLateFee: (logs || []).reduce((sum, r) => sum + (r.late_fee || 0), 0),
+          settlements: settlements || [],
+          totalLateFee,
+          totalSettled,
+          remaining: Math.max(0, totalLateFee - totalSettled),
         },
         { status: 200 }
       );
@@ -77,6 +91,19 @@ export async function GET(req: Request) {
       totalByUser.set(r.user_id, sum + (r.late_fee || 0));
     });
 
+    const userIdsWithLateFee = Array.from(totalByUser.keys());
+    const settledByUser = new Map<string, number>();
+    if (userIdsWithLateFee.length > 0) {
+      const { data: settlements } = await supabaseAdmin
+        .from("late_fee_settlements")
+        .select("user_id, amount")
+        .eq("category", CATEGORY_OD)
+        .in("user_id", userIdsWithLateFee);
+      (settlements || []).forEach((s: any) => {
+        settledByUser.set(s.user_id, (settledByUser.get(s.user_id) || 0) + (s.amount || 0));
+      });
+    }
+
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
       .select("user_id, name, group_id, cell_id, hub_groups:group_id(name), hub_cells:cell_id(name)")
@@ -97,12 +124,16 @@ export async function GET(req: Request) {
     const data = roster.map((r: any) => {
       const profile = profileMap.get(r.user_id) || { group_name: "-", cell_name: "-" };
       const totalLateFee = totalByUser.get(r.user_id) || 0;
+      const totalSettled = settledByUser.get(r.user_id) || 0;
+      const remaining = Math.max(0, totalLateFee - totalSettled);
       return {
         user_id: r.user_id,
         name: profile.name || r.name || "-",
         group_name: profile.group_name,
         cell_name: profile.cell_name,
         total_late_fee: totalLateFee,
+        total_settled: totalSettled,
+        remaining,
       };
     });
 

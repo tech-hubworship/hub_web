@@ -57,7 +57,7 @@ export default function AttendanceCheckODPage() {
           setMessage("리더십 권한이 없습니다.");
         } else if (data.code === "NOT_OD_TARGET") {
           setStep("error");
-          setMessage("OD 출석 대상이 아닙니다. 관리자에게 문의하세요.");
+          setMessage("명단에 없습니다.");
         } else {
           setStep("error");
           setMessage(data.error || "출석 처리에 실패했습니다.");

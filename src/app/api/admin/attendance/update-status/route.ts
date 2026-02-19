@@ -39,12 +39,22 @@ export async function POST(req: Request) {
     const nowIso = now.toISOString();
     const baseDate = typeof weekDate === "string" ? weekDate.split("T")[0] : weekDate;
 
+    // status: 출석 상태만 (present | late | unexcused_absence). 예외는 is_excused로 별도 관리
     let updateData: Record<string, any> = {
-      status: status,
       note: note.trim(),
       updated_by: adminName,
       attended_at: nowIso,
     };
+
+    if (status === "excused") {
+      updateData.is_excused = true;
+      updateData.status = "present";
+      updateData.late_fee = 0;
+      updateData.is_report_required = false;
+    } else {
+      updateData.status = status;
+      updateData.is_excused = false; // 출석/지각/결석으로 수동 변경 시 예외 해제
+    }
 
     // 출석 버튼 클릭 시: 버튼 눌린 시각(현재)으로 지각 여부 자동 판단
     if (status === "present") {
@@ -65,9 +75,6 @@ export async function POST(req: Request) {
       updateData.status = calcStatus;
       updateData.late_fee = lateFee;
       updateData.is_report_required = isReportRequired;
-    } else if (status === "excused") {
-      updateData.late_fee = 0;
-      updateData.is_report_required = false;
     } else if (status === "unexcused_absence") {
       updateData.late_fee = 5000;
       updateData.is_report_required = true;

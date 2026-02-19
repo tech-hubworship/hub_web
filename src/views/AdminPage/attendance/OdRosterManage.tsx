@@ -12,6 +12,7 @@ export default function OdRosterManage() {
   const [adding, setAdding] = useState(false);
   const [filterGroup, setFilterGroup] = useState("");
   const [filterCell, setFilterCell] = useState("");
+  const [filterName, setFilterName] = useState("");
   const queryClient = useQueryClient();
 
   const { data: rosterData, isLoading } = useQuery({
@@ -33,7 +34,27 @@ export default function OdRosterManage() {
     category: string;
     group_name?: string;
     cell_name?: string;
+    is_group_leader?: boolean;
+    is_cell_leader?: boolean;
   }>;
+
+  const updateLeader = async (id: number, field: "is_group_leader" | "is_cell_leader", value: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/attendance/od-targets/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ["od-roster"] });
+      } else {
+        const data = await res.json();
+        alert(data.error || "저장 실패");
+      }
+    } catch {
+      alert("오류가 발생했습니다.");
+    }
+  };
 
   const groupOptions = Array.from(new Set(list.map((r) => r.group_name).filter((g): g is string => !!g && g !== "-"))).sort();
   const cellOptions = Array.from(new Set(list.map((r) => r.cell_name).filter((c): c is string => !!c && c !== "-"))).sort();
@@ -41,6 +62,7 @@ export default function OdRosterManage() {
   const filteredList = list.filter((row) => {
     if (filterGroup && (row.group_name ?? "-") !== filterGroup) return false;
     if (filterCell && (row.cell_name ?? "-") !== filterCell) return false;
+    if (filterName && !(row.name || "").toLowerCase().includes(filterName.trim().toLowerCase())) return false;
     return true;
   });
 
@@ -153,6 +175,23 @@ export default function OdRosterManage() {
           >
             <span style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>필터</span>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <label style={{ fontSize: "13px", color: "#64748b" }}>이름</label>
+              <input
+                type="text"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                placeholder="이름 검색"
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "6px",
+                  fontSize: "14px",
+                  minWidth: "120px",
+                  background: "white",
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <label style={{ fontSize: "13px", color: "#64748b" }}>그룹</label>
               <select
                 value={filterGroup}
@@ -196,12 +235,13 @@ export default function OdRosterManage() {
                 ))}
               </select>
             </div>
-            {(filterGroup || filterCell) && (
+            {(filterGroup || filterCell || filterName) && (
               <button
                 type="button"
                 onClick={() => {
                   setFilterGroup("");
                   setFilterCell("");
+                  setFilterName("");
                 }}
                 style={{
                   padding: "6px 12px",
@@ -227,8 +267,8 @@ export default function OdRosterManage() {
             color: "#64748b",
           }}
         >
-          OD 명단 · 총 {list.length}명
-          {(filterGroup || filterCell) && (
+          OD 명단 · 총 {list.length}명 (그룹 → 다락방 → 이름 순)
+          {(filterGroup || filterCell || filterName) && (
             <span style={{ marginLeft: "8px", color: "#0284c7" }}>
               (필터: {filteredList.length}명)
             </span>
@@ -253,6 +293,8 @@ export default function OdRosterManage() {
                   <S.TableHead>이름</S.TableHead>
                   <S.TableHead>그룹</S.TableHead>
                   <S.TableHead>다락방</S.TableHead>
+                  <S.TableHead>그룹장</S.TableHead>
+                  <S.TableHead>다락방장</S.TableHead>
                   <S.TableHead>이메일</S.TableHead>
                   <S.TableHead style={{ width: "100px" }}>삭제</S.TableHead>
                 </S.TableRow>
@@ -261,7 +303,7 @@ export default function OdRosterManage() {
                 {filteredList.length === 0 ? (
                   <S.TableRow>
                     <S.TableData
-                      colSpan={5}
+                      colSpan={7}
                       style={{
                         textAlign: "center",
                         padding: "48px",
@@ -283,6 +325,26 @@ export default function OdRosterManage() {
                       </S.TableData>
                       <S.TableData>{row.group_name ?? "-"}</S.TableData>
                       <S.TableData>{row.cell_name ?? "-"}</S.TableData>
+                      <S.TableData>
+                        <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "13px" }}>
+                          <input
+                            type="checkbox"
+                            checked={!!row.is_group_leader}
+                            onChange={(e) => updateLeader(row.id, "is_group_leader", e.target.checked)}
+                          />
+                          <span>그룹장</span>
+                        </label>
+                      </S.TableData>
+                      <S.TableData>
+                        <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "13px" }}>
+                          <input
+                            type="checkbox"
+                            checked={!!row.is_cell_leader}
+                            onChange={(e) => updateLeader(row.id, "is_cell_leader", e.target.checked)}
+                          />
+                          <span>다락방장</span>
+                        </label>
+                      </S.TableData>
                       <S.TableData>
                         <span style={{ fontSize: "13px", color: "#475569" }}>
                           {row.email ?? "-"}
