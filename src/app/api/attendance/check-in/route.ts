@@ -114,7 +114,7 @@ export async function POST(req: Request) {
             .single();
           if (!updateErr) {
             return Response.json(
-              { message: "출석이 반영되었습니다. (상태만 출석/지각으로 갱신, 예외 처리 유지)", result: updated },
+              { message: "출석이 완료되었습니다.", result: updated },
               { status: 200 }
             );
           }
