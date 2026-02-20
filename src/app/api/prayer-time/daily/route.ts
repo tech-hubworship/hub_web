@@ -6,9 +6,17 @@ import { getKoreanDateFormatted } from "@src/lib/utils/date";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** start_time(UTC)을 한국 시간(KST) 기준 날짜(YYYY-MM-DD)로 반환 */
+/** start_time을 한국 시간(KST) 기준 날짜(YYYY-MM-DD)로 반환 */
 function getDateKeyInKorea(isoString: string): string {
-  const utcMs = new Date(isoString).getTime();
+  const s = isoString.trim();
+  // DB가 타임존 없이 한국 시간으로 저장한 경우(예: "2026-02-19 23:23:46.1") → 이미 KST이므로 날짜만 추출
+  const hasTimezone = /Z$|[+-]\d{2}:?\d{2}$/.test(s);
+  if (!hasTimezone) {
+    const datePart = s.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+  }
+  // UTC 등 타임존 있음 → UTC로 해석 후 KST 날짜로 변환
+  const utcMs = new Date(s).getTime();
   const kstMs = utcMs + 9 * 60 * 60 * 1000;
   return new Date(kstMs).toISOString().slice(0, 10);
 }
