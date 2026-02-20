@@ -25,6 +25,7 @@ import QrGenerator from '@src/views/AdminPage/attendance/QrGenerator';
 import AttendanceList from '@src/views/AdminPage/attendance/AttendanceList';
 import OdRosterManage from '@src/views/AdminPage/attendance/OdRosterManage';
 import LateFeeManage from '@src/views/AdminPage/attendance/LateFeeManage';
+import AttendanceOverallStats from '@src/views/AdminPage/attendance/AttendanceOverallStats';
 import GlossaryAdminPage from '@src/views/AdminPage/apps/glossary';
 import PrayerTimeAdminPage from '@src/views/AdminPage/apps/prayer-time';
 import LostFoundAdminPage from '@src/views/AdminPage/apps/lost-found';
@@ -69,6 +70,7 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   // 레거시(underscore) 쿼리 파라미터 지원
   'attendance_qr': QrGenerator,
   'attendance-list': AttendanceList,
+  'attendance-overall-stats': AttendanceOverallStats,
   'attendance-od-roster': OdRosterManage,
   'attendance-late-fees': LateFeeManage,
   'glossary': GlossaryAdminPage,
