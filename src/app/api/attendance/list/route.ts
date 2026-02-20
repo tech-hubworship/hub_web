@@ -51,7 +51,15 @@ export async function GET(req: Request) {
         {
           data: [],
           late_criteria: { start_hour: lateAt.hour(), start_minute: lateAt.minute() },
-          stats: { total_members: 0, attended_count: 0, attendance_rate: 0 },
+          stats: {
+            total_members: 0,
+            attended_count: 0,
+            attendance_rate: 0,
+            present_count: 0,
+            late_count: 0,
+            excused_absence_count: 0,
+            unexcused_absence_count: 0,
+          },
           pagination: { page: 1, limit: 0, total: 0, totalPages: 0 },
         },
         { status: 200 }
@@ -133,9 +141,21 @@ export async function GET(req: Request) {
       return (a.name || "").localeCompare(b.name || "");
     });
 
-    const attendedCount = attendanceByUser.size;
     const totalMembers = roster.length;
-    const attendanceRate = totalMembers ? Math.round((attendedCount / totalMembers) * 100) : 0;
+    let presentCount = 0;
+    let lateCount = 0;
+    let excusedAbsenceCount = 0;
+    let unexcusedAbsenceCount = 0;
+    for (const a of Array.from(attendanceByUser.values())) {
+      const s = (a as any).status;
+      if (s === "present") presentCount += 1;
+      else if (s === "late") lateCount += 1;
+      else if (s === "excused_absence") excusedAbsenceCount += 1;
+      else if (s === "unexcused_absence") unexcusedAbsenceCount += 1;
+    }
+    const attendedCount = presentCount + lateCount;
+    const denominator = totalMembers - excusedAbsenceCount;
+    const attendanceRate = denominator > 0 ? Math.round((attendedCount / denominator) * 100) : 0;
 
     // 5. 출석 기준 시각 (qr_tokens 최근 late_at → 시/분으로 표시)
     const { data: recentToken } = await supabaseAdmin
@@ -158,6 +178,10 @@ export async function GET(req: Request) {
           total_members: totalMembers,
           attended_count: attendedCount,
           attendance_rate: attendanceRate,
+          present_count: presentCount,
+          late_count: lateCount,
+          excused_absence_count: excusedAbsenceCount,
+          unexcused_absence_count: unexcusedAbsenceCount,
         },
         pagination: {
           page: 1,

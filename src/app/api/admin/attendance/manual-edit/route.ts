@@ -37,12 +37,19 @@ export async function POST(req: Request) {
   const updatePayload: Record<string, unknown> = {
     updated_by: adminName,
   };
-  if (note !== undefined) updatePayload.note = note == null ? null : String(note).trim();
-  if (attended_at !== undefined) updatePayload.attended_at = attended_at ? new Date(attended_at).toISOString() : null;
-  if (status !== undefined) updatePayload.status = status == null || status === "" ? "present" : String(status);
-  if (typeof late_fee === "number" && !Number.isNaN(late_fee)) updatePayload.late_fee = Math.max(0, late_fee);
-  if (typeof is_report_required === "boolean") updatePayload.is_report_required = is_report_required;
-  if (typeof is_excused === "boolean") updatePayload.is_excused = is_excused;
+  if (note !== undefined) updatePayload.note = note == null || note === "" ? null : String(note).trim();
+  if (attended_at !== undefined) updatePayload.attended_at = attended_at == null || attended_at === "" ? null : new Date(attended_at).toISOString();
+  if (status !== undefined) updatePayload.status = status == null || status === "" ? null : String(status);
+  if (late_fee !== undefined) {
+    if (late_fee == null || late_fee === "") updatePayload.late_fee = null;
+    else if (typeof late_fee === "number" && !Number.isNaN(late_fee)) updatePayload.late_fee = Math.max(0, late_fee);
+    else if (typeof late_fee === "string") {
+      const n = parseInt(late_fee, 10);
+      updatePayload.late_fee = (late_fee as string).trim() === "" ? null : (Number.isNaN(n) ? 0 : Math.max(0, n));
+    }
+  }
+  if (is_report_required !== undefined) updatePayload.is_report_required = is_report_required === null ? null : !!is_report_required;
+  if (is_excused !== undefined) updatePayload.is_excused = is_excused === null ? null : !!is_excused;
 
   try {
     const { data: existing } = await supabaseAdmin
@@ -68,12 +75,12 @@ export async function POST(req: Request) {
       user_id: userId,
       week_date: baseDate,
       category,
-      status: (updatePayload.status as string) ?? "present",
-      late_fee: (updatePayload.late_fee as number) ?? 0,
-      is_report_required: (updatePayload.is_report_required as boolean) ?? false,
-      is_excused: (updatePayload.is_excused as boolean) ?? false,
+      status: updatePayload.status != null ? (updatePayload.status as string) : "present",
+      late_fee: updatePayload.late_fee != null ? (updatePayload.late_fee as number) : 0,
+      is_report_required: updatePayload.is_report_required != null ? (updatePayload.is_report_required as boolean) : false,
+      is_excused: updatePayload.is_excused != null ? (updatePayload.is_excused as boolean) : false,
       note: updatePayload.note ?? null,
-      attended_at: updatePayload.attended_at ?? new Date().toISOString(),
+      attended_at: updatePayload.attended_at !== undefined ? updatePayload.attended_at : null,
       updated_by: updatePayload.updated_by,
     };
     const { data, error } = await supabaseAdmin

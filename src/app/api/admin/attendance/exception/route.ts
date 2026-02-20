@@ -14,14 +14,14 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const { userId, weekDate, excuseLateFee, excuseReport, note, category = "OD" } = body;
+  const { userId, weekDate, excuseLateFee, excuseReport, note, status: exceptionStatus, category = "OD" } = body;
 
   if (!userId || !weekDate || !note || typeof note !== "string" || note.trim() === "") {
     return jsonError("userId, weekDate, note가 필요합니다.", 400);
   }
 
-  if (!excuseLateFee && !excuseReport) {
-    return jsonError("지각비 예외처리 또는 OD 보고서 예외처리 중 하나 이상을 선택해주세요.", 400);
+  if (!excuseLateFee && !excuseReport && exceptionStatus !== "excused_absence") {
+    return jsonError("지각비 예외, OD 보고서 예외, 결석 상태 중 하나 이상을 선택해주세요.", 400);
   }
 
   try {
@@ -36,18 +36,19 @@ export async function POST(req: Request) {
       .eq("category", category)
       .maybeSingle();
 
-    // 예외 처리 전용 컬럼: is_excused. status는 출석 상태(present/late/absent)만 유지
     const updateData: Record<string, any> = {
-      is_excused: true,
       note: note.trim(),
       updated_by: adminName,
     };
-    if (!existing?.id) {
+    if (excuseLateFee || excuseReport) {
+      updateData.is_excused = true;
+    }
+    if (exceptionStatus === "excused_absence") {
+      updateData.status = "excused_absence";
+    } else if (!existing?.id) {
       updateData.attended_at = new Date().toISOString();
       updateData.status = "present";
     }
-    // 기존 행은 status 변경 없이 예외만 적용
-
     if (excuseLateFee) updateData.late_fee = 0;
     if (excuseReport) updateData.is_report_required = false;
 
@@ -64,17 +65,19 @@ export async function POST(req: Request) {
       if (error) throw error;
       result = data;
     } else {
+      const insertPayload: Record<string, any> = {
+        user_id: userId,
+        week_date: baseDate,
+        category,
+        status: exceptionStatus === "excused_absence" ? "excused_absence" : "present",
+        ...updateData,
+        late_fee: 0,
+        is_report_required: false,
+      };
+      if (excuseLateFee || excuseReport) insertPayload.is_excused = true;
       const { data, error } = await supabaseAdmin
         .from("weekly_attendance")
-        .insert({
-          user_id: userId,
-          week_date: baseDate,
-          category,
-          status: "present",
-          ...updateData,
-          late_fee: 0,
-          is_report_required: false,
-        })
+        .insert(insertPayload)
         .select()
         .single();
 

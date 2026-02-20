@@ -13,16 +13,24 @@ export default function AttendanceList() {
   const [editStatus, setEditStatus] = useState('present');
   const [editNote, setEditNote] = useState('');
   const [editLateFee, setEditLateFee] = useState('');
-  const [editReportRequired, setEditReportRequired] = useState(false);
-  const [editExcused, setEditExcused] = useState(false);
+  const [editReportRequired, setEditReportRequired] = useState<boolean | null>(false);
+  const [editExcused, setEditExcused] = useState<boolean | null>(false);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
   const [exceptionTarget, setExceptionTarget] = useState<{ userId: string; name: string } | null>(null);
   const [excuseLateFee, setExcuseLateFee] = useState(true);
   const [excuseReport, setExcuseReport] = useState(true);
+  const [exceptionAsAbsence, setExceptionAsAbsence] = useState(false);
   const [exceptionNote, setExceptionNote] = useState('');
   const [exceptionSubmitting, setExceptionSubmitting] = useState(false);
+
+  const [bulkExceptionOpen, setBulkExceptionOpen] = useState(false);
+  const [bulkExcuseLateFee, setBulkExcuseLateFee] = useState(true);
+  const [bulkExcuseReport, setBulkExcuseReport] = useState(true);
+  const [bulkAsAbsence, setBulkAsAbsence] = useState(false);
+  const [bulkNote, setBulkNote] = useState('');
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
   const [filterGroup, setFilterGroup] = useState('');
   const [filterCell, setFilterCell] = useState('');
@@ -53,56 +61,81 @@ export default function AttendanceList() {
     if (filterName && !(row.name || '').toLowerCase().includes(filterName.trim().toLowerCase())) return false;
     return true;
   });
-  const filteredAttendedCount = filteredList.filter((d: any) => d.attended_at != null).length;
   const filteredTotal = filteredList.length;
+  const filteredPresent = filteredList.filter((r: any) => r.status === 'present').length;
+  const filteredLate = filteredList.filter((r: any) => r.status === 'late').length;
+  const filteredExcused = filteredList.filter((r: any) => r.status === 'excused_absence').length;
+  const filteredUnexcused = filteredList.filter((r: any) => r.status === 'unexcused_absence').length;
+  const filteredAttendedCount = filteredPresent + filteredLate;
+  const filteredDenom = filteredTotal - filteredExcused;
   const filteredStats = filteredTotal
     ? {
         attended_count: filteredAttendedCount,
         total_members: filteredTotal,
-        attendance_rate: Math.round((filteredAttendedCount / filteredTotal) * 100),
+        attendance_rate: filteredDenom > 0 ? Math.round((filteredAttendedCount / filteredDenom) * 100) : 0,
+        present_count: filteredPresent,
+        late_count: filteredLate,
+        excused_absence_count: filteredExcused,
+        unexcused_absence_count: filteredUnexcused,
       }
     : stats;
 
-  // 그룹장만 / 다락방장만 (필터 적용 기준, 각각 재적·출석·출석율)
+  // 그룹장만 / 다락방장만 (필터 적용 기준: 재적·출석·결석·무단결석·출석율)
   const groupLeadersList = filteredList.filter((r: any) => r.is_group_leader);
-  const groupLeadersAttended = groupLeadersList.filter((r: any) => r.attended_at != null).length;
+  const groupLeadersPresent = groupLeadersList.filter((r: any) => r.status === 'present').length;
+  const groupLeadersLate = groupLeadersList.filter((r: any) => r.status === 'late').length;
+  const groupLeadersExcused = groupLeadersList.filter((r: any) => r.status === 'excused_absence').length;
+  const groupLeadersUnexcused = groupLeadersList.filter((r: any) => r.status === 'unexcused_absence').length;
+  const groupLeadersAttended = groupLeadersPresent + groupLeadersLate;
+  const groupLeadersDenom = groupLeadersList.length - groupLeadersExcused;
   const groupLeadersStats = {
     total: groupLeadersList.length,
     attended: groupLeadersAttended,
-    rate: groupLeadersList.length ? Math.round((groupLeadersAttended / groupLeadersList.length) * 100) : 0,
+    present: groupLeadersPresent,
+    late: groupLeadersLate,
+    excused: groupLeadersExcused,
+    unexcused: groupLeadersUnexcused,
+    rate: groupLeadersDenom > 0 ? Math.round((groupLeadersAttended / groupLeadersDenom) * 100) : 0,
   };
   const cellLeadersList = filteredList.filter((r: any) => r.is_cell_leader);
-  const cellLeadersAttended = cellLeadersList.filter((r: any) => r.attended_at != null).length;
+  const cellLeadersPresent = cellLeadersList.filter((r: any) => r.status === 'present').length;
+  const cellLeadersLate = cellLeadersList.filter((r: any) => r.status === 'late').length;
+  const cellLeadersExcused = cellLeadersList.filter((r: any) => r.status === 'excused_absence').length;
+  const cellLeadersUnexcused = cellLeadersList.filter((r: any) => r.status === 'unexcused_absence').length;
+  const cellLeadersAttended = cellLeadersPresent + cellLeadersLate;
+  const cellLeadersDenom = cellLeadersList.length - cellLeadersExcused;
   const cellLeadersStats = {
     total: cellLeadersList.length,
     attended: cellLeadersAttended,
-    rate: cellLeadersList.length ? Math.round((cellLeadersAttended / cellLeadersList.length) * 100) : 0,
+    present: cellLeadersPresent,
+    late: cellLeadersLate,
+    excused: cellLeadersExcused,
+    unexcused: cellLeadersUnexcused,
+    rate: cellLeadersDenom > 0 ? Math.round((cellLeadersAttended / cellLeadersDenom) * 100) : 0,
   };
 
-  // 다락방별 통계: 그룹장·다락방장 제외, 트리 구조 (그룹 → 다락방)
+  // 다락방별 통계: 그룹장·다락방장 제외, 트리 구조 (그룹 → 다락방), 출석/결석/무단결석
   const treeStats = (() => {
     const membersOnly = filteredList.filter((r: any) => !r.is_group_leader && !r.is_cell_leader);
-    const byGroup = new Map<string, Map<string, { total: number; attended: number }>>();
+    const byGroup = new Map<string, Map<string, { total: number; attended: number; excused: number; unexcused: number }>>();
     for (const row of membersOnly) {
       const gn = row.group_name ?? '-';
       const cn = row.cell_name ?? '-';
       if (!byGroup.has(gn)) byGroup.set(gn, new Map());
       const cells = byGroup.get(gn)!;
-      if (!cells.has(cn)) cells.set(cn, { total: 0, attended: 0 });
+      if (!cells.has(cn)) cells.set(cn, { total: 0, attended: 0, excused: 0, unexcused: 0 });
       const cur = cells.get(cn)!;
       cur.total += 1;
-      if (row.attended_at != null) cur.attended += 1;
+      if (row.status === 'present' || row.status === 'late') cur.attended += 1;
+      else if (row.status === 'excused_absence') cur.excused += 1;
+      else if (row.status === 'unexcused_absence') cur.unexcused += 1;
     }
-    const result: { group_name: string; cells: { cell_name: string; total: number; attended: number; rate: number }[] }[] = [];
+    const result: { group_name: string; cells: { cell_name: string; total: number; attended: number; excused: number; unexcused: number }[] }[] = [];
     Array.from(byGroup.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .forEach(([group_name, cells]) => {
         const cellList = Array.from(cells.entries())
-          .map(([cell_name, v]) => ({
-            cell_name,
-            ...v,
-            rate: v.total ? Math.round((v.attended / v.total) * 100) : 0,
-          }))
+          .map(([cell_name, v]) => ({ cell_name, ...v }))
           .sort((a, b) => a.cell_name.localeCompare(b.cell_name));
         result.push({ group_name, cells: cellList });
       });
@@ -153,6 +186,7 @@ export default function AttendanceList() {
     setExceptionTarget({ userId, name });
     setExcuseLateFee(true);
     setExcuseReport(true);
+    setExceptionAsAbsence(false);
     setExceptionNote('');
     setExceptionModalOpen(true);
   };
@@ -161,6 +195,10 @@ export default function AttendanceList() {
     if (!exceptionTarget) return;
     if (!exceptionNote.trim()) {
       alert("변경 사유를 입력해주세요.");
+      return;
+    }
+    if (!excuseLateFee && !excuseReport && !exceptionAsAbsence) {
+      alert("지각비 예외, OD 보고서 예외, 결석 중 하나 이상 선택해주세요.");
       return;
     }
     setExceptionSubmitting(true);
@@ -173,6 +211,7 @@ export default function AttendanceList() {
           weekDate: date,
           excuseLateFee,
           excuseReport,
+          status: exceptionAsAbsence ? 'excused_absence' : undefined,
           note: exceptionNote.trim(),
           category: 'OD'
         }),
@@ -194,21 +233,67 @@ export default function AttendanceList() {
     }
   };
 
+  const submitBulkException = async () => {
+    if (!bulkNote.trim()) {
+      alert("변경 사유를 입력해주세요.");
+      return;
+    }
+    if (!bulkExcuseLateFee && !bulkExcuseReport && !bulkAsAbsence) {
+      alert("지각비 예외, OD 보고서 예외, 결석 중 하나 이상 선택해주세요.");
+      return;
+    }
+    const userIds = filteredList.map((r: any) => r.user_id);
+    if (userIds.length === 0) {
+      alert("적용할 명단이 없습니다. 날짜/필터를 확인해주세요.");
+      return;
+    }
+    setBulkSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/attendance/exception-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weekDate: date,
+          userIds,
+          excuseLateFee: bulkExcuseLateFee,
+          excuseReport: bulkExcuseReport,
+          status: bulkAsAbsence ? 'excused_absence' : undefined,
+          note: bulkNote.trim(),
+          category: 'OD'
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || "일괄 예외 처리되었습니다.");
+        setBulkExceptionOpen(false);
+        setBulkNote('');
+        refetch();
+      } else {
+        alert(data.error || "처리 실패");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("오류가 발생했습니다.");
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
+
   const openEditModal = (item: any) => {
     setEditTarget(item);
-    setEditAttendedAt(item.attended_at ? dayjs(item.attended_at).format('YYYY-MM-DDTHH:mm') : dayjs().format('YYYY-MM-DDTHH:mm'));
-    setEditStatus(item.status || 'present');
-    setEditNote(item.note || '');
-    setEditLateFee(item.late_fee != null ? String(item.late_fee) : '0');
-    setEditReportRequired(!!item.is_report_required);
-    setEditExcused(!!item.is_excused);
+    setEditAttendedAt(item.attended_at ? dayjs(item.attended_at).format('YYYY-MM-DDTHH:mm') : '');
+    setEditStatus(item.status != null && item.status !== '' ? item.status : '');
+    setEditNote(item.note ?? '');
+    setEditLateFee(item.late_fee != null && item.late_fee !== '' ? String(item.late_fee) : '');
+    setEditReportRequired(item.is_report_required == null ? null : !!item.is_report_required);
+    setEditExcused(item.is_excused == null ? null : !!item.is_excused);
     setEditModalOpen(true);
   };
 
   const submitEdit = async () => {
     if (!editTarget) return;
-    const lateFeeNum = parseInt(editLateFee, 10);
-    if (Number.isNaN(lateFeeNum) || lateFeeNum < 0) {
+    const lateFeeNum = editLateFee.trim() === '' ? 0 : parseInt(editLateFee, 10);
+    if (lateFeeNum < 0 || (editLateFee.trim() !== '' && Number.isNaN(lateFeeNum))) {
       alert('지각비는 0 이상 숫자를 입력해주세요.');
       return;
     }
@@ -221,10 +306,10 @@ export default function AttendanceList() {
           userId: editTarget.user_id,
           weekDate: date,
           category: 'OD',
-          attended_at: editAttendedAt ? new Date(editAttendedAt).toISOString() : null,
-          status: editStatus,
+          attended_at: editAttendedAt.trim() ? new Date(editAttendedAt).toISOString() : null,
+          status: editStatus === '' ? null : editStatus,
           note: editNote.trim() || null,
-          late_fee: lateFeeNum,
+          late_fee: editLateFee.trim() === '' ? null : lateFeeNum,
           is_report_required: editReportRequired,
           is_excused: editExcused,
         }),
@@ -346,7 +431,15 @@ export default function AttendanceList() {
                   />
                   <span>OD 보고서 예외처리</span>
                 </label>
-                {(!excuseLateFee && !excuseReport) && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={exceptionAsAbsence}
+                    onChange={(e) => setExceptionAsAbsence(e.target.checked)}
+                  />
+                  <span>결석(인정 결석)으로 처리</span>
+                </label>
+                {(!excuseLateFee && !excuseReport && !exceptionAsAbsence) && (
                   <span style={{ fontSize: '13px', color: '#dc2626' }}>하나 이상 선택해주세요.</span>
                 )}
                 <div>
@@ -370,18 +463,96 @@ export default function AttendanceList() {
                   <button
                     type="button"
                     onClick={submitException}
-                    disabled={exceptionSubmitting || (!excuseLateFee && !excuseReport) || !exceptionNote.trim()}
+                    disabled={exceptionSubmitting || (!excuseLateFee && !excuseReport && !exceptionAsAbsence) || !exceptionNote.trim()}
                     style={{
                       padding: '10px 20px',
-                      background: (exceptionSubmitting || (!excuseLateFee && !excuseReport) || !exceptionNote.trim()) ? '#94a3b8' : '#059669',
+                      background: (exceptionSubmitting || (!excuseLateFee && !excuseReport && !exceptionAsAbsence) || !exceptionNote.trim()) ? '#94a3b8' : '#059669',
                       color: 'white',
                       border: 'none',
                       borderRadius: '8px',
                       fontWeight: 600,
-                      cursor: (exceptionSubmitting || (!excuseLateFee && !excuseReport) || !exceptionNote.trim()) ? 'not-allowed' : 'pointer',
+                      cursor: (exceptionSubmitting || (!excuseLateFee && !excuseReport && !exceptionAsAbsence) || !exceptionNote.trim()) ? 'not-allowed' : 'pointer',
                     }}
                   >
                     {exceptionSubmitting ? '처리 중...' : '예외 처리'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 일괄 예외 처리 모달 (해당 날짜 필터 명단 전체) */}
+        {bulkExceptionOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1001,
+            }}
+            onClick={() => setBulkExceptionOpen(false)}
+          >
+            <div
+              style={{
+                background: 'white',
+                borderRadius: '12px',
+                padding: '24px',
+                maxWidth: '420px',
+                width: '90%',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h4 style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 8px 0' }}>
+                일괄 예외 처리
+              </h4>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px 0' }}>
+                {date} · 현재 필터 기준 <strong>{filteredList.length}명</strong>에게 적용됩니다.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={bulkExcuseLateFee} onChange={(e) => setBulkExcuseLateFee(e.target.checked)} />
+                  <span>지각비 예외처리</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={bulkExcuseReport} onChange={(e) => setBulkExcuseReport(e.target.checked)} />
+                  <span>OD 보고서 예외처리</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={bulkAsAbsence} onChange={(e) => setBulkAsAbsence(e.target.checked)} />
+                  <span>결석(인정 결석)으로 처리</span>
+                </label>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>변경 사유 (필수)</label>
+                  <textarea
+                    value={bulkNote}
+                    onChange={(e) => setBulkNote(e.target.value)}
+                    placeholder="예: 임직식으로 해당 주 휴무"
+                    rows={3}
+                    style={{ padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%', resize: 'vertical' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button type="button" onClick={() => setBulkExceptionOpen(false)} style={{ padding: '10px 20px', background: '#e2e8f0', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>취소</button>
+                  <button
+                    type="button"
+                    onClick={submitBulkException}
+                    disabled={bulkSubmitting || (!bulkExcuseLateFee && !bulkExcuseReport && !bulkAsAbsence) || !bulkNote.trim()}
+                    style={{
+                      padding: '10px 20px',
+                      background: (bulkSubmitting || (!bulkExcuseLateFee && !bulkExcuseReport && !bulkAsAbsence) || !bulkNote.trim()) ? '#94a3b8' : '#059669',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      cursor: (bulkSubmitting || (!bulkExcuseLateFee && !bulkExcuseReport && !bulkAsAbsence) || !bulkNote.trim()) ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {bulkSubmitting ? '처리 중...' : '일괄 예외 적용'}
                   </button>
                 </div>
               </div>
@@ -421,7 +592,7 @@ export default function AttendanceList() {
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>출석 시간</label>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>출석 시간 (비우면 미기록)</label>
                   <input
                     type="datetime-local"
                     value={editAttendedAt}
@@ -430,14 +601,16 @@ export default function AttendanceList() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>상태</label>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>상태 (비우면 미기록)</label>
                   <select
                     value={editStatus}
                     onChange={(e) => setEditStatus(e.target.value)}
                     style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%', background: 'white' }}
                   >
+                    <option value="">비움</option>
                     <option value="present">정상</option>
                     <option value="late">지각</option>
+                    <option value="excused_absence">결석(인정)</option>
                     <option value="unexcused_absence">무단 결석</option>
                   </select>
                 </div>
@@ -452,23 +625,40 @@ export default function AttendanceList() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>지각비 (원)</label>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>지각비 (원, 비우면 미기록)</label>
                   <input
                     type="number"
                     min={0}
                     value={editLateFee}
                     onChange={(e) => setEditLateFee(e.target.value)}
+                    placeholder="비움"
                     style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%' }}
                   />
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={editReportRequired} onChange={(e) => setEditReportRequired(e.target.checked)} />
-                  <span>OD 보고서 대상</span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={editExcused} onChange={(e) => setEditExcused(e.target.checked)} />
-                  <span>예외 처리 여부</span>
-                </label>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>OD 보고서</label>
+                  <select
+                    value={editReportRequired === null ? '' : editReportRequired ? 'true' : 'false'}
+                    onChange={(e) => setEditReportRequired(e.target.value === '' ? null : e.target.value === 'true')}
+                    style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%', background: 'white' }}
+                  >
+                    <option value="">비움</option>
+                    <option value="true">대상</option>
+                    <option value="false">비대상</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>예외 처리 여부</label>
+                  <select
+                    value={editExcused === null ? '' : editExcused ? 'true' : 'false'}
+                    onChange={(e) => setEditExcused(e.target.value === '' ? null : e.target.value === 'true')}
+                    style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%', background: 'white' }}
+                  >
+                    <option value="">비움</option>
+                    <option value="true">예외</option>
+                    <option value="false">아니오</option>
+                  </select>
+                </div>
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
                   <button
                     type="button"
@@ -528,14 +718,13 @@ export default function AttendanceList() {
                   )}
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2563eb' }}>
-                    {(filteredStats || stats).attended_count}명 <span style={{ fontSize: '16px', color: '#94a3b8' }}>/ {(filteredStats || stats).total_members}명</span>
-                  </div>
-                  <div style={{ fontSize: '14px', fontWeight: '600', color: ((filteredStats || stats).attendance_rate >= 80 ? '#16a34a' : '#f59e0b') }}>
-                    출석률 {(filteredStats || stats).attendance_rate}%
-                  </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>재적 <strong style={{ color: '#1e293b' }}>{(filteredStats || stats).total_members ?? 0}</strong></span>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>출석 <strong style={{ color: '#2563eb' }}>{(filteredStats || stats).attended_count ?? 0}</strong></span>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>결석 <strong style={{ color: '#78716c' }}>{(filteredStats || stats).excused_absence_count ?? 0}</strong></span>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>무단결석 <strong style={{ color: '#dc2626' }}>{(filteredStats || stats).unexcused_absence_count ?? 0}</strong></span>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, ((filteredStats || stats).total_members ?? 0) - ((filteredStats || stats).excused_absence_count ?? 0))}</strong></span>
                 </div>
                 <button
                   type="button"
@@ -561,7 +750,7 @@ export default function AttendanceList() {
                 padding: '16px 20px',
                 background: '#f8fafc',
               }}>
-                {/* 그룹장들끼리 재적·출석·출석율 */}
+                {/* 그룹장 / 다락방장: 재적·출석·결석·무단결석·출석예정 */}
                 {(groupLeadersList.length > 0 || cellLeadersList.length > 0) && (
                   <div style={{ marginBottom: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
                     {groupLeadersList.length > 0 && (
@@ -569,10 +758,12 @@ export default function AttendanceList() {
                         <div style={{ padding: '10px 16px', background: '#eff6ff', fontWeight: '600', color: '#1e40af', fontSize: '14px', borderLeft: '3px solid #3b82f6' }}>
                           그룹장
                         </div>
-                        <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-                          <span>재적 <strong style={{ color: '#334155' }}>{groupLeadersStats.total}명</strong></span>
-                          <span>출석 <strong style={{ color: '#2563eb' }}>{groupLeadersStats.attended}명</strong></span>
-                          <span>출석율 <strong style={{ color: groupLeadersStats.rate >= 80 ? '#16a34a' : '#f59e0b' }}>{groupLeadersStats.rate}%</strong></span>
+                        <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                          <span>재적 <strong>{groupLeadersStats.total}</strong></span>
+                          <span>출석 <strong style={{ color: '#2563eb' }}>{groupLeadersStats.attended}</strong></span>
+                          <span>결석 <strong style={{ color: '#78716c' }}>{groupLeadersStats.excused}</strong></span>
+                          <span>무단결석 <strong style={{ color: '#dc2626' }}>{groupLeadersStats.unexcused}</strong></span>
+                          <span>출석예정 <strong style={{ color: '#0369a1' }}>{groupLeadersStats.total - groupLeadersStats.excused}</strong></span>
                         </div>
                       </div>
                     )}
@@ -581,19 +772,21 @@ export default function AttendanceList() {
                         <div style={{ padding: '10px 16px', background: '#f0fdf4', fontWeight: '600', color: '#166534', fontSize: '14px', borderLeft: '3px solid #22c55e' }}>
                           다락방장
                         </div>
-                        <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-                          <span>재적 <strong style={{ color: '#334155' }}>{cellLeadersStats.total}명</strong></span>
-                          <span>출석 <strong style={{ color: '#2563eb' }}>{cellLeadersStats.attended}명</strong></span>
-                          <span>출석율 <strong style={{ color: cellLeadersStats.rate >= 80 ? '#16a34a' : '#f59e0b' }}>{cellLeadersStats.rate}%</strong></span>
+                        <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                          <span>재적 <strong>{cellLeadersStats.total}</strong></span>
+                          <span>출석 <strong style={{ color: '#2563eb' }}>{cellLeadersStats.attended}</strong></span>
+                          <span>결석 <strong style={{ color: '#78716c' }}>{cellLeadersStats.excused}</strong></span>
+                          <span>무단결석 <strong style={{ color: '#dc2626' }}>{cellLeadersStats.unexcused}</strong></span>
+                          <span>출석예정 <strong style={{ color: '#0369a1' }}>{cellLeadersStats.total - cellLeadersStats.excused}</strong></span>
                         </div>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* 다락방별 통계 (그룹장·다락방장 제외) - 트리 형태, 그리드로 가로 활용 */}
+                {/* 다락방별: 재적·출석·결석·무단결석·출석예정 */}
                 <div style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '10px' }}>
-                  다락방별 재적 · 출석 · 출석율 (그룹장·다락방장 제외)
+                  다락방별 재적 · 출석 · 결석 · 무단결석 · 출석예정 (그룹장·다락방장 제외)
                 </div>
                 <div
                   style={{
@@ -607,7 +800,12 @@ export default function AttendanceList() {
                       그룹장·다락방장을 제외한 멤버가 없거나 필터 결과가 없습니다.
                     </div>
                   ) : (
-                    treeStats.map((group) => (
+                    treeStats.map((group) => {
+                      const groupTotal = group.cells.reduce((a, c) => a + c.total, 0);
+                      const groupAttended = group.cells.reduce((a, c) => a + c.attended, 0);
+                      const groupExcused = group.cells.reduce((a, c) => a + c.excused, 0);
+                      const groupUnexcused = group.cells.reduce((a, c) => a + c.unexcused, 0);
+                      return (
                       <div
                         key={group.group_name}
                         style={{
@@ -626,9 +824,18 @@ export default function AttendanceList() {
                             color: '#1e293b',
                             fontSize: '14px',
                             borderLeft: '3px solid #3b82f6',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            flexWrap: 'wrap',
                           }}
                         >
-                          📁 {group.group_name}
+                          <span>📁 {group.group_name}</span>
+                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>재적 <strong>{groupTotal}</strong></span>
+                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>출석 <strong style={{ color: '#2563eb' }}>{groupAttended}</strong></span>
+                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>결석 <strong style={{ color: '#78716c' }}>{groupExcused}</strong></span>
+                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>무단결석 <strong style={{ color: '#dc2626' }}>{groupUnexcused}</strong></span>
+                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>출석예정 <strong style={{ color: '#0369a1' }}>{groupTotal - groupExcused}</strong></span>
                         </div>
                         {group.cells.map((cell) => (
                           <div
@@ -645,13 +852,16 @@ export default function AttendanceList() {
                             }}
                           >
                             <span style={{ color: '#64748b', flex: '0 0 auto' }}>└ {cell.cell_name}</span>
-                            <span>재적 <strong style={{ color: '#334155' }}>{cell.total}명</strong></span>
-                            <span>출석 <strong style={{ color: '#2563eb' }}>{cell.attended}명</strong></span>
-                            <span>출석율 <strong style={{ color: cell.rate >= 80 ? '#16a34a' : '#f59e0b' }}>{cell.rate}%</strong></span>
+                            <span>재적 <strong>{cell.total}</strong></span>
+                            <span>출석 <strong style={{ color: '#2563eb' }}>{cell.attended}</strong></span>
+                            <span>결석 <strong style={{ color: '#78716c' }}>{cell.excused}</strong></span>
+                            <span>무단결석 <strong style={{ color: '#dc2626' }}>{cell.unexcused}</strong></span>
+                            <span>출석예정 <strong style={{ color: '#0369a1' }}>{cell.total - cell.excused}</strong></span>
                           </div>
                         ))}
                       </div>
-                    ))
+                    );
+                  })
                   )}
                 </div>
               </div>
@@ -659,7 +869,7 @@ export default function AttendanceList() {
           </div>
         )}
 
-        {/* 날짜 선택 */}
+        {/* 날짜 선택 + 일괄 예외 */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap' }}>
           <label style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>날짜</label>
           <input
@@ -673,6 +883,13 @@ export default function AttendanceList() {
             style={{ padding: '8px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
           >
             조회
+          </button>
+          <button
+            type="button"
+            onClick={() => setBulkExceptionOpen(true)}
+            style={{ padding: '8px 16px', background: '#059669', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+          >
+            일괄 예외
           </button>
         </div>
 
@@ -799,10 +1016,11 @@ export default function AttendanceList() {
                 ) : (
                   filteredList.map((item: any) => {
                     const hasAttended = item.attended_at != null;
-                    const isExcused = item.is_excused === true;
+                    const isExcusedAbsence = item.status === 'excused_absence';
                     const isUnexcusedAbsence = item.status === 'unexcused_absence';
                     const isLate = item.status === 'late';
-                    const rowBg = item.is_group_leader ? { background: '#eff6ff' } : item.is_cell_leader ? { background: '#fefce8' } : undefined;
+                    const isPresent = item.status === 'present';
+                    const rowBg = item.is_group_leader ? { background: '#eff6ff' } : item.is_cell_leader ? { background: '#fefce8' } : isExcusedAbsence ? { background: '#f5f5f5' } : undefined;
 
                     return (
                       <S.TableRow key={item.id} style={rowBg}>
@@ -817,12 +1035,12 @@ export default function AttendanceList() {
                         </S.TableData>
 
                         <S.TableData>
-                          {!hasAttended ? (
-                            <span style={{ color: '#94a3b8', fontSize: '13px' }}>미출석</span>
-                          ) : isExcused ? (
-                            <span style={{ color: '#059669', background: '#d1fae5', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
-                              사유 인정
+                          {isExcusedAbsence ? (
+                            <span style={{ color: '#78716c', background: '#e7e5e4', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
+                              결석
                             </span>
+                          ) : !hasAttended && !item.status ? (
+                            <span style={{ color: '#94a3b8', fontSize: '13px' }}>미출석</span>
                           ) : isUnexcusedAbsence ? (
                             <span style={{ color: '#ffffff', background: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
                               무단 결석
@@ -831,10 +1049,12 @@ export default function AttendanceList() {
                             <span style={{ color: '#dc2626', background: '#fef2f2', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
                               지각
                             </span>
-                          ) : (
+                          ) : isPresent ? (
                             <span style={{ color: '#16a34a', background: '#f0fdf4', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
                               정상
                             </span>
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '13px' }}>미출석</span>
                           )}
                         </S.TableData>
 

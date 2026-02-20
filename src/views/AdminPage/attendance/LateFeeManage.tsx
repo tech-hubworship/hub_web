@@ -114,7 +114,7 @@ export default function LateFeeManage() {
             <h3 style={{ fontSize: "16px", fontWeight: "bold", color: "#1e293b", margin: 0 }}>
               📊 지각비 요약
             </h3>
-            <div style={{ display: "flex", gap: "24px", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: "24px", alignItems: "center", flexWrap: "wrap" }}>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: "14px", color: "#64748b" }}>지각비 발생 인원</div>
                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#2563eb" }}>
@@ -125,6 +125,18 @@ export default function LateFeeManage() {
                 <div style={{ fontSize: "14px", color: "#64748b" }}>총 지각비</div>
                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#dc2626" }}>
                   {(stats.totalLateFee || 0).toLocaleString()}원
+                </div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "14px", color: "#64748b" }}>정산된 지각비</div>
+                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#16a34a" }}>
+                  {(stats.totalSettled ?? 0).toLocaleString()}원
+                </div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "14px", color: "#64748b" }}>미정산 지각비</div>
+                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#ea580c" }}>
+                  {(stats.totalUnsettled ?? 0).toLocaleString()}원
                 </div>
               </div>
             </div>

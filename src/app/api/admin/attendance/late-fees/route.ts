@@ -138,6 +138,8 @@ export async function GET(req: Request) {
     });
 
     const totalLateFeeAll = data.reduce((sum, d) => sum + d.total_late_fee, 0);
+    const totalSettledAll = data.reduce((sum, d) => sum + d.total_settled, 0);
+    const totalUnsettledAll = Math.max(0, totalLateFeeAll - totalSettledAll);
 
     return Response.json(
       {
@@ -146,6 +148,8 @@ export async function GET(req: Request) {
           totalMembers: roster.length,
           membersWithLateFee: data.filter((d) => d.total_late_fee > 0).length,
           totalLateFee: totalLateFeeAll,
+          totalSettled: totalSettledAll,
+          totalUnsettled: totalUnsettledAll,
         },
       },
       { status: 200 }

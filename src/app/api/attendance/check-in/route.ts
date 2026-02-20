@@ -93,6 +93,32 @@ export async function POST(req: Request) {
 
     if (insertError) {
       if ((insertError as any).code === "23505") {
+        const { data: existingRow } = await supabaseAdmin
+          .from("weekly_attendance")
+          .select("id, is_excused, status")
+          .eq("user_id", session.user.id)
+          .eq("category", category)
+          .eq("week_date", baseDate)
+          .single();
+
+        if (existingRow?.id && (existingRow as any).is_excused) {
+          const { data: updated, error: updateErr } = await supabaseAdmin
+            .from("weekly_attendance")
+            .update({
+              status,
+              attended_at: now.toISOString(),
+            })
+            .eq("id", existingRow.id)
+            .select()
+            .single();
+          if (!updateErr) {
+            return Response.json(
+              { message: "출석이 반영되었습니다. (상태만 출석/지각으로 갱신, 예외 처리 유지)", result: updated },
+              { status: 200 }
+            );
+          }
+        }
+
         const { data: existingData } = await supabaseAdmin
           .from("weekly_attendance")
           .select("*")
