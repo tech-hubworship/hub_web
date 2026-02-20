@@ -17,6 +17,7 @@ export default function AttendanceCheckODPage() {
   const [step, setStep] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("출석 확인 중...");
   const [result, setResult] = useState<any>(null);
+  const [errorProfile, setErrorProfile] = useState<{ email?: string | null; name?: string | null; community?: string | null; group?: string | null; cell?: string | null } | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -59,14 +60,17 @@ export default function AttendanceCheckODPage() {
         } else if (data.code === "NOT_OD_TARGET") {
           setStep("error");
           setMessage("명단에 없습니다.");
+          setErrorProfile(data.profile ?? null);
         } else {
           setStep("error");
           setMessage(data.error || "출석 처리에 실패했습니다.");
+          setErrorProfile(null);
         }
       }
     } catch (e) {
       setStep("error");
       setMessage("네트워크 오류가 발생했습니다.");
+      setErrorProfile(null);
     }
   };
 
@@ -79,6 +83,7 @@ export default function AttendanceCheckODPage() {
               step={step}
               message={message}
               result={result}
+              errorProfile={errorProfile}
               onGoHome={() => router.replace("/")}
             />
           </CardContent>

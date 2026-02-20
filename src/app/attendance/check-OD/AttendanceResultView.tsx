@@ -2,14 +2,23 @@
 
 export type ResultStep = "loading" | "success" | "error";
 
+export interface ErrorProfile {
+  email?: string | null;
+  name?: string | null;
+  community?: string | null;
+  group?: string | null;
+  cell?: string | null;
+}
+
 export interface AttendanceResultViewProps {
   step: ResultStep;
   message: string;
   result: Record<string, unknown> | null;
+  errorProfile?: ErrorProfile | null;
   onGoHome: () => void;
 }
 
-export function AttendanceResultView({ step, message, result, onGoHome }: AttendanceResultViewProps) {
+export function AttendanceResultView({ step, message, result, errorProfile, onGoHome }: AttendanceResultViewProps) {
   if (step === "loading") {
     return (
       <div style={{ textAlign: "center", padding: "40px 0" }}>
@@ -20,12 +29,34 @@ export function AttendanceResultView({ step, message, result, onGoHome }: Attend
   }
 
   if (step === "error") {
+    const showProfile = message === "명단에 없습니다." && errorProfile;
     return (
       <div style={{ textAlign: "center", padding: "20px 0" }}>
         <div style={{ fontSize: "48px", marginBottom: "16px" }}>🚫</div>
         <h2 style={{ fontSize: "20px", fontWeight: "bold", color: "#dc2626", marginBottom: "12px" }}>
           {message}
         </h2>
+        {showProfile && (
+          <div
+            style={{
+              marginBottom: "16px",
+              padding: "16px",
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: "10px",
+              textAlign: "left",
+              fontSize: "14px",
+              color: "#374151",
+            }}
+          >
+            <div style={{ fontWeight: "600", marginBottom: "8px", color: "#111827" }}>확인용 정보</div>
+            <p style={{ margin: "4px 0" }}><strong>이메일</strong> {errorProfile.email ?? "-"}</p>
+            <p style={{ margin: "4px 0" }}><strong>이름</strong> {errorProfile.name ?? "-"}</p>
+            <p style={{ margin: "4px 0" }}><strong>공동체</strong> {errorProfile.community ?? "-"}</p>
+            <p style={{ margin: "4px 0" }}><strong>그룹</strong> {errorProfile.group ?? "-"}</p>
+            <p style={{ margin: "4px 0" }}><strong>다락방</strong> {errorProfile.cell ?? "-"}</p>
+          </div>
+        )}
         <button
           onClick={onGoHome}
           style={{

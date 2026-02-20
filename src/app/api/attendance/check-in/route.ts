@@ -67,8 +67,29 @@ export async function POST(req: Request) {
           .maybeSingle();
 
         if (!odTarget) {
+          const { data: profileRow } = await supabaseAdmin
+            .from("profiles")
+            .select("name, email, community, group_id, cell_id, hub_groups:group_id(name), hub_cells:cell_id(name)")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+          const p = profileRow as any;
+          const profile = p
+            ? {
+                email: p.email ?? (session.user?.email ?? null),
+                name: p.name ?? (session.user?.name ?? null),
+                community: p.community ?? null,
+                group: p.hub_groups?.name ?? null,
+                cell: p.hub_cells?.name ?? null,
+              }
+            : {
+                email: session.user?.email ?? null,
+                name: session.user?.name ?? null,
+                community: null,
+                group: null,
+                cell: null,
+              };
           return Response.json(
-            { error: "명단에 없습니다.", code: "NOT_OD_TARGET" },
+            { error: "명단에 없습니다.", code: "NOT_OD_TARGET", profile },
             { status: 403 }
           );
         }

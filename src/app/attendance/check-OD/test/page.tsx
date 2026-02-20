@@ -4,14 +4,28 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageLayout from "@src/components/common/PageLayout";
 import { Card, CardContent } from "@src/components/ui/card";
-import { AttendanceResultView, type ResultStep } from "../AttendanceResultView";
+import { AttendanceResultView, type ResultStep, type ErrorProfile } from "../AttendanceResultView";
 
 const NOW = new Date().toISOString();
 
-const MOCK_SCENARIOS: { id: string; label: string; step: ResultStep; message: string; result: Record<string, unknown> | null }[] = [
+const MOCK_SCENARIOS: {
+  id: string;
+  label: string;
+  step: ResultStep;
+  message: string;
+  result: Record<string, unknown> | null;
+  errorProfile?: ErrorProfile | null;
+}[] = [
   { id: "loading", label: "로딩", step: "loading", message: "출석 확인 중...", result: null },
   { id: "error", label: "에러 (유효하지 않은 QR)", step: "error", message: "유효하지 않은 QR 코드입니다.", result: null },
-  { id: "error-not-od", label: "에러 (명단 없음)", step: "error", message: "명단에 없습니다.", result: null },
+  {
+    id: "error-not-od",
+    label: "에러 (명단 없음)",
+    step: "error",
+    message: "명단에 없습니다.",
+    result: null,
+    errorProfile: { email: "user@gmail.com", name: "홍길동", community: "청년부", group: "A그룹", cell: "다락방1" },
+  },
   {
     id: "success-normal",
     label: "출석 완료 – 정상 출석",
@@ -96,11 +110,13 @@ export default function AttendanceCheckODTestPage() {
   const [step, setStep] = useState<ResultStep>(initial.step);
   const [message, setMessage] = useState(initial.message);
   const [result, setResult] = useState<Record<string, unknown> | null>(initial.result);
+  const [errorProfile, setErrorProfile] = useState<ErrorProfile | null>(initial.errorProfile ?? null);
 
   const applyScenario = (s: (typeof MOCK_SCENARIOS)[number]) => {
     setStep(s.step);
     setMessage(s.message);
     setResult(s.result);
+    setErrorProfile(s.errorProfile ?? null);
   };
 
   return (
@@ -139,6 +155,7 @@ export default function AttendanceCheckODTestPage() {
                 step={step}
                 message={message}
                 result={result}
+                errorProfile={errorProfile}
                 onGoHome={() => router.replace("/")}
               />
             </CardContent>
