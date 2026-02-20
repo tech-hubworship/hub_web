@@ -189,7 +189,7 @@ export default function AttendanceList() {
   const openExceptionModal = (userId: string, name: string) => {
     setExceptionTarget({ userId, name });
     setExcuseLateFee(true);
-    setExcuseReport(true);
+    setExcuseReport(false);
     setExceptionAsAbsence(false);
     setExceptionNote('');
     setExceptionModalOpen(true);

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, BookOpen, TrendingUp, X, Link2 } from "lucide-react";
+import { Search, BookOpen, X, Link2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const Footer = dynamic(() => import("@src/components/Footer"), { ssr: true });
@@ -263,22 +263,6 @@ const TermLocation = styled.div`
   font-weight: 500;
 `;
 
-const PopularTerms = styled.div`
-  width: 100%;
-  max-width: 1200px;
-  margin-bottom: 32px;
-`;
-
-const PopularTitle = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2a5c;
-  margin-bottom: 16px;
-`;
-
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 20px;
@@ -421,7 +405,6 @@ const CATEGORIES = ["전체", "신앙", "공동체", "행사", "기타", "조직
 
 export default function ClientPage() {
   const [terms, setTerms] = useState<Term[]>([]);
-  const [popularTerms, setPopularTerms] = useState<Term[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [selectedTerm, setSelectedTerm] = useState<Term | null>(null);
@@ -430,7 +413,6 @@ export default function ClientPage() {
 
   useEffect(() => {
     fetchTerms();
-    fetchPopularTerms();
   }, []);
 
   const fetchTerms = async () => {
@@ -444,18 +426,6 @@ export default function ClientPage() {
       console.error("용어 목록 조회 오류:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchPopularTerms = async () => {
-    try {
-      const response = await fetch("/api/glossary/popular");
-      const data = await response.json();
-      if (response.ok) {
-        setPopularTerms(data.terms || []);
-      }
-    } catch (error) {
-      console.error("인기 용어 조회 오류:", error);
     }
   };
 
@@ -575,46 +545,6 @@ export default function ClientPage() {
             </CategoryButton>
           ))}
         </CategoryFilter>
-
-        {popularTerms.length > 0 && (
-          <PopularTerms>
-            <PopularTitle>
-              <TrendingUp size={20} />
-              인기 용어
-            </PopularTitle>
-            <TermsGrid>
-              {popularTerms.slice(0, 4).map((term) => (
-                <TermCard
-                  key={term.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onTap={() => handleTermClick(term)}
-                >
-                  <TermHeader>
-                    <TermName>{term.term_name}</TermName>
-                    <CategoryBadge $category={term.category}>{term.category}</CategoryBadge>
-                  </TermHeader>
-                  <TermDefinition>{term.definition}</TermDefinition>
-                  {term.schedule && (
-                    <TermSchedule>
-                      <span>⏰</span>
-                      {term.schedule}
-                    </TermSchedule>
-                  )}
-                  {term.location && (
-                    <TermLocation>
-                      <span>📍</span>
-                      {term.location}
-                    </TermLocation>
-                  )}
-                  {term.example && (
-                    <TermExample>예: {term.example}</TermExample>
-                  )}
-                </TermCard>
-              ))}
-            </TermsGrid>
-          </PopularTerms>
-        )}
 
         {loading ? (
           <EmptyState>로딩 중...</EmptyState>

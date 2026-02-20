@@ -14,7 +14,6 @@ export async function GET(req: Request) {
       .from("glossary_terms")
       .select("*")
       .eq("is_active", true)
-      .order("order_index", { ascending: true })
       .order("search_count", { ascending: false });
 
     if (category && category !== "전체") {
