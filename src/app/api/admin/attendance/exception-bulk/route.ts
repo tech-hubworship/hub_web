@@ -31,14 +31,21 @@ export async function POST(req: Request) {
   const adminName = session?.user?.name || (session?.user as any)?.email || "관리자";
 
   try {
+    // 예외처리 시 상태·출석 시각은 넣지 않음.
     const updateData: Record<string, any> = {
       note: note.trim(),
       updated_by: adminName,
     };
-    if (excuseLateFee || excuseReport) updateData.is_excused = true;
-    if (excuseLateFee) updateData.late_fee = 0;
-    if (excuseReport) updateData.is_report_required = false;
-    if (exceptionStatus === "excused_absence") updateData.status = "excused_absence";
+    if (excuseLateFee) {
+      updateData.late_fee = 0;
+      updateData.late_fee_excused = true;
+      updateData.is_excused = true;
+    }
+    if (excuseReport) {
+      updateData.is_report_required = false;
+      updateData.report_excused = true;
+      updateData.is_excused = true;
+    }
 
     let processed = 0;
     let inserted = 0;
@@ -59,18 +66,20 @@ export async function POST(req: Request) {
           .eq("id", existing.id);
         if (!error) processed += 1;
       } else {
+        // 기록 없을 때 새 행 생성. 예외처리이므로 출석 시간은 null.
         const insertRow: Record<string, any> = {
           user_id: userId,
           week_date: baseDate,
           category,
-          status: exceptionStatus === "excused_absence" ? "excused_absence" : "present",
+          attended_at: null,
           late_fee: 0,
           is_report_required: false,
           note: note.trim(),
-          attended_at: new Date().toISOString(),
           updated_by: adminName,
+          is_excused: !!(excuseLateFee || excuseReport || exceptionStatus === "excused_absence"),
+          late_fee_excused: !!excuseLateFee,
+          report_excused: !!excuseReport,
         };
-        if (excuseLateFee || excuseReport) insertRow.is_excused = true;
         const { error } = await supabaseAdmin.from("weekly_attendance").insert(insertRow);
         if (!error) {
           processed += 1;

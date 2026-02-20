@@ -71,7 +71,7 @@ export async function GET(req: Request) {
     // 2. 해당 날짜 OD 출석 기록 조회 (수정됨: note, updated_by 추가)
     const { data: attendanceRows, error: attError } = await supabaseAdmin
       .from("weekly_attendance")
-      .select("user_id, attended_at, status, is_excused, late_fee, is_report_required, note, updated_by")
+      .select("user_id, attended_at, status, is_excused, late_fee, is_report_required, late_fee_excused, report_excused, note, updated_by")
       .eq("week_date", date)
       .eq("category", CATEGORY_OD)
       .in("user_id", userIds);
@@ -128,6 +128,8 @@ export async function GET(req: Request) {
         is_excused: att?.is_excused ?? false,
         late_fee: att?.late_fee ?? 0,
         is_report_required: att?.is_report_required ?? false,
+        late_fee_excused: att?.late_fee_excused ?? false,
+        report_excused: att?.report_excused ?? false,
         note: att?.note || null,
         updated_by: att?.updated_by || null,
       };

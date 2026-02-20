@@ -28,10 +28,7 @@ export async function POST(req: Request) {
     return jsonError("필수 정보가 누락되었습니다.", 400);
   }
 
-  // 사유 필수 체크
-  if (!note || typeof note !== "string" || note.trim() === "") {
-    return jsonError("변경 사유는 필수입니다.", 400);
-  }
+  const noteTrimmed = typeof note === "string" ? note.trim() : "";
 
   try {
     const adminName = session?.user?.name || (session?.user as any)?.email || "관리자";
@@ -39,12 +36,23 @@ export async function POST(req: Request) {
     const nowIso = now.toISOString();
     const baseDate = typeof weekDate === "string" ? weekDate.split("T")[0] : weekDate;
 
+    // 기존 데이터 확인 (예외 처리 유지 여부 판단용)
+    const { data: existing } = await supabaseAdmin
+      .from("weekly_attendance")
+      .select("id, is_excused, late_fee, is_report_required, late_fee_excused, report_excused")
+      .eq("user_id", userId)
+      .eq("week_date", baseDate)
+      .eq("category", category)
+      .maybeSingle();
+
     // status: 출석 상태만 (present | late | unexcused_absence). 예외는 is_excused로 별도 관리
     let updateData: Record<string, any> = {
-      note: note.trim(),
       updated_by: adminName,
       attended_at: nowIso,
     };
+    if (noteTrimmed !== "") {
+      updateData.note = noteTrimmed;
+    }
 
     if (status === "excused") {
       updateData.is_excused = true;
@@ -73,21 +81,23 @@ export async function POST(req: Request) {
 
       const { status: calcStatus, lateFee, isReportRequired } = calculateLateFeeWithThreshold(now, lateThreshold);
       updateData.status = calcStatus;
-      updateData.late_fee = lateFee;
-      updateData.is_report_required = isReportRequired;
+      // 기존에 지각비/보고서 예외가 적용된 경우: 예외 유지(지각비·보고서·예외 플래그 덮어쓰지 않음)
+      if (existing?.id && (existing as any).is_excused) {
+        updateData.is_excused = true;
+        updateData.late_fee = (existing as any).late_fee ?? 0;
+        updateData.is_report_required = (existing as any).is_report_required ?? false;
+        updateData.late_fee_excused = (existing as any).late_fee_excused ?? false;
+        updateData.report_excused = (existing as any).report_excused ?? false;
+      } else {
+        updateData.late_fee = lateFee;
+        updateData.is_report_required = isReportRequired;
+      }
     } else if (status === "unexcused_absence") {
       updateData.late_fee = 5000;
       updateData.is_report_required = true;
+      updateData.late_fee_excused = false;
+      updateData.report_excused = false;
     }
-
-    // 기존 데이터 확인
-    const { data: existing } = await supabaseAdmin
-      .from("weekly_attendance")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("week_date", weekDate)
-      .eq("category", category)
-      .maybeSingle();
 
     let result;
 

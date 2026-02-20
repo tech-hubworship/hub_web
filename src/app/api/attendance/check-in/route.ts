@@ -101,6 +101,7 @@ export async function POST(req: Request) {
           .eq("week_date", baseDate)
           .single();
 
+        // 기존에 지각비/보고서 예외가 적용된 경우: 상태·출석 시각만 갱신, late_fee·is_report_required는 예외 값 유지
         if (existingRow?.id && (existingRow as any).is_excused) {
           const { data: updated, error: updateErr } = await supabaseAdmin
             .from("weekly_attendance")

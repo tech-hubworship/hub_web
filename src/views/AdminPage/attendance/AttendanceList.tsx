@@ -20,14 +20,14 @@ export default function AttendanceList() {
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
   const [exceptionTarget, setExceptionTarget] = useState<{ userId: string; name: string } | null>(null);
   const [excuseLateFee, setExcuseLateFee] = useState(true);
-  const [excuseReport, setExcuseReport] = useState(true);
+  const [excuseReport, setExcuseReport] = useState(false);
   const [exceptionAsAbsence, setExceptionAsAbsence] = useState(false);
   const [exceptionNote, setExceptionNote] = useState('');
   const [exceptionSubmitting, setExceptionSubmitting] = useState(false);
 
   const [bulkExceptionOpen, setBulkExceptionOpen] = useState(false);
   const [bulkExcuseLateFee, setBulkExcuseLateFee] = useState(true);
-  const [bulkExcuseReport, setBulkExcuseReport] = useState(true);
+  const [bulkExcuseReport, setBulkExcuseReport] = useState(false);
   const [bulkAsAbsence, setBulkAsAbsence] = useState(false);
   const [bulkNote, setBulkNote] = useState('');
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
@@ -35,6 +35,8 @@ export default function AttendanceList() {
   const [filterGroup, setFilterGroup] = useState('');
   const [filterCell, setFilterCell] = useState('');
   const [filterName, setFilterName] = useState('');
+  const [filterReportRequiredOnly, setFilterReportRequiredOnly] = useState(false);
+  const [sortNoAttendedFirst, setSortNoAttendedFirst] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   const queryClient = useQueryClient();
@@ -59,8 +61,12 @@ export default function AttendanceList() {
     if (filterGroup && (row.group_name ?? '-') !== filterGroup) return false;
     if (filterCell && (row.cell_name ?? '-') !== filterCell) return false;
     if (filterName && !(row.name || '').toLowerCase().includes(filterName.trim().toLowerCase())) return false;
+    if (filterReportRequiredOnly && !(row.is_report_required && !row.report_excused)) return false;
     return true;
   });
+  const displayList = sortNoAttendedFirst
+    ? [...filteredList].sort((a: any, b: any) => ((a.attended_at != null ? 1 : 0) - (b.attended_at != null ? 1 : 0)))
+    : filteredList;
   const filteredTotal = filteredList.length;
   const filteredPresent = filteredList.filter((r: any) => r.status === 'present').length;
   const filteredLate = filteredList.filter((r: any) => r.status === 'late').length;
@@ -155,8 +161,6 @@ export default function AttendanceList() {
   const seg4 = `${fmt(graceEndM + 31)}~`;
 
   const handleUpdateStatus = async (userId: string, newStatus: string) => {
-    const note = "수동 처리";
-
     try {
       const res = await fetch('/api/admin/attendance/update-status', {
         method: 'POST',
@@ -165,7 +169,7 @@ export default function AttendanceList() {
           userId,
           weekDate: date,
           status: newStatus,
-          note,
+          note: '',
           category: 'OD'
         }),
       });
@@ -415,28 +419,16 @@ export default function AttendanceList() {
                 예외처리 – {exceptionTarget.name}
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={excuseLateFee}
-                    onChange={(e) => setExcuseLateFee(e.target.checked)}
-                  />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '15px' }}>
+                  <input type="checkbox" checked={excuseLateFee} onChange={(e) => setExcuseLateFee(e.target.checked)} />
                   <span>지각비 예외처리</span>
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={excuseReport}
-                    onChange={(e) => setExcuseReport(e.target.checked)}
-                  />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '15px' }}>
+                  <input type="checkbox" checked={excuseReport} onChange={(e) => setExcuseReport(e.target.checked)} />
                   <span>OD 보고서 예외처리</span>
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={exceptionAsAbsence}
-                    onChange={(e) => setExceptionAsAbsence(e.target.checked)}
-                  />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '15px' }}>
+                  <input type="checkbox" checked={exceptionAsAbsence} onChange={(e) => setExceptionAsAbsence(e.target.checked)} />
                   <span>결석(인정 결석)으로 처리</span>
                 </label>
                 {(!excuseLateFee && !excuseReport && !exceptionAsAbsence) && (
@@ -514,15 +506,15 @@ export default function AttendanceList() {
                 {date} · 현재 필터 기준 <strong>{filteredList.length}명</strong>에게 적용됩니다.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '15px' }}>
                   <input type="checkbox" checked={bulkExcuseLateFee} onChange={(e) => setBulkExcuseLateFee(e.target.checked)} />
                   <span>지각비 예외처리</span>
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '15px' }}>
                   <input type="checkbox" checked={bulkExcuseReport} onChange={(e) => setBulkExcuseReport(e.target.checked)} />
                   <span>OD 보고서 예외처리</span>
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '15px' }}>
                   <input type="checkbox" checked={bulkAsAbsence} onChange={(e) => setBulkAsAbsence(e.target.checked)} />
                   <span>결석(인정 결석)으로 처리</span>
                 </label>
@@ -593,12 +585,21 @@ export default function AttendanceList() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
                   <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>출석 시간 (비우면 미기록)</label>
-                  <input
-                    type="datetime-local"
-                    value={editAttendedAt}
-                    onChange={(e) => setEditAttendedAt(e.target.value)}
-                    style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%' }}
-                  />
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="datetime-local"
+                      value={editAttendedAt}
+                      onChange={(e) => setEditAttendedAt(e.target.value)}
+                      style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', flex: 1, minWidth: 0 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setEditAttendedAt('')}
+                      style={{ padding: '8px 12px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      날짜 비우기
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>상태 (비우면 미기록)</label>
@@ -607,7 +608,7 @@ export default function AttendanceList() {
                     onChange={(e) => setEditStatus(e.target.value)}
                     style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%', background: 'white' }}
                   >
-                    <option value="">비움</option>
+                    <option value="">-</option>
                     <option value="present">정상</option>
                     <option value="late">지각</option>
                     <option value="excused_absence">결석(인정)</option>
@@ -631,7 +632,7 @@ export default function AttendanceList() {
                     min={0}
                     value={editLateFee}
                     onChange={(e) => setEditLateFee(e.target.value)}
-                    placeholder="비움"
+                    placeholder="-"
                     style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%' }}
                   />
                 </div>
@@ -642,7 +643,7 @@ export default function AttendanceList() {
                     onChange={(e) => setEditReportRequired(e.target.value === '' ? null : e.target.value === 'true')}
                     style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%', background: 'white' }}
                   >
-                    <option value="">비움</option>
+                    <option value="">-</option>
                     <option value="true">대상</option>
                     <option value="false">비대상</option>
                   </select>
@@ -654,7 +655,7 @@ export default function AttendanceList() {
                     onChange={(e) => setEditExcused(e.target.value === '' ? null : e.target.value === 'true')}
                     style={{ padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%', background: 'white' }}
                   >
-                    <option value="">비움</option>
+                    <option value="">-</option>
                     <option value="true">예외</option>
                     <option value="false">아니오</option>
                   </select>
@@ -713,8 +714,11 @@ export default function AttendanceList() {
                 </h3>
                 <p style={{ fontSize: '14px', color: '#64748b' }}>
                   OD 명단 기준 · {date}
-                  {(filterGroup || filterCell || filterName) && (
+                  {(filterGroup || filterCell || filterName || filterReportRequiredOnly) && (
                     <span style={{ marginLeft: '8px', color: '#0284c7' }}> (필터: {filteredTotal}명)</span>
+                  )}
+                  {sortNoAttendedFirst && (
+                    <span style={{ marginLeft: '8px', color: '#64748b', fontSize: '13px' }}>· 미출석 먼저 정렬</span>
                   )}
                 </p>
               </div>
@@ -966,10 +970,26 @@ export default function AttendanceList() {
                 ))}
               </select>
             </div>
-            {(filterGroup || filterCell || filterName) && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#475569' }}>
+              <input
+                type="checkbox"
+                checked={filterReportRequiredOnly}
+                onChange={(e) => setFilterReportRequiredOnly(e.target.checked)}
+              />
+              <span>OD 보고서 대상만</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#475569' }}>
+              <input
+                type="checkbox"
+                checked={sortNoAttendedFirst}
+                onChange={(e) => setSortNoAttendedFirst(e.target.checked)}
+              />
+              <span>미출석 먼저 보기</span>
+            </label>
+            {(filterGroup || filterCell || filterName || filterReportRequiredOnly || sortNoAttendedFirst) && (
               <button
                 type="button"
-                onClick={() => { setFilterGroup(''); setFilterCell(''); setFilterName(''); }}
+                onClick={() => { setFilterGroup(''); setFilterCell(''); setFilterName(''); setFilterReportRequiredOnly(false); setSortNoAttendedFirst(false); }}
                 style={{
                   padding: '6px 12px',
                   fontSize: '13px',
@@ -1005,7 +1025,7 @@ export default function AttendanceList() {
                 </S.TableRow>
               </S.TableHeader>
               <tbody>
-                {filteredList.length === 0 ? (
+                {displayList.length === 0 ? (
                   <S.TableRow>
                     <S.TableData colSpan={8} style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
                       {list.length === 0
@@ -1014,7 +1034,7 @@ export default function AttendanceList() {
                     </S.TableData>
                   </S.TableRow>
                 ) : (
-                  filteredList.map((item: any) => {
+                  displayList.map((item: any) => {
                     const hasAttended = item.attended_at != null;
                     const isExcusedAbsence = item.status === 'excused_absence';
                     const isUnexcusedAbsence = item.status === 'unexcused_absence';
@@ -1035,12 +1055,12 @@ export default function AttendanceList() {
                         </S.TableData>
 
                         <S.TableData>
-                          {isExcusedAbsence ? (
+                          {!hasAttended ? (
+                            <span style={{ color: '#94a3b8', fontSize: '13px' }}>미출석</span>
+                          ) : isExcusedAbsence ? (
                             <span style={{ color: '#78716c', background: '#e7e5e4', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
                               결석
                             </span>
-                          ) : !hasAttended && !item.status ? (
-                            <span style={{ color: '#94a3b8', fontSize: '13px' }}>미출석</span>
                           ) : isUnexcusedAbsence ? (
                             <span style={{ color: '#ffffff', background: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
                               무단 결석
@@ -1074,14 +1094,18 @@ export default function AttendanceList() {
                         </S.TableData>
 
                         <S.TableData>
-                          {item.late_fee > 0 ? (
+                          {item.late_fee_excused ? (
+                            <span style={{ color: '#059669', fontWeight: '600', fontSize: '13px' }}>예외처리</span>
+                          ) : item.late_fee > 0 ? (
                             <span style={{ color: '#dc2626', fontWeight: 'bold' }}>
                               {item.late_fee.toLocaleString()}원
                             </span>
                           ) : '-'}
                         </S.TableData>
                         <S.TableData>
-                          {item.is_report_required ? (
+                          {item.report_excused ? (
+                            <span style={{ color: '#059669', fontWeight: '600', fontSize: '13px' }}>예외처리</span>
+                          ) : item.is_report_required ? (
                             <span style={{ color: '#dc2626', fontWeight: '600', fontSize: '13px' }}>📝 대상</span>
                           ) : '-'}
                         </S.TableData>
