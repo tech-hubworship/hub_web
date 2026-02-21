@@ -30,8 +30,6 @@ export async function POST(req: Request) {
 
   const lateAt = now.startOf("day").add(startHour, "hour").add(startMinute, "minute");
 
-  await supabaseAdmin.from("qr_tokens").delete().lt("expires_at", now.toISOString());
-
   const token = crypto.randomBytes(16).toString("hex");
   const expiresAt = now.add(1, "minute").toISOString();
 
