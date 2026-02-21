@@ -35,6 +35,7 @@ export default function AttendanceList() {
   const [filterGroup, setFilterGroup] = useState('');
   const [filterCell, setFilterCell] = useState('');
   const [filterName, setFilterName] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [filterReportRequiredOnly, setFilterReportRequiredOnly] = useState(false);
   const [sortNoAttendedFirst, setSortNoAttendedFirst] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
@@ -61,6 +62,14 @@ export default function AttendanceList() {
     if (filterGroup && (row.group_name ?? '-') !== filterGroup) return false;
     if (filterCell && (row.cell_name ?? '-') !== filterCell) return false;
     if (filterName && !(row.name || '').toLowerCase().includes(filterName.trim().toLowerCase())) return false;
+    if (filterStatus) {
+      if (filterStatus === 'no_status') {
+        const s = row.status;
+        if (s != null && s !== '') return false;
+      } else if ((row.status ?? '') !== filterStatus) {
+        return false;
+      }
+    }
     if (filterReportRequiredOnly && !(row.is_report_required && !row.report_excused)) return false;
     return true;
   });
@@ -714,7 +723,7 @@ export default function AttendanceList() {
                 </h3>
                 <p style={{ fontSize: '14px', color: '#64748b' }}>
                   OD 명단 기준 · {date}
-                  {(filterGroup || filterCell || filterName || filterReportRequiredOnly) && (
+                  {(filterGroup || filterCell || filterName || filterStatus || filterReportRequiredOnly) && (
                     <span style={{ marginLeft: '8px', color: '#0284c7' }}> (필터: {filteredTotal}명)</span>
                   )}
                   {sortNoAttendedFirst && (
@@ -970,6 +979,28 @@ export default function AttendanceList() {
                 ))}
               </select>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '13px', color: '#64748b' }}>상태</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  minWidth: '120px',
+                  background: 'white',
+                }}
+              >
+                <option value="">전체</option>
+                <option value="no_status">미출석</option>
+                <option value="present">출석</option>
+                <option value="late">지각</option>
+                <option value="excused_absence">결석(인정)</option>
+                <option value="unexcused_absence">무단결석</option>
+              </select>
+            </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#475569' }}>
               <input
                 type="checkbox"
@@ -986,10 +1017,10 @@ export default function AttendanceList() {
               />
               <span>미출석 먼저 보기</span>
             </label>
-            {(filterGroup || filterCell || filterName || filterReportRequiredOnly || sortNoAttendedFirst) && (
+            {(filterGroup || filterCell || filterName || filterStatus || filterReportRequiredOnly || sortNoAttendedFirst) && (
               <button
                 type="button"
-                onClick={() => { setFilterGroup(''); setFilterCell(''); setFilterName(''); setFilterReportRequiredOnly(false); setSortNoAttendedFirst(false); }}
+                onClick={() => { setFilterGroup(''); setFilterCell(''); setFilterName(''); setFilterStatus(''); setFilterReportRequiredOnly(false); setSortNoAttendedFirst(false); }}
                 style={{
                   padding: '6px 12px',
                   fontSize: '13px',
@@ -1045,7 +1076,12 @@ export default function AttendanceList() {
                     return (
                       <S.TableRow key={item.id} style={rowBg}>
                         <S.TableData>
-                          <span style={{ fontWeight: 'bold', fontSize: '15px' }}>{item.name}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '15px' }}>{item.name}</span>
+                            {item.email && (
+                              <span style={{ fontSize: '12px', color: '#64748b' }}>{item.email}</span>
+                            )}
+                          </div>
                         </S.TableData>
                         <S.TableData>
                           {item.group_name || '-'} / {item.cell_name || '-'}
@@ -1055,9 +1091,7 @@ export default function AttendanceList() {
                         </S.TableData>
 
                         <S.TableData>
-                          {!hasAttended ? (
-                            <span style={{ color: '#94a3b8', fontSize: '13px' }}>미출석</span>
-                          ) : isExcusedAbsence ? (
+                          {isExcusedAbsence ? (
                             <span style={{ color: '#78716c', background: '#e7e5e4', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
                               결석
                             </span>
@@ -1065,6 +1099,8 @@ export default function AttendanceList() {
                             <span style={{ color: '#ffffff', background: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
                               무단 결석
                             </span>
+                          ) : !hasAttended ? (
+                            <span style={{ color: '#94a3b8', fontSize: '13px' }}>미출석</span>
                           ) : isLate ? (
                             <span style={{ color: '#dc2626', background: '#fef2f2', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
                               지각

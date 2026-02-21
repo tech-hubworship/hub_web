@@ -19,7 +19,7 @@ export const LATE_GRACE_MINUTES = 0;
 
 /**
  * 지각 기준 시각(late_at) 대비 지각비 계산
- * - N분까지 정상 출석, (N+1)분부터 지각 (N = LATE_GRACE_MINUTES)
+ * - N분까지 정상 출석, (N+1)분 시점부터 지각 (N = LATE_GRACE_MINUTES). 분 단위로만 비교하므로 0분 1초~0분 59초는 정상.
  * - 지각 구간(각 10분): 1,000원 / 2,000원 / 3,000원 / 4,000원 (4,000원은 OD 보고서 대상)
  * - 무단 결석(5,000원)은 출석 관리에서 무단 결석 버튼으로만 처리 (이 함수에서는 반환하지 않음)
  */
@@ -27,26 +27,24 @@ export function calculateLateFeeWithThreshold(
   checkInTime: Dayjs,
   lateThreshold: Dayjs
 ): LateFeeResult {
-  const diffSeconds = checkInTime.diff(lateThreshold, "second");
-  const graceEndSeconds = LATE_GRACE_MINUTES * 60;
-
-  // N분까지 정상, (N+1)분부터 지각
-
-  if (diffSeconds <= graceEndSeconds) {
-    return { status: "present", lateFee: 0, isReportRequired: false };
-  }
+  // 분 단위(버림)로 비교: 정한시간 +1분이 되는 시점부터 지각 (0분 1초~59초는 0분으로 정상 처리)
+  const diffMinutes = checkInTime.diff(lateThreshold, "minute");
 
   const g = LATE_GRACE_MINUTES;
+  // N분까지 정상, (N+1)분부터 지각
+  if (diffMinutes <= g) {
+    return { status: "present", lateFee: 0, isReportRequired: false };
+  }
   // (N+1)~(N+10)분: 1,000원
-  if (diffSeconds < (g + 11) * 60) {
+  if (diffMinutes < g + 11) {
     return { status: "late", lateFee: 1000, isReportRequired: false };
   }
   // (N+11)~(N+20)분: 2,000원
-  if (diffSeconds < (g + 21) * 60) {
+  if (diffMinutes < g + 21) {
     return { status: "late", lateFee: 2000, isReportRequired: false };
   }
   // (N+21)~(N+30)분: 3,000원
-  if (diffSeconds < (g + 31) * 60) {
+  if (diffMinutes < g + 31) {
     return { status: "late", lateFee: 3000, isReportRequired: false };
   }
   // (N+31)분~: 4,000원 (OD 보고서 대상)

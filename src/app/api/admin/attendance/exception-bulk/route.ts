@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   const adminName = session?.user?.name || (session?.user as any)?.email || "관리자";
 
   try {
-    // 예외처리 시 상태·출석 시각은 넣지 않음.
+    // 예외처리 시 지각비/보고서 예외 반영. 결석(인정) 선택 시 status를 excused_absence로 설정.
     const updateData: Record<string, any> = {
       note: note.trim(),
       updated_by: adminName,
@@ -45,6 +45,12 @@ export async function POST(req: Request) {
       updateData.is_report_required = false;
       updateData.report_excused = true;
       updateData.is_excused = true;
+    }
+    if (exceptionStatus === "excused_absence") {
+      updateData.status = "excused_absence";
+      updateData.is_excused = true;
+      updateData.is_report_required = true;
+      updateData.report_excused = false;
     }
 
     let processed = 0;
@@ -67,18 +73,20 @@ export async function POST(req: Request) {
         if (!error) processed += 1;
       } else {
         // 기록 없을 때 새 행 생성. 예외처리이므로 출석 시간은 null.
+        const isExcusedAbsence = exceptionStatus === "excused_absence";
         const insertRow: Record<string, any> = {
           user_id: userId,
           week_date: baseDate,
           category,
           attended_at: null,
+          status: isExcusedAbsence ? "excused_absence" : "present",
           late_fee: 0,
-          is_report_required: false,
+          is_report_required: isExcusedAbsence ? true : false,
           note: note.trim(),
           updated_by: adminName,
-          is_excused: !!(excuseLateFee || excuseReport || exceptionStatus === "excused_absence"),
+          is_excused: !!(excuseLateFee || excuseReport || isExcusedAbsence),
           late_fee_excused: !!excuseLateFee,
-          report_excused: !!excuseReport,
+          report_excused: isExcusedAbsence ? false : !!excuseReport,
         };
         const { error } = await supabaseAdmin.from("weekly_attendance").insert(insertRow);
         if (!error) {

@@ -89,6 +89,7 @@ export async function GET(req: Request) {
         `
         user_id,
         name,
+        email,
         group_id,
         cell_id,
         hub_groups:group_id(id, name),
@@ -99,12 +100,13 @@ export async function GET(req: Request) {
 
     if (profError) throw profError;
 
-    type ProfileInfo = { name?: string; group_name?: string | null; cell_name?: string | null };
+    type ProfileInfo = { name?: string; email?: string | null; group_name?: string | null; cell_name?: string | null };
     const profileByUser = new Map<string, ProfileInfo>(
       (profiles || []).map((p: any) => [
         p.user_id,
         {
           name: p.name,
+          email: p.email ?? null,
           group_name: p.hub_groups?.name || null,
           cell_name: p.hub_cells?.name || null,
         },
@@ -119,6 +121,7 @@ export async function GET(req: Request) {
         id: r.id,
         user_id: r.user_id,
         name: profile.name || r.name || "-",
+        email: profile.email ?? null,
         group_name: profile.group_name || "-",
         cell_name: profile.cell_name || "-",
         is_group_leader: !!r.is_group_leader,
