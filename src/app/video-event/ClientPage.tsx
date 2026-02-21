@@ -165,7 +165,7 @@ const VideoIcon = styled.div`
 const EmptyStateTitle = styled.div`
   font-size: 20px;
   font-weight: 600;
-  color: #ffffff;
+  color: #000000;
   line-height: 1.6;
   white-space: pre-line;
 
@@ -178,7 +178,7 @@ const EmptyStateTitle = styled.div`
 const EmptyStateSubtitle = styled.div`
   font-size: 16px;
   font-weight: 500;
-  color: #ffffff;
+  color: #333333;
   line-height: 1.6;
   margin-top: 8px;
 
@@ -190,7 +190,7 @@ const EmptyStateSubtitle = styled.div`
 
 const PrayerIcon = styled(motion.div)`
   font-size: 24px;
-  color: #ffffff;
+  color: #000000;
   margin-top: 8px;
 
   @media (max-width: 768px) {
