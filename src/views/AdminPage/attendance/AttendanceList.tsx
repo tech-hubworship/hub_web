@@ -39,6 +39,7 @@ export default function AttendanceList() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterReportRequiredOnly, setFilterReportRequiredOnly] = useState(false);
   const [sortNoAttendedFirst, setSortNoAttendedFirst] = useState(false);
+  const [showOnlyDuplicateNameGroupCell, setShowOnlyDuplicateNameGroupCell] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   const queryClient = useQueryClient();
@@ -74,9 +75,23 @@ export default function AttendanceList() {
     if (filterReportRequiredOnly && !(row.is_report_required && !row.report_excused)) return false;
     return true;
   });
+
+  // 이름·그룹·다락방이 동일한 조합이 2명 이상인 경우만 (중복 체크용)
+  const keyOf = (row: any) => `${row.name ?? ''}|${row.group_name ?? '-'}|${row.cell_name ?? '-'}`;
+  const countByKey = new Map<string, number>();
+  for (const row of filteredList) {
+    const k = keyOf(row);
+    countByKey.set(k, (countByKey.get(k) ?? 0) + 1);
+  }
+  const duplicateKeys = new Set<string>(Array.from(countByKey.entries()).filter(([, n]) => n > 1).map(([k]) => k));
+  const duplicateList = filteredList.filter((row: any) => duplicateKeys.has(keyOf(row)));
+  const duplicateGroupCount = duplicateKeys.size;
+  const duplicateMemberCount = duplicateList.length;
+
+  const listForDisplay = showOnlyDuplicateNameGroupCell ? duplicateList : filteredList;
   const displayList = sortNoAttendedFirst
-    ? [...filteredList].sort((a: any, b: any) => ((a.attended_at != null ? 1 : 0) - (b.attended_at != null ? 1 : 0)))
-    : filteredList;
+    ? [...listForDisplay].sort((a: any, b: any) => ((a.attended_at != null ? 1 : 0) - (b.attended_at != null ? 1 : 0)))
+    : listForDisplay;
   const filteredTotal = filteredList.length;
   const filteredPresent = filteredList.filter((r: any) => r.status === 'present').length;
   const filteredLate = filteredList.filter((r: any) => r.status === 'late').length;
@@ -774,8 +789,8 @@ export default function AttendanceList() {
                 </h3>
                 <p style={{ fontSize: '14px', color: '#64748b' }}>
                   OD 명단 기준 · {date}
-                  {(filterGroup || filterCell || filterName || filterStatus || filterReportRequiredOnly) && (
-                    <span style={{ marginLeft: '8px', color: '#0284c7' }}> (필터: {filteredTotal}명)</span>
+                  {(filterGroup || filterCell || filterName || filterStatus || filterReportRequiredOnly || showOnlyDuplicateNameGroupCell) && (
+                    <span style={{ marginLeft: '8px', color: '#0284c7' }}> (필터: {showOnlyDuplicateNameGroupCell ? duplicateMemberCount : filteredTotal}명)</span>
                   )}
                   {sortNoAttendedFirst && (
                     <span style={{ marginLeft: '8px', color: '#64748b', fontSize: '13px' }}>· 미출석 먼저 정렬</span>
@@ -788,7 +803,7 @@ export default function AttendanceList() {
                   <span style={{ fontSize: '14px', color: '#64748b' }}>출석 <strong style={{ color: '#2563eb' }}>{(filteredStats || stats).attended_count ?? 0}</strong></span>
                   <span style={{ fontSize: '14px', color: '#64748b' }}>결석 <strong style={{ color: '#78716c' }}>{(filteredStats || stats).excused_absence_count ?? 0}</strong></span>
                   <span style={{ fontSize: '14px', color: '#64748b' }}>무단결석 <strong style={{ color: '#dc2626' }}>{(filteredStats || stats).unexcused_absence_count ?? 0}</strong></span>
-                  <span style={{ fontSize: '14px', color: '#64748b' }}>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, ((filteredStats || stats).total_members ?? 0) - ((filteredStats || stats).excused_absence_count ?? 0))}</strong></span>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, ((filteredStats || stats).total_members ?? 0) - ((filteredStats || stats).excused_absence_count ?? 0) - ((filteredStats || stats).attended_count ?? 0) - ((filteredStats || stats).unexcused_absence_count ?? 0))}</strong></span>
                 </div>
                 <button
                   type="button"
@@ -827,7 +842,7 @@ export default function AttendanceList() {
                           <span>출석 <strong style={{ color: '#2563eb' }}>{groupLeadersStats.attended}</strong></span>
                           <span>결석 <strong style={{ color: '#78716c' }}>{groupLeadersStats.excused}</strong></span>
                           <span>무단결석 <strong style={{ color: '#dc2626' }}>{groupLeadersStats.unexcused}</strong></span>
-                          <span>출석예정 <strong style={{ color: '#0369a1' }}>{groupLeadersStats.total - groupLeadersStats.excused}</strong></span>
+                          <span>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, groupLeadersStats.total - groupLeadersStats.excused - groupLeadersStats.attended - groupLeadersStats.unexcused)}</strong></span>
                         </div>
                       </div>
                     )}
@@ -841,7 +856,7 @@ export default function AttendanceList() {
                           <span>출석 <strong style={{ color: '#2563eb' }}>{cellLeadersStats.attended}</strong></span>
                           <span>결석 <strong style={{ color: '#78716c' }}>{cellLeadersStats.excused}</strong></span>
                           <span>무단결석 <strong style={{ color: '#dc2626' }}>{cellLeadersStats.unexcused}</strong></span>
-                          <span>출석예정 <strong style={{ color: '#0369a1' }}>{cellLeadersStats.total - cellLeadersStats.excused}</strong></span>
+                          <span>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, cellLeadersStats.total - cellLeadersStats.excused - cellLeadersStats.attended - cellLeadersStats.unexcused)}</strong></span>
                         </div>
                       </div>
                     )}
@@ -899,7 +914,7 @@ export default function AttendanceList() {
                           <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>출석 <strong style={{ color: '#2563eb' }}>{groupAttended}</strong></span>
                           <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>결석 <strong style={{ color: '#78716c' }}>{groupExcused}</strong></span>
                           <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>무단결석 <strong style={{ color: '#dc2626' }}>{groupUnexcused}</strong></span>
-                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>출석예정 <strong style={{ color: '#0369a1' }}>{groupTotal - groupExcused}</strong></span>
+                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, groupTotal - groupExcused - groupAttended - groupUnexcused)}</strong></span>
                         </div>
                         {group.cells.map((cell) => (
                           <div
@@ -920,7 +935,7 @@ export default function AttendanceList() {
                             <span>출석 <strong style={{ color: '#2563eb' }}>{cell.attended}</strong></span>
                             <span>결석 <strong style={{ color: '#78716c' }}>{cell.excused}</strong></span>
                             <span>무단결석 <strong style={{ color: '#dc2626' }}>{cell.unexcused}</strong></span>
-                            <span>출석예정 <strong style={{ color: '#0369a1' }}>{cell.total - cell.excused}</strong></span>
+                            <span>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, cell.total - cell.excused - cell.attended - cell.unexcused)}</strong></span>
                           </div>
                         ))}
                       </div>
@@ -1068,10 +1083,22 @@ export default function AttendanceList() {
               />
               <span>미출석 먼저 보기</span>
             </label>
-            {(filterGroup || filterCell || filterName || filterStatus || filterReportRequiredOnly || sortNoAttendedFirst) && (
+            {duplicateMemberCount > 0 && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#475569' }}>
+                <input
+                  type="checkbox"
+                  checked={showOnlyDuplicateNameGroupCell}
+                  onChange={(e) => setShowOnlyDuplicateNameGroupCell(e.target.checked)}
+                />
+                <span style={showOnlyDuplicateNameGroupCell ? { fontWeight: 600, color: '#0369a1' } : undefined}>
+                  이름·그룹·다락방 동일한 명단만 ({duplicateGroupCount}건, {duplicateMemberCount}명)
+                </span>
+              </label>
+            )}
+            {(filterGroup || filterCell || filterName || filterStatus || filterReportRequiredOnly || sortNoAttendedFirst || showOnlyDuplicateNameGroupCell) && (
               <button
                 type="button"
-                onClick={() => { setFilterGroup(''); setFilterCell(''); setFilterName(''); setFilterStatus(''); setFilterReportRequiredOnly(false); setSortNoAttendedFirst(false); }}
+                onClick={() => { setFilterGroup(''); setFilterCell(''); setFilterName(''); setFilterStatus(''); setFilterReportRequiredOnly(false); setSortNoAttendedFirst(false); setShowOnlyDuplicateNameGroupCell(false); }}
                 style={{
                   padding: '6px 12px',
                   fontSize: '13px',
