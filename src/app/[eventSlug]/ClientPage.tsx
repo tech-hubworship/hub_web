@@ -18,7 +18,7 @@ import {
 } from "@src/components/video-event";
 import { VideoEventPost, VideoEventComment, PreviousPost } from "@src/lib/video-event/types";
 import { getDayNumber } from "@src/lib/video-event/utils";
-import { VIDEO_EVENT, getVideoEventPath } from "@src/lib/video-event/constants";
+import { VIDEO_EVENT } from "@src/lib/video-event/constants";
 
 // ==================== Container & Wrapper ====================
 const Container = styled.div`
@@ -322,7 +322,7 @@ const DateButton = styled.button<{ disabled?: boolean }>`
   width: 100%;
   padding: 16px 24px;
   background: ${(props) => (props.disabled ? "#e5e7eb" : "#EF0017")};
-  color: ${(props) => (props.disabled ? "#ffffff" : "#ffffff")};
+  color: #ffffff;
   border: none;
   border-radius: 8px;
   font-size: 16px;
@@ -583,16 +583,9 @@ export default function VideoEventClientPage() {
   // 페이지당 아이템 수 (모바일: 5, PC: 8)
   const itemsPerPage = isMobile ? 5 : 8;
 
-  // 미사용: posts-list 기반 지난 영상 목록 로드 비활성화
-  // useEffect(() => {
-  //   if (post?.post_dt && !loading) {
-  //     fetchPreviousPosts(post.post_dt);
-  //   }
-  // }, [post?.post_dt, loading, fetchPreviousPosts]);
-
   const handleCommentSubmit = useCallback(async (): Promise<boolean> => {
     if (!session?.user) {
-      router.push(`/login?redirect=${encodeURIComponent(currentAsPath ?? getVideoEventPath())}`);
+      router.push(`/login?redirect=${encodeURIComponent(currentAsPath ?? "/video-event")}`);
       return false;
     }
 
@@ -635,11 +628,20 @@ export default function VideoEventClientPage() {
   }, [session?.user, router, currentAsPath, commentText, post, fetchComments, itemsPerPage]);
 
   const handlePreviousVideoClick = (date: string) => {
-    router.push(`${getVideoEventPath()}?date=${date}`);
+    router.push(`/video-event?date=${date}`);
   };
 
   const currentDateStr = queryDate || fallbackDate;
   const dayNumber = getDayNumber(currentDateStr);
+
+  // 일요일 판별 로직 추가
+  const isSunday = useMemo(() => {
+    if (!currentDateStr || currentDateStr.length !== 8) return false;
+    const year = parseInt(currentDateStr.slice(0, 4), 10);
+    const month = parseInt(currentDateStr.slice(4, 6), 10) - 1;
+    const day = parseInt(currentDateStr.slice(6, 8), 10);
+    return new Date(year, month, day).getDay() === 0;
+  }, [currentDateStr]);
 
   const getFirstDayTargetDate = (): Date => {
     const b = VIDEO_EVENT.BASE_DATE;
@@ -793,8 +795,14 @@ export default function VideoEventClientPage() {
                       <VideoIconWrapper initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}>
                         <VideoIcon>🎬</VideoIcon>
                       </VideoIconWrapper>
-                      <EmptyStateTitle>영상 제작팀이 열심히 영상을 제작중입니다</EmptyStateTitle>
-                      <EmptyStateSubtitle>헌신하는 영상제작팀을 위해 기도해주세요</EmptyStateSubtitle>
+                      <EmptyStateTitle>
+                        {isSunday ? "일요일에는 영상이 올라오지 않습니다!!!" : "영상 제작팀이 열심히 영상을 제작중입니다"}
+                      </EmptyStateTitle>
+                      {!isSunday && (
+                        <EmptyStateSubtitle>
+                          헌신하는 영상제작팀을 위해 기도해주세요
+                        </EmptyStateSubtitle>
+                      )}
                       <PrayerIcon
                         animate={{ y: [0, -8, 0], opacity: [0.7, 1, 0.7] }}
                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -915,4 +923,3 @@ export default function VideoEventClientPage() {
     </>
   );
 }
-
