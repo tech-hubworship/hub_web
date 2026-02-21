@@ -16,6 +16,7 @@ export default function AttendanceList() {
   const [editReportRequired, setEditReportRequired] = useState<boolean | null>(false);
   const [editExcused, setEditExcused] = useState<boolean | null>(false);
   const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editDeleting, setEditDeleting] = useState(false);
 
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
   const [exceptionTarget, setExceptionTarget] = useState<{ userId: string; name: string } | null>(null);
@@ -301,6 +302,37 @@ export default function AttendanceList() {
     setEditReportRequired(item.is_report_required == null ? null : !!item.is_report_required);
     setEditExcused(item.is_excused == null ? null : !!item.is_excused);
     setEditModalOpen(true);
+  };
+
+  const handleDeleteRow = async () => {
+    if (!editTarget) return;
+    if (!confirm('이 주차 출석 기록을 삭제할까요? 삭제하면 해당 명단의 출석/지각/결석 정보가 모두 제거됩니다.')) return;
+    setEditDeleting(true);
+    try {
+      const res = await fetch('/api/admin/attendance/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: editTarget.user_id,
+          weekDate: date,
+          category: 'OD',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || '삭제되었습니다.');
+        setEditModalOpen(false);
+        setEditTarget(null);
+        refetch();
+      } else {
+        alert(data.error || '삭제 실패');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('오류가 발생했습니다.');
+    } finally {
+      setEditDeleting(false);
+    }
   };
 
   const submitEdit = async () => {
@@ -669,30 +701,49 @@ export default function AttendanceList() {
                     <option value="false">아니오</option>
                   </select>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between', marginTop: '8px', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    onClick={() => !editSubmitting && setEditModalOpen(false)}
-                    style={{ padding: '10px 20px', background: '#e2e8f0', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    취소
-                  </button>
-                  <button
-                    type="button"
-                    onClick={submitEdit}
-                    disabled={editSubmitting}
+                    onClick={handleDeleteRow}
+                    disabled={editSubmitting || editDeleting}
                     style={{
-                      padding: '10px 20px',
-                      background: editSubmitting ? '#94a3b8' : '#0284c7',
-                      color: 'white',
-                      border: 'none',
+                      padding: '10px 16px',
+                      background: editSubmitting || editDeleting ? '#fecaca' : '#fef2f2',
+                      color: editSubmitting || editDeleting ? '#94a3b8' : '#dc2626',
+                      border: '1px solid #fecaca',
                       borderRadius: '8px',
                       fontWeight: 600,
-                      cursor: editSubmitting ? 'not-allowed' : 'pointer',
+                      cursor: editSubmitting || editDeleting ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
                     }}
                   >
-                    {editSubmitting ? '저장 중…' : '저장'}
+                    {editDeleting ? '삭제 중…' : '해당 로우 삭제'}
                   </button>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={() => !editSubmitting && !editDeleting && setEditModalOpen(false)}
+                      style={{ padding: '10px 20px', background: '#e2e8f0', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={submitEdit}
+                      disabled={editSubmitting || editDeleting}
+                      style={{
+                        padding: '10px 20px',
+                        background: editSubmitting || editDeleting ? '#94a3b8' : '#0284c7',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        cursor: editSubmitting || editDeleting ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {editSubmitting ? '저장 중…' : '저장'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -116,20 +116,26 @@ export async function POST(req: Request) {
       if ((insertError as any).code === "23505") {
         const { data: existingRow } = await supabaseAdmin
           .from("weekly_attendance")
-          .select("id, is_excused, status")
+          .select("id, is_excused, status, late_fee_excused, report_excused")
           .eq("user_id", session.user.id)
           .eq("category", category)
           .eq("week_date", baseDate)
           .single();
 
-        // 기존에 지각비/보고서 예외가 적용된 경우: 상태·출석 시각만 갱신, late_fee·is_report_required는 예외 값 유지
+        // 기존에 예외가 적용된 경우: 상태·출석 시각 갱신, 지각비/OD보고서는 예외 종류에 따라 적용
+        // 지각비만 예외(late_fee_excused): 지각비는 0 유지, OD보고서는 이번 출석 결과 반영
+        // OD보고서 예외(report_excused): is_report_required false 유지
         if (existingRow?.id && (existingRow as any).is_excused) {
+          const ex = existingRow as any;
+          const updatePayload: Record<string, unknown> = {
+            status,
+            attended_at: now.toISOString(),
+            late_fee: ex.late_fee_excused ? 0 : lateFee,
+            is_report_required: ex.report_excused ? false : (isReportRequired ?? false),
+          };
           const { data: updated, error: updateErr } = await supabaseAdmin
             .from("weekly_attendance")
-            .update({
-              status,
-              attended_at: now.toISOString(),
-            })
+            .update(updatePayload)
             .eq("id", existingRow.id)
             .select()
             .single();

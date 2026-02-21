@@ -81,13 +81,14 @@ export async function POST(req: Request) {
 
       const { status: calcStatus, lateFee, isReportRequired } = calculateLateFeeWithThreshold(now, lateThreshold);
       updateData.status = calcStatus;
-      // 기존에 지각비/보고서 예외가 적용된 경우: 예외 유지(지각비·보고서·예외 플래그 덮어쓰지 않음)
+      // 기존에 지각비만 예외: 지각비 0 유지, OD보고서는 이번 출석 결과 반영. OD보고서 예외면 false 유지.
       if (existing?.id && (existing as any).is_excused) {
+        const ex = existing as any;
         updateData.is_excused = true;
-        updateData.late_fee = (existing as any).late_fee ?? 0;
-        updateData.is_report_required = (existing as any).is_report_required ?? false;
-        updateData.late_fee_excused = (existing as any).late_fee_excused ?? false;
-        updateData.report_excused = (existing as any).report_excused ?? false;
+        updateData.late_fee = ex.late_fee_excused ? 0 : lateFee;
+        updateData.late_fee_excused = ex.late_fee_excused ?? false;
+        updateData.report_excused = ex.report_excused ?? false;
+        updateData.is_report_required = ex.report_excused ? false : isReportRequired;
       } else {
         updateData.late_fee = lateFee;
         updateData.is_report_required = isReportRequired;
