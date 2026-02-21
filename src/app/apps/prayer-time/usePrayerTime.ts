@@ -6,6 +6,9 @@ import { supabase } from "@src/lib/supabase";
 
 const parseServerDate = (s: string) => new Date(s);
 
+/** 기도 시간 상한 (3시간) */
+const MAX_PRAYER_SECONDS = 3 * 60 * 60; // 10800
+
 const PausedStorageKey = "prayer-time-paused";
 function getStoredPaused(): { startTime: string; elapsedAtPause: number } | null {
   if (typeof window === "undefined") return null;
@@ -50,6 +53,12 @@ export type CommunityStats = {
 
 export type CalendarMonth = { year: number; month: number };
 
+export type MyPrayerRecord = {
+  id: string;
+  start_time: string;
+  duration_seconds: number;
+};
+
 // ——— API ———
 async function apiStart() {
   const res = await fetch("/api/prayer-time/start", { method: "POST" });
@@ -69,6 +78,15 @@ async function apiStop(durationSeconds: number) {
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err?.error ?? "종료 실패");
+  }
+  return res.json();
+}
+
+async function apiCancel() {
+  const res = await fetch("/api/prayer-time/cancel", { method: "POST" });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err?.error ?? "삭제 실패");
   }
   return res.json();
 }
@@ -114,6 +132,22 @@ async function fetchDailyStats(year: number, month: number) {
   return (json.data?.daily_stats ?? []) as Array<{ date: string; total_seconds: number }>;
 }
 
+async function fetchMyPrayerList(): Promise<MyPrayerRecord[]> {
+  const res = await fetch("/api/prayer-time/my-list");
+  if (!res.ok) return [];
+  const json = await res.json();
+  return (json.data ?? []) as MyPrayerRecord[];
+}
+
+async function apiDeletePrayer(id: string) {
+  const res = await fetch(`/api/prayer-time/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err?.error ?? "삭제 실패");
+  }
+  return res.json();
+}
+
 // ——— 훅 ———
 export function usePrayerTime(sessionUserId: string | undefined) {
   // 1. 타이머: 서버와 동기화된 뒤에는 startTime + isPaused + elapsedAtPause 만으로 표시값 유도
@@ -132,7 +166,10 @@ export function usePrayerTime(sessionUserId: string | undefined) {
   const nameCacheRef = useRef<Map<string, string>>(new Map());
   const userPausedRef = useRef(false); // 중지 상태일 때 서버 동기화로 덮어쓰지 않음
 
-  // 4. 캘린더
+  // 4. 내 기도 시간 목록
+  const [myPrayerList, setMyPrayerList] = useState<MyPrayerRecord[]>([]);
+
+  // 5. 캘린더
   const [calendarMonth, setCalendarMonth] = useState<CalendarMonth>(() => {
     const korea = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
     return { year: korea.getFullYear(), month: korea.getMonth() };
@@ -140,6 +177,12 @@ export function usePrayerTime(sessionUserId: string | undefined) {
   const [dailyStats, setDailyStats] = useState<Array<{ date: string; total_seconds: number }>>([]);
 
   const isPraying = startTime !== null;
+  const refetchMyList = useCallback(async () => {
+    if (!sessionUserId) return;
+    const list = await fetchMyPrayerList();
+    setMyPrayerList(list);
+  }, [sessionUserId]);
+
   const refetchStats = useCallback(async (showLoading = false) => {
     if (!sessionUserId) return;
     if (showLoading) setStatsLoading(true);
@@ -158,12 +201,14 @@ export function usePrayerTime(sessionUserId: string | undefined) {
     if (!sessionUserId) {
       setStatsLoading(false);
       statsFetchedForUser.current = null;
+      setMyPrayerList([]);
       return;
     }
     if (statsFetchedForUser.current === sessionUserId) return;
     statsFetchedForUser.current = sessionUserId;
     refetchStats(true); // 초기 로드만 로딩 UI 표시
-  }, [sessionUserId, refetchStats]);
+    refetchMyList();
+  }, [sessionUserId, refetchStats, refetchMyList]);
 
   // 탭이 보일 때만 2분마다 통계 갱신 (Vercel edge 요청 절감 + 백그라운드 탭은 요청 안 함)
   const STATS_POLL_MS = 120000; // 2분
@@ -207,14 +252,15 @@ export function usePrayerTime(sessionUserId: string | undefined) {
       userPausedRef.current = true;
       setStartTime(st);
       setIsPaused(true);
-      setElapsedAtPause(stored.elapsedAtPause);
-      setDisplaySeconds(stored.elapsedAtPause);
+      const capped = Math.min(MAX_PRAYER_SECONDS, stored.elapsedAtPause);
+      setElapsedAtPause(capped);
+    setDisplaySeconds(capped);
       return;
     }
     setStartTime(st);
     setIsPaused(false);
     setElapsedAtPause(0);
-    setDisplaySeconds(Math.max(0, (Date.now() - st.getTime()) / 1000));
+    setDisplaySeconds(Math.min(MAX_PRAYER_SECONDS, Math.max(0, (Date.now() - st.getTime()) / 1000)));
   }, [myStats?.active_session?.start_time, sessionUserId]);
 
   // 서버에 진행 중인 세션이 없을 때만 타이머 리셋 (최초 로드 후에만)
@@ -230,11 +276,12 @@ export function usePrayerTime(sessionUserId: string | undefined) {
     }
   }, [hasStatsLoaded, sessionUserId, myStats?.active_session]);
 
-  // 타이머 틱 (진행 중일 때만, 100ms 간격으로 리렌더 최소화)
+  // 타이머 틱 (진행 중일 때만, 3시간 상한)
   useEffect(() => {
     if (!startTime || isPaused) return;
     const interval = setInterval(() => {
-      setDisplaySeconds(Math.max(0, (Date.now() - startTime.getTime()) / 1000));
+      const elapsed = Math.max(0, (Date.now() - startTime.getTime()) / 1000);
+      setDisplaySeconds(Math.min(MAX_PRAYER_SECONDS, elapsed));
     }, 100);
     return () => clearInterval(interval);
   }, [startTime, isPaused]);
@@ -329,7 +376,7 @@ export function usePrayerTime(sessionUserId: string | undefined) {
 
   const pause = useCallback(() => {
     if (!startTime || isPaused) return;
-    const elapsed = (Date.now() - startTime.getTime()) / 1000;
+    const elapsed = Math.min(MAX_PRAYER_SECONDS, Math.max(0, (Date.now() - startTime.getTime()) / 1000));
     userPausedRef.current = true;
     setStoredPaused(startTime.toISOString(), elapsed);
     setElapsedAtPause(elapsed);
@@ -349,7 +396,8 @@ export function usePrayerTime(sessionUserId: string | undefined) {
 
   const complete = useCallback(async () => {
     if (!sessionUserId) throw new Error("로그인이 필요합니다.");
-    const recorded = isPaused ? elapsedAtPause : displaySeconds;
+    const raw = isPaused ? elapsedAtPause : displaySeconds;
+    const recorded = Math.min(MAX_PRAYER_SECONDS, Math.max(0, raw));
     userPausedRef.current = false;
     clearStoredPaused();
     await apiStop(recorded);
@@ -359,10 +407,38 @@ export function usePrayerTime(sessionUserId: string | undefined) {
     setDisplaySeconds(0);
     setActiveUsers((prev) => prev.filter((u) => u.user_id !== sessionUserId));
     await refetchStats();
+    refetchMyList();
     fetchDailyStats(calendarMonth.year, calendarMonth.month).then(setDailyStats);
     setTimeout(() => refetchStats(), 600);
     return recorded;
-  }, [sessionUserId, isPaused, elapsedAtPause, displaySeconds, refetchStats, calendarMonth.year, calendarMonth.month]);
+  }, [sessionUserId, isPaused, elapsedAtPause, displaySeconds, refetchStats, refetchMyList, calendarMonth.year, calendarMonth.month]);
+
+  const cancel = useCallback(async () => {
+    if (!sessionUserId) throw new Error("로그인이 필요합니다.");
+    userPausedRef.current = false;
+    clearStoredPaused();
+    await apiCancel();
+    setStartTime(null);
+    setIsPaused(false);
+    setElapsedAtPause(0);
+    setDisplaySeconds(0);
+    setActiveUsers((prev) => prev.filter((u) => u.user_id !== sessionUserId));
+    await refetchStats();
+    refetchMyList();
+    fetchDailyStats(calendarMonth.year, calendarMonth.month).then(setDailyStats);
+    setTimeout(() => refetchStats(), 600);
+  }, [sessionUserId, refetchStats, refetchMyList, calendarMonth.year, calendarMonth.month]);
+
+  const deletePrayerRecord = useCallback(
+    async (id: string) => {
+      if (!sessionUserId) throw new Error("로그인이 필요합니다.");
+      await apiDeletePrayer(id);
+      await refetchMyList();
+      await refetchStats();
+      fetchDailyStats(calendarMonth.year, calendarMonth.month).then(setDailyStats);
+    },
+    [sessionUserId, refetchMyList, refetchStats, calendarMonth.year, calendarMonth.month]
+  );
 
   const goPrevMonth = useCallback(() => {
     setCalendarMonth((p) => (p.month === 0 ? { year: p.year - 1, month: 11 } : { year: p.year, month: p.month - 1 }));
@@ -382,9 +458,12 @@ export function usePrayerTime(sessionUserId: string | undefined) {
       pause,
       resume,
       complete,
+      cancel,
     },
     stats: { myStats, communityStats, refetch: refetchStats },
     activeUsers,
+    myPrayerList,
+    deletePrayerRecord,
     daily: { dailyStats, calendarMonth, goPrevMonth, goNextMonth },
   };
 }

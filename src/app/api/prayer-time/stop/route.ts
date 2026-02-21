@@ -59,8 +59,9 @@ export async function POST(req: Request) {
       const startTimeMs = new Date(activePrayer.start_time).getTime();
       durationSeconds = Math.floor((Date.now() - startTimeMs) / 1000);
     }
-    // 상한: 24시간 (시계 오차·오용 방지)
-    if (durationSeconds > 86400) durationSeconds = 86400;
+    // 상한: 3시간 (무한 누적 방지)
+    const MAX_DURATION_SECONDS = 3 * 60 * 60; // 10800
+    if (durationSeconds > MAX_DURATION_SECONDS) durationSeconds = MAX_DURATION_SECONDS;
     if (durationSeconds < 0) durationSeconds = 0;
     if (durationSeconds < 1) durationSeconds = 1;
 

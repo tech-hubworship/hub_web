@@ -19,6 +19,9 @@ export async function POST() {
 
     const userId = session.user.id;
 
+    // 3시간이 지난 세션 정리 (상한과 동일)
+    await supabaseAdmin.rpc("delete_stale_prayer_sessions");
+
     // 이미 진행 중인 세션이 있는지 확인
     const { data: existingSession } = await supabaseAdmin
       .from("prayer_sessions")

@@ -16,6 +16,9 @@ export async function GET() {
       return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
+    // 3시간이 지난 세션 정리 후 조회
+    await supabaseAdmin.rpc("delete_stale_prayer_sessions");
+
     // 현재 기도 중인 세션 조회
     const { data: activeSessions, error: sessionsError } = await supabaseAdmin
       .from("prayer_sessions")

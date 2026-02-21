@@ -16,6 +16,7 @@ import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import toast, { Toaster } from "react-hot-toast";
 import { Header } from "@src/components/Header";
+import { formatKoreanDateShort } from "@src/lib/utils/date";
 import { usePrayerTime } from "./usePrayerTime";
 
 const Footer = dynamic(() => import("@src/components/Footer"), { ssr: true });
@@ -121,6 +122,27 @@ const SplashSpinner = styled.div`
   @keyframes splash-spin {
     to { transform: rotate(360deg); }
   }
+`;
+
+/* 버튼 액션 중 전체 화면 스피너 (재클릭 방지) */
+const ActionSpinnerOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+`;
+
+const ActionSpinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  border-top-color: rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  animation: splash-spin 0.8s linear infinite;
 `;
 
 const Main = styled.main`
@@ -255,8 +277,9 @@ const ScrollHintIcon = styled.span`
 
 const StatsBlock = styled.section`
   width: 100%;
-  margin-top: 32px;
+  margin-top: 8px;
   scroll-margin-top: 140px; /* 버튼 클릭 시 덜 내려가도록 */
+  font-family: "Pretendard", sans-serif;
 `;
 
 const LiveChip = styled(motion.button)<React.ComponentPropsWithoutRef<"button">>`
@@ -265,7 +288,7 @@ const LiveChip = styled(motion.button)<React.ComponentPropsWithoutRef<"button">>
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
   background: rgba(255,255,255,0.06);
   border-radius: 12px;
   color: #fff;
@@ -294,14 +317,14 @@ const LiveDot = styled.span`
 const LiveLabel = styled.span`
   color: #ff453a;
   font-weight: 600;
-  margin-right: 4px;
+  margin-right: 16px;
 `;
 
 const Card = styled(motion.div)`
   background: rgba(255,255,255,0.04);
   border-radius: 12px;
   padding: 16px 18px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   color: #fff;
 `;
 
@@ -324,18 +347,18 @@ const CardValueLarge = styled(CardValue)`
 const Grid2 = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 8px;
 `;
 
 const CalendarWrap = styled(Card)`
-  margin-top: 20px;
+  margin-top: 8px;
 `;
 
 const CalendarHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 `;
 
 const CalendarTitle = styled.div`
@@ -350,7 +373,9 @@ const CalendarNav = styled.button`
   color: rgba(255,255,255,0.7);
   padding: 4px 8px;
   cursor: pointer;
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
   &:hover { color: #fff; }
 `;
@@ -359,7 +384,7 @@ const CalendarNav = styled.button`
 const CalendarTable = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 8px;
   width: 100%;
 `;
 
@@ -444,6 +469,47 @@ const ModalClose = styled.button`
   &:hover { color: #fff; }
 `;
 
+const CompleteConfirmBody = styled.div`
+  padding: 0 0 24px;
+  font-size: 15px;
+  color: rgba(255,255,255,0.85);
+  text-align: center;
+  line-height: 1.6;
+`;
+
+const CompleteConfirmTime = styled.div`
+  font-size: 28px;
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  margin: 8px 0 16px;
+`;
+
+const CompleteConfirmActions = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+`;
+
+const CompleteConfirmBtn = styled.button<{ $variant?: "gray" | "red" }>`
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  color: #fff;
+  background: ${(p) => (p.$variant === "red" ? "rgba(255,59,48,0.9)" : "rgba(255,255,255,0.15)")};
+  &:hover {
+    background: ${(p) => (p.$variant === "red" ? "rgba(255,59,48,1)" : "rgba(255,255,255,0.22)")};
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 const UserRow = styled(motion.div)`
   display: flex;
   align-items: center;
@@ -451,6 +517,42 @@ const UserRow = styled(motion.div)`
   padding: 12px 0;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   &:last-of-type { border-bottom: none; }
+`;
+
+const MyListRow = styled(motion.div)`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  &:last-of-type { border-bottom: none; }
+`;
+
+const MyListDate = styled.div`
+  font-size: 14px;
+  color: rgba(255,255,255,0.9);
+`;
+
+const MyListDuration = styled.span`
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  color: rgba(255,255,255,0.8);
+  margin-left: 8px;
+`;
+
+const MyListDeleteBtn = styled.button`
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: rgba(255, 59, 48, 0.8);
+  border: none;
+  cursor: pointer;
+  &:hover { background: rgba(255, 59, 48, 1); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
 `;
 
 const UserAvatar = styled.div`
@@ -506,12 +608,17 @@ export default function PrayerTimeClientPage() {
     timer,
     stats,
     activeUsers,
+    myPrayerList,
+    deletePrayerRecord,
     daily,
   } = usePrayerTime(userId ?? undefined);
   const isInitialLoading = sessionStatus === "loading" || loading;
 
   const [liveModalOpen, setLiveModalOpen] = useState(false);
+  const [myListModalOpen, setMyListModalOpen] = useState(false);
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [actionPending, setActionPending] = useState(false);
   const statsRef = useRef<HTMLElement>(null);
 
   // 아이폰 오버스크롤 시 밝게 보이는 현상 방지
@@ -528,10 +635,13 @@ export default function PrayerTimeClientPage() {
       toast.error("로그인이 필요합니다.");
       return;
     }
+    setActionPending(true);
     try {
       await timer.start();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "시작 실패");
+    } finally {
+      setActionPending(false);
     }
   }, [userId, timer]);
 
@@ -540,8 +650,10 @@ export default function PrayerTimeClientPage() {
       toast.error("로그인이 필요합니다.");
       return;
     }
+    setActionPending(true);
     try {
       const recorded = await timer.complete();
+      setCompleteConfirmOpen(false);
       const m = Math.floor(recorded / 60);
       const s = Math.floor(recorded % 60);
       toast.success(`${m}분 ${s}초 기록되었어요`, {
@@ -563,8 +675,69 @@ export default function PrayerTimeClientPage() {
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "종료 실패");
+    } finally {
+      setActionPending(false);
     }
   }, [userId, timer]);
+
+  const handleCancelRecord = useCallback(async () => {
+    if (!userId) {
+      toast.error("로그인이 필요합니다.");
+      return;
+    }
+    setActionPending(true);
+    try {
+      await timer.cancel();
+      setCompleteConfirmOpen(false);
+      toast.success("기록이 삭제되었습니다.", {
+        duration: 2000,
+        style: {
+          borderRadius: "16px",
+          background: "rgba(255, 255, 255, 0.10)",
+          backdropFilter: "blur(28px)",
+          color: "#FFF",
+          textAlign: "center",
+          fontFamily: "Pretendard, sans-serif",
+          fontSize: "14px",
+          fontStyle: "normal",
+          fontWeight: 500,
+          lineHeight: "150%",
+          padding: "12px 16px",
+        },
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "삭제 실패");
+    } finally {
+      setActionPending(false);
+    }
+  }, [userId, timer]);
+
+  const handleDeleteRecord = useCallback(
+    async (id: string) => {
+      if (!userId) return;
+      setActionPending(true);
+      try {
+        await deletePrayerRecord(id);
+        toast.success("삭제되었습니다.", {
+          duration: 2000,
+          style: {
+            borderRadius: "16px",
+            background: "rgba(255, 255, 255, 0.10)",
+            backdropFilter: "blur(28px)",
+            color: "#FFF",
+            fontFamily: "Pretendard, sans-serif",
+            fontSize: "14px",
+            padding: "12px 16px",
+          },
+        });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "삭제 실패");
+      } finally {
+        setActionPending(false);
+      }
+    },
+    [userId, deletePrayerRecord]
+  );
 
   const scrollToStats = useCallback(() => {
     statsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -644,6 +817,11 @@ export default function PrayerTimeClientPage() {
           },
         }}
       />
+      {actionPending && (
+        <ActionSpinnerOverlay aria-live="polite" aria-busy="true">
+          <ActionSpinner aria-hidden />
+        </ActionSpinnerOverlay>
+      )}
       <FixedBackground aria-hidden />
       <Header />
       <Page>
@@ -662,13 +840,13 @@ export default function PrayerTimeClientPage() {
                 )}
                 {timer.isPraying && !timer.isPaused && (
                   <>
-                    <Btn $variant="gray" onClick={handleComplete} whileTap={{ scale: 0.98 }}>완료</Btn>
+                    <Btn $variant="gray" onClick={() => setCompleteConfirmOpen(true)} whileTap={{ scale: 0.98 }}>완료</Btn>
                     <Btn $variant="red" onClick={timer.pause} whileTap={{ scale: 0.98 }}>중지</Btn>
                   </>
                 )}
                 {timer.isPraying && timer.isPaused && (
                   <>
-                    <Btn $variant="gray" onClick={handleComplete} whileTap={{ scale: 0.98 }}>초기화</Btn>
+                    <Btn $variant="gray" onClick={() => setCompleteConfirmOpen(true)} whileTap={{ scale: 0.98 }}>완료</Btn>
                     <Btn $variant="blue" onClick={timer.resume} whileTap={{ scale: 0.98 }}>계속</Btn>
                   </>
                 )}
@@ -693,9 +871,21 @@ export default function PrayerTimeClientPage() {
                   <LiveLabel>LIVE</LiveLabel>
                   {activeUsers.length}명 기도 중
                 </span>
-                <span style={{ color: "rgba(255,255,255,0.6)" }}>▼</span>
+                <span style={{ color: "rgba(255,255,255,0.6)", display: "inline-flex", alignItems: "center" }} aria-hidden>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" fill="currentColor" />
+                  </svg>
+                </span>
               </LiveChip>
             )}
+            <LiveChip onClick={() => setMyListModalOpen(true)} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+              <span>내 기도 시간 목록</span>
+              <span style={{ color: "rgba(255,255,255,0.6)", display: "inline-flex", alignItems: "center" }} aria-hidden>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" fill="currentColor" />
+                </svg>
+              </span>
+            </LiveChip>
             <Grid2>
                 <Card initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                   <CardLabel>오늘 나의 기도 시간</CardLabel>
@@ -714,8 +904,16 @@ export default function PrayerTimeClientPage() {
                 <CalendarHeader>
                   <CalendarTitle>{calendarMonthLabel}</CalendarTitle>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <CalendarNav type="button" onClick={daily.goPrevMonth} aria-label="이전 달">‹</CalendarNav>
-                    <CalendarNav type="button" onClick={daily.goNextMonth} aria-label="다음 달">›</CalendarNav>
+                    <CalendarNav type="button" onClick={daily.goPrevMonth} aria-label="이전 달">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z" fill="currentColor" />
+                      </svg>
+                    </CalendarNav>
+                    <CalendarNav type="button" onClick={daily.goNextMonth} aria-label="다음 달">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" fill="currentColor" />
+                      </svg>
+                    </CalendarNav>
                   </div>
                 </CalendarHeader>
                 <CalendarTable>
@@ -799,6 +997,100 @@ export default function PrayerTimeClientPage() {
                   현재 기도 중인 사람이 없습니다.
                 </div>
               )}
+            </ModalPanel>
+          </ModalBackdrop>
+        )}
+
+        {myListModalOpen && (
+          <ModalBackdrop
+            key="my-list"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMyListModalOpen(false)}
+          >
+            <ModalPanel
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              <ModalHead>
+                <ModalTitle>내 기도 시간 목록</ModalTitle>
+                <ModalClose onClick={() => setMyListModalOpen(false)} aria-label="닫기">×</ModalClose>
+              </ModalHead>
+              {myPrayerList.length > 0 ? (
+                myPrayerList.map((record, i) => (
+                  <MyListRow
+                    key={record.id}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                  >
+                    <div>
+                      <MyListDate>{formatKoreanDateShort(record.start_time)}</MyListDate>
+                      <MyListDuration>{formatTime(record.duration_seconds)}</MyListDuration>
+                    </div>
+                    <MyListDeleteBtn
+                      type="button"
+                      onClick={() => handleDeleteRecord(record.id)}
+                      disabled={actionPending}
+                    >
+                      삭제
+                    </MyListDeleteBtn>
+                  </MyListRow>
+                ))
+              ) : (
+                <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
+                  기록된 기도 시간이 없습니다.
+                </div>
+              )}
+            </ModalPanel>
+          </ModalBackdrop>
+        )}
+
+        {completeConfirmOpen && (
+          <ModalBackdrop
+            key="complete-confirm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setCompleteConfirmOpen(false)}
+          >
+            <ModalPanel
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              <ModalHead>
+                <span aria-hidden />
+                <ModalClose onClick={() => setCompleteConfirmOpen(false)} aria-label="닫기" style={{ marginLeft: "auto" }}>×</ModalClose>
+              </ModalHead>
+              <CompleteConfirmBody>
+                기도시간
+                <CompleteConfirmTime>{formatTime(timer.displaySeconds)}</CompleteConfirmTime>
+                이 기도 기록을 저장할까요?
+              </CompleteConfirmBody>
+              <CompleteConfirmActions>
+                <CompleteConfirmBtn
+                  type="button"
+                  $variant="red"
+                  onClick={handleCancelRecord}
+                  disabled={actionPending}
+                >
+                  삭제
+                </CompleteConfirmBtn>
+                <CompleteConfirmBtn
+                  type="button"
+                  onClick={handleComplete}
+                  disabled={actionPending}
+                >
+                  저장
+                </CompleteConfirmBtn>
+              </CompleteConfirmActions>
             </ModalPanel>
           </ModalBackdrop>
         )}
