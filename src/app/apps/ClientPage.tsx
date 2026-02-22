@@ -498,7 +498,8 @@ export default function AppsClientPage() {
               </AppIcon>
             </motion.div>
 
-            <motion.div
+            {/* 용어사전 — 비노출 (주석 해제 시 복구) */}
+            {/* <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.3 }}
@@ -517,7 +518,7 @@ export default function AppsClientPage() {
                 </GlossaryIconImage>
                 <AppLabel>용어사전</AppLabel>
               </AppIcon>
-            </motion.div>
+            </motion.div> */}
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -561,7 +562,8 @@ export default function AppsClientPage() {
               </AppIcon>
             </motion.div>
 
-            <motion.div
+            {/* 맛집지도 — 비노출 (주석 해제 시 복구) */}
+            {/* <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.3 }}
@@ -582,7 +584,7 @@ export default function AppsClientPage() {
                 </RestaurantIconImage>
                 <AppLabel>맛집지도</AppLabel>
               </AppIcon>
-            </motion.div>
+            </motion.div> */}
           </AppsGrid>
         </AppScreen>
       </Container>
