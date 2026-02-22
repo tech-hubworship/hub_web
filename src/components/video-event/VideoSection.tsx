@@ -175,7 +175,7 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
     },
   };
 
-  const iframeTitle = post.title.replace(/test/gi, "").trim();
+  const iframeTitle = (post.title ?? "").replace(/test/gi, "").trim() || "영상";
 
   return (
     <SectionCard
@@ -224,6 +224,17 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
               </YouTubeLink>
             )}
           </>
+        )}
+
+        {post.video_url && !getYouTubeEmbedUrl(post.video_url) && youtubeWatchUrl && (
+          <YouTubeLink
+            variants={itemVariants}
+            href={youtubeWatchUrl}
+            onClick={handleYouTubeLinkClick}
+            style={{ marginTop: 24, display: "inline-block" }}
+          >
+            유튜브에서 영상 보기 →
+          </YouTubeLink>
         )}
       </ContentWrapper>
     </SectionCard>

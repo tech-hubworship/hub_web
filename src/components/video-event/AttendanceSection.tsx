@@ -666,24 +666,25 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     fetchWeekAttendance(week);
   };
 
-  /** 1주차: 1-4일, 2주차: 5-11일, 3주차: 12-18일, 4주차: 19-25일, 5주차: 26-32일, 6주차: 33-40일 */
-  const WEEK_DAY_RANGES: [number, number][] = [[1, 4], [5, 11], [12, 18], [19, 25], [26, 32], [33, 40]];
+  /** 사순절 전체 주차: 1주차 1-4, 2주차 5-10, 3주차 11-16, 4주차 17-22, 5~7주차 23-40 */
+  const WEEK_DAY_RANGES: [number, number][] = [[1, 4], [5, 10], [11, 16], [17, 22], [23, 28], [29, 34], [35, 40]];
   const getWeekRange = (week: number): [number, number] => WEEK_DAY_RANGES[week - 1] ?? [1, 4];
   const getWeekForDay = (day: number): number => {
     if (day <= 4) return 1;
-    if (day <= 11) return 2;
-    if (day <= 18) return 3;
-    if (day <= 25) return 4;
-    if (day <= 32) return 5;
-    return 6;
+    if (day <= 10) return 2;
+    if (day <= 16) return 3;
+    if (day <= 22) return 4;
+    if (day <= 28) return 5;
+    if (day <= 34) return 6;
+    return 7;
   };
 
   const renderWeekIcons = (startDay: number, endDay: number, dataMap?: AttendanceMap) => {
     const map = dataMap ?? weekAttendanceMap;
     const days = Array.from({ length: endDay - startDay + 1 }, (_, i) => startDay + i)
       .filter(day => day <= 40);
-    const firstRowDays = days.slice(0, 4);
-    const secondRowDays = days.slice(4);
+    const firstRowDays = days.slice(0, 3);
+    const secondRowDays = days.slice(3);
 
     return (
       <>
@@ -821,8 +822,8 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     const [startDay, endDay] = getWeekRange(week);
     const days = Array.from({ length: endDay - startDay + 1 }, (_, i) => startDay + i)
       .filter(day => day <= 40);
-    const firstRowDays = days.slice(0, 4);
-    const secondRowDays = days.slice(4);
+    const firstRowDays = days.slice(0, 3);
+    const secondRowDays = days.slice(3);
 
     return (
       <>
@@ -840,14 +841,14 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     );
   };
 
-  // 1일차부터 26일차까지 모두 표시하는 함수
+  // 1일차부터 40일차(일요일 제외)까지 모두 표시하는 함수
   const renderAllDaysIcons = () => {
-    const allDays = Array.from({ length: 26 }, (_, i) => i + 1);
-    
-    // 여러 줄로 나누어 표시 (한 줄에 4개씩)
+    const allDays = Array.from({ length: 40 }, (_, i) => i + 1);
+
+    // 여러 줄로 나누어 표시 (한 줄에 6개씩, 주당 6일)
     const rows: number[][] = [];
-    for (let i = 0; i < allDays.length; i += 4) {
-      rows.push(allDays.slice(i, i + 4));
+    for (let i = 0; i < allDays.length; i += 6) {
+      rows.push(allDays.slice(i, i + 6));
     }
     
     return (
@@ -861,15 +862,15 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
     );
   };
 
-  /** 한국 달력: 일(0)월(1)화(2)수(3)목(4)금(5)토(6). 2026-02-18=수요일 → day1이 column 3 */
+  /** 사순절: 일요일 제외, 주당 6일(월~토). 일수 1-40 */
   const getDayNumberForCell = (week: number, col: number): number | null => {
-    const dayNum = (week - 1) * 7 + (col + 4) % 7 + 1;
-    return dayNum <= 26 ? dayNum : null;
+    const dayNum = (week - 1) * 6 + col + 1;
+    return dayNum <= 40 ? dayNum : null;
   };
 
   const renderCalendarView = () => {
-    const weekLabels = ['일', '월', '화', '수', '목', '금', '토'];
-    const totalWeeks = 4;
+    const weekLabels = ['월', '화', '수', '목', '금', '토'];
+    const totalWeeks = 7;
     return (
       <CalendarTable>
         <thead>
@@ -882,7 +883,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
         <tbody>
           {Array.from({ length: totalWeeks }, (_, w) => w + 1).map((week) => (
             <tr key={week}>
-              {Array.from({ length: 7 }, (_, c) => c).map((col) => {
+              {Array.from({ length: 6 }, (_, c) => c).map((col) => {
                 const dayNum = getDayNumberForCell(week, col);
                 const isEmpty = dayNum === null;
                 const isAttended = dayNum !== null && !!attendanceMap[dayNum];
@@ -1084,7 +1085,7 @@ export const AttendanceSection: React.FC<AttendanceSectionProps> = ({
               {showTable && showWeekView && (
                 <>
                   <WeekTabs>
-                    {[1, 2, 3, 4, 5, 6].map((week) => (
+                    {[1, 2, 3, 4, 5, 6, 7].map((week) => (
                       <WeekTab
                         key={week}
                         active={selectedWeek === week}

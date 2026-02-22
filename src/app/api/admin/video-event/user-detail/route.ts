@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@src/lib/auth";
 import { executeSql, escapeSqlString } from "@src/lib/utils/sql";
 import { VIDEO_EVENT } from "@src/lib/video-event/constants";
+import { getDayNumber } from "@src/lib/video-event/utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -123,8 +124,14 @@ export async function GET(req: Request) {
       console.error("사용자 정보 조회 오류:", userInfoError);
     }
 
+    // 사순절: 일요일은 일수에 넣지 않음 (day_number는 getDayNumber로 통일)
+    const details = (data || []).map((row) => ({
+      ...row,
+      day_number: getDayNumber(row.date) ?? row.day_number,
+    }));
+
     return Response.json(
-      { user_info: userInfo?.[0] || null, details: data || [] },
+      { user_info: userInfo?.[0] || null, details },
       { status: 200 }
     );
   } catch (err) {
