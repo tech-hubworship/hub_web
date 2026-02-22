@@ -196,7 +196,7 @@ const CategoryBadge = styled.span<{ $category: string }>`
         return "rgba(16, 185, 129, 0.1)";
       case "행사":
         return "rgba(245, 158, 11, 0.1)";
-      case "조직":
+      case "예배":
         return "rgba(236, 72, 153, 0.1)";
       default:
         return "rgba(139, 92, 246, 0.1)";
@@ -210,7 +210,7 @@ const CategoryBadge = styled.span<{ $category: string }>`
         return "#10b981";
       case "행사":
         return "#f59e0b";
-      case "조직":
+      case "예배":
         return "#ec4899";
       default:
         return "#8b5cf6";
@@ -401,7 +401,7 @@ interface Term {
   updated_at: string;
 }
 
-const CATEGORIES = ["전체", "신앙", "공동체", "행사", "기타", "조직"];
+const CATEGORIES = ["전체", "신앙", "공동체", "행사", "기타", "예배"];
 
 export default function ClientPage() {
   const [terms, setTerms] = useState<Term[]>([]);

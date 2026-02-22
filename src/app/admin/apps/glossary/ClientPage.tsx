@@ -420,7 +420,7 @@ interface Term {
   updated_at: string;
 }
 
-const CATEGORIES = ["신앙", "공동체", "행사", "기타", "조직"];
+const CATEGORIES = ["신앙", "공동체", "행사", "기타", "예배"];
 
 export default function ClientPage() {
   const { data: session, status } = useSession();
@@ -763,7 +763,7 @@ export default function ClientPage() {
             </FormGroup>
 
             <FormGroup>
-              <Label>일시 (조직 정보용)</Label>
+              <Label>일시 (예배 정보용)</Label>
               <Input
                 value={formData.schedule}
                 onChange={(e) =>
@@ -774,7 +774,7 @@ export default function ClientPage() {
             </FormGroup>
 
             <FormGroup>
-              <Label>장소 (조직 정보용)</Label>
+              <Label>장소 (예배 정보용)</Label>
               <Input
                 value={formData.location}
                 onChange={(e) =>

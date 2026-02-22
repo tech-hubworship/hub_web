@@ -9,7 +9,7 @@ import { supabaseAdmin } from "@src/lib/supabase";
 
 interface GlossaryTerm {
   term_name: string;
-  category: "신앙" | "공동체" | "행사" | "기타" | "조직";
+  category: "신앙" | "공동체" | "행사" | "기타" | "예배";
   definition: string;
   example?: string;
   schedule?: string;
@@ -189,10 +189,10 @@ const allGlossaryData: GlossaryTerm[] = [
     example: "ODO에서 함께 섬기고 있어요",
     order_index: 22,
   },
-  // 조직 정보 (대학부/청년부) - 카테고리: 조직
+  // 예배 정보 (대학부/청년부) - 카테고리: 예배
   {
     term_name: "HUB 대학부",
-    category: "조직",
+    category: "예배",
     definition: "허브 대학부 모임",
     example: "HUB 대학부는 매주 일요일 오후 2시에 모여요",
     schedule: "일요일 오후 2:00",
@@ -201,7 +201,7 @@ const allGlossaryData: GlossaryTerm[] = [
   },
   {
     term_name: "하늘 대학부",
-    category: "조직",
+    category: "예배",
     definition: "하늘 대학부 모임",
     example: "하늘 대학부는 매주 일요일 오후 4시에 모여요",
     schedule: "일요일 오후 4:00",
@@ -210,7 +210,7 @@ const allGlossaryData: GlossaryTerm[] = [
   },
   {
     term_name: "Pole2 대학부",
-    category: "조직",
+    category: "예배",
     definition: "Pole2 대학부 모임",
     example: "Pole2 대학부는 매주 일요일 오전 10시에 모여요",
     schedule: "일요일 오전 10:00",
@@ -219,7 +219,7 @@ const allGlossaryData: GlossaryTerm[] = [
   },
   {
     term_name: "J4U 청년부",
-    category: "조직",
+    category: "예배",
     definition: "J4U 청년부 모임",
     example: "J4U 청년부는 매주 일요일 오전 11시 반에 모여요",
     schedule: "일요일 오전 11시 반",
@@ -228,7 +228,7 @@ const allGlossaryData: GlossaryTerm[] = [
   },
   {
     term_name: "여호수아 청년부",
-    category: "조직",
+    category: "예배",
     definition: "여호수아 청년부 모임",
     example: "여호수아 청년부는 매주 일요일 오후 4시에 모여요",
     schedule: "일요일 오후 4시",
@@ -237,7 +237,7 @@ const allGlossaryData: GlossaryTerm[] = [
   },
   {
     term_name: "갈렙 청년부",
-    category: "조직",
+    category: "예배",
     definition: "갈렙 청년부 모임",
     example: "갈렙 청년부는 매주 일요일 오후 1시 50분에 모여요",
     schedule: "일요일 오후 1시 50분",
@@ -246,7 +246,7 @@ const allGlossaryData: GlossaryTerm[] = [
   },
   {
     term_name: "W 청년부",
-    category: "조직",
+    category: "예배",
     definition: "W 청년부 모임",
     example: "W 청년부는 1부와 2부로 나뉘어 모여요",
     schedule: "1부: 일요일 오전 10시 반, 2부: 일요일 오후 2시",
@@ -255,7 +255,7 @@ const allGlossaryData: GlossaryTerm[] = [
   },
   {
     term_name: "길 청년부",
-    category: "조직",
+    category: "예배",
     definition: "길 청년부 모임",
     example: "길 청년부는 매주 일요일 오후 2시에 모여요",
     schedule: "일요일 오후 2시",
@@ -264,7 +264,7 @@ const allGlossaryData: GlossaryTerm[] = [
   },
   {
     term_name: "Ch plus 청년부",
-    category: "조직",
+    category: "예배",
     definition: "Ch plus 청년부 모임",
     example: "Ch plus 청년부는 매주 일요일 오후 5시 반에 모여요",
     schedule: "일요일 오후 5시 반",
@@ -273,7 +273,7 @@ const allGlossaryData: GlossaryTerm[] = [
   },
   {
     term_name: "Sns 청년부",
-    category: "조직",
+    category: "예배",
     definition: "Sns 청년부 모임",
     example: "Sns 청년부는 1부와 2부로 나뉘어 모여요",
     schedule: "1부: 일요일 오후 1시 반 2부: 일요일 오후 4시",
@@ -282,7 +282,7 @@ const allGlossaryData: GlossaryTerm[] = [
   },
   {
     term_name: "요셉 청년부",
-    category: "조직",
+    category: "예배",
     definition: "요셉 청년부 모임",
     example: "요셉 청년부는 매주 토요일 오후 5시에 모여요",
     schedule: "토요일 오후 5시",
