@@ -44,6 +44,44 @@ const ToastSuccessIcon = () => (
   </span>
 );
 
+// ——— 라이브 익명 표시 (실명 대신 장소·동사·동물 조합) ———
+const LIVE_LOCATIONS = ["사랑홀", "기쁨홀", "믿음홀", "온유홀", "충성홀"];
+const LIVE_VERBS = ["기도하는", "찬양하는", "예배하는", "감사하는", "자라나는", "꿈꾸는", "빛나는", "머무는", "숨쉬는", "노래하는"];
+const LIVE_ANIMALS = ["양", "사자", "독수리", "사슴", "비둘기"];
+
+function hashUserId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (h << 5) - h + id.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+/** user_id 기준 동물만 반환 (아바타 아이콘용) */
+function getLiveAnimal(userId: string): string {
+  const h = hashUserId(userId);
+  return LIVE_ANIMALS[Math.floor(h / (LIVE_LOCATIONS.length * LIVE_VERBS.length)) % LIVE_ANIMALS.length];
+}
+
+/** user_id 기준 결정론적 익명 라벨 (예: "사랑홀에서 노래하는 사슴") */
+function getLiveDisplayLabel(userId: string): string {
+  const h = hashUserId(userId);
+  const loc = LIVE_LOCATIONS[h % LIVE_LOCATIONS.length];
+  const verb = LIVE_VERBS[Math.floor(h / LIVE_LOCATIONS.length) % LIVE_VERBS.length];
+  const animal = LIVE_ANIMALS[Math.floor(h / (LIVE_LOCATIONS.length * LIVE_VERBS.length)) % LIVE_ANIMALS.length];
+  return `${loc}에서 ${verb} ${animal}`;
+}
+
+/** 동물 이름 → 아바타용 아이콘(이모지) */
+const LIVE_ANIMAL_ICONS: Record<string, string> = {
+  양: "🐑",
+  사자: "🦁",
+  독수리: "🦅",
+  사슴: "🦌",
+  비둘기: "🕊️",
+};
+
 // ——— 유틸 ———
 const formatTime = (totalSeconds: number, withMs = false): string => {
   const m = Math.floor(totalSeconds / 60);
@@ -563,9 +601,8 @@ const UserAvatar = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.9);
+  font-size: 24px;
+  line-height: 1;
   flex-shrink: 0;
 `;
 
@@ -975,23 +1012,28 @@ export default function PrayerTimeClientPage() {
               {activeUsers.length > 0 ? (
                 activeUsers
                   .sort((a, b) => (b.duration_seconds ?? 0) - (a.duration_seconds ?? 0))
-                  .map((user, i) => (
-                    <UserRow
-                      key={user.user_id}
-                      initial={{ opacity: 0, x: -12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.04 }}
-                    >
-                      <UserAvatar>{user.name?.slice(0, 1) || "?"}</UserAvatar>
-                      <UserInfo>
-                        <UserName>{user.name}</UserName>
-                        <UserGroup>허브인</UserGroup>
-                      </UserInfo>
+                  .map((user, i) => {
+                    const displayLabel = getLiveDisplayLabel(user.user_id);
+                    const animal = getLiveAnimal(user.user_id);
+                    const avatarIcon = LIVE_ANIMAL_ICONS[animal] ?? "🐑";
+                    return (
+                      <UserRow
+                        key={user.user_id}
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.04 }}
+                      >
+                        <UserAvatar aria-hidden>{avatarIcon}</UserAvatar>
+                        <UserInfo>
+                          <UserName>{displayLabel}</UserName>
+                          <UserGroup>허브인</UserGroup>
+                        </UserInfo>
                         <UserTimeWrap>
                           <UserDuration>{formatTime(user.duration_seconds ?? 0)}</UserDuration>
                         </UserTimeWrap>
-                    </UserRow>
-                  ))
+                      </UserRow>
+                    );
+                  })
               ) : (
                 <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
                   현재 기도 중인 사람이 없습니다.

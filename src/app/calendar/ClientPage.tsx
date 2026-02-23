@@ -7,6 +7,7 @@ import { Global, css } from "@emotion/react";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
 import type { CalendarEvent } from "@src/lib/calendar/types";
+import { formatEventTimeRange, getEventDateKeys } from "@src/lib/calendar/eventRange";
 import dynamic from "next/dynamic";
 
 const Footer = dynamic(() => import("@src/components/Footer"), { ssr: true });
@@ -73,10 +74,11 @@ export default function CalendarClientPage() {
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     for (const ev of events) {
-      const dateKey = dayjs(ev.start_at).format("YYYY-MM-DD");
-      const arr = map.get(dateKey) ?? [];
-      arr.push(ev);
-      map.set(dateKey, arr);
+      for (const dateKey of getEventDateKeys(ev)) {
+        const arr = map.get(dateKey) ?? [];
+        arr.push(ev);
+        map.set(dateKey, arr);
+      }
     }
     map.forEach((arr, k) => {
       arr.sort(
@@ -177,13 +179,7 @@ export default function CalendarClientPage() {
                     />
                     <EventContent>
                       <EventTime>
-                        {ev.all_day
-                          ? "종일"
-                          : `${dayjs(ev.start_at).format("HH:mm")}${
-                              ev.end_at
-                                ? ` – ${dayjs(ev.end_at).format("HH:mm")}`
-                                : ""
-                            }`}
+                        {formatEventTimeRange(ev)}
                       </EventTime>
                       <EventTitle>{ev.title}</EventTitle>
                       {ev.location ? (

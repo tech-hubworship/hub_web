@@ -123,6 +123,11 @@ const ActiveItem = styled.li`
   border-radius: 8px;
   font-size: 14px;
   color: #065f46;
+  & .meta {
+    font-size: 12px;
+    color: #047857;
+    margin-top: 2px;
+  }
 `;
 
 const RankList = styled.ol`
@@ -148,6 +153,49 @@ const RankItem = styled.li`
   &:last-child {
     border-bottom: none;
   }
+`;
+
+const PaginationWrap = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+`;
+const PaginationInfo = styled.span`
+  font-size: 14px;
+  color: #6b7280;
+`;
+const PaginationControls = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+const PageBtn = styled.button<{ active?: boolean }>`
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 14px;
+  background: ${(p) => (p.active ? "#3b82f6" : "white")};
+  color: ${(p) => (p.active ? "white" : "#374151")};
+  cursor: pointer;
+  &:hover:not(:disabled) {
+    background: ${(p) => (p.active ? "#2563eb" : "#f3f4f6")};
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+const PageSizeSelect = styled.select`
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-left: 8px;
 `;
 
 const TableWrap = styled.div`
@@ -193,15 +241,37 @@ function formatDateTime(iso: string): string {
   });
 }
 
-type ActiveUser = { user_id: string; name: string; start_time: string; duration_seconds: number };
-type TodayStat = { user_id: string; name: string; total_seconds: number };
+type ActiveUser = {
+  user_id: string;
+  name: string;
+  group_name: string;
+  cell_name: string;
+  start_time: string;
+  duration_seconds: number;
+};
+type TodayStat = {
+  user_id: string;
+  name: string;
+  group_name: string;
+  cell_name: string;
+  total_seconds: number;
+};
 type RecordRow = {
   id: number;
   user_id: string;
   name: string;
+  group_name: string;
+  cell_name: string;
   start_time: string;
   end_time: string | null;
   duration_seconds: number;
+};
+
+type PaginationInfo = {
+  page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
 };
 
 type OverviewData = {
@@ -212,6 +282,7 @@ type OverviewData = {
   community_total_seconds: number;
   today_user_stats: TodayStat[];
   recent_records: RecordRow[];
+  pagination: PaginationInfo;
 };
 
 export default function PrayerTimeAdminClientPage() {
@@ -221,25 +292,39 @@ export default function PrayerTimeAdminClientPage() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadOverview = useCallback(async (start?: string, end?: string) => {
-    const params = new URLSearchParams();
-    if (start) params.set("start_date", start);
-    if (end) params.set("end_date", end);
-    const res = await fetch(`/api/admin/prayer-time/overview?${params.toString()}`);
-    if (!res.ok) return;
-    const json = await res.json();
-    if (json?.data) setData(json.data);
-  }, []);
+  const loadOverview = useCallback(
+    async (start?: string, end?: string, p = 1, size = 20) => {
+      const params = new URLSearchParams();
+      if (start) params.set("start_date", start);
+      if (end) params.set("end_date", end);
+      params.set("page", String(p));
+      params.set("page_size", String(size));
+      const res = await fetch(`/api/admin/prayer-time/overview?${params.toString()}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json?.data) setData(json.data);
+    },
+    []
+  );
 
-  const fetchData = useCallback(() => {
-    setRefreshing(true);
-    loadOverview(startDate || undefined, endDate || undefined).finally(() => {
-      setLoading(false);
-      setRefreshing(false);
-    });
-  }, [loadOverview, startDate, endDate]);
+  const fetchData = useCallback(
+    (p?: number, newPageSize?: number) => {
+      setRefreshing(true);
+      const nextPage = p ?? page;
+      const size = newPageSize ?? pageSize;
+      if (newPageSize != null) setPageSize(newPageSize);
+      if (p != null) setPage(p);
+      loadOverview(startDate || undefined, endDate || undefined, nextPage, size).finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
+    },
+    [loadOverview, startDate, endDate, page, pageSize]
+  );
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -262,7 +347,8 @@ export default function PrayerTimeAdminClientPage() {
   useEffect(() => {
     if (status !== "authenticated" || !(session?.user as any)?.isAdmin) return;
     if (!startDate || !endDate) return;
-    fetchData();
+    setPage(1);
+    fetchData(1);
   }, [status, session?.user, startDate, endDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (status === "loading" || (status === "authenticated" && !(session?.user as any)?.isAdmin)) {
@@ -290,7 +376,7 @@ export default function PrayerTimeAdminClientPage() {
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
         />
-        <Button onClick={fetchData} disabled={refreshing}>
+        <Button onClick={() => fetchData()} disabled={refreshing}>
           <RefreshCw size={16} style={{ opacity: refreshing ? 0.7 : 1 }} />
           {refreshing ? "조회 중..." : "조회"}
         </Button>
@@ -313,6 +399,13 @@ export default function PrayerTimeAdminClientPage() {
                 {data.active_users.map((u) => (
                   <ActiveItem key={u.user_id}>
                     {u.name} · {formatDuration(u.duration_seconds)}
+                    {(u.group_name !== "-" || u.cell_name !== "-") && (
+                      <div className="meta">
+                        {u.group_name !== "-" && <span>그룹 {u.group_name}</span>}
+                        {u.group_name !== "-" && u.cell_name !== "-" && " · "}
+                        {u.cell_name !== "-" && <span>다락방 {u.cell_name}</span>}
+                      </div>
+                    )}
                   </ActiveItem>
                 ))}
               </ActiveList>
@@ -340,7 +433,17 @@ export default function PrayerTimeAdminClientPage() {
               <RankList>
                 {data.today_user_stats.map((u) => (
                   <RankItem key={u.user_id}>
-                    <span>{u.name}</span>
+                    <span>
+                      {u.name}
+                      {(u.group_name !== "-" || u.cell_name !== "-") && (
+                        <span style={{ fontSize: 12, color: "#6b7280", marginLeft: 6 }}>
+                          ({[u.group_name !== "-" ? u.group_name : null, u.cell_name !== "-" ? u.cell_name : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                          )
+                        </span>
+                      )}
+                    </span>
                     <span>{formatDuration(u.total_seconds)}</span>
                   </RankItem>
                 ))}
@@ -358,6 +461,8 @@ export default function PrayerTimeAdminClientPage() {
                 <thead>
                   <tr>
                     <th>이름</th>
+                    <th>공동체 그룹</th>
+                    <th>다락방</th>
                     <th>시작 시각</th>
                     <th>기도 시간</th>
                   </tr>
@@ -365,7 +470,7 @@ export default function PrayerTimeAdminClientPage() {
                 <tbody>
                   {data.recent_records.length === 0 ? (
                     <tr>
-                      <td colSpan={3} style={{ color: "#6b7280", textAlign: "center", padding: 24 }}>
+                      <td colSpan={5} style={{ color: "#6b7280", textAlign: "center", padding: 24 }}>
                         해당 기간 기록이 없습니다.
                       </td>
                     </tr>
@@ -373,6 +478,8 @@ export default function PrayerTimeAdminClientPage() {
                     data.recent_records.map((r) => (
                       <tr key={r.id}>
                         <td>{r.name}</td>
+                        <td>{r.group_name}</td>
+                        <td>{r.cell_name}</td>
                         <td>{formatDateTime(r.start_time)}</td>
                         <td>{formatDuration(r.duration_seconds)}</td>
                       </tr>
@@ -381,6 +488,61 @@ export default function PrayerTimeAdminClientPage() {
                 </tbody>
               </Table>
             </TableWrap>
+            {data.pagination && data.pagination.total_count > 0 && (
+              <PaginationWrap>
+                <PaginationInfo>
+                  전체 {data.pagination.total_count}건 · {data.pagination.page} / {data.pagination.total_pages}페이지
+                </PaginationInfo>
+                <PaginationControls>
+                  <PageSizeSelect
+                    value={pageSize}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      fetchData(1, v);
+                    }}
+                  >
+                    <option value={10}>10개씩</option>
+                    <option value={20}>20개씩</option>
+                    <option value={50}>50개씩</option>
+                    <option value={100}>100개씩</option>
+                  </PageSizeSelect>
+                  <PaginationControls>
+                    <PageBtn
+                      type="button"
+                      disabled={data.pagination.page <= 1 || refreshing}
+                      onClick={() => fetchData(data.pagination.page - 1)}
+                    >
+                      이전
+                    </PageBtn>
+                    {Array.from({ length: data.pagination.total_pages }, (_, i) => i + 1)
+                      .filter((p) => {
+                        const cur = data.pagination.page;
+                        return p === 1 || p === data.pagination.total_pages || (p >= cur - 2 && p <= cur + 2);
+                      })
+                      .map((p, idx, arr) => (
+                        <React.Fragment key={p}>
+                          {idx > 0 && arr[idx - 1] !== p - 1 && <span style={{ padding: "0 4px" }}>…</span>}
+                          <PageBtn
+                            type="button"
+                            active={p === data.pagination.page}
+                            onClick={() => fetchData(p)}
+                            disabled={refreshing}
+                          >
+                            {p}
+                          </PageBtn>
+                        </React.Fragment>
+                      ))}
+                    <PageBtn
+                      type="button"
+                      disabled={data.pagination.page >= data.pagination.total_pages || refreshing}
+                      onClick={() => fetchData(data.pagination.page + 1)}
+                    >
+                      다음
+                    </PageBtn>
+                  </PaginationControls>
+                </PaginationControls>
+              </PaginationWrap>
+            )}
           </Section>
         </>
       )}

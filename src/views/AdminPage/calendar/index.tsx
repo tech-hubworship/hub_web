@@ -1,9 +1,13 @@
-import { Button, Drawer, Form, Input, Modal, Switch, Tag, TimePicker } from 'antd';
+import { Button, DatePicker, Drawer, Form, Input, Modal, Switch, TimePicker } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import { useMemo, useState } from 'react';
+
+dayjs.extend(isSameOrAfter);
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CalendarEvent } from '@src/lib/calendar/types';
+import { formatEventTimeRange, getEventDateKeys } from '@src/lib/calendar/eventRange';
 import * as S from './style';
 
 const WEEKDAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
@@ -30,6 +34,8 @@ function getCalendarDays(viewDate: Dayjs): Dayjs[] {
 type EventFormValues = {
   title: string;
   all_day: boolean;
+  start_date: Dayjs;
+  end_date: Dayjs | null;
   start_time?: Dayjs;
   end_time?: Dayjs;
   location?: string;
@@ -37,18 +43,28 @@ type EventFormValues = {
   is_public: boolean;
 };
 
-function buildStartEndISO(date: Dayjs, values: EventFormValues) {
-  // 서울 기준(+09:00)로 문자열을 만들어 ISO로 저장 (UTC 변환)
+function buildStartEndISO(values: EventFormValues) {
+  const startDate = dayjs(values.start_date);
+  const endDateRaw = values.end_date ? dayjs(values.end_date) : null;
+  const endDate =
+    endDateRaw && !endDateRaw.isBefore(startDate, 'day')
+      ? endDateRaw
+      : startDate;
+  const startYYYYMMDD = formatYYYYMMDD(startDate);
+  const endYYYYMMDD = formatYYYYMMDD(endDate);
+
   if (values.all_day) {
-    const start = new Date(`${formatYYYYMMDD(date)}T00:00:00+09:00`).toISOString();
-    const end = new Date(`${formatYYYYMMDD(date)}T23:59:59.999+09:00`).toISOString();
+    const start = new Date(`${startYYYYMMDD}T00:00:00+09:00`).toISOString();
+    const end = new Date(`${endYYYYMMDD}T23:59:59.999+09:00`).toISOString();
     return { start_at: start, end_at: end };
   }
 
   const startHHmm = (values.start_time || dayjs().hour(9).minute(0)).format('HH:mm');
   const endHHmm = (values.end_time || null)?.format('HH:mm') || null;
-  const start = new Date(`${formatYYYYMMDD(date)}T${startHHmm}:00+09:00`).toISOString();
-  const end = endHHmm ? new Date(`${formatYYYYMMDD(date)}T${endHHmm}:00+09:00`).toISOString() : null;
+  const start = new Date(`${startYYYYMMDD}T${startHHmm}:00+09:00`).toISOString();
+  const end = endHHmm
+    ? new Date(`${endYYYYMMDD}T${endHHmm}:00+09:00`).toISOString()
+    : (startDate.isSame(endDate, 'day') ? null : new Date(`${endYYYYMMDD}T23:59:59.999+09:00`).toISOString());
   return { start_at: start, end_at: end };
 }
 
@@ -80,10 +96,11 @@ export default function CalendarAdminPage() {
   const eventsByDate = useMemo(() => {
     const map: Map<string, CalendarEvent[]> = new Map();
     for (const ev of events) {
-      const dateKey = dayjs(ev.start_at).format('YYYY-MM-DD');
-      const arr: CalendarEvent[] = map.get(dateKey) ?? [];
-      arr.push(ev);
-      map.set(dateKey, arr);
+      for (const dateKey of getEventDateKeys(ev)) {
+        const arr: CalendarEvent[] = map.get(dateKey) ?? [];
+        arr.push(ev);
+        map.set(dateKey, arr);
+      }
     }
     map.forEach((arr, k) => {
       arr.sort((a: CalendarEvent, b: CalendarEvent) => dayjs(a.start_at).valueOf() - dayjs(b.start_at).valueOf());
@@ -154,6 +171,8 @@ export default function CalendarAdminPage() {
     form.setFieldsValue({
       title: '',
       all_day: false,
+      start_date: date,
+      end_date: null,
       start_time: dayjs().hour(9).minute(0),
       end_time: dayjs().hour(10).minute(0),
       location: '',
@@ -165,11 +184,15 @@ export default function CalendarAdminPage() {
 
   const openEditModal = (ev: CalendarEvent) => {
     setEditingEvent(ev);
-    const date = dayjs(ev.start_at);
-    setSelectedDate(date);
+    const startDate = dayjs(ev.start_at);
+    const endDate = ev.end_at ? dayjs(ev.end_at) : null;
+    const sameDay = !endDate || endDate.isSame(startDate, 'day');
+    setSelectedDate(startDate);
     form.setFieldsValue({
       title: ev.title,
       all_day: ev.all_day,
+      start_date: startDate,
+      end_date: sameDay ? null : endDate,
       start_time: ev.all_day ? undefined : dayjs(ev.start_at),
       end_time: ev.all_day ? undefined : (ev.end_at ? dayjs(ev.end_at) : undefined),
       location: ev.location || '',
@@ -180,8 +203,8 @@ export default function CalendarAdminPage() {
   };
 
   const submit = async () => {
-    const values = await form.validateFields();
-    const { start_at, end_at } = buildStartEndISO(selectedDate, values);
+    const values = await form.validateFields() as EventFormValues;
+    const { start_at, end_at } = buildStartEndISO(values);
     const payload = {
       title: values.title,
       start_at,
@@ -317,11 +340,7 @@ export default function CalendarAdminPage() {
                   />
                   <S.EventContent>
                     <S.EventTime>
-                      {ev.all_day
-                        ? '종일'
-                        : `${dayjs(ev.start_at).format('HH:mm')}${
-                            ev.end_at ? ` – ${dayjs(ev.end_at).format('HH:mm')}` : ''
-                          }`}
+                      {formatEventTimeRange(ev)}
                     </S.EventTime>
                     <S.EventTitleText>{ev.title}</S.EventTitleText>
                     {ev.location ? (
@@ -374,7 +393,7 @@ export default function CalendarAdminPage() {
           width={480}
           styles={{ body: { paddingTop: 8 } }}
         >
-          <Form
+            <Form
             form={form}
             layout="vertical"
             initialValues={{ all_day: false, is_public: true }}
@@ -384,11 +403,42 @@ export default function CalendarAdminPage() {
               name="title"
               rules={[{ required: true, message: '제목을 입력해주세요.' }]}
             >
-              <Input placeholder="예) 주일예배, MT, 리더십 모임" size="large" />
+              <Input placeholder="예) 주일예배, 사순절 기간, MT" size="large" />
             </Form.Item>
 
             <S.FormSection>
-              <S.FormSectionLabel>시간 설정</S.FormSectionLabel>
+              <S.FormSectionLabel>기간 설정</S.FormSectionLabel>
+              <S.TimeRow>
+                <Form.Item
+                  label="시작일"
+                  name="start_date"
+                  rules={[{ required: true, message: '시작일을 선택해주세요.' }]}
+                >
+                  <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
+                </Form.Item>
+                <Form.Item
+                  label="종료일 (선택)"
+                  name="end_date"
+                  help="기간 일정(예: 사순절)인 경우만 선택. 비우면 당일만."
+                  rules={[
+                    {
+                      validator: (_, val) => {
+                        if (!val) return Promise.resolve();
+                        const start = form.getFieldValue('start_date');
+                        if (!start) return Promise.resolve();
+                        const endDay = dayjs(val);
+                        const startDay = dayjs(start);
+                        if (endDay.isBefore(startDay, 'day')) {
+                          return Promise.reject(new Error('종료일은 시작일 이후여야 합니다.'));
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                >
+                  <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
+                </Form.Item>
+              </S.TimeRow>
               <Form.Item label="종일" name="all_day" valuePropName="checked">
                 <Switch checkedChildren="종일" unCheckedChildren="시간 지정" />
               </Form.Item>
@@ -397,13 +447,13 @@ export default function CalendarAdminPage() {
                   getFieldValue('all_day') ? null : (
                     <S.TimeRow>
                       <Form.Item
-                        label="시작"
+                        label="시작 시간"
                         name="start_time"
                         rules={[{ required: true, message: '시작 시간을 선택해주세요.' }]}
                       >
                         <TimePicker format="HH:mm" style={{ width: '100%' }} />
                       </Form.Item>
-                      <Form.Item label="종료" name="end_time">
+                      <Form.Item label="종료 시간" name="end_time">
                         <TimePicker format="HH:mm" style={{ width: '100%' }} />
                       </Form.Item>
                     </S.TimeRow>
