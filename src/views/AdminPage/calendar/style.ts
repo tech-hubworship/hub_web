@@ -29,6 +29,15 @@ export const ios = {
 };
 
 export const EVENT_DOT_COLORS = [ios.blue, ios.green, ios.orange, ios.purple, ios.red];
+export const EVENT_BAR_PASTEL_COLORS = [
+  '#7EC8E3',
+  '#7DD3A0',
+  '#F5C96E',
+  '#C9A0DC',
+  '#F0A0A8',
+];
+export const BAR_HEIGHT = 4;
+export const BAR_LANE_GAP = 2;
 
 export const PageWrap = styled.div`
   padding: 24px;
@@ -166,8 +175,38 @@ export const WeekdayCell = styled.div`
 export const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
   gap: 0;
   padding-top: 4px;
+  position: relative;
+`;
+
+export const BarsLayer = styled.div`
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  pointer-events: none;
+  padding-top: 4px;
+`;
+
+export const EventBarSegment = styled.div<{ $lane: number }>`
+  align-self: start;
+  margin-top: ${(p) => 33 + p.$lane * (BAR_HEIGHT + BAR_LANE_GAP)}px;
+  height: ${BAR_HEIGHT}px;
+  box-sizing: border-box;
+  min-width: 0;
+  display: flex;
+`;
+
+export const EventBarSegmentInner = styled.div<{ $color: string }>`
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: ${(p) => p.$color};
+  flex: 1;
+  min-width: 0;
 `;
 
 export const DayCell = styled.button<{

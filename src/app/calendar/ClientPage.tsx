@@ -7,7 +7,12 @@ import { Global, css } from "@emotion/react";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
 import type { CalendarEvent } from "@src/lib/calendar/types";
-import { formatEventTimeRange, getEventDateKeys } from "@src/lib/calendar/eventRange";
+import {
+  formatEventTimeRange,
+  getBarSegments,
+  getEventDateKeys,
+  isMultiDayEvent,
+} from "@src/lib/calendar/eventRange";
 import dynamic from "next/dynamic";
 
 const Footer = dynamic(() => import("@src/components/Footer"), { ssr: true });
@@ -26,6 +31,15 @@ const theme = {
 };
 
 const EVENT_DOT_COLORS = ["#0066ff", "#34C759", "#FF9500", "#AF52DE", "#FF3B30"];
+const EVENT_BAR_PASTEL_COLORS = [
+  "#7EC8E3",
+  "#7DD3A0",
+  "#F5C96E",
+  "#C9A0DC",
+  "#F0A0A8",
+];
+const BAR_HEIGHT = 4;
+const BAR_LANE_GAP = 2;
 
 const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -91,6 +105,65 @@ export default function CalendarClientPage() {
 
   const calendarDays = useMemo(() => getCalendarDays(viewDate), [viewDate]);
 
+  const dateKeyToIndex = useMemo(() => {
+    const m = new Map<string, number>();
+    calendarDays.forEach((d, i) => m.set(formatYYYYMMDD(d), i));
+    return m;
+  }, [calendarDays]);
+
+  const spanBars = useMemo(() => {
+    type Seg = { row: number; colStart: number; colSpan: number; isFirst: boolean; isLast: boolean; lane: number };
+    const bars: { event: CalendarEvent; segments: Seg[]; color: string }[] = [];
+    events.forEach((ev) => {
+      if (!isMultiDayEvent(ev)) return;
+      const keys = getEventDateKeys(ev);
+      const indices = keys.map((k) => dateKeyToIndex.get(k)).filter((i): i is number => i !== undefined);
+      if (indices.length < 2) return;
+      const startIndex = Math.min(...indices);
+      const endIndex = Math.max(...indices);
+      const rawSegments = getBarSegments(startIndex, endIndex);
+      if (rawSegments.length === 0) return;
+      const segments: Seg[] = rawSegments.map((s, i) => ({
+        ...s,
+        isFirst: i === 0,
+        isLast: i === rawSegments.length - 1,
+        lane: 0,
+      }));
+      bars.push({
+        event: ev,
+        segments,
+        color: EVENT_BAR_PASTEL_COLORS[ev.id % EVENT_BAR_PASTEL_COLORS.length],
+      });
+    });
+
+    const overlaps = (c1: number, s1: number, c2: number, s2: number) =>
+      c1 < c2 + s2 && c2 < c1 + s1;
+
+    const byRow = new Map<number, { barIdx: number; segIdx: number; colStart: number; colSpan: number }[]>();
+    bars.forEach((bar, barIdx) => {
+      bar.segments.forEach((seg, segIdx) => {
+        const list = byRow.get(seg.row) ?? [];
+        list.push({ barIdx, segIdx, colStart: seg.colStart, colSpan: seg.colSpan });
+        byRow.set(seg.row, list);
+      });
+    });
+
+    byRow.forEach((list) => {
+      const assigned: { lane: number; colStart: number; colSpan: number }[] = [];
+      list.forEach(({ barIdx, segIdx, colStart, colSpan }) => {
+        let lane = 0;
+        for (;; lane++) {
+          const conflict = assigned.some((a) => a.lane === lane && overlaps(a.colStart, a.colSpan, colStart, colSpan));
+          if (!conflict) break;
+        }
+        assigned.push({ lane, colStart, colSpan });
+        bars[barIdx].segments[segIdx].lane = lane;
+      });
+    });
+
+    return bars;
+  }, [events, dateKeyToIndex]);
+
   const selectedKey = formatYYYYMMDD(selectedDate);
   const selectedEvents = eventsByDate.get(selectedKey) || [];
   const todayKey = formatYYYYMMDD(dayjs());
@@ -125,12 +198,31 @@ export default function CalendarClientPage() {
               </WeekdayRow>
 
               <Grid>
+                <BarsLayer>
+                  {spanBars.map(({ event: ev, segments, color }) =>
+                    segments.map((seg, segIdx) => (
+                      <EventBarSegment
+                        key={`${ev.id}-${segIdx}`}
+                        $lane={seg.lane}
+                        style={{
+                          gridColumn: `${seg.colStart + 1} / span ${seg.colSpan}`,
+                          gridRow: seg.row + 1,
+                          paddingLeft: seg.isFirst ? `${35 / seg.colSpan}%` : 0,
+                          paddingRight: seg.isLast ? `${35 / seg.colSpan}%` : 0,
+                        }}
+                      >
+                        <EventBarSegmentInner $color={color} />
+                      </EventBarSegment>
+                    ))
+                  )}
+                </BarsLayer>
                 {calendarDays.map((d) => {
                   const key = formatYYYYMMDD(d);
                   const isCurrentMonth = d.month() === viewDate.month();
                   const isToday = key === todayKey;
                   const isSelected = key === selectedKey;
                   const dayEvents = eventsByDate.get(key) || [];
+                  const singleDayEvents = dayEvents.filter((ev) => !isMultiDayEvent(ev));
 
                   return (
                     <DayCell
@@ -143,9 +235,9 @@ export default function CalendarClientPage() {
                       <DayNumber $isToday={isToday} $isSelected={isSelected}>
                         {d.date()}
                       </DayNumber>
-                      {dayEvents.length > 0 && (
+                      {singleDayEvents.length > 0 && (
                         <DotsRow>
-                          {dayEvents.slice(0, 3).map((ev, i) => (
+                          {singleDayEvents.slice(0, 3).map((ev, i) => (
                             <EventDot
                               key={ev.id}
                               $color={EVENT_DOT_COLORS[i % EVENT_DOT_COLORS.length]}
@@ -172,10 +264,14 @@ export default function CalendarClientPage() {
               <EmptyState>등록된 일정이 없습니다.</EmptyState>
             ) : (
               <EventList>
-                {selectedEvents.map((ev, idx) => (
+                {selectedEvents.map((ev) => (
                   <EventRow key={ev.id}>
                     <EventBar
-                      $color={EVENT_DOT_COLORS[idx % EVENT_DOT_COLORS.length]}
+                      $color={
+                        isMultiDayEvent(ev)
+                          ? EVENT_BAR_PASTEL_COLORS[ev.id % EVENT_BAR_PASTEL_COLORS.length]
+                          : EVENT_DOT_COLORS[ev.id % EVENT_DOT_COLORS.length]
+                      }
                     />
                     <EventContent>
                       <EventTime>
@@ -356,12 +452,50 @@ const WeekdayCell = styled.div`
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
   gap: 0;
   padding-top: 4px;
+  position: relative;
 
   @media (min-width: 1024px) {
     padding-top: 8px;
   }
+`;
+
+const BarsLayer = styled.div`
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  pointer-events: none;
+  padding-top: 4px;
+  @media (min-width: 1024px) {
+    padding-top: 8px;
+  }
+`;
+
+/* 점(DotsRow)과 같은 높이에서 시작, 레인별로 아래로 배치. padding으로 날짜 가운데~가운데, 내부에서 둥글게 */
+const EventBarSegment = styled.div<{ $lane: number }>`
+  align-self: start;
+  margin-top: ${(p) => 33 + p.$lane * (BAR_HEIGHT + BAR_LANE_GAP)}px;
+  height: ${BAR_HEIGHT}px;
+  box-sizing: border-box;
+  min-width: 0;
+  display: flex;
+  @media (min-width: 1024px) {
+    margin-top: ${(p) => 44 + p.$lane * (BAR_HEIGHT + BAR_LANE_GAP)}px;
+    height: 5px;
+  }
+`;
+
+const EventBarSegmentInner = styled.div<{ $color: string }>`
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: ${(p) => p.$color};
+  flex: 1;
+  min-width: 0;
 `;
 
 const DayCell = styled.button<{

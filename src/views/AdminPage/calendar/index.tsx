@@ -7,7 +7,12 @@ import { useMemo, useState } from 'react';
 dayjs.extend(isSameOrAfter);
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CalendarEvent } from '@src/lib/calendar/types';
-import { formatEventTimeRange, getEventDateKeys } from '@src/lib/calendar/eventRange';
+import {
+  formatEventTimeRange,
+  getBarSegments,
+  getEventDateKeys,
+  isMultiDayEvent,
+} from '@src/lib/calendar/eventRange';
 import * as S from './style';
 
 const WEEKDAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
@@ -109,9 +114,64 @@ export default function CalendarAdminPage() {
     return map;
   }, [events]);
 
+  const calendarDays = useMemo(() => getCalendarDays(viewDate), [viewDate]);
+  const dateKeyToIndex = useMemo(() => {
+    const m = new Map<string, number>();
+    calendarDays.forEach((d, i) => m.set(formatYYYYMMDD(d), i));
+    return m;
+  }, [calendarDays]);
+
+  const spanBars = useMemo(() => {
+    type Seg = { row: number; colStart: number; colSpan: number; isFirst: boolean; isLast: boolean; lane: number };
+    const bars: { event: CalendarEvent; segments: Seg[]; color: string }[] = [];
+    events.forEach((ev) => {
+      if (!isMultiDayEvent(ev)) return;
+      const keys = getEventDateKeys(ev);
+      const indices = keys.map((k) => dateKeyToIndex.get(k)).filter((i): i is number => i !== undefined);
+      if (indices.length < 2) return;
+      const startIndex = Math.min(...indices);
+      const endIndex = Math.max(...indices);
+      const rawSegments = getBarSegments(startIndex, endIndex);
+      if (rawSegments.length === 0) return;
+      const segments: Seg[] = rawSegments.map((s, i) => ({
+        ...s,
+        isFirst: i === 0,
+        isLast: i === rawSegments.length - 1,
+        lane: 0,
+      }));
+      bars.push({
+        event: ev,
+        segments,
+        color: S.EVENT_BAR_PASTEL_COLORS[ev.id % S.EVENT_BAR_PASTEL_COLORS.length],
+      });
+    });
+    const overlaps = (c1: number, s1: number, c2: number, s2: number) =>
+      c1 < c2 + s2 && c2 < c1 + s1;
+    const byRow = new Map<number, { barIdx: number; segIdx: number; colStart: number; colSpan: number }[]>();
+    bars.forEach((bar, barIdx) => {
+      bar.segments.forEach((seg, segIdx) => {
+        const list = byRow.get(seg.row) ?? [];
+        list.push({ barIdx, segIdx, colStart: seg.colStart, colSpan: seg.colSpan });
+        byRow.set(seg.row, list);
+      });
+    });
+    byRow.forEach((list) => {
+      const assigned: { lane: number; colStart: number; colSpan: number }[] = [];
+      list.forEach(({ barIdx, segIdx, colStart, colSpan }) => {
+        let lane = 0;
+        for (;; lane++) {
+          const conflict = assigned.some((a) => a.lane === lane && overlaps(a.colStart, a.colSpan, colStart, colSpan));
+          if (!conflict) break;
+        }
+        assigned.push({ lane, colStart, colSpan });
+        bars[barIdx].segments[segIdx].lane = lane;
+      });
+    });
+    return bars;
+  }, [events, dateKeyToIndex]);
+
   const selectedKey = formatYYYYMMDD(selectedDate);
   const selectedEvents = eventsByDate.get(selectedKey) || [];
-  const calendarDays = useMemo(() => getCalendarDays(viewDate), [viewDate]);
   const todayKey = formatYYYYMMDD(dayjs());
 
   const goPrevMonth = () => setViewDate((d) => d.subtract(1, 'month'));
@@ -265,12 +325,31 @@ export default function CalendarAdminPage() {
         </S.WeekdayRow>
 
         <S.Grid>
+          <S.BarsLayer>
+            {spanBars.map(({ event: ev, segments, color }) =>
+              segments.map((seg, segIdx) => (
+                <S.EventBarSegment
+                  key={`${ev.id}-${segIdx}`}
+                  $lane={seg.lane}
+                  style={{
+                    gridColumn: `${seg.colStart + 1} / span ${seg.colSpan}`,
+                    gridRow: seg.row + 1,
+                    paddingLeft: seg.isFirst ? `${35 / seg.colSpan}%` : 0,
+                    paddingRight: seg.isLast ? `${35 / seg.colSpan}%` : 0,
+                  }}
+                >
+                  <S.EventBarSegmentInner $color={color} />
+                </S.EventBarSegment>
+              ))
+            )}
+          </S.BarsLayer>
           {calendarDays.map((d) => {
             const key = formatYYYYMMDD(d);
             const isCurrentMonth = d.month() === viewDate.month();
             const isToday = key === todayKey;
             const isSelected = key === selectedKey;
             const dayEvents = eventsByDate.get(key) || [];
+            const singleDayEvents = dayEvents.filter((ev) => !isMultiDayEvent(ev));
 
             return (
               <S.DayCell
@@ -284,9 +363,9 @@ export default function CalendarAdminPage() {
                 <S.DayNumber $isToday={isToday} $isSelected={isSelected}>
                   {d.date()}
                 </S.DayNumber>
-                {dayEvents.length > 0 && (
+                {singleDayEvents.length > 0 && (
                   <S.DotsRow>
-                    {dayEvents.slice(0, 3).map((ev, i) => (
+                    {singleDayEvents.slice(0, 3).map((ev, i) => (
                       <S.EventDot
                         key={ev.id}
                         $color={S.EVENT_DOT_COLORS[i % S.EVENT_DOT_COLORS.length]}
@@ -333,10 +412,14 @@ export default function CalendarAdminPage() {
             </S.EmptyState>
           ) : (
             <S.EventList>
-              {selectedEvents.map((ev, idx) => (
+              {selectedEvents.map((ev) => (
                 <S.EventRow key={ev.id}>
                   <S.EventBar
-                    $color={S.EVENT_DOT_COLORS[idx % S.EVENT_DOT_COLORS.length]}
+                    $color={
+                      isMultiDayEvent(ev)
+                        ? S.EVENT_BAR_PASTEL_COLORS[ev.id % S.EVENT_BAR_PASTEL_COLORS.length]
+                        : S.EVENT_DOT_COLORS[ev.id % S.EVENT_DOT_COLORS.length]
+                    }
                   />
                   <S.EventContent>
                     <S.EventTime>

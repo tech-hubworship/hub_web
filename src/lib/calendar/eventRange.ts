@@ -1,5 +1,33 @@
 import type { CalendarEvent } from "@src/lib/calendar/types";
 
+/** 이벤트가 이틀 이상인지 */
+export function isMultiDayEvent(ev: CalendarEvent): boolean {
+  const keys = getEventDateKeys(ev);
+  return keys.length >= 2;
+}
+
+/**
+ * 0~41 그리드 인덱스 기준으로 기간 이벤트의 막대를 그리기 위한 세그먼트.
+ * 주가 바뀌면 행이 바뀌므로 여러 세그먼트로 나눔.
+ */
+export function getBarSegments(
+  startIndex: number,
+  endIndex: number
+): { row: number; colStart: number; colSpan: number }[] {
+  const segments: { row: number; colStart: number; colSpan: number }[] = [];
+  const cols = 7;
+  for (let i = startIndex; i <= endIndex; ) {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    const remainingInRow = cols - col;
+    const remainingTotal = endIndex - i + 1;
+    const span = Math.min(remainingInRow, remainingTotal);
+    segments.push({ row, colStart: col, colSpan: span });
+    i += span;
+  }
+  return segments;
+}
+
 /**
  * 이벤트가 걸친 모든 날짜(YYYY-MM-DD)를 반환.
  * 기간 이벤트(전일 00:00 ~ 다음날 23:59 등)도 해당하는 모든 날에 표시하기 위함.
