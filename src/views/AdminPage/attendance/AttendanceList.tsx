@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
+import * as XLSX from 'xlsx';
 import { LATE_GRACE_MINUTES } from '@src/lib/attendance/late-fee';
 import * as S from '../users/style';
 
@@ -172,6 +173,45 @@ export default function AttendanceList() {
       });
     return result;
   })();
+
+  const downloadSummaryExcel = () => {
+    const s = filteredStats || stats;
+    if (!s) return;
+    const totalMembers = (s as any).total_members ?? 0;
+    const attendedCount = (s as any).attended_count ?? 0;
+    const excusedCount = (s as any).excused_absence_count ?? 0;
+    const unexcusedCount = (s as any).unexcused_absence_count ?? 0;
+    const expectedCount = Math.max(0, totalMembers - excusedCount - attendedCount - unexcusedCount);
+    const rate = (s as any).attendance_rate ?? 0;
+
+    const groupExpected = Math.max(0, groupLeadersStats.total - groupLeadersStats.excused - groupLeadersStats.attended - groupLeadersStats.unexcused);
+    const cellExpected = Math.max(0, cellLeadersStats.total - cellLeadersStats.excused - cellLeadersStats.attended - cellLeadersStats.unexcused);
+
+    const rows: (string | number)[][] = [
+      ['출석 현황 요약'],
+      [`OD 명단 기준 · ${date}${(filterGroup || filterCell || filterName || filterStatus || filterReportRequiredOnly || showOnlyDuplicateNameGroupCell) ? ` (필터: ${showOnlyDuplicateNameGroupCell ? duplicateMemberCount : filteredTotal}명)` : ''}`],
+      [],
+      ['구분', '재적', '출석', '결석', '무단결석', '출석예정', '출석율(%)'],
+      ['전체', totalMembers, attendedCount, excusedCount, unexcusedCount, expectedCount, rate],
+      [],
+      ['그룹장', groupLeadersStats.total, groupLeadersStats.attended, groupLeadersStats.excused, groupLeadersStats.unexcused, groupExpected, groupLeadersStats.rate],
+      ['다락방장', cellLeadersStats.total, cellLeadersStats.attended, cellLeadersStats.excused, cellLeadersStats.unexcused, cellExpected, cellLeadersStats.rate],
+      [],
+      ['그룹', '다락방', '재적', '출석', '결석', '무단결석', '출석예정'],
+    ];
+
+    for (const group of treeStats) {
+      for (const cell of group.cells) {
+        const exp = Math.max(0, cell.total - cell.excused - cell.attended - cell.unexcused);
+        rows.push([group.group_name, cell.cell_name, cell.total, cell.attended, cell.excused, cell.unexcused, exp]);
+      }
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '출석현황요약');
+    XLSX.writeFile(wb, `출석현황요약_${date}.xlsx`);
+  };
 
   const pad = (n: number) => String(n).padStart(2, "0");
   const sh = Number(lateCriteria.start_hour ?? 10);
@@ -820,6 +860,23 @@ export default function AttendanceList() {
                   }}
                 >
                   {summaryExpanded ? '접기 ▲' : '다락방별 보기 ▼'}
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadSummaryExcel}
+                  disabled={!filteredStats && !stats}
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#fff',
+                    background: (filteredStats || stats) ? '#0d9488' : '#94a3b8',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: (filteredStats || stats) ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  엑셀 다운로드
                 </button>
               </div>
             </div>

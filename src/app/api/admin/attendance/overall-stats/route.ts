@@ -89,10 +89,10 @@ export async function GET(req: Request) {
       new Set((distinctWeeks || []).map((r: any) => r.week_date))
     ).sort();
 
-    // 3. 기간 내 전체 출석 기록 (user_id, week_date → late_fee, is_excused)
+    // 3. 기간 내 전체 출석 기록 (user_id, week_date → late_fee, status, 예외 플래그, note)
     const { data: attendanceRows, error: attError } = await supabaseAdmin
       .from("weekly_attendance")
-      .select("user_id, week_date, late_fee, is_excused, status")
+      .select("user_id, week_date, late_fee, is_excused, status, late_fee_excused, report_excused, note")
       .eq("category", CATEGORY_OD)
       .in("user_id", userIds)
       .gte("week_date", startStr)
@@ -100,24 +100,34 @@ export async function GET(req: Request) {
 
     if (attError) throw attError;
 
-    const feeByUserWeek = new Map<string, number | null>();
+    type CellData = { fee: number | null; status: string | null; late_fee_excused: boolean; report_excused: boolean; note: string | null };
+    const dataByUserWeek = new Map<string, CellData>();
     for (const row of attendanceRows || []) {
-      const key = `${row.user_id}:${row.week_date}`;
-      // 예외 처리된 경우 프론트에서 '-' 표시할 수 있도록 null
-      if ((row as any).is_excused) {
-        feeByUserWeek.set(key, null);
-      } else {
-        feeByUserWeek.set(key, (row as any).late_fee ?? 0);
-      }
+      const r = row as any;
+      const key = `${r.user_id}:${r.week_date}`;
+      dataByUserWeek.set(key, {
+        fee: r.late_fee ?? 0,
+        status: r.status ?? null,
+        late_fee_excused: !!r.late_fee_excused,
+        report_excused: !!r.report_excused,
+        note: r.note ?? null,
+      });
     }
 
-    // 4. 행 데이터 (그룹 → 다락방 → 이름 정렬)
+    // 4. 행 데이터 (그룹 → 다락방 → 이름 정렬), 주차별 셀에 fee + status + 예외 정보
     const rows = roster.map((r: any) => {
       const profile = profileByUser.get(r.user_id) || {};
       const weeklyFees: Record<string, number | null> = {};
+      const weeklyData: Record<string, CellData> = {};
       for (const w of weekDates) {
         const key = `${r.user_id}:${w}`;
-        weeklyFees[w] = feeByUserWeek.has(key) ? feeByUserWeek.get(key)! : null;
+        const cell = dataByUserWeek.get(key);
+        if (cell) {
+          weeklyData[w] = cell;
+          weeklyFees[w] = cell.fee;
+        } else {
+          weeklyFees[w] = null;
+        }
       }
       return {
         id: r.id,
@@ -128,22 +138,26 @@ export async function GET(req: Request) {
         is_group_leader: !!r.is_group_leader,
         is_cell_leader: !!r.is_cell_leader,
         weeklyFees,
+        weeklyData,
       };
     });
 
+    // 그룹 → 그룹장 최상단 → 다락방 → 다락방장 최상단 → 이름
     rows.sort((a: any, b: any) => {
       const g = (a.group_name || "").localeCompare(b.group_name || "");
       if (g !== 0) return g;
+      if (a.is_group_leader !== b.is_group_leader) return a.is_group_leader ? -1 : 1; // 그룹장 먼저
       const c = (a.cell_name || "").localeCompare(b.cell_name || "");
       if (c !== 0) return c;
+      if (a.is_cell_leader !== b.is_cell_leader) return a.is_cell_leader ? -1 : 1; // 다락방장 먼저
       return (a.name || "").localeCompare(b.name || "");
     });
 
-    // 5. 분기별 지각비 합계 (기간 내 실제 데이터 있는 분기만)
+    // 5. 분기별 지각비 합계 (기간 내 실제 데이터, 예외 제외)
     const qMap = new Map<string, number>();
     for (const row of attendanceRows || []) {
       const r = row as any;
-      if (r.is_excused) continue;
+      if (r.late_fee_excused) continue; // 지각비 예외 시 합계 제외
       const d = dayjs(r.week_date);
       const qNum = Math.ceil((d.month() + 1) / 3);
       const q = `${d.year()} ${qNum}분기`;
