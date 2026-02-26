@@ -2,10 +2,12 @@
 
 import React, { useState } from "react";
 import styled from "@emotion/styled";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { Header } from "@src/components/Header";
+import { supabase } from "@src/lib/supabase";
 
 const Footer = dynamic(() => import("@src/components/Footer"), { ssr: true });
 
@@ -436,12 +438,142 @@ const RestaurantIconImage = styled(motion.div)`
   overflow: hidden;
 `;
 
+/* 우리 다락방: 핑크/레드 그라데이션 + 하트/새싹 아이콘 등 */
+const MyDarakbangIconLayout = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12%;
+`;
+
+function MyDarakbangIconContent() {
+  return (
+    <MyDarakbangIconLayout>
+      <svg
+        viewBox="0 0 56 56"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ width: "100%", height: "100%", maxWidth: 46, maxHeight: 46 }}
+        aria-hidden
+      >
+        <path d="M28 50C28 50 10 36 10 22C10 14.5 16.5 8 24 8C26 8 28 8.8 28 8.8C28 8.8 30 8 32 8C39.5 8 46 14.5 46 22C46 36 28 50 28 50Z"
+          fill="#ffffff" />
+        <path d="M28 34C28 34 18 25 18 16.5C18 13.5 20.5 11 23.5 11C25 11 26.5 11.5 28 13C29.5 11.5 31 11 32.5 11C35.5 11 38 13.5 38 16.5C38 25 28 34 28 34Z"
+          fill="#ff4b6e" />
+      </svg>
+    </MyDarakbangIconLayout>
+  );
+}
+
+const MyDarakbangIconImage = styled(motion.div)`
+  width: ${APP_ICON_SIZE};
+  height: ${APP_ICON_SIZE};
+  min-width: 48px;
+  min-height: 48px;
+  background: linear-gradient(135deg, #ff4b6e 0%, #ff8fa3 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(255, 75, 110, 0.3);
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+`;
+
+const LoadingOverlay = styled(motion.div)`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+`;
+
+const Spinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 75, 110, 0.2);
+  border-radius: 50%;
+  border-top-color: #ff4b6e;
+  animation: spin 1s ease-in-out infinite;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
 export default function AppsClientPage() {
   const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
   const [hoveredApp, setHoveredApp] = useState<number | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  // 새가족 그룹(group_id=5)인 경우에만 '우리 다락방' 아이콘 노출
+  const [isDarakbangUser, setIsDarakbangUser] = useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    if (sessionStatus === 'authenticated') {
+      fetch('/api/user/profile')
+        .then(res => res.json())
+        .then(result => {
+          setIsDarakbangUser(result?.group_id === 5);
+        })
+        .catch(() => setIsDarakbangUser(false));
+    }
+  }, [sessionStatus]);
 
   const handleAppClick = (path: string) => {
     router.push(path);
+  };
+
+  const handleMyDarakbangClick = async () => {
+    setIsRedirecting(true);
+    try {
+      if (sessionStatus === "loading") {
+        // Wait for session to load implicitly by user trying again later if needed
+        setIsRedirecting(false);
+        return;
+      }
+
+      if (!session || !session.user || !session.user.id) {
+        alert("로그인이 필요합니다.");
+        setIsRedirecting(false);
+        router.push("/login?redirect=/apps");
+        return;
+      }
+
+      // 프로필 API 호출
+      const res = await fetch("/api/user/profile");
+      const result = await res.json();
+
+      if (!res.ok || !result) {
+        alert("원활한 서비스 이용을 위해 소속 다락방 정보가 필요합니다. 다시 로그인해주세요.");
+        setIsRedirecting(false);
+        return;
+      }
+
+      const { group_id, cell_id, group_name, cell_name } = result;
+
+      if (!group_name || !cell_name || group_id === 7 || cell_id === 26 || cell_id === 99) {
+        alert("현재 소속된 다락방이 없습니다.");
+        setIsRedirecting(false);
+        return;
+      }
+
+      router.push(`/apps/${encodeURIComponent(group_name)}/${encodeURIComponent(cell_name)}`);
+    } catch (err) {
+      console.error(err);
+      alert("다락방 접속 중 문제가 발생했습니다.");
+      setIsRedirecting(false);
+    }
   };
 
   return (
@@ -456,10 +588,34 @@ export default function AppsClientPage() {
           </AppHeader>
 
           <AppsGrid>
+            {/* 우리 다락방 먼저 배치 - 새가족 그룹(group_id=5)에만 표시 */}
+            {isDarakbangUser === true && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.3 }}
+              >
+                <AppIcon
+                  onClick={handleMyDarakbangClick}
+                  onMouseEnter={() => setHoveredApp(-1)}
+                  onMouseLeave={() => setHoveredApp(null)}
+                >
+                  <MyDarakbangIconImage
+                    whileHover={{ scale: 1.1, y: -4 }}
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <MyDarakbangIconContent />
+                  </MyDarakbangIconImage>
+                  <AppLabel>우리 다락방</AppLabel>
+                </AppIcon>
+              </motion.div>
+            )}
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.3 }}
+              transition={{ delay: 0.2, duration: 0.3 }}
             >
               <AppIcon
                 onClick={() => handleAppClick("/ice-breaking")}
@@ -587,6 +743,26 @@ export default function AppsClientPage() {
           </AppsGrid>
         </AppScreen>
       </Container>
+
+      <AnimatePresence>
+        {isRedirecting && (
+          <LoadingOverlay
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <Spinner />
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              style={{ marginTop: 16, fontSize: 15, fontWeight: 600, color: "#ff4b6e" }}
+            >
+              우리 다락방으로 이동 중...🌸
+            </motion.p>
+          </LoadingOverlay>
+        )}
+      </AnimatePresence>
 
       <Footer />
     </>

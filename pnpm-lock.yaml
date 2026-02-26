@@ -271,15 +271,12 @@ importers:
       node-mocks-http:
         specifier: ^1.11.0
         version: 1.16.2(@types/node@17.0.38)
-      postcss:
-        specifier: ^8.4.16
-        version: 8.5.3
       postcss-html:
         specifier: ^1.4.1
         version: 1.8.0
       postcss-syntax:
         specifier: ^0.36.2
-        version: 0.36.2(postcss-html@1.8.0)(postcss@8.5.3)
+        version: 0.36.2(postcss-html@1.8.0)(postcss@8.5.6)
       prettier:
         specifier: ^2.6.2
         version: 2.8.8
@@ -3812,6 +3809,10 @@ packages:
 
   postcss@8.5.3:
     resolution: {integrity: sha512-dle9A3yYxlBSrt8Fu+IpjGT8SY8hN0mlaA6GY8t0P5PjIOZemULz/E2Bnm/2dcUOena75OTNkHI76uZBNUUq3A==}
+    engines: {node: ^10 || ^12 || >=14}
+
+  postcss@8.5.6:
+    resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
     engines: {node: ^10 || ^12 || >=14}
 
   postgres-array@2.0.0:
@@ -8968,9 +8969,9 @@ snapshots:
     dependencies:
       postcss: 8.5.3
 
-  postcss-syntax@0.36.2(postcss-html@1.8.0)(postcss@8.5.3):
+  postcss-syntax@0.36.2(postcss-html@1.8.0)(postcss@8.5.6):
     dependencies:
-      postcss: 8.5.3
+      postcss: 8.5.6
     optionalDependencies:
       postcss-html: 1.8.0
 
@@ -8981,6 +8982,12 @@ snapshots:
       source-map-js: 1.2.1
 
   postcss@8.5.3:
+    dependencies:
+      nanoid: 3.3.11
+      picocolors: 1.1.1
+      source-map-js: 1.2.1
+
+  postcss@8.5.6:
     dependencies:
       nanoid: 3.3.11
       picocolors: 1.1.1
