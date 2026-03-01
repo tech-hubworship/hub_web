@@ -36,7 +36,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <RecoilRoot>
-      <SessionProvider refetchOnWindowFocus={false}>
+      <SessionProvider refetchOnWindowFocus={false} refetchInterval={60 * 60}>
         {/* Jennifer Analytics 추적코드 */}
         <Script
           id="jennifer-script"

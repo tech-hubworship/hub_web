@@ -234,6 +234,7 @@ export default function MyInfoPage() {
     queryKey: ['userProfile', session?.user?.id],
     queryFn: fetchProfile,
     enabled: status === 'authenticated',
+    staleTime: 60 * 60 * 1000, // 1시간 동안 캐시 유지
   });
 
   const handleLogout = () => signOut({ callbackUrl: '/login' });
@@ -368,7 +369,9 @@ export default function MyInfoPage() {
   if (isLoading) {
     return (
       <PageLayout>
-        <S.LoadingText>정보를 불러오는 중...</S.LoadingText>
+        <S.Wrapper style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <S.LoadingText>정보를 불러오는 중...</S.LoadingText>
+        </S.Wrapper>
       </PageLayout>
     );
   }
@@ -393,7 +396,7 @@ export default function MyInfoPage() {
 
         <S.Content>
           {(error) && <S.ErrorMessage>{error?.message}</S.ErrorMessage>}
-          
+
           {profileData && !isEditMode && (
             <>
               {/* 기본 정보 카드 */}
@@ -474,8 +477,8 @@ export default function MyInfoPage() {
                   <Label>공동체 *</Label>
                   <Combobox
                     value={formData.community}
-                    onChange={(value) => setFormData(prev => ({ 
-                      ...prev, 
+                    onChange={(value) => setFormData(prev => ({
+                      ...prev,
                       community: value,
                       group_id: '',
                       cell_id: '',
@@ -496,8 +499,8 @@ export default function MyInfoPage() {
                       <Label>그룹</Label>
                       <Combobox
                         value={formData.group_id?.toString() || ''}
-                        onChange={(value) => setFormData(prev => ({ 
-                          ...prev, 
+                        onChange={(value) => setFormData(prev => ({
+                          ...prev,
                           group_id: value ? parseInt(value) : '',
                           cell_id: '',
                         }))}
@@ -513,8 +516,8 @@ export default function MyInfoPage() {
                       <Label>다락방</Label>
                       <Combobox
                         value={formData.cell_id?.toString() || ''}
-                        onChange={(value) => setFormData(prev => ({ 
-                          ...prev, 
+                        onChange={(value) => setFormData(prev => ({
+                          ...prev,
                           cell_id: value ? parseInt(value) : '',
                         }))}
                         options={[

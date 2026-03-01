@@ -70,6 +70,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   // 권한(Role) 판별용 프로필 상태
   const [userProfile, setUserProfile] = useState<{ cell_id: number; group_id: number; name: string; cell_name: string; responsible_group_id: number | null; responsible_cell_id: number | null; } | null>(null);
   const [darakbangMembers, setDarakbangMembers] = useState<{ name: string; birth_date: string | null }[]>([]);
+  const [sunjangs, setSunjangs] = useState<{ name: string; is_cell_leader: boolean; is_group_leader: boolean }[]>([]);
 
   const [prayers, setPrayers] = useState<Prayer[]>([]);
   const [newCategory, setNewCategory] = useState(CATEGORIES[0]);
@@ -107,6 +108,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   // 탭별 마지막 데이터 패치 시각 (인메모리, 탭 전환 중복 호출 방지)
   const lastFetchTimeRef = React.useRef<Record<string, number>>({});
   const FETCH_DEBOUNCE_MS = 2 * 60 * 1000; // 2분 이내 재호출 방지
+  const profileFetchedRef = React.useRef(false);
 
   // 1-2. 페이지네이션 등 데이터 캐싱 (5분 TTL)
   const prayersCacheRef = React.useRef<Record<string, { data: Prayer[], count: number, ts: number }>>({});
@@ -135,10 +137,15 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
           const { data, ts } = JSON.parse(raw);
           if (Date.now() - ts < PROFILE_CACHE_TTL) {
             // 캐시 적중: API 호출 없이 바로 상태 복원
-            const { profile, members } = data;
+            const { profile, members, sunjangs: cachedSunjangs } = data;
             setUserProfile(profile);
             setDarakbangMembers(members);
-            if (members.length > 0) setSelectedPerson(members[0].name);
+            if (cachedSunjangs && cachedSunjangs.length > 0) {
+              setSunjangs(cachedSunjangs);
+              setSelectedPerson(cachedSunjangs[0].name);
+            } else if (members.length > 0) {
+              setSelectedPerson(members[0].name);
+            }
             return;
           }
         }
@@ -169,7 +176,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
       const profile = { cell_id, group_id, name, cell_name: cell_name || '', responsible_group_id: responsible_group_id || null, responsible_cell_id: responsible_cell_id || null };
       setUserProfile(profile);
 
-      // 멤버 목록 조회
+      // 멤버 목록 조회 (생일 배너용)
       const { data: membersData, error: membersError } = await supabase
         .from('profiles')
         .select('name, birth_date')
@@ -177,12 +184,19 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
       const members = (!membersError && membersData) ? membersData : [];
       setDarakbangMembers(members);
-      if (members.length > 0) setSelectedPerson(members[0].name);
+
+      // 순장 목록 조회: /api/darakbang/sunjangs (supabaseAdmin, RLS 우회)
+      const sunjangsRes = await fetch(`/api/darakbang/sunjangs?cell_id=${cell_id}`);
+      const sunjangsJson = sunjangsRes.ok ? await sunjangsRes.json() : { sunjangs: [] };
+      const filteredSunjangs: { name: string; is_cell_leader: boolean; is_group_leader: boolean }[] = sunjangsJson.sunjangs || [];
+      setSunjangs(filteredSunjangs);
+      if (filteredSunjangs.length > 0) setSelectedPerson(filteredSunjangs[0].name);
+      else if (members.length > 0) setSelectedPerson(members[0].name);
 
       // 3) 결과 캐싱
       if (typeof window !== 'undefined') {
         sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
-          data: { profile, members },
+          data: { profile, members, sunjangs: filteredSunjangs },
           ts: Date.now(),
         }));
       }
@@ -197,7 +211,8 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
       return;
     }
 
-    if (sessionStatus === "authenticated" && session?.user) {
+    if (sessionStatus === "authenticated" && session?.user && !profileFetchedRef.current) {
+      profileFetchedRef.current = true;
       fetchUserProfile();
     }
   }, [sessionStatus, session]);
@@ -871,23 +886,61 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
                     </select>
                   </div>
 
-                  {/* 가로 스크롤 이름 리스트 */}
-                  <div css={css`display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; padding-left: 24px; padding-right: 24px; margin-left: -24px; margin-right: -24px; &::-webkit-scrollbar { height: 3px; } &::-webkit-scrollbar-track { background: transparent; } &::-webkit-scrollbar-thumb { background: #e7e5e4; border-radius: 4px; } &::-webkit-scrollbar-thumb:hover { background: #d6d3d1; }`}>
-                    {darakbangMembers.map(member => (
-                      <button
-                        key={member.name} onClick={() => { setSelectedPerson(member.name); setPersonPage(1); }}
-                        css={css`flex-shrink: 0; padding: 10px 16px; border-radius: 16px; font-weight: 700; transition: all 0.15s; font-size: 13px; height: 44px; display: flex; align-items: center; ${selectedPerson === member.name ? 'background-color: #292524; color: white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);' : 'background-color: #fafaf9; color: #78716c; border: 1px solid rgba(231, 229, 228, 0.6); &:hover { background-color: #f5f5f4; }'}`}
-                      >
-                        {member.name}
-                      </button>
-                    ))}
-                  </div>
+                  {/* 가로 스크롤 순장 리스트 */}
+                  {sunjangs.length === 0 ? (
+                    <div css={css`padding: 16px 0; text-align: center; color: #a8a29e; font-size: 13px;`}>
+                      이 다락방에 등록된 순장 정보가 없습니다.
+                    </div>
+                  ) : (
+                    <div css={css`
+                      display: flex; 
+                      gap: 8px; 
+                      overflow-x: auto; 
+                      white-space: nowrap; 
+                      padding-bottom: 16px; 
+                      padding-top: 4px; 
+                      padding-left: 24px; 
+                      padding-right: 24px; 
+                      margin: 0 -24px;
+                      width: calc(100% + 48px);
+                      -webkit-overflow-scrolling: touch; 
+                      scroll-behavior: smooth; 
+                      scrollbar-width: thin;
+                      scrollbar-color: #a8a29e #f5f5f4;
+                      
+                      &::-webkit-scrollbar { 
+                        display: block;
+                        height: 8px; 
+                      } 
+                      &::-webkit-scrollbar-track { 
+                        background: #f5f5f4; 
+                        border-radius: 4px; 
+                        margin: 0 24px;
+                      } 
+                      &::-webkit-scrollbar-thumb { 
+                        background-color: #a8a29e; 
+                        border-radius: 4px; 
+                      } 
+                    `}>
+                      {sunjangs.map(member => (
+                        <button
+                          key={member.name} onClick={() => { setSelectedPerson(member.name); setPersonPage(1); }}
+                          css={css`flex-shrink: 0; padding: 10px 16px; border-radius: 16px; font-weight: 700; transition: all 0.15s; font-size: 13px; height: 44px; display: flex; align-items: center; gap: 6px; ${selectedPerson === member.name ? 'background-color: #292524; color: white; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);' : 'background-color: #fafaf9; color: #78716c; border: 1px solid rgba(231, 229, 228, 0.6); &:hover { background-color: #f5f5f4; }'}`}
+                        >
+                          {member.name}
+                          {member.is_cell_leader && (
+                            <span css={css`font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 6px; ${selectedPerson === member.name ? 'background-color: rgba(255,255,255,0.2); color: #fda4af;' : 'background-color: #fff1f2; color: #e11d48;'}`}>다락방장</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </section>
 
                 <section css={css`display: flex; flex-direction: column; gap: 20px;`}>
                   {personPrayers.length === 0 ? (
                     <div css={css`padding: 80px 0; text-align: center; background-color: rgba(255, 255, 255, 0.5); border-radius: 24px; border: 1px solid rgba(245, 245, 244, 0.5);`}>
-                      <p css={css`color: #a8a29e; font-size: 14px;`}>이 달에는 {selectedPerson} {selectedPerson === '강영규' ? '다락방장님이' : '순장님이'}<br />올리신 기도가 없어요.</p>
+                      <p css={css`color: #a8a29e; font-size: 14px;`}>이 달에는 {selectedPerson} {sunjangs.find(s => s.name === selectedPerson)?.is_cell_leader ? '다락방장님이' : '순장님이'}<br />올리신 기도가 없어요.</p>
                     </div>
                   ) : (
                     <>
