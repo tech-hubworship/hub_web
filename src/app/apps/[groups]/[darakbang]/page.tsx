@@ -159,7 +159,13 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
       const { group_id, cell_id, name, group_name, cell_name } = result;
 
-      // 파라미터 유효성 검사 (사용자가 자신의 다락방에만 접속 가능하게)
+      // 1) 권한 검사: 새가족 그룹(group_id === 5)이 아니면 무조건 접근 차단 후 홈으로 리다이렉트
+      if (group_id !== 5) {
+        router.replace('/');
+        return;
+      }
+
+      // 2) 파라미터 유효성 검사 (사용자가 자기 자신 소속 다락방이 아닌 곳 접근 시 자기 다락방으로 리다이렉트)
       const urlGroupName = decodeURIComponent(unwrappedParams.groups);
       const urlCellName = decodeURIComponent(unwrappedParams.darakbang);
 
@@ -167,7 +173,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
         if (group_name && cell_name && group_id !== 7 && cell_id !== 26 && cell_id !== 99) {
           router.replace(`/apps/${encodeURIComponent(group_name)}/${encodeURIComponent(cell_name)}`);
         } else {
-          router.replace('/apps');
+          router.replace('/');
         }
         return;
       }
@@ -647,10 +653,10 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     return <div css={css`min-height: 100vh; background-color: #fffbf7; display: flex; align-items: center; justify-content: center; color: #fda4af; font-size: 15px; font-family: var(--font-wanted);`}>잠시만 기다려주세요... 🌸</div>;
   }
 
-  // 새가족 그룹(group_id=5)이 아닌 경우 접근 차단
+  // 새가족 그룹(group_id=5)이 아닌 경우 접근 차단 (UI 렌더링 전 방어)
   if (userProfile.group_id !== 5) {
-    router.replace('/apps');
-    return <div css={css`min-height: 100vh; background-color: #fffbf7; display: flex; align-items: center; justify-content: center; color: #fda4af; font-size: 15px; font-family: var(--font-wanted);`}>잠시만 기다려주세요... 🌸</div>;
+    router.replace('/');
+    return <div css={css`min-height: 100vh; background-color: #fffbf7; display: flex; align-items: center; justify-content: center; color: #fda4af; font-size: 15px; font-family: var(--font-wanted);`}>권한 확인 중... 🌸</div>;
   }
 
   // 비로그인 화면 (본진 통합 시 불필요하나, 로컬 개발을 위한 최소한의 폼)
@@ -704,7 +710,10 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
           <header css={css`padding: 16px 24px 16px; background-color: rgba(255, 255, 255, 0.8); backdrop-filter: blur(24px); border-bottom: 1px solid #f5f5f4; position: sticky; top: 0; z-index: 10;`}>
             <div css={css`display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;`}>
               <div>
-                <h1 css={css`font-size: 24px; font-weight: 800; color: #292524; letter-spacing: -0.025em;`}>허브 {userProfile?.cell_name || decodeURIComponent(unwrappedParams.darakbang)}다락방 🌸</h1>
+                <h1 css={css`font-size: 24px; font-weight: 800; color: #292524; letter-spacing: -0.025em;`}>
+                  허브 {userProfile?.cell_name || decodeURIComponent(unwrappedParams.darakbang)}
+                  {(userProfile?.cell_name || decodeURIComponent(unwrappedParams.darakbang)).includes('새본') || (userProfile?.cell_name || decodeURIComponent(unwrappedParams.darakbang)).includes('새가족 본부') ? '' : '다락방'} 🌸
+                </h1>
               </div>
               <div css={css`text-align: right; display: flex; flex-direction: column; align-items: flex-end;`}>
                 <button onClick={handleSignOut} css={css`font-size: 12px; color: #a8a29e; padding: 4px 8px; transition: color 0.15s; &:hover { color: #57534e; }`}>로그아웃</button>
