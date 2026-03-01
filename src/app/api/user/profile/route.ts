@@ -20,7 +20,8 @@ export async function GET() {
       profileResponse,
       rolesResponse,
       groupResponse,
-      cellResponse
+      cellResponse,
+      sunjangResponse
     ] = await Promise.all([
       supabaseAdmin
         .from("profiles")
@@ -40,6 +41,12 @@ export async function GET() {
         .from("hub_cells")
         .select("id, name, hub_groups ( id, name )")
         .eq("cell_leader_id", userId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("attendance_od_targets")
+        .select("user_id")
+        .eq("user_id", userId)
+        .eq("category", "OD")
         .maybeSingle()
     ]);
 
@@ -47,6 +54,7 @@ export async function GET() {
     const { data: roles } = rolesResponse;
     const { data: responsibleGroup } = groupResponse;
     const { data: responsibleCell } = cellResponse;
+    const { data: sunjangData } = sunjangResponse;
 
     if (profileError && (profileError as any).code !== "PGRST116") {
       throw profileError;
@@ -77,6 +85,8 @@ export async function GET() {
       responsible_cell_info: responsibleCell
         ? `${(responsibleCell.hub_groups as any)?.name} / ${responsibleCell.name}`
         : null,
+
+      is_sunjang: !!sunjangData,
     };
 
     return jsonOk(responseData, 200);

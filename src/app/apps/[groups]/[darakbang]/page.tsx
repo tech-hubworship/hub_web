@@ -57,6 +57,18 @@ type Sharing = {
   comments: Comment[];
 };
 
+const mapPrayerData = (data: any[]): Prayer[] => data.map(p => ({
+  ...p,
+  intercessors: p.darakbang_prayer_intercessors ? p.darakbang_prayer_intercessors.map((i: any) => i.intercessor_name) : [],
+  comments: p.darakbang_prayer_comments ? p.darakbang_prayer_comments.map((c: any) => ({ ...c, author: c.author_name })).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) : []
+}));
+
+const mapSharingData = (data: any[]): Sharing[] => data.map(s => ({
+  ...s,
+  likes: s.darakbang_sharing_likes ? s.darakbang_sharing_likes.map((l: any) => l.liker_name) : [],
+  comments: s.darakbang_sharing_comments ? s.darakbang_sharing_comments.map((c: any) => ({ ...c, author: c.author_name })).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) : []
+}));
+
 const CATEGORIES = ['중보기도', '오늘의 기도', '이번주 기도', '이번달 기도'];
 const SHARING_CATEGORIES = ['주일말씀', '큐티나눔', '감사일기', '일상나눔'];
 const PAGE_SIZE = 6;
@@ -66,9 +78,18 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
 
+  type UserProfile = {
+    cell_id: number;
+    group_id: number;
+    name: string;
+    cell_name: string;
+    responsible_group_id: number | null;
+    responsible_cell_id: number | null;
+    is_sunjang?: boolean;
+  };
 
   // 권한(Role) 판별용 프로필 상태
-  const [userProfile, setUserProfile] = useState<{ cell_id: number; group_id: number; name: string; cell_name: string; responsible_group_id: number | null; responsible_cell_id: number | null; } | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [darakbangMembers, setDarakbangMembers] = useState<{ name: string; birth_date: string | null }[]>([]);
   const [sunjangs, setSunjangs] = useState<{ name: string; is_cell_leader: boolean; is_group_leader: boolean }[]>([]);
 
@@ -105,9 +126,6 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   const [selectedPerson, setSelectedPerson] = useState('');
   const [personMonth, setPersonMonth] = useState('');
   const [personPage, setPersonPage] = useState(1);
-  // 탭별 마지막 데이터 패치 시각 (인메모리, 탭 전환 중복 호출 방지)
-  const lastFetchTimeRef = React.useRef<Record<string, number>>({});
-  const FETCH_DEBOUNCE_MS = 2 * 60 * 1000; // 2분 이내 재호출 방지
   const profileFetchedRef = React.useRef(false);
 
   // 1-2. 페이지네이션 등 데이터 캐싱 (5분 TTL)
@@ -120,7 +138,6 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     prayersCacheRef.current = {};
     sharingsCacheRef.current = {};
     allContentCacheRef.current = null;
-    lastFetchTimeRef.current = {};
   };
 
   // 프로필 + 멤버 sessionStorage 캐시 (15분 TTL)
@@ -157,10 +174,11 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
       if (!res.ok || !result) return;
 
-      const { group_id, cell_id, name, group_name, cell_name } = result;
+      const { group_id, cell_id, name, group_name, cell_name, is_sunjang } = result;
 
-      // 1) 권한 검사: 새가족 그룹(group_id === 5)이 아니면 무조건 접근 차단 후 홈으로 리다이렉트
-      if (group_id !== 5) {
+      // 1) 권한 검사: 새가족 그룹(group_id === 5)이면서 리더십(순장, 다락방장)이 아니면 무조건 접근 차단 후 홈으로 리다이렉트
+      const isLeadership = result?.responsible_cell_id !== null || result?.responsible_group_id !== null || is_sunjang === true;
+      if (group_id !== 5 || !isLeadership) {
         router.replace('/');
         return;
       }
@@ -179,7 +197,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
       }
 
       const { responsible_group_id, responsible_cell_id } = result;
-      const profile = { cell_id, group_id, name, cell_name: cell_name || '', responsible_group_id: responsible_group_id || null, responsible_cell_id: responsible_cell_id || null };
+      const profile = { cell_id, group_id, name, cell_name: cell_name || '', responsible_group_id: responsible_group_id || null, responsible_cell_id: responsible_cell_id || null, is_sunjang: is_sunjang || false };
       setUserProfile(profile);
 
       // 멤버 목록 조회 (생일 배너용)
@@ -225,22 +243,15 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
   useEffect(() => {
     if (session && userProfile) {
-      const now = Date.now();
-      const cacheKey = activeTab === 'main' ? `main_${filter}` : activeTab === 'sharing' ? `sharing_${sharingFilter}` : activeTab;
-      const lastFetch = lastFetchTimeRef.current[cacheKey] || 0;
-      // 2분 이내 동일 탭+필터 재호출 방지 (사용자가 탭을 자주 전환해도 낭비 없음)
-      if (now - lastFetch < FETCH_DEBOUNCE_MS) return;
-
-      lastFetchTimeRef.current[cacheKey] = now;
       if (activeTab === 'main') {
         fetchPrayers(1);
       } else if (activeTab === 'sharing') {
         fetchSharings(1);
       } else {
-        fetchAllContent();
+        fetchAllContent(false);
       }
     }
-  }, [filter, sharingFilter, activeTab, session, userProfile]);
+  }, [session, userProfile, activeTab, filter, sharingFilter]);
 
   useEffect(() => {
     if (session && userProfile && activeTab === 'main') {
@@ -270,14 +281,15 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
     const { data, error } = await supabase
       .from('darakbang_prayers')
-      .select('*')
+      .select('*, darakbang_prayer_intercessors(intercessor_name), darakbang_prayer_comments(id, author_name, text, created_at)')
       .eq('cell_id', userProfile.cell_id) // 우리 다락방만
       .order('created_at', { ascending: false });
 
     if (error) console.error('Error fetching all prayers:', error);
     else {
-      setPrayers(data || []);
-      allContentCacheRef.current = { data: data || [], ts: Date.now() };
+      const mapped = data ? mapPrayerData(data) : [];
+      setPrayers(mapped);
+      allContentCacheRef.current = { data: mapped, ts: Date.now() };
       // 리캡 및 인물별 보기 초기 달 설정
       if (data && data.length > 0) {
         const latestMonth = getKstString(data[0].created_at).substring(0, 7);
@@ -305,7 +317,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
     let query = supabase
       .from('darakbang_prayers')
-      .select('*', { count: 'exact' })
+      .select('*, darakbang_prayer_intercessors(intercessor_name), darakbang_prayer_comments(id, author_name, text, created_at)', { count: 'exact' })
       .eq('cell_id', userProfile.cell_id) // 우리 다락방만
       .order('created_at', { ascending: false });
 
@@ -334,10 +346,11 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     if (error) {
       console.error('Error fetching prayers:', error);
     } else {
-      setPrayers(data || []);
+      const mapped = data ? mapPrayerData(data) : [];
+      setPrayers(mapped);
       setTotalCount(count || 0);
       setCurrentPage(page);
-      prayersCacheRef.current[cacheKey] = { data: data || [], count: count || 0, ts: Date.now() };
+      prayersCacheRef.current[cacheKey] = { data: mapped, count: count || 0, ts: Date.now() };
     }
     setIsLoadingMore(false);
   };
@@ -360,7 +373,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
     let query = supabase
       .from('darakbang_sharings')
-      .select('*', { count: 'exact' })
+      .select('*, darakbang_sharing_likes(liker_name), darakbang_sharing_comments(id, author_name, text, created_at)', { count: 'exact' })
       .eq('cell_id', userProfile.cell_id) // 우리 다락방만
       .order('created_at', { ascending: false });
 
@@ -373,10 +386,11 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     if (error) {
       console.error('Error fetching sharings:', error);
     } else {
-      setSharings(data || []);
+      const mapped = data ? mapSharingData(data) : [];
+      setSharings(mapped);
       setSharingTotalCount(count || 0);
       setSharingPage(page);
-      sharingsCacheRef.current[cacheKey] = { data: data || [], count: count || 0, ts: Date.now() };
+      sharingsCacheRef.current[cacheKey] = { data: mapped, count: count || 0, ts: Date.now() };
     }
     setIsSharingLoading(false);
   };
@@ -409,8 +423,6 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
         member_name: userName,
         category: newCategory,
         prayer_topic: newTopic,
-        intercessors: [],
-        comments: [],
         cell_id: userProfile.cell_id,
         group_id: userProfile.group_id
       }]);
@@ -438,8 +450,6 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
         member_name: userName,
         category: newSharingCategory,
         content: newSharingContent,
-        likes: [],
-        comments: [],
         cell_id: userProfile.cell_id,
         group_id: userProfile.group_id
       }]);
@@ -468,23 +478,32 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   };
 
   const handleIntercede = async (prayer: Prayer) => {
-    if (!session) return;
-    const userName = session.user?.name || '순장님';
+    if (!session || !session.user) return;
+    const userName = session.user.name || '순장님';
+    const isAdding = !prayer.intercessors.includes(userName);
 
-    let updatedIntercessors;
-    if (prayer.intercessors.includes(userName)) {
+    if (!isAdding) {
       const confirmCancel = window.confirm("중보 기도를 취소하시겠습니까?");
       if (!confirmCancel) return;
-      updatedIntercessors = prayer.intercessors.filter(name => name !== userName);
-    } else {
-      updatedIntercessors = [...prayer.intercessors, userName];
     }
+
+    const updatedIntercessors = isAdding
+      ? [...prayer.intercessors, userName]
+      : prayer.intercessors.filter(name => name !== userName);
 
     // 낙관적 업데이트: 로컬 상태를 즉시 반영
     setPrayers(prev => prev.map(p => p.id === prayer.id ? { ...p, intercessors: updatedIntercessors } : p));
     invalidateCache();
 
-    const { error } = await supabase.from('darakbang_prayers').update({ intercessors: updatedIntercessors }).eq('id', prayer.id);
+    let error;
+    if (isAdding) {
+      const res = await supabase.from('darakbang_prayer_intercessors').insert({ prayer_id: prayer.id, user_id: session.user.id, intercessor_name: userName });
+      error = res.error;
+    } else {
+      const res = await supabase.from('darakbang_prayer_intercessors').delete().match({ prayer_id: prayer.id, user_id: session.user.id });
+      error = res.error;
+    }
+
     if (error) {
       console.error('Error interceding:', error);
       refreshContent(); // 에러 발생 시 원래 상태로 복구하기 위해 새로고침
@@ -515,8 +534,8 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   };
 
   const handleAddComment = async (prayerId: string, text: string) => {
-    if (!session || !text.trim()) return;
-    const userName = session.user?.name || '순장님';
+    if (!session || !session.user || !text.trim()) return;
+    const userName = session.user.name || '순장님';
     const prayer = prayers.find(p => p.id === prayerId);
     if (!prayer) return;
 
@@ -533,7 +552,13 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     setPrayers(prev => prev.map(p => p.id === prayerId ? { ...p, comments: updatedComments } : p));
     invalidateCache();
 
-    const { error } = await supabase.from('darakbang_prayers').update({ comments: updatedComments }).eq('id', prayerId);
+    const { error } = await supabase.from('darakbang_prayer_comments').insert({
+      id: newComment.id,
+      prayer_id: prayerId,
+      user_id: session.user.id,
+      author_name: userName,
+      text: text.trim()
+    });
     if (error) {
       console.error('Error adding comment:', error);
       refreshContent();
@@ -553,7 +578,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     setPrayers(prev => prev.map(p => p.id === prayerId ? { ...p, comments: updatedComments } : p));
     invalidateCache();
 
-    const { error } = await supabase.from('darakbang_prayers').update({ comments: updatedComments }).eq('id', prayerId);
+    const { error } = await supabase.from('darakbang_prayer_comments').update({ text: text.trim() }).eq('id', commentId);
     if (error) {
       console.error('Error updating comment:', error);
       refreshContent();
@@ -574,7 +599,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     setPrayers(prev => prev.map(p => p.id === prayerId ? { ...p, comments: updatedComments } : p));
     invalidateCache();
 
-    const { error } = await supabase.from('darakbang_prayers').update({ comments: updatedComments }).eq('id', prayerId);
+    const { error } = await supabase.from('darakbang_prayer_comments').delete().eq('id', commentId);
     if (error) {
       console.error('Error deleting comment:', error);
       refreshContent();
@@ -600,30 +625,38 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   };
 
   const handleLikeSharing = async (sharing: Sharing) => {
-    if (!session) return;
-    const userName = session.user?.name || '순장님';
-    let updatedLikes;
-    if (sharing.likes.includes(userName)) {
-      updatedLikes = sharing.likes.filter(name => name !== userName);
-    } else {
-      updatedLikes = [...sharing.likes, userName];
-    }
+    if (!session || !session.user) return;
+    const userName = session.user.name || '순장님';
+    const isAdding = !sharing.likes.includes(userName);
+
+    const updatedLikes = isAdding ? [...sharing.likes, userName] : sharing.likes.filter(name => name !== userName);
     setSharings(prev => prev.map(p => p.id === sharing.id ? { ...p, likes: updatedLikes } : p));
     invalidateCache();
-    const { error } = await supabase.from('darakbang_sharings').update({ likes: updatedLikes }).eq('id', sharing.id);
+
+    let error;
+    if (isAdding) {
+      const res = await supabase.from('darakbang_sharing_likes').insert({ sharing_id: sharing.id, user_id: session.user.id, liker_name: userName });
+      error = res.error;
+    } else {
+      const res = await supabase.from('darakbang_sharing_likes').delete().match({ sharing_id: sharing.id, user_id: session.user.id });
+      error = res.error;
+    }
     if (error) { console.error('Error liking:', error); refreshContent(); }
   };
 
   const handleAddSharingComment = async (sharingId: string, text: string) => {
-    if (!session || !text.trim()) return;
-    const userName = session.user?.name || '순장님';
+    if (!session || !session.user || !text.trim()) return;
+    const userName = session.user.name || '순장님';
     const sharing = sharings.find(p => p.id === sharingId);
     if (!sharing) return;
     const newComment: Comment = { id: crypto.randomUUID(), author: userName, text: text.trim(), created_at: new Date().toISOString() };
     const updatedComments = [...(sharing.comments || []), newComment];
     setSharings(prev => prev.map(p => p.id === sharingId ? { ...p, comments: updatedComments } : p));
     invalidateCache();
-    const { error } = await supabase.from('darakbang_sharings').update({ comments: updatedComments }).eq('id', sharingId);
+
+    const { error } = await supabase.from('darakbang_sharing_comments').insert({
+      id: newComment.id, sharing_id: sharingId, user_id: session.user.id, author_name: userName, text: text.trim()
+    });
     if (error) { console.error('Error adding comment:', error); refreshContent(); }
   };
 
@@ -633,7 +666,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     if (!sharing) return;
     const updatedComments = (sharing.comments || []).map(c => c.id === commentId ? { ...c, text: text.trim() } : c);
     setSharings(prev => prev.map(p => p.id === sharingId ? { ...p, comments: updatedComments } : p));
-    const { error } = await supabase.from('darakbang_sharings').update({ comments: updatedComments }).eq('id', sharingId);
+    const { error } = await supabase.from('darakbang_sharing_comments').update({ text: text.trim() }).eq('id', commentId);
     if (error) { console.error('Error updating comment:', error); refreshContent(); }
   };
 
@@ -645,7 +678,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     if (!confirmDelete) return;
     const updatedComments = (sharing.comments || []).filter(c => c.id !== commentId);
     setSharings(prev => prev.map(p => p.id === sharingId ? { ...p, comments: updatedComments } : p));
-    const { error } = await supabase.from('darakbang_sharings').update({ comments: updatedComments }).eq('id', sharingId);
+    const { error } = await supabase.from('darakbang_sharing_comments').delete().eq('id', commentId);
     if (error) { console.error('Error deleting comment:', error); refreshContent(); }
   };
 
@@ -653,8 +686,9 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     return <div css={css`min-height: 100vh; background-color: #fffbf7; display: flex; align-items: center; justify-content: center; color: #fda4af; font-size: 15px; font-family: var(--font-wanted);`}>잠시만 기다려주세요... 🌸</div>;
   }
 
-  // 새가족 그룹(group_id=5)이 아닌 경우 접근 차단 (UI 렌더링 전 방어)
-  if (userProfile.group_id !== 5) {
+  // 새가족 그룹(group_id=5) 그룹장/순장 리더십이 아닌 경우 접근 차단 (UI 렌더링 전 방어)
+  const isLeadership = userProfile.responsible_cell_id !== null || userProfile.responsible_group_id !== null || userProfile.is_sunjang === true;
+  if (userProfile.group_id !== 5 || !isLeadership) {
     router.replace('/');
     return <div css={css`min-height: 100vh; background-color: #fffbf7; display: flex; align-items: center; justify-content: center; color: #fda4af; font-size: 15px; font-family: var(--font-wanted);`}>권한 확인 중... 🌸</div>;
   }
@@ -726,8 +760,8 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
                 {(() => {
                   const staffRoles: Record<string, string> = {
                     '김수진': '그룹장님', '이정진': '중보기도팀장님',
-                    '이주은': '서기', '신민주': '서기',
-                    '김하진': '총무', '김예빈': '회계',
+                    '이주은': '서기님', '신민주': '서기님',
+                    '김하진': '총무님', '김예빈': '회계님',
                   };
                   if (staffRoles[userProfile?.name || '']) return staffRoles[userProfile?.name || ''];
                   const leaders: Record<string, string> = { '이레': '이진호', '라파': '김선경', '샬롬': '권예진', '닛시': '강영규' };

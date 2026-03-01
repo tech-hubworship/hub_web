@@ -524,7 +524,10 @@ export default function AppsClientPage() {
       fetch('/api/user/profile')
         .then(res => res.json())
         .then(result => {
-          setIsDarakbangUser(result?.group_id === 5);
+          setIsDarakbangUser(
+            result?.group_id === 5 &&
+            (result?.responsible_cell_id !== null || result?.responsible_group_id !== null || result?.is_sunjang === true)
+          );
         })
         .catch(() => setIsDarakbangUser(false));
     }
