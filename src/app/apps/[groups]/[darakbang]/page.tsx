@@ -178,7 +178,9 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
       // 1) 권한 검사: 새가족 그룹(group_id === 5)이면서 리더십(순장, 다락방장)이 아니면 무조건 접근 차단 후 홈으로 리다이렉트
       const isLeadership = result?.responsible_cell_id !== null || result?.responsible_group_id !== null || is_sunjang === true;
-      if (group_id !== 5 || !isLeadership) {
+      const isSaebonManager = name === '김수진';
+
+      if (!isSaebonManager && (group_id !== 5 || !isLeadership)) {
         router.replace('/');
         return;
       }
@@ -187,7 +189,9 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
       const urlGroupName = decodeURIComponent(unwrappedParams.groups);
       const urlCellName = decodeURIComponent(unwrappedParams.darakbang);
 
-      if (group_name !== urlGroupName || cell_name !== urlCellName) {
+      if (isSaebonManager && urlGroupName === '새가족' && urlCellName === '새본') {
+        // 새본 담당자 프리패스
+      } else if (group_name !== urlGroupName || cell_name !== urlCellName) {
         if (group_name && cell_name && group_id !== 7 && cell_id !== 26 && cell_id !== 99) {
           router.replace(`/apps/${encodeURIComponent(group_name)}/${encodeURIComponent(cell_name)}`);
         } else {
@@ -688,7 +692,8 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
   // 새가족 그룹(group_id=5) 그룹장/순장 리더십이 아닌 경우 접근 차단 (UI 렌더링 전 방어)
   const isLeadership = userProfile.responsible_cell_id !== null || userProfile.responsible_group_id !== null || userProfile.is_sunjang === true;
-  if (userProfile.group_id !== 5 || !isLeadership) {
+  const isSaebonManager = userProfile.name === '김수진';
+  if (!isSaebonManager && (userProfile.group_id !== 5 || !isLeadership)) {
     router.replace('/');
     return <div css={css`min-height: 100vh; background-color: #fffbf7; display: flex; align-items: center; justify-content: center; color: #fda4af; font-size: 15px; font-family: var(--font-wanted);`}>권한 확인 중... 🌸</div>;
   }

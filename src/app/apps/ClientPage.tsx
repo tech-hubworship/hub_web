@@ -525,8 +525,9 @@ export default function AppsClientPage() {
         .then(res => res.json())
         .then(result => {
           setIsDarakbangUser(
-            result?.group_id === 5 &&
-            (result?.responsible_cell_id !== null || result?.responsible_group_id !== null || result?.is_sunjang === true)
+            result?.name === '김수진' ||
+            (result?.group_id === 5 &&
+              (result?.responsible_cell_id !== null || result?.responsible_group_id !== null || result?.is_sunjang === true))
           );
         })
         .catch(() => setIsDarakbangUser(false));
@@ -563,7 +564,12 @@ export default function AppsClientPage() {
         return;
       }
 
-      const { group_id, cell_id, group_name, cell_name } = result;
+      const { group_id, cell_id, group_name, cell_name, name } = result;
+
+      if (name === '김수진') {
+        router.push('/apps/새가족/새본');
+        return;
+      }
 
       if (!group_name || !cell_name || group_id === 7 || cell_id === 26 || cell_id === 99) {
         alert("현재 소속된 다락방이 없습니다.");
