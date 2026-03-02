@@ -201,20 +201,30 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
       }
 
       const { responsible_group_id, responsible_cell_id } = result;
-      const profile = { cell_id, group_id, name, cell_name: cell_name || '', responsible_group_id: responsible_group_id || null, responsible_cell_id: responsible_cell_id || null, is_sunjang: is_sunjang || false };
+      const profile = {
+        cell_id: (isSaebonManager && urlGroupName === '새가족' && urlCellName === '새본') ? 25 : cell_id,
+        group_id: (isSaebonManager && urlGroupName === '새가족' && urlCellName === '새본') ? 5 : group_id,
+        name,
+        cell_name: (isSaebonManager && urlGroupName === '새가족' && urlCellName === '새본') ? '새본' : (cell_name || ''),
+        responsible_group_id: responsible_group_id || null,
+        responsible_cell_id: responsible_cell_id || null,
+        is_sunjang: is_sunjang || false
+      };
+
       setUserProfile(profile);
 
       // 멤버 목록 조회 (생일 배너용)
+      const targetCellId = profile.cell_id;
       const { data: membersData, error: membersError } = await supabase
         .from('profiles')
         .select('name, birth_date')
-        .eq('cell_id', cell_id);
+        .eq('cell_id', targetCellId);
 
       const members = (!membersError && membersData) ? membersData : [];
       setDarakbangMembers(members);
 
       // 순장 목록 조회: /api/darakbang/sunjangs (supabaseAdmin, RLS 우회)
-      const sunjangsRes = await fetch(`/api/darakbang/sunjangs?cell_id=${cell_id}`);
+      const sunjangsRes = await fetch(`/api/darakbang/sunjangs?cell_id=${targetCellId}`);
       const sunjangsJson = sunjangsRes.ok ? await sunjangsRes.json() : { sunjangs: [] };
       const filteredSunjangs: { name: string; is_cell_leader: boolean; is_group_leader: boolean }[] = sunjangsJson.sunjangs || [];
       setSunjangs(filteredSunjangs);
