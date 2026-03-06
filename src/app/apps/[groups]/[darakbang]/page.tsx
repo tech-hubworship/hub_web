@@ -121,6 +121,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   const [recapMonth, setRecapMonth] = useState('');
   const [selectedRecapDate, setSelectedRecapDate] = useState<string | null>(null);
   const [recapPage, setRecapPage] = useState(1);
+  const [recapFilter, setRecapFilter] = useState<'전체' | '기도' | '감사'>('전체');
 
   // 순장님별 보기 전용 상태
   const [selectedPerson, setSelectedPerson] = useState('');
@@ -751,7 +752,10 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   const availableMonths = Array.from(new Set(prayers.map(p => getKstString(p.created_at).substring(0, 7)))).sort().reverse();
 
   // 리캡(전체) 필터
-  const recapPrayers = prayers.filter(p => getKstString(p.created_at).substring(0, 7) === recapMonth);
+  const recapPrayers = prayers.filter(p =>
+    getKstString(p.created_at).substring(0, 7) === recapMonth &&
+    (recapFilter === '전체' || (recapFilter === '기도' && p.type === 'prayer') || (recapFilter === '감사' && p.type === 'sharing'))
+  );
   // 순장님별 필터
   const personPrayers = prayers.filter(p => p.member_name === selectedPerson && getKstString(p.created_at).substring(0, 7) === personMonth);
 
@@ -792,6 +796,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
                     '김수진': '그룹장님', '이정진': '중보기도팀장님',
                     '이주은': '서기님', '신민주': '서기님',
                     '김하진': '총무님', '김예빈': '회계님',
+                    '김승우': '총무님'
                   };
                   if (staffRoles[userProfile?.name || '']) return staffRoles[userProfile?.name || ''];
                   const leaders: Record<string, string> = { '이레': '이진호', '라파': '김선경', '샬롬': '권예진', '닛시': '강영규' };
@@ -1089,10 +1094,32 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
                     </select>
                   </div>
 
+                  {/* 필터 */}
+                  <div css={css`display: flex; gap: 8px; margin-bottom: 24px;`}>
+                    <button
+                      onClick={() => { setRecapFilter('전체'); setSelectedRecapDate(null); setRecapPage(1); }}
+                      css={css`flex: 1; padding: 10px 0; border-radius: 12px; font-weight: 700; font-size: 13px; transition: all 0.15s; ${recapFilter === '전체' ? 'background-color: #292524; color: white;' : 'background-color: white; border: 1px solid #e7e5e4; color: #78716c; &:hover { background-color: #fafaf9; }'}`}
+                    >
+                      전체
+                    </button>
+                    <button
+                      onClick={() => { setRecapFilter('기도'); setSelectedRecapDate(null); setRecapPage(1); }}
+                      css={css`flex: 1; padding: 10px 0; border-radius: 12px; font-weight: 700; font-size: 13px; transition: all 0.15s; ${recapFilter === '기도' ? 'background-color: #fb7185; color: white; border-color: transparent;' : 'background-color: white; border: 1px solid #e7e5e4; color: #78716c; &:hover { background-color: #fafaf9; }'}`}
+                    >
+                      기도
+                    </button>
+                    <button
+                      onClick={() => { setRecapFilter('감사'); setSelectedRecapDate(null); setRecapPage(1); }}
+                      css={css`flex: 1; padding: 10px 0; border-radius: 12px; font-weight: 700; font-size: 13px; transition: all 0.15s; ${recapFilter === '감사' ? 'background-color: #34d399; color: white; border-color: transparent;' : 'background-color: white; border: 1px solid #e7e5e4; color: #78716c; &:hover { background-color: #fafaf9; }'}`}
+                    >
+                      감사
+                    </button>
+                  </div>
+
                   {/* 달력 컴포넌트 */}
                   <RecapCalendar
                     month={recapMonth}
-                    prayers={prayers}
+                    prayers={recapPrayers}
                     selectedDate={selectedRecapDate}
                     onDateSelect={(dateStr: string) => { setSelectedRecapDate(dateStr); setRecapPage(1); }}
                   />
