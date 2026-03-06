@@ -251,10 +251,25 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
       // 순장 목록 조회: /api/darakbang/sunjangs (supabaseAdmin, RLS 우회)
       const sunjangsRes = await fetch(`/api/darakbang/sunjangs?cell_id=${targetCellId}`);
       const sunjangsJson = sunjangsRes.ok ? await sunjangsRes.json() : { sunjangs: [] };
-      const filteredSunjangs: { name: string; is_cell_leader: boolean; is_group_leader: boolean }[] = sunjangsJson.sunjangs || [];
+      let filteredSunjangs: { name: string; is_cell_leader: boolean; is_group_leader: boolean }[] = sunjangsJson.sunjangs || [];
+
+      // 새본 담당자(김수진) 예외 처리: 새가족/새본 다락방일 경우 순장 목록 맨 앞에 강제 추가
+      if (isSaebonManager && urlGroupName === '새가족' && urlCellName === '새본') {
+        const isAlreadyInList = filteredSunjangs.some(s => s.name === '김수진');
+        if (!isAlreadyInList) {
+          filteredSunjangs = [
+            { name: '김수진', is_cell_leader: false, is_group_leader: false },
+            ...filteredSunjangs
+          ];
+        }
+      }
+
       setSunjangs(filteredSunjangs);
-      if (filteredSunjangs.length > 0) setSelectedPerson(filteredSunjangs[0].name);
-      else if (members.length > 0) setSelectedPerson(members[0].name);
+      if (filteredSunjangs.length > 0) {
+        if (!selectedPerson) setSelectedPerson(filteredSunjangs[0].name);
+      } else if (members.length > 0) {
+        if (!selectedPerson) setSelectedPerson(members[0].name);
+      }
 
       // 3) 결과 캐싱
       if (typeof window !== 'undefined') {
