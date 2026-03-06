@@ -437,7 +437,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     e.preventDefault();
     if (!newTopic.trim() || !session?.user?.id || !userProfile) return;
 
-    const userName = isAnonymous ? '어느 다락방원' : userProfile.name;
+    const userName = isAnonymous ? '주님의 어린양' : userProfile.name;
 
     const { error } = await supabase
       .from('darakbang_prayers')
@@ -861,7 +861,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
                             onChange={(e) => setIsAnonymous(e.target.checked)}
                             css={css`width: 18px; height: 18px; border-radius: 4px; border: 1px solid #d6d3d1; cursor: pointer;`}
                           />
-                          <span css={css`font-size: 14px; font-weight: 500; color: #57534e; transition: color 0.15s; &:hover { color: #292524; }`}>익명으로 올리기 (어느 다락방원)</span>
+                          <span css={css`font-size: 14px; font-weight: 500; color: #57534e; transition: color 0.15s; &:hover { color: #292524; }`}>익명으로 올리기 (주님의 어린양)</span>
                         </label>
 
                         <button type="submit" css={css`background-color: #292524; color: white; font-weight: 700; padding: 16px; border-radius: 16px; font-size: 16px; margin-top: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transition: color 0.15s; &:active { background-color: #44403c; }`}>
