@@ -93,7 +93,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   const [darakbangMembers, setDarakbangMembers] = useState<{ name: string; birth_date: string | null }[]>([]);
   const [sunjangs, setSunjangs] = useState<{ name: string; is_cell_leader: boolean; is_group_leader: boolean }[]>([]);
 
-  const [prayers, setPrayers] = useState<Prayer[]>([]);
+  const [prayers, setPrayers] = useState<any[]>([]);
   const [newCategory, setNewCategory] = useState(CATEGORIES[0]);
   const [newTopic, setNewTopic] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false); // 익명 기도 상태
@@ -131,7 +131,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   // 1-2. 페이지네이션 등 데이터 캐싱 (5분 TTL)
   const prayersCacheRef = React.useRef<Record<string, { data: Prayer[], count: number, ts: number }>>({});
   const sharingsCacheRef = React.useRef<Record<string, { data: Sharing[], count: number, ts: number }>>({});
-  const allContentCacheRef = React.useRef<{ data: Prayer[], ts: number } | null>(null);
+  const allContentCacheRef = React.useRef<{ data: any[], ts: number } | null>(null);
   const CACHE_TTL = 5 * 60 * 1000;
 
   const invalidateCache = () => {
@@ -293,20 +293,29 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
       return;
     }
 
-    const { data, error } = await supabase
-      .from('darakbang_prayers')
-      .select('*, darakbang_prayer_intercessors(intercessor_name), darakbang_prayer_comments(id, author_name, text, created_at)')
-      .eq('cell_id', userProfile.cell_id) // 우리 다락방만
-      .order('created_at', { ascending: false });
+    const [prayersRes, sharingsRes] = await Promise.all([
+      supabase
+        .from('darakbang_prayers')
+        .select('*, darakbang_prayer_intercessors(intercessor_name), darakbang_prayer_comments(id, author_name, text, created_at)')
+        .eq('cell_id', userProfile.cell_id),
+      supabase
+        .from('darakbang_sharings')
+        .select('*, darakbang_sharing_likes(liker_name), darakbang_sharing_comments(id, author_name, text, created_at)')
+        .eq('cell_id', userProfile.cell_id)
+    ]);
 
-    if (error) console.error('Error fetching all prayers:', error);
-    else {
-      const mapped = data ? mapPrayerData(data) : [];
-      setPrayers(mapped);
-      allContentCacheRef.current = { data: mapped, ts: Date.now() };
+    if (prayersRes.error || sharingsRes.error) {
+      console.error('Error fetching all content:', prayersRes.error || sharingsRes.error);
+    } else {
+      const pMapped = prayersRes.data ? mapPrayerData(prayersRes.data).map(p => ({ ...p, type: 'prayer' })) : [];
+      const sMapped = sharingsRes.data ? mapSharingData(sharingsRes.data).map(s => ({ ...s, type: 'sharing' })) : [];
+      const combined = [...pMapped, ...sMapped].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setPrayers(combined);
+      allContentCacheRef.current = { data: combined, ts: Date.now() };
       // 리캡 및 인물별 보기 초기 달 설정
-      if (data && data.length > 0) {
-        const latestMonth = getKstString(data[0].created_at).substring(0, 7);
+      if (combined.length > 0) {
+        const latestMonth = getKstString(combined[0].created_at).substring(0, 7);
         if (!recapMonth) setRecapMonth(latestMonth);
         if (!personMonth) setPersonMonth(latestMonth);
       }
@@ -584,7 +593,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     const prayer = prayers.find(p => p.id === prayerId);
     if (!prayer) return;
 
-    const updatedComments = (prayer.comments || []).map(c =>
+    const updatedComments = (prayer.comments || []).map((c: any) =>
       c.id === commentId ? { ...c, text: text.trim() } : c
     );
 
@@ -607,7 +616,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     const confirmDelete = window.confirm("댓글을 삭제하시겠습니까?");
     if (!confirmDelete) return;
 
-    const updatedComments = (prayer.comments || []).filter(c => c.id !== commentId);
+    const updatedComments = (prayer.comments || []).filter((c: any) => c.id !== commentId);
 
     // 낙관적 업데이트
     setPrayers(prev => prev.map(p => p.id === prayerId ? { ...p, comments: updatedComments } : p));
@@ -623,6 +632,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   const handleUpdateSharing = async (sharingId: string, newContent: string) => {
     if (!session || !newContent.trim()) return;
     setSharings(prev => prev.map(p => p.id === sharingId ? { ...p, content: newContent.trim() } : p));
+    setPrayers(prev => prev.map(p => p.id === sharingId ? { ...p, content: newContent.trim() } : p));
     invalidateCache();
     const { error } = await supabase.from('darakbang_sharings').update({ content: newContent.trim() }).eq('id', sharingId);
     if (error) { console.error('Error updating sharing:', error); refreshContent(); }
@@ -633,6 +643,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     const confirmDelete = window.confirm("나눔 글을 삭제하시겠습니까?");
     if (!confirmDelete) return;
     setSharings(prev => prev.filter(p => p.id !== sharingId));
+    setPrayers(prev => prev.filter(p => p.id !== sharingId));
     invalidateCache();
     const { error } = await supabase.from('darakbang_sharings').delete().eq('id', sharingId);
     if (error) { console.error('Error deleting sharing:', error); refreshContent(); }
@@ -645,6 +656,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
     const updatedLikes = isAdding ? [...sharing.likes, userName] : sharing.likes.filter(name => name !== userName);
     setSharings(prev => prev.map(p => p.id === sharing.id ? { ...p, likes: updatedLikes } : p));
+    setPrayers(prev => prev.map(p => p.id === sharing.id ? { ...p, likes: updatedLikes } : p));
     invalidateCache();
 
     let error;
@@ -661,11 +673,12 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   const handleAddSharingComment = async (sharingId: string, text: string) => {
     if (!session || !session.user || !text.trim()) return;
     const userName = session.user.name || '순장님';
-    const sharing = sharings.find(p => p.id === sharingId);
+    const sharing = sharings.find(p => p.id === sharingId) || prayers.find(p => p.id === sharingId);
     if (!sharing) return;
     const newComment: Comment = { id: crypto.randomUUID(), author: userName, text: text.trim(), created_at: new Date().toISOString() };
     const updatedComments = [...(sharing.comments || []), newComment];
     setSharings(prev => prev.map(p => p.id === sharingId ? { ...p, comments: updatedComments } : p));
+    setPrayers(prev => prev.map(p => p.id === sharingId ? { ...p, comments: updatedComments } : p));
     invalidateCache();
 
     const { error } = await supabase.from('darakbang_sharing_comments').insert({
@@ -676,22 +689,24 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
   const handleUpdateSharingComment = async (sharingId: string, commentId: string, text: string) => {
     if (!session || !text.trim()) return;
-    const sharing = sharings.find(p => p.id === sharingId);
+    const sharing = sharings.find(p => p.id === sharingId) || prayers.find(p => p.id === sharingId);
     if (!sharing) return;
-    const updatedComments = (sharing.comments || []).map(c => c.id === commentId ? { ...c, text: text.trim() } : c);
+    const updatedComments = (sharing.comments || []).map((c: any) => c.id === commentId ? { ...c, text: text.trim() } : c);
     setSharings(prev => prev.map(p => p.id === sharingId ? { ...p, comments: updatedComments } : p));
+    setPrayers(prev => prev.map(p => p.id === sharingId ? { ...p, comments: updatedComments } : p));
     const { error } = await supabase.from('darakbang_sharing_comments').update({ text: text.trim() }).eq('id', commentId);
     if (error) { console.error('Error updating comment:', error); refreshContent(); }
   };
 
   const handleDeleteSharingComment = async (sharingId: string, commentId: string) => {
     if (!session) return;
-    const sharing = sharings.find(p => p.id === sharingId);
+    const sharing = sharings.find(p => p.id === sharingId) || prayers.find(p => p.id === sharingId);
     if (!sharing) return;
     const confirmDelete = window.confirm("댓글을 삭제하시겠습니까?");
     if (!confirmDelete) return;
-    const updatedComments = (sharing.comments || []).filter(c => c.id !== commentId);
+    const updatedComments = (sharing.comments || []).filter((c: any) => c.id !== commentId);
     setSharings(prev => prev.map(p => p.id === sharingId ? { ...p, comments: updatedComments } : p));
+    setPrayers(prev => prev.map(p => p.id === sharingId ? { ...p, comments: updatedComments } : p));
     const { error } = await supabase.from('darakbang_sharing_comments').delete().eq('id', commentId);
     if (error) { console.error('Error deleting comment:', error); refreshContent(); }
   };
@@ -998,12 +1013,16 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
                 <section css={css`display: flex; flex-direction: column; gap: 20px;`}>
                   {personPrayers.length === 0 ? (
                     <div css={css`padding: 80px 0; text-align: center; background-color: rgba(255, 255, 255, 0.5); border-radius: 24px; border: 1px solid rgba(245, 245, 244, 0.5);`}>
-                      <p css={css`color: #a8a29e; font-size: 14px;`}>이 달에는 {selectedPerson} {sunjangs.find(s => s.name === selectedPerson)?.is_cell_leader ? '다락방장님이' : '순장님이'}<br />올리신 기도가 없어요.</p>
+                      <p css={css`color: #a8a29e; font-size: 14px;`}>이 달에는 {selectedPerson} {sunjangs.find(s => s.name === selectedPerson)?.is_cell_leader ? '다락방장님이' : '순장님이'}<br />나눈 은혜가 없어요.</p>
                     </div>
                   ) : (
                     <>
-                      {personPrayers.slice((personPage - 1) * 5, personPage * 5).map((prayer) => (
-                        <PrayerCard key={prayer.id} prayer={prayer} currentUser={currentUserFullName} onIntercede={handleIntercede} onAnswerToggle={handleAnswerToggle} onUpdatePrayer={handleUpdatePrayer} onAddComment={handleAddComment} onUpdateComment={handleUpdateComment} onDeleteComment={handleDeleteComment} />
+                      {personPrayers.slice((personPage - 1) * 5, personPage * 5).map((item) => (
+                        item.type === 'sharing' ? (
+                          <SharingCard key={item.id} sharing={item} currentUser={currentUserFullName} onLike={handleLikeSharing} onUpdateSharing={handleUpdateSharing} onDeleteSharing={handleDeleteSharing} onAddComment={handleAddSharingComment} onUpdateComment={handleUpdateSharingComment} onDeleteComment={handleDeleteSharingComment} />
+                        ) : (
+                          <PrayerCard key={item.id} prayer={item} currentUser={currentUserFullName} onIntercede={handleIntercede} onAnswerToggle={handleAnswerToggle} onUpdatePrayer={handleUpdatePrayer} onAddComment={handleAddComment} onUpdateComment={handleUpdateComment} onDeleteComment={handleDeleteComment} />
+                        )
                       ))}
 
                       {personPrayers.length > 5 && (
@@ -1081,7 +1100,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
                   {recapPrayers.length > 0 && (
                     <div css={css`display: flex; gap: 12px; margin-top: 24px;`}>
                       <div css={css`background-color: #fdfbf7; padding: 16px; border-radius: 16px; flex: 1; text-align: center; border: 1px solid rgba(245, 245, 244, 0.6); transition: all 0.15s;`}>
-                        <p css={css`color: #78716c; font-size: 10px; font-weight: 500; margin-bottom: 4px;`}>월간 기도</p>
+                        <p css={css`color: #78716c; font-size: 10px; font-weight: 500; margin-bottom: 4px;`}>월간 은혜 목록</p>
                         <p css={css`font-size: 20px; font-weight: 800; color: #292524; letter-spacing: -0.025em;`}>{recapPrayers.length}</p>
                       </div>
                       <div css={css`background-color: rgba(255, 228, 230, 0.5); padding: 16px; border-radius: 16px; flex: 1; text-align: center; border: 1px solid rgba(255, 228, 230, 0.5); transition: all 0.15s;`}>
@@ -1107,20 +1126,24 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
                           {recapPrayers
                             .filter(p => selectedRecapDate && getKstString(p.created_at).startsWith(selectedRecapDate!))
                             .slice((recapPage - 1) * 5, recapPage * 5)
-                            .map(prayer => (
-                              <div key={prayer.id} css={css`padding: 20px; border-radius: 16px; border: 1px solid rgba(245, 245, 244, 0.6); background-color: white; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); position: relative; overflow: hidden; transition: transform 0.15s; &:active { transform: scale(0.98); }`}>
-                                <div css={css`display: flex; align-items: center; gap: 8px; margin-bottom: 12px;`}>
-                                  <span css={css`font-size: 10px; font-weight: 800; color: #78716c; background-color: rgba(245, 245, 244, 0.8); padding: 4px 10px; border-radius: 6px;`}>{prayer.category}</span>
-                                  <span css={css`font-weight: 700; color: #292524; font-size: 13px;`}>{prayer.member_name}</span>
-                                  {prayer.is_answered && <span css={css`font-size: 10px; background-color: #fff1f2; color: #e11d48; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(254, 226, 226, 0.5); font-weight: 700; margin-left: auto;`}>응답됨 🎉</span>}
-                                </div>
-                                <p css={css`font-size: 15px; line-height: 1.625; ${prayer.is_answered ? 'color: #a8a29e; text-decoration-line: line-through; text-decoration-color: rgba(254, 205, 211, 0.5);' : 'color: #44403c;'}`}>{prayer.prayer_topic}</p>
-                                {prayer.is_answered && prayer.answer_text && (
-                                  <div css={css`margin-top: 12px; background-color: rgba(255, 241, 242, 0.5); padding: 14px; border-radius: 12px; font-size: 13px; color: rgba(159, 18, 57, 0.9); border: 1px solid rgba(254, 226, 226, 0.4); line-height: 1.625; font-style: italic;`}>
-                                    "{prayer.answer_text}"
+                            .map(item => (
+                              item.type === 'sharing' ? (
+                                <SharingCard key={item.id} sharing={item} currentUser={currentUserFullName} onLike={handleLikeSharing} onUpdateSharing={handleUpdateSharing} onDeleteSharing={handleDeleteSharing} onAddComment={handleAddSharingComment} onUpdateComment={handleUpdateSharingComment} onDeleteComment={handleDeleteSharingComment} />
+                              ) : (
+                                <div key={item.id} css={css`padding: 20px; border-radius: 16px; border: 1px solid rgba(245, 245, 244, 0.6); background-color: white; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); position: relative; overflow: hidden; transition: transform 0.15s; &:active { transform: scale(0.98); }`}>
+                                  <div css={css`display: flex; align-items: center; gap: 8px; margin-bottom: 12px;`}>
+                                    <span css={css`font-size: 10px; font-weight: 800; color: #78716c; background-color: rgba(245, 245, 244, 0.8); padding: 4px 10px; border-radius: 6px;`}>{item.category}</span>
+                                    <span css={css`font-weight: 700; color: #292524; font-size: 13px;`}>{item.member_name}</span>
+                                    {item.is_answered && <span css={css`font-size: 10px; background-color: #fff1f2; color: #e11d48; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(254, 226, 226, 0.5); font-weight: 700; margin-left: auto;`}>응답됨 🎉</span>}
                                   </div>
-                                )}
-                              </div>
+                                  <p css={css`font-size: 15px; line-height: 1.625; ${item.is_answered ? 'color: #a8a29e; text-decoration-line: line-through; text-decoration-color: rgba(254, 205, 211, 0.5);' : 'color: #44403c;'}`}>{item.prayer_topic}</p>
+                                  {item.is_answered && item.answer_text && (
+                                    <div css={css`margin-top: 12px; background-color: rgba(255, 241, 242, 0.5); padding: 14px; border-radius: 12px; font-size: 13px; color: rgba(159, 18, 57, 0.9); border: 1px solid rgba(254, 226, 226, 0.4); line-height: 1.625; font-style: italic;`}>
+                                      "{item.answer_text}"
+                                    </div>
+                                  )}
+                                </div>
+                              )
                             ))}
 
                           {recapPrayers.filter(p => selectedRecapDate && getKstString(p.created_at).startsWith(selectedRecapDate!)).length > 5 && (
@@ -1163,12 +1186,12 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
                           )}
                         </>
                       ) : (
-                        <div css={css`padding: 48px 0; text-align: center; color: #a8a29e; font-size: 14px; background-color: rgba(255, 255, 255, 0.5); border-radius: 24px; border: 1px dashed #e7e5e4;`}>이 날에는 등록된 기도가 없습니다.</div>
+                        <div css={css`padding: 48px 0; text-align: center; color: #a8a29e; font-size: 14px; background-color: rgba(255, 255, 255, 0.5); border-radius: 24px; border: 1px dashed #e7e5e4;`}>이 날에는 등록된 은혜가 없습니다.</div>
                       )}
                     </>
                   ) : (
                     <div css={css`padding: 64px 0; text-align: center; color: #a8a29e; font-size: 14px; background-color: rgba(255, 255, 255, 0.3); border-radius: 24px; border: 1px dashed #f5f5f4;`}>
-                      달력에서 날짜를 선택하여<br />그날의 기도를 확인해보세요 🕊️
+                      달력에서 날짜를 선택하여<br />그날의 은혜를 확인해보세요 🕊️
                     </div>
                   )}
                 </section>
