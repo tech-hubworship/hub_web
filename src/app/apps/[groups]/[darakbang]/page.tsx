@@ -141,30 +141,54 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     allContentCacheRef.current = null;
   };
 
-  // 프로필 + 멤버 sessionStorage 캐시 (15분 TTL)
+  // 프로필 + 멤버 localStorage 캐시 (브라우저 재시작 시에도 유지)
   const PROFILE_CACHE_KEY = `darakbang_profile_${unwrappedParams.groups}_${unwrappedParams.darakbang}`;
-  const PROFILE_CACHE_TTL = 15 * 60 * 1000;
+  const PROFILE_CACHE_TTL = 30 * 60 * 1000; // 30분으로 연장
 
-  // 현재 유저의 프로필(셀, 그룹) 정보 가져오기
-  const fetchUserProfile = async () => {
-    try {
-      // 1) sessionStorage 캐시 확인
-      if (typeof window !== 'undefined') {
-        const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
-        if (raw) {
+  // 캐시된 데이터로 즉각적 렌더링 (Optimistic UI)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+      if (raw) {
+        try {
           const { data, ts } = JSON.parse(raw);
           if (Date.now() - ts < PROFILE_CACHE_TTL) {
-            // 캐시 적중: API 호출 없이 바로 상태 복원
             const { profile, members, sunjangs: cachedSunjangs } = data;
             setUserProfile(profile);
             setDarakbangMembers(members);
             if (cachedSunjangs && cachedSunjangs.length > 0) {
               setSunjangs(cachedSunjangs);
-              setSelectedPerson(cachedSunjangs[0].name);
+              if (!selectedPerson) setSelectedPerson(cachedSunjangs[0].name);
             } else if (members.length > 0) {
-              setSelectedPerson(members[0].name);
+              if (!selectedPerson) setSelectedPerson(members[0].name);
             }
-            return;
+          }
+        } catch (e) {
+          console.error('Failed to parse profile cache', e);
+        }
+      }
+    }
+  }, [PROFILE_CACHE_KEY, selectedPerson]);
+
+  // 현재 유저의 프로필(셀, 그룹) 정보 가져오기
+  const fetchUserProfile = async () => {
+    try {
+      // 1) localStorage 캐시 확인
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+        if (raw) {
+          const { data, ts } = JSON.parse(raw);
+          if (Date.now() - ts < PROFILE_CACHE_TTL) {
+            // 캐시 적중: API 호출 없이 바로 상태 복원 (하지만 최신화를 위해 백그라운드 갱신)
+            const { profile, members, sunjangs: cachedSunjangs } = data;
+            setUserProfile(profile);
+            setDarakbangMembers(members);
+            if (cachedSunjangs && cachedSunjangs.length > 0) {
+              setSunjangs(cachedSunjangs);
+              if (!selectedPerson) setSelectedPerson(cachedSunjangs[0].name);
+            } else if (members.length > 0) {
+              if (!selectedPerson) setSelectedPerson(members[0].name);
+            }
           }
         }
       }
@@ -234,7 +258,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
 
       // 3) 결과 캐싱
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
+        localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
           data: { profile, members, sunjangs: filteredSunjangs },
           ts: Date.now(),
         }));
@@ -245,8 +269,10 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
   };
 
   useEffect(() => {
+    // 세션 정보가 없으면 원래 방문하려던 주소를 리다이렉트 URL로 담아서 보냅니다
     if (sessionStatus === "unauthenticated") {
-      router.push("/login?redirect=/apps");
+      const currentPath = `/apps/${encodeURIComponent(unwrappedParams.groups)}/${encodeURIComponent(unwrappedParams.darakbang)}`;
+      router.push(`/login?redirect=${currentPath}`);
       return;
     }
 
@@ -254,7 +280,7 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
       profileFetchedRef.current = true;
       fetchUserProfile();
     }
-  }, [sessionStatus, session]);
+  }, [sessionStatus, session, router, unwrappedParams]);
 
   useEffect(() => {
     if (session && userProfile) {
@@ -712,8 +738,13 @@ export default function DarakbangPage({ params }: { params: Promise<{ groups: st
     if (error) { console.error('Error deleting comment:', error); refreshContent(); }
   };
 
-  if (sessionStatus === "loading" || !userProfile) {
+  // Optimistic UI: userProfile 캐시가 있으면 loading 화면 스킵
+  if (sessionStatus === "loading" && !userProfile) {
     return <div css={css`min-height: 100vh; background-color: #fffbf7; display: flex; align-items: center; justify-content: center; color: #fda4af; font-size: 15px; font-family: var(--font-wanted);`}>잠시만 기다려주세요... 🌸</div>;
+  }
+
+  if (!userProfile) {
+    return null; // 프로필 조회가 실패했거나, unauthenticated로 리다이렉트 되는 중
   }
 
   // 새가족 그룹(group_id=5) 그룹장/순장 리더십이 아닌 경우 접근 차단 (UI 렌더링 전 방어)
