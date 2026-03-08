@@ -13,6 +13,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CATEGORY_OD = "OD";
+const MAX_ROWS = 99999;
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -29,12 +30,13 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 1. OD 명단 전체 (attendance_od_targets)
+    // 1. OD 명단 전체 (attendance_od_targets) — 전체 조회
     const { data: roster, error: rosterError } = await supabaseAdmin
       .from("attendance_od_targets")
       .select("id, user_id, name, is_group_leader, is_cell_leader")
       .eq("category", CATEGORY_OD)
-      .order("name");
+      .order("name")
+      .range(0, MAX_ROWS);
 
     if (rosterError) throw rosterError;
 
@@ -68,13 +70,14 @@ export async function GET(req: Request) {
 
     const userIds = roster.map((r: any) => r.user_id);
 
-    // 2. 해당 날짜 OD 출석 기록 조회 (수정됨: note, updated_by 추가)
+    // 2. 해당 날짜 OD 출석 기록 조회 — 전체 조회
     const { data: attendanceRows, error: attError } = await supabaseAdmin
       .from("weekly_attendance")
       .select("user_id, attended_at, status, is_excused, late_fee, is_report_required, late_fee_excused, report_excused, note, updated_by")
       .eq("week_date", date)
       .eq("category", CATEGORY_OD)
-      .in("user_id", userIds);
+      .in("user_id", userIds)
+      .range(0, MAX_ROWS);
 
     if (attError) throw attError;
 
@@ -82,7 +85,7 @@ export async function GET(req: Request) {
       (attendanceRows || []).map((a: any) => [a.user_id, a])
     );
 
-    // 3. profiles에서 그룹/다락방 이름 조회
+    // 3. profiles에서 그룹/다락방 이름 조회 — 전체 조회
     const { data: profiles, error: profError } = await supabaseAdmin
       .from("profiles")
       .select(
@@ -96,7 +99,8 @@ export async function GET(req: Request) {
         hub_cells:cell_id(id, name)
       `
       )
-      .in("user_id", userIds);
+      .in("user_id", userIds)
+      .range(0, MAX_ROWS);
 
     if (profError) throw profError;
 

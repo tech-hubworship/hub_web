@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CATEGORY_OD = "OD";
+const MAX_ROWS = 99999;
 
 type ImportRow = {
   name: string;
@@ -47,7 +48,8 @@ export async function POST(req: Request) {
     const { data: roster, error: rosterError } = await supabaseAdmin
       .from("attendance_od_targets")
       .select("user_id, name")
-      .eq("category", CATEGORY_OD);
+      .eq("category", CATEGORY_OD)
+      .range(0, MAX_ROWS);
 
     if (rosterError) throw rosterError;
     if (!roster?.length) {
@@ -60,7 +62,8 @@ export async function POST(req: Request) {
       .select(
         "user_id, name, group_id, cell_id, hub_groups:group_id(name), hub_cells:cell_id(name)"
       )
-      .in("user_id", userIds);
+      .in("user_id", userIds)
+      .range(0, MAX_ROWS);
 
     if (profError) throw profError;
 

@@ -1,6 +1,7 @@
 // 파일 경로: src/views/InfoPage/index.tsx
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import PageLayout from "@src/components/common/PageLayout";
 import { useRouter } from "next/navigation";
 import * as S from "@src/views/InfoPage/style";
@@ -440,6 +441,15 @@ export default function MyInfoPage() {
                   </S.InfoItem>
                 )}
               </S.Card>
+
+              <Link href="/attendance/my" passHref legacyBehavior>
+                <S.AttendanceLink>
+                  <S.AttendanceLinkLabel>
+                    📋 출석·지각비 보기
+                  </S.AttendanceLinkLabel>
+                  <S.AttendanceLinkArrow>›</S.AttendanceLinkArrow>
+                </S.AttendanceLink>
+              </Link>
 
               <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
             </>

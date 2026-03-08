@@ -389,6 +389,57 @@ const LostFoundIconImage = styled(motion.div)`
   overflow: hidden;
 `;
 
+/* Q&A: 보라 계열 배경 + 흰색 말풍선/메시지 아이콘 */
+const QA_ICON_PURPLE = "#6366f1";
+
+const QAIconLayout = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10%;
+`;
+
+function QAIconContent() {
+  return (
+    <QAIconLayout>
+      <svg
+        viewBox="0 0 56 56"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ width: "100%", height: "100%", maxWidth: 44, maxHeight: 44 }}
+        aria-hidden
+      >
+        {/* 말풍선 */}
+        <path
+          d="M28 8C16 8 8 16 8 26c0 6 4 10 8 14v8l8-6c2 0 4 0 6-1 12 0 20-8 20-18S40 8 28 8z"
+          stroke="#ffffff"
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </svg>
+    </QAIconLayout>
+  );
+}
+
+const QAIconImage = styled(motion.div)`
+  width: ${APP_ICON_SIZE};
+  height: ${APP_ICON_SIZE};
+  min-width: 48px;
+  min-height: 48px;
+  background: ${QA_ICON_PURPLE};
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+`;
+
 const RestaurantIconInner = styled.div`
   width: 80%;
   height: 80%;
@@ -723,6 +774,27 @@ export default function AppsClientPage() {
                   <LostFoundIconContent />
                 </LostFoundIconImage>
                 <AppLabel>분실물 찾기</AppLabel>
+              </AppIcon>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55, duration: 0.3 }}
+            >
+              <AppIcon
+                onClick={() => handleAppClick("/apps/qa")}
+                onMouseEnter={() => setHoveredApp(5)}
+                onMouseLeave={() => setHoveredApp(null)}
+              >
+                <QAIconImage
+                  whileHover={{ scale: 1.1, y: -4 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <QAIconContent />
+                </QAIconImage>
+                <AppLabel>Q&A</AppLabel>
               </AppIcon>
             </motion.div>
 

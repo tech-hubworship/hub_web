@@ -13,6 +13,23 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CATEGORY_OD = "OD";
+const PAGE_SIZE = 1000;
+
+async function fetchAll<T = any>(
+  fetchPage: (offset: number, limit: number) => Promise<{ data: T[] | null; error: any }>
+): Promise<T[]> {
+  const all: T[] = [];
+  let offset = 0;
+  while (true) {
+    const { data, error } = await fetchPage(offset, PAGE_SIZE);
+    if (error) throw error;
+    const page = data || [];
+    all.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return all;
+}
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -38,15 +55,17 @@ export async function GET(req: Request) {
     const startStr = startDate.format("YYYY-MM-DD");
     const endStr = endDate.format("YYYY-MM-DD");
 
-    // 1. OD 명단 + 프로필(그룹/다락방)
-    const { data: roster, error: rosterError } = await supabaseAdmin
-      .from("attendance_od_targets")
-      .select("id, user_id, name, is_group_leader, is_cell_leader")
-      .eq("category", CATEGORY_OD)
-      .order("name");
+    // 1. OD 명단 — 페이지네이션으로 전체 조회 (Supabase 1000행 제한 회피)
+    const roster = await fetchAll<any>(async (offset, limit) => {
+      return supabaseAdmin
+        .from("attendance_od_targets")
+        .select("id, user_id, name, is_group_leader, is_cell_leader")
+        .eq("category", CATEGORY_OD)
+        .order("name")
+        .range(offset, offset + limit - 1);
+    });
 
-    if (rosterError) throw rosterError;
-    if (!roster || roster.length === 0) {
+    if (roster.length === 0) {
       return Response.json(
         { weekDates: [], rows: [], quarterlyTotals: [], lateCriteria: { start_hour: 10, start_minute: 0 } },
         { status: 200 }
@@ -55,17 +74,19 @@ export async function GET(req: Request) {
 
     const userIds = roster.map((r: any) => r.user_id);
 
-    const { data: profiles, error: profError } = await supabaseAdmin
-      .from("profiles")
-      .select(
-        "user_id, name, group_id, cell_id, hub_groups:group_id(id, name), hub_cells:cell_id(id, name)"
-      )
-      .in("user_id", userIds);
-
-    if (profError) throw profError;
+    // 프로필 — 페이지네이션으로 전체 조회
+    const profiles = await fetchAll<any>(async (offset, limit) => {
+      return supabaseAdmin
+        .from("profiles")
+        .select(
+          "user_id, name, group_id, cell_id, hub_groups:group_id(id, name), hub_cells:cell_id(id, name)"
+        )
+        .in("user_id", userIds)
+        .range(offset, offset + limit - 1);
+    });
 
     const profileByUser = new Map(
-      (profiles || []).map((p: any) => [
+      profiles.map((p: any) => [
         p.user_id,
         {
           name: p.name,
@@ -75,58 +96,75 @@ export async function GET(req: Request) {
       ])
     );
 
-    // 2. 기간 내 주차 목록: weekly_attendance에 존재하는 week_date만 (OD 카테고리)
-    const { data: distinctWeeks, error: weeksError } = await supabaseAdmin
-      .from("weekly_attendance")
-      .select("week_date")
-      .eq("category", CATEGORY_OD)
-      .gte("week_date", startStr)
-      .lte("week_date", endStr);
-
-    if (weeksError) throw weeksError;
+    // 2. 기간 내 주차 목록: weekly_attendance week_date — 페이지네이션
+    const distinctWeeks = await fetchAll<any>(async (offset, limit) => {
+      return supabaseAdmin
+        .from("weekly_attendance")
+        .select("week_date")
+        .eq("category", CATEGORY_OD)
+        .gte("week_date", startStr)
+        .lte("week_date", endStr)
+        .range(offset, offset + limit - 1);
+    });
 
     const weekDates = Array.from(
-      new Set((distinctWeeks || []).map((r: any) => r.week_date))
+      new Set(distinctWeeks.map((r: any) => r.week_date))
     ).sort();
 
-    // 3. 기간 내 전체 출석 기록 (user_id, week_date → late_fee, status, 예외 플래그, note)
-    const { data: attendanceRows, error: attError } = await supabaseAdmin
-      .from("weekly_attendance")
-      .select("user_id, week_date, late_fee, is_excused, status, late_fee_excused, report_excused, note")
-      .eq("category", CATEGORY_OD)
-      .in("user_id", userIds)
-      .gte("week_date", startStr)
-      .lte("week_date", endStr);
+    // 3. 기간 내 전체 출석 기록 — 페이지네이션으로 전체 조회
+    const attendanceRows = await fetchAll<any>(async (offset, limit) => {
+      return supabaseAdmin
+        .from("weekly_attendance")
+        .select("user_id, week_date, attended_at, late_fee, is_excused, status, is_report_required, late_fee_excused, report_excused, note, updated_by")
+        .eq("category", CATEGORY_OD)
+        .in("user_id", userIds)
+        .gte("week_date", startStr)
+        .lte("week_date", endStr)
+        .range(offset, offset + limit - 1);
+    });
 
-    if (attError) throw attError;
-
-    type CellData = { fee: number | null; status: string | null; late_fee_excused: boolean; report_excused: boolean; note: string | null };
+    type CellData = {
+      fee: number | null;
+      status: string | null;
+      attended_at: string | null;
+      is_report_required: boolean;
+      late_fee_excused: boolean;
+      report_excused: boolean;
+      note: string | null;
+      updated_by: string | null;
+    };
     const dataByUserWeek = new Map<string, CellData>();
-    for (const row of attendanceRows || []) {
+    for (const row of attendanceRows) {
       const r = row as any;
       const key = `${r.user_id}:${r.week_date}`;
       dataByUserWeek.set(key, {
         fee: r.late_fee ?? 0,
         status: r.status ?? null,
+        attended_at: r.attended_at ?? null,
+        is_report_required: !!r.is_report_required,
         late_fee_excused: !!r.late_fee_excused,
         report_excused: !!r.report_excused,
         note: r.note ?? null,
+        updated_by: r.updated_by ?? null,
       });
     }
 
-    // 4. 행 데이터 (그룹 → 다락방 → 이름 정렬), 주차별 셀에 fee + status + 예외 정보
+    // 4. 행 데이터 (그룹 → 다락방 → 이름 정렬), 주차별 셀에 fee + status + 예외 정보 + 출석 시각
     const rows = roster.map((r: any) => {
       const profile = profileByUser.get(r.user_id) || {};
       const weeklyFees: Record<string, number | null> = {};
       const weeklyData: Record<string, CellData> = {};
+      const weeklyAttendedAt: Record<string, string | null> = {};
       for (const w of weekDates) {
         const key = `${r.user_id}:${w}`;
         const cell = dataByUserWeek.get(key);
         if (cell) {
           weeklyData[w] = cell;
           weeklyFees[w] = cell.fee;
+          weeklyAttendedAt[w] = cell.attended_at;
         } else {
           weeklyFees[w] = null;
+          weeklyAttendedAt[w] = null;
         }
       }
       return {
@@ -139,6 +177,7 @@ export async function GET(req: Request) {
         is_cell_leader: !!r.is_cell_leader,
         weeklyFees,
         weeklyData,
+        weeklyAttendedAt,
       };
     });
 
@@ -155,7 +194,7 @@ export async function GET(req: Request) {
 
     // 5. 분기별 지각비 합계 (기간 내 실제 데이터, 예외 제외)
     const qMap = new Map<string, number>();
-    for (const row of attendanceRows || []) {
+    for (const row of attendanceRows) {
       const r = row as any;
       if (r.late_fee_excused) continue; // 지각비 예외 시 합계 제외
       const d = dayjs(r.week_date);

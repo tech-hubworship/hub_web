@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CATEGORY_OD = "OD";
+const MAX_ROWS = 99999;
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -27,7 +28,8 @@ export async function GET(req: Request) {
         .eq("user_id", userId)
         .eq("category", CATEGORY_OD)
         .gt("late_fee", 0)
-        .order("week_date", { ascending: false });
+        .order("week_date", { ascending: false })
+        .range(0, MAX_ROWS);
 
       if (error) throw error;
 
@@ -36,7 +38,8 @@ export async function GET(req: Request) {
         .select("id, amount, note, settled_by, settled_at")
         .eq("user_id", userId)
         .eq("category", CATEGORY_OD)
-        .order("settled_at", { ascending: false });
+        .order("settled_at", { ascending: false })
+        .range(0, MAX_ROWS);
 
       if (setError) throw setError;
 
@@ -62,12 +65,13 @@ export async function GET(req: Request) {
       );
     }
 
-    // OD 명단 전체 + 총 지각비 합계
+    // OD 명단 전체 + 총 지각비 합계 — 전체 조회
     const { data: roster, error: rosterError } = await supabaseAdmin
       .from("attendance_od_targets")
       .select("user_id, name")
       .eq("category", CATEGORY_OD)
-      .order("name");
+      .order("name")
+      .range(0, MAX_ROWS);
 
     if (rosterError) throw rosterError;
     if (!roster || roster.length === 0) {
@@ -81,7 +85,8 @@ export async function GET(req: Request) {
       .select("user_id, late_fee")
       .eq("category", CATEGORY_OD)
       .in("user_id", userIds)
-      .gt("late_fee", 0);
+      .gt("late_fee", 0)
+      .range(0, MAX_ROWS);
 
     if (attError) throw attError;
 
@@ -98,7 +103,8 @@ export async function GET(req: Request) {
         .from("late_fee_settlements")
         .select("user_id, amount")
         .eq("category", CATEGORY_OD)
-        .in("user_id", userIdsWithLateFee);
+        .in("user_id", userIdsWithLateFee)
+        .range(0, MAX_ROWS);
       (settlements || []).forEach((s: any) => {
         settledByUser.set(s.user_id, (settledByUser.get(s.user_id) || 0) + (s.amount || 0));
       });
@@ -107,7 +113,8 @@ export async function GET(req: Request) {
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
       .select("user_id, name, group_id, cell_id, hub_groups:group_id(name), hub_cells:cell_id(name)")
-      .in("user_id", userIds);
+      .in("user_id", userIds)
+      .range(0, MAX_ROWS);
 
     type ProfileInfo = { name?: string; group_name: string; cell_name: string };
     const profileMap = new Map<string, ProfileInfo>(

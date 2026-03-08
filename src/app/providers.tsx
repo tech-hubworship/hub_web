@@ -13,6 +13,7 @@ import { SessionProvider } from "next-auth/react";
 import { Analytics } from "@vercel/analytics/react";
 // import { SpeedInsights } from "@vercel/speed-insights/next"; // 무료 플랜 소진으로 미사용
 import { global } from "@src/lib/styles/global";
+import { InquiryModalProvider } from "@src/contexts/InquiryModalContext";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -37,6 +38,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <RecoilRoot>
       <SessionProvider refetchOnWindowFocus={false} refetchInterval={60 * 60}>
+        <InquiryModalProvider>
         {/* Jennifer Analytics 추적코드 */}
         <Script
           id="jennifer-script"
@@ -66,6 +68,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           </MotionConfig>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
+        </InquiryModalProvider>
       </SessionProvider>
     </RecoilRoot>
   );
