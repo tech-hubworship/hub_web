@@ -6,6 +6,8 @@ import { methodNotAllowed } from "@src/lib/api/response";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const MAX_ROWS = 99999;
+
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!(session?.user as any)?.isAdmin && !(session?.user as any)?.roles?.includes("MC")) {
@@ -20,7 +22,8 @@ export async function GET(req: Request) {
       .from("attendance_od_targets")
       .select("id, user_id, name, category, is_group_leader, is_cell_leader")
       .eq("category", category)
-      .order("name");
+      .order("name")
+      .range(0, MAX_ROWS);
 
     if (error) throw error;
 
@@ -34,7 +37,8 @@ export async function GET(req: Request) {
       .select(
         "user_id, name, email, group_id, cell_id, hub_groups:group_id(id, name), hub_cells:cell_id(id, name)"
       )
-      .in("user_id", userIds);
+      .in("user_id", userIds)
+      .range(0, MAX_ROWS);
 
     type ProfileInfo = { name?: string; email?: string | null; group_name?: string | null; cell_name?: string | null };
     const profileByUser = new Map<string, ProfileInfo>(

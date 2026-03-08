@@ -135,32 +135,34 @@ export const ChannelTitleText = styled.p`
   }
 `;
 
-// 모달 스타일 컴포넌트
+// 문의하기 모달 스타일
 export const ModalOverlay = styled.div`
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.45);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  backdrop-filter: blur(2px);
 `;
 
 export const ModalContent = styled.div`
-  background-color: white;
-  border-radius: 8px;
+  background: #fff;
+  border-radius: 16px;
   width: 90%;
-  max-width: 500px;
+  max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.04);
   
-  /* 모바일 뷰 */
   @media (max-width: 47.86875rem) {
-    width: 85%;
+    width: calc(100% - 32px);
+    margin: 16px;
+    border-radius: 12px;
   }
 `;
 
@@ -168,112 +170,143 @@ export const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #eee;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 `;
 
 export const ModalTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  color: #000;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
   margin: 0;
+  letter-spacing: -0.02em;
 `;
 
 export const CloseButton = styled.button`
-  background: none;
+  background: rgba(0, 0, 0, 0.04);
   border: none;
-  font-size: 24px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 22px;
+  line-height: 1;
   cursor: pointer;
   color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
   
   &:hover {
-    color: #000;
+    background: rgba(0, 0, 0, 0.08);
+    color: #1a1a1a;
   }
 `;
 
 export const ModalBody = styled.div`
-  padding: 20px;
+  padding: 24px;
+`;
+
+export const Label = styled.label`
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
 `;
 
 export const TextArea = styled.textarea`
   width: 100%;
-  min-height: 150px;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  min-height: 160px;
+  padding: 14px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
   resize: vertical;
   font-family: inherit;
-  font-size: 14px;
-  margin-bottom: 16px;
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  
+  &::placeholder {
+    color: #999;
+  }
   
   &:focus {
     outline: none;
-    border-color: #fff;
+    border-color: #0066ff;
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.12);
   }
 `;
 
 export const ErrorMessage = styled.p`
   color: #e74c3c;
   font-size: 14px;
-  margin-bottom: 16px;
+  margin: -8px 0 16px;
 `;
 
 export const SubmitButton = styled.button`
-  background-color: #000;
+  width: 100%;
+  background: linear-gradient(180deg, #0066ff 0%, #0052cc 100%);
   color: #fff;
   border: none;
-  border-radius: 4px;
-  padding: 10px 16px;
+  border-radius: 12px;
+  padding: 14px 20px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
   
-  &:hover {
-    background-color:rgb(40, 40, 40);
+  &:hover:not(:disabled) {
+    opacity: 0.95;
+    transform: translateY(-1px);
   }
   
   &:disabled {
-    background-color: #cccccc;
+    background: #ccc;
     cursor: not-allowed;
   }
 `;
 
 export const SuccessMessage = styled.div`
-  color: #27ae60;
-  font-size: 18px;
-  font-weight: 600;
   text-align: center;
-  padding: 40px 20px;
+  padding: 32px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 `;
 
 export const SuccessIcon = styled.div`
-  width: 60px;
-  height: 60px;
-  background-color: #27ae60;
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
+  font-size: 32px;
   color: white;
-  margin-bottom: 8px;
-  animation: scaleIn 0.3s ease-in-out;
+  margin-bottom: 4px;
+  animation: scaleIn 0.35s ease-out;
   
   @keyframes scaleIn {
-    0% {
-      transform: scale(0);
-    }
-    50% {
-      transform: scale(1.1);
-    }
-    100% {
-      transform: scale(1);
-    }
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.08); }
+    100% { transform: scale(1); opacity: 1; }
   }
+`;
+
+export const SuccessTitle = styled.div`
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+`;
+
+export const SuccessSub = styled.div`
+  font-size: 15px;
+  color: #666;
+  line-height: 1.5;
 `;
 
 export const LoadingContainer = styled.div`
@@ -308,9 +341,9 @@ export const LoadingText = styled.p`
 export const FeedbackLink = styled.div`
   margin-top: 24px;
   padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
+  background: rgba(0, 102, 255, 0.06);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 102, 255, 0.12);
   text-align: center;
   width: 100%;
 `;
@@ -318,33 +351,31 @@ export const FeedbackLink = styled.div`
 export const FeedbackLinkTitle = styled.div`
   font-size: 16px;
   font-weight: 600;
-  color: #000;
+  color: #1a1a1a;
   margin-bottom: 8px;
 `;
 
 export const FeedbackLinkText = styled.div`
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 12px;
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 14px;
   line-height: 1.5;
 `;
 
 export const FeedbackLinkButton = styled.button`
-  background-color: #3b82f6;
+  background: linear-gradient(180deg, #0066ff 0%, #0052cc 100%);
   color: #fff;
   border: none;
-  border-radius: 6px;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
-  margin-bottom: 12px;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s, transform 0.15s;
   
   &:hover {
-    background-color: #2563eb;
+    opacity: 0.95;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
   }
   
   &:active {

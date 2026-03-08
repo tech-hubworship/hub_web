@@ -68,7 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_tech_inquiries_response_at ON public.tech_inquiri
 ### 사용자
 1. **로그인 필수**: 문의 제출 및 조회는 로그인이 필요합니다
 2. Footer에서 문의사항 제출
-3. `/tech-inquiry-feedback` 페이지에서 내 문의사항 확인
+3. `/apps/qa` 문의사항 페이지에서 내 문의사항 확인 (예: 푸터 문의하기 모달 제출 후 "문의사항 보기" 또는 앱 목록에서 Q&A 앱 선택)
 4. 관리자 피드백 확인
 
 ## 주의사항

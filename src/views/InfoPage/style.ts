@@ -478,6 +478,44 @@ export const MenuText = styled.div`
   line-height: 1.2;
 `;
 
+// 출석·지각비 바로가기 링크 (내 정보 페이지)
+export const AttendanceLink = styled.a`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-decoration: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+
+  &:hover {
+    background: #f8f9fa;
+    border-color: #d0d0d0;
+  }
+  &:active {
+    transform: scale(0.98);
+  }
+`;
+
+export const AttendanceLinkLabel = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+export const AttendanceLinkArrow = styled.span`
+  color: #999;
+  font-size: 18px;
+`;
+
 // 로그아웃 버튼 스타일
 export const LogoutButton = styled.button`
   width: 100%;

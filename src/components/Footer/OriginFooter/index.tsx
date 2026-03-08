@@ -1,15 +1,24 @@
-import { FC, useState } from "react";
+import { FC, useState, useEffect } from "react";
 import Link from "next/link";
 import ArrowRight from "@src/assets/icons/arrow_right_16x16.svg";
 import Channels from "@src/components/Footer/Channels";
+import { useInquiryModal } from "@src/contexts/InquiryModalContext";
 import * as St from "./style";
 
 const OriginFooter: FC<{ variant?: "default" | "dark" }> = ({ variant = "default" }) => {
+  const { openRequested, consumeOpenRequest } = useInquiryModal();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [sendError, setSendError] = useState("");
+
+  useEffect(() => {
+    if (openRequested) {
+      setIsModalOpen(true);
+      consumeOpenRequest();
+    }
+  }, [openRequested, consumeOpenRequest]);
 
   const handleClick = () => {
     setIsModalOpen(true);
@@ -111,8 +120,8 @@ const OriginFooter: FC<{ variant?: "default" | "dark" }> = ({ variant = "default
         <St.ModalOverlay onClick={handleClose}>
           <St.ModalContent onClick={(e: React.MouseEvent<HTMLDivElement, MouseEvent>) => e.stopPropagation()}>
             <St.ModalHeader>
-              <St.ModalTitle>테크팀에게 한마디(버그, 문의사항)</St.ModalTitle>
-              <St.CloseButton onClick={handleClose}>×</St.CloseButton>
+              <St.ModalTitle>문의하기</St.ModalTitle>
+              <St.CloseButton onClick={handleClose} aria-label="닫기">×</St.CloseButton>
             </St.ModalHeader>
             
             <St.ModalBody>
@@ -124,34 +133,34 @@ const OriginFooter: FC<{ variant?: "default" | "dark" }> = ({ variant = "default
               ) : sendSuccess ? (
                 <St.SuccessMessage>
                   <St.SuccessIcon>✓</St.SuccessIcon>
-                  <div>제출완료되었습니다</div>
-                  <div>감사합니다.</div>
+                  <St.SuccessTitle>제출되었습니다</St.SuccessTitle>
+                  <St.SuccessSub>감사합니다. 확인 후 답변 드리겠습니다.</St.SuccessSub>
                   <St.FeedbackLink>
                     <St.FeedbackLinkText>
-                      관리자 피드백은 "내 문의사항" 페이지에서 확인하실 수 있습니다.
+                      제출한 문의와 답변은 문의사항 페이지에서 확인할 수 있습니다.
                     </St.FeedbackLinkText>
                     <St.FeedbackLinkButton
                       onClick={() => {
-                        // pages/app router 공용: 라우터 컨텍스트에 의존하지 않고 이동
-                        window.location.href = '/tech-inquiry-feedback';
+                        window.location.href = '/apps/qa';
                         setIsModalOpen(false);
                       }}
                     >
-                      내 문의사항 확인하기
+                      문의사항 보기
                     </St.FeedbackLinkButton>
                   </St.FeedbackLink>
                 </St.SuccessMessage>
               ) : (
                 <>
+                  <St.Label>문의 내용</St.Label>
                   <St.TextArea 
                     value={message}
                     onChange={handleChange}
-                    placeholder="버그 제보나 문의사항을 익명으로 남겨주세요. 예) 페이지 로딩이 느려요, 특정 기능이 작동하지 않아요 등"
+                    placeholder="버그 제보나 문의사항을 남겨주세요. 예) 페이지 로딩이 느려요, 특정 기능이 작동하지 않아요"
                     disabled={sending}
                   />
                   {sendError && <St.ErrorMessage>{sendError}</St.ErrorMessage>}
                   <St.SubmitButton onClick={handleSubmit} disabled={sending}>
-                    제출
+                    문의 보내기
                   </St.SubmitButton>
                 </>
               )}

@@ -1,3 +1,5 @@
+"use client";
+
 import dynamic from "next/dynamic";
 import { SerializedStyles } from "@emotion/react";
 import { Header, Layout } from "@src/components";

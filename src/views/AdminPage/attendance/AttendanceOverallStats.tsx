@@ -5,6 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import * as S from "../users/style";
 
+function formatAttendedAt(value: string | null | undefined): string {
+  if (value == null || value === "") return "—";
+  const d = typeof value === "string" ? dayjs(value) : dayjs((value as any)?.toISOString?.() ?? value);
+  return d.isValid() ? d.format("YYYY-MM-DD HH:mm:ss") : String(value);
+}
+
 // "1월 20일", "1/20" 형태를 현재 연도 기준 YYYY-MM-DD로 파싱
 function parseMonthDay(input: string, year?: number): string | null {
   const y = year ?? dayjs().year();
@@ -32,23 +38,35 @@ const COL_GROUP = 52;
 const COL_CELL = 52;
 const COL_NAME = 58;
 
-type CellData = { fee: number | null; status: string | null; late_fee_excused: boolean; report_excused: boolean; note: string | null };
+type CellData = {
+  fee: number | null;
+  status: string | null;
+  attended_at?: string | null;
+  is_report_required?: boolean;
+  late_fee_excused: boolean;
+  report_excused: boolean;
+  note: string | null;
+  updated_by?: string | null;
+};
 
 function getCellStyle(cell: CellData | null): { bg: string; text?: string; isExcused?: boolean } {
   if (!cell) return { bg: NO_DATA_COLOR };
   const isExcused = cell.late_fee_excused || cell.report_excused;
-  const isLate = cell.status === "late" && (cell.fee == null || cell.fee > 0);
-  if (isExcused && isLate) return { bg: COLOR_LATE, isExcused: true }; // 지각 + 예외 → 노란색에 X
-  if (isExcused) return { bg: "#f1f5f9", isExcused: true };
+  const isLate = cell.status === "late" || (cell.fee != null && cell.fee > 0);
+  const isPresent = cell.status === "present" || cell.fee === 0;
   if (cell.status === "unexcused_absence") return { bg: COLOR_UNEXCUSED };
-  if (isLate) return { bg: COLOR_LATE, text: String(Math.round((cell.fee ?? 0) / 1000)) };
-  if (cell.fee === 0 || cell.status === "present") return { bg: COLOR_PRESENT };
+  if (cell.status === "excused_absence") return { bg: "#f1f5f9", isExcused: true };
+  if (isLate) return { bg: COLOR_LATE, text: String(Math.round((cell.fee ?? 0) / 1000)), isExcused: isExcused || undefined };
+  if (isPresent) return { bg: COLOR_PRESENT, isExcused: isExcused || undefined };
+  if (isExcused) return { bg: "#f1f5f9", isExcused: true };
   if (cell.fee != null && cell.fee > 0) return { bg: COLOR_LATE, text: String(Math.round(cell.fee / 1000)) };
   return { bg: NO_DATA_COLOR };
 }
 
+const DEFAULT_START = "2025-11-01";
+
 export default function AttendanceOverallStats() {
-  const [start, setStart] = useState(dayjs().startOf("year").format("YYYY-MM-DD"));
+  const [start, setStart] = useState(DEFAULT_START);
   const [end, setEnd] = useState(dayjs().format("YYYY-MM-DD"));
   const [extraDates, setExtraDates] = useState<string[]>([]);
   const [addDateInput, setAddDateInput] = useState("");
@@ -57,6 +75,21 @@ export default function AttendanceOverallStats() {
   const [importJson, setImportJson] = useState("");
   const [importResult, setImportResult] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [cellModal, setCellModal] = useState<{
+    name: string;
+    date: string;
+    label: string;
+    groupName: string;
+    cellName: string;
+    status: string | null;
+    attended_at: string | null;
+    fee: number | null;
+    is_report_required: boolean;
+    late_fee_excused: boolean;
+    report_excused: boolean;
+    note: string | null;
+    updated_by: string | null;
+  } | null>(null);
 
   const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ["admin-attendance-overall-stats", start, end],
@@ -555,6 +588,17 @@ export default function AttendanceOverallStats() {
                         const label =
                           fee === null && !cell
                             ? "미기록"
+                            : fee === 0
+                              ? "출석 0원"
+                              : cell?.status === "unexcused_absence"
+                                ? "무단결석"
+                                : (fee ?? 0) > 0
+                                  ? `${(fee ?? 0).toLocaleString()}원`
+                                  : "출석";
+                        const hasDetail = cell != null;
+                        const modalLabel =
+                          fee === null && !cell
+                            ? "미기록"
                             : isExcused
                               ? `예외${cell?.note ? `: ${cell.note}` : ""}`
                               : fee === 0
@@ -574,25 +618,61 @@ export default function AttendanceOverallStats() {
                               textAlign: "center",
                               padding: 0,
                             }}
-                            title={`${dayjs(w).format("YYYY년 M월 D일")} · ${row.name} · ${label}`}
                           >
                             <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => hasDetail && setCellModal({
+                                name: row.name,
+                                date: w,
+                                label: modalLabel,
+                                groupName: row.group_name ?? "-",
+                                cellName: row.cell_name ?? "-",
+                                status: cell?.status ?? null,
+                                attended_at: (row as any).weeklyAttendedAt?.[w] ?? (cell as any)?.attended_at ?? cell?.attended_at ?? null,
+                                fee: cell?.fee ?? null,
+                                is_report_required: cell?.is_report_required ?? false,
+                                late_fee_excused: cell?.late_fee_excused ?? false,
+                                report_excused: cell?.report_excused ?? false,
+                                note: cell?.note ?? null,
+                                updated_by: cell?.updated_by ?? null,
+                              })}
+                              onKeyDown={(e) => {
+                                if (hasDetail && (e.key === "Enter" || e.key === " ")) {
+                                  e.preventDefault();
+                                  setCellModal({
+                                    name: row.name,
+                                    date: w,
+                                    label: modalLabel,
+                                    groupName: row.group_name ?? "-",
+                                    cellName: row.cell_name ?? "-",
+                                    status: cell?.status ?? null,
+                                    attended_at: (row as any).weeklyAttendedAt?.[w] ?? (cell as any)?.attended_at ?? cell?.attended_at ?? null,
+                                    fee: cell?.fee ?? null,
+                                    is_report_required: cell?.is_report_required ?? false,
+                                    late_fee_excused: cell?.late_fee_excused ?? false,
+                                    report_excused: cell?.report_excused ?? false,
+                                    note: cell?.note ?? null,
+                                    updated_by: cell?.updated_by ?? null,
+                                  });
+                                }
+                              }}
                               style={{
                                 width: CELL_SIZE,
                                 height: CELL_SIZE,
                                 borderRadius: 3,
                                 background: bg,
                                 border: "1px solid #d0d7de",
-                                cursor: "default",
+                                cursor: hasDetail ? "pointer" : "default",
                                 display: "inline-flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 fontSize: 10,
                                 fontWeight: 700,
-                                color: isExcused ? "#64748b" : cell?.status === "unexcused_absence" || (cell?.status === "late" && (cell?.fee ?? 0) > 0) ? "#fff" : "transparent",
+                                color: bg === "#f1f5f9" ? "#64748b" : isExcused ? "#1a1a1a" : cell?.status === "unexcused_absence" || (cell?.status === "late" || ((cell?.fee ?? 0) > 0)) ? "#fff" : "transparent",
                               }}
                             >
-                              {isExcused ? "✕" : text ?? ""}
+                              {isExcused ? "✕" : (text ?? (bg === "#f1f5f9" ? "✕" : ""))}
                             </span>
                           </td>
                         );
@@ -602,6 +682,102 @@ export default function AttendanceOverallStats() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* 셀 상세 모달 (클릭 시 예외 사유 등) */}
+        {cellModal && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cell-modal-title"
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+              padding: 20,
+            }}
+            onClick={() => setCellModal(null)}
+          >
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 12,
+                padding: 20,
+                maxWidth: 440,
+                width: "100%",
+                boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+                maxHeight: "90vh",
+                overflowY: "auto",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="cell-modal-title" style={{ margin: "0 0 16px 0", fontSize: 16, fontWeight: 600 }}>
+                출석 상세
+              </h3>
+              <dl style={{ margin: 0, fontSize: 14, display: "grid", gap: "8px 12px", gridTemplateColumns: "120px 1fr" }}>
+                <dt style={{ color: "#57606a", fontWeight: 500 }}>날짜</dt>
+                <dd style={{ margin: 0 }}>{dayjs(cellModal.date).format("YYYY년 M월 D일 (ddd)")}</dd>
+                <dt style={{ color: "#57606a", fontWeight: 500 }}>이름</dt>
+                <dd style={{ margin: 0 }}>{cellModal.name}</dd>
+                <dt style={{ color: "#57606a", fontWeight: 500 }}>그룹</dt>
+                <dd style={{ margin: 0 }}>{cellModal.groupName}</dd>
+                <dt style={{ color: "#57606a", fontWeight: 500 }}>다락방</dt>
+                <dd style={{ margin: 0 }}>{cellModal.cellName}</dd>
+                <dt style={{ color: "#57606a", fontWeight: 500 }}>상태</dt>
+                <dd style={{ margin: 0 }}>{cellModal.label}</dd>
+                <dt style={{ color: "#57606a", fontWeight: 500 }}>출석 시각</dt>
+                <dd style={{ margin: 0 }}>
+                  {formatAttendedAt(cellModal.attended_at)}
+                </dd>
+                <dt style={{ color: "#57606a", fontWeight: 500 }}>지각비</dt>
+                <dd style={{ margin: 0 }}>
+                  {cellModal.fee != null && cellModal.fee > 0
+                    ? `${cellModal.fee.toLocaleString()}원`
+                    : cellModal.fee === 0 ? "0원" : "—"}
+                </dd>
+                <dt style={{ color: "#57606a", fontWeight: 500 }}>OD 보고서 필요</dt>
+                <dd style={{ margin: 0 }}>{cellModal.is_report_required ? "예" : "아니오"}</dd>
+                <dt style={{ color: "#57606a", fontWeight: 500 }}>지각비 예외</dt>
+                <dd style={{ margin: 0 }}>{cellModal.late_fee_excused ? "예" : "아니오"}</dd>
+                <dt style={{ color: "#57606a", fontWeight: 500 }}>보고서 예외</dt>
+                <dd style={{ margin: 0 }}>{cellModal.report_excused ? "예" : "아니오"}</dd>
+                {cellModal.updated_by && (
+                  <>
+                    <dt style={{ color: "#57606a", fontWeight: 500 }}>수정자</dt>
+                    <dd style={{ margin: 0 }}>{cellModal.updated_by}</dd>
+                  </>
+                )}
+                {(cellModal.note != null && cellModal.note !== "") && (
+                  <>
+                    <dt style={{ color: "#57606a", fontWeight: 500 }}>예외 처리 사유</dt>
+                    <dd style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{cellModal.note}</dd>
+                  </>
+                )}
+              </dl>
+              <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setCellModal(null)}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#fff",
+                    background: "#238636",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </S.Container>

@@ -43,6 +43,10 @@ export default function AttendanceList() {
   const [showOnlyDuplicateNameGroupCell, setShowOnlyDuplicateNameGroupCell] = useState(false);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
 
+  const [pasteText, setPasteText] = useState('');
+  const [pasteSubmitting, setPasteSubmitting] = useState(false);
+  const [pasteResult, setPasteResult] = useState<{ inserted: number; updated: number; notFound?: string[] } | null>(null);
+
   const queryClient = useQueryClient();
 
   const { data: attendanceData, isLoading, refetch, isRefetching } = useQuery({
@@ -1027,6 +1031,90 @@ export default function AttendanceList() {
           >
             일괄 예외
           </button>
+        </div>
+
+        {/* 텍스트 붙여넣기로 해당 날짜 일괄 저장 */}
+        <div
+          style={{
+            marginBottom: '20px',
+            padding: '16px 20px',
+            background: '#fefce8',
+            border: '1px solid #fde047',
+            borderRadius: '12px',
+          }}
+        >
+          <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#854d0e', margin: '0 0 10px 0' }}>
+            📥 텍스트로 일괄 입력 (해당 날짜에 저장)
+          </h4>
+          <p style={{ fontSize: '12px', color: '#713f12', margin: '0 0 10px 0' }}>
+            형식: <strong>다락방/역할</strong>·이름·값을 <strong>탭</strong>으로 구분. 값: <strong>0</strong>=정상, <strong>1~4</strong>=지각비, <strong>5</strong>=무단결석, <strong>예외</strong> 또는 <strong>사유 텍스트</strong>=결석(인정)+예외사유. 동명이인은 다락방+이름 우선 매칭 후 이름만 매칭.
+          </p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <textarea
+              value={pasteText}
+              onChange={(e) => { setPasteText(e.target.value); setPasteResult(null); }}
+              placeholder={'그룹장\t박세리\t0\n기쁨\t구세빈\t0\n\t이우연\t0\n...'}
+              rows={6}
+              style={{
+                flex: '1',
+                minWidth: '280px',
+                padding: '10px 12px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+              }}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                type="button"
+                disabled={!pasteText.trim() || pasteSubmitting}
+                onClick={async () => {
+                  if (!pasteText.trim()) return;
+                  setPasteSubmitting(true);
+                  setPasteResult(null);
+                  try {
+                    const res = await fetch('/api/admin/attendance/bulk-paste', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ weekDate: date, text: pasteText }),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      setPasteResult({ inserted: data.inserted ?? 0, updated: data.updated ?? 0, notFound: data.notFound });
+                      refetch();
+                    } else {
+                      alert(data.error || '저장 실패');
+                    }
+                  } catch (e) {
+                    console.error(e);
+                    alert('오류가 발생했습니다.');
+                  } finally {
+                    setPasteSubmitting(false);
+                  }
+                }}
+                style={{
+                  padding: '10px 20px',
+                  background: pasteText.trim() && !pasteSubmitting ? '#ca8a04' : '#e2e8f0',
+                  color: pasteText.trim() && !pasteSubmitting ? '#fff' : '#94a3b8',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: pasteText.trim() && !pasteSubmitting ? 'pointer' : 'not-allowed',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                }}
+              >
+                {pasteSubmitting ? '저장 중…' : `${date}로 저장`}
+              </button>
+              {pasteResult && (
+                <div style={{ fontSize: '12px', color: '#713f12' }}>
+                  신규 {pasteResult.inserted}건, 수정 {pasteResult.updated}건
+                  {pasteResult.notFound?.length ? ` · 매칭 안 됨: ${pasteResult.notFound.slice(0, 5).join(', ')}${pasteResult.notFound.length > 5 ? '…' : ''}` : ''}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* 필터 (그룹 / 다락방 / 이름) - OD 명단 관리와 동일 */}
