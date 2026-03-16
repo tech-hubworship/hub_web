@@ -42,6 +42,10 @@ const BibleCardPromotion = dynamic(() => import('./components/BibleCardPromotion
   ssr: false,
   loading: () => <div style={{ minHeight: '400px', background: '#1a1a2e' }}></div>
 });
+const HubUpBanner = dynamic(() => import('./components/HubUpBanner'), {
+  ssr: false,
+  loading: () => <div style={{ minHeight: '100px' }}></div>
+});
 const ContentBanner = dynamic(() => import('./components/ContentBanner'), { 
   ssr: false,
   loading: () => <div style={{ minHeight: '200px', background: '#f8f9fa' }}></div>
@@ -179,6 +183,13 @@ const MainPage = memo(function MainPage() {
           <Main />
         </LazyLoadSection>
     
+        {/* 허브업 D-day 배너 */}
+        <LazyLoadSection id="hubup-banner-section" priority={true}>
+          <ContentWrapper>
+            <HubUpBanner />
+          </ContentWrapper>
+        </LazyLoadSection>
+
         {/* 말씀카드 페이지 광고 섹션 - 두 번째 섹션 (전체 너비) */}
         <LazyLoadSection id="bible-card-promotion-section" priority={true}>
           <BibleCardPromotion />

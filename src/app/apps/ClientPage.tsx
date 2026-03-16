@@ -440,6 +440,53 @@ const QAIconImage = styled(motion.div)`
   overflow: hidden;
 `;
 
+/* 허브업: 허브 그린 배경 + 흰색 텐트 아이콘 */
+const HUBUP_GREEN = "#278f5a";
+
+const HubUpIconLayout = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10%;
+`;
+
+function HubUpIconContent() {
+  return (
+    <HubUpIconLayout>
+      <svg
+        viewBox="0 0 56 56"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ width: "100%", height: "100%", maxWidth: 44, maxHeight: 44 }}
+        aria-hidden
+      >
+        {/* Tent / camp shape */}
+        <path d="M4 44L28 8L52 44H4Z" stroke="#ffffff" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
+        <path d="M28 44V28" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M21 44V38C21 34.686 24.134 32 28 32C31.866 32 35 34.686 35 38V44" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
+    </HubUpIconLayout>
+  );
+}
+
+const HubUpIconImage = styled(motion.div)`
+  width: ${APP_ICON_SIZE};
+  height: ${APP_ICON_SIZE};
+  min-width: 48px;
+  min-height: 48px;
+  background: ${HUBUP_GREEN};
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(39, 143, 90, 0.4);
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+`;
+
 const RestaurantIconInner = styled.div`
   width: 80%;
   height: 80%;
@@ -569,6 +616,13 @@ export default function AppsClientPage() {
   const [isRedirecting, setIsRedirecting] = useState(false);
   // 새가족 그룹(group_id=5)인 경우에만 '우리 다락방' 아이콘 노출
   const [isDarakbangUser, setIsDarakbangUser] = useState<boolean | null>(null);
+  // 허브업 당일(2026-05-24) 이후에만 아이콘 활성화
+  const [isHubUpActive, setIsHubUpActive] = useState(false);
+
+  React.useEffect(() => {
+    const eventDate = new Date('2026-05-24T00:00:00+09:00');
+    setIsHubUpActive(new Date() >= eventDate);
+  }, []);
 
   React.useEffect(() => {
     if (sessionStatus === 'authenticated') {
@@ -648,6 +702,30 @@ export default function AppsClientPage() {
           </AppHeader>
 
           <AppsGrid>
+            {/* 허브업 아이콘 — 5/24 이후 활성화 */}
+            {isHubUpActive && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.3 }}
+              >
+                <AppIcon
+                  onClick={() => handleAppClick("/hub_up")}
+                  onMouseEnter={() => setHoveredApp(-2)}
+                  onMouseLeave={() => setHoveredApp(null)}
+                >
+                  <HubUpIconImage
+                    whileHover={{ scale: 1.1, y: -4 }}
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <HubUpIconContent />
+                  </HubUpIconImage>
+                  <AppLabel>허브업</AppLabel>
+                </AppIcon>
+              </motion.div>
+            )}
+
             {/* 우리 다락방 먼저 배치 - 새가족 그룹(group_id=5)에만 표시 */}
             {isDarakbangUser === true && (
               <motion.div
