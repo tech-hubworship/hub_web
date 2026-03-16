@@ -22,7 +22,7 @@ export default function HubUpLayout({
 
 const LayoutContainer = styled.div`
   min-height: 100vh;
-  background-color: #eaf1ed; /* Similar to form background */
+  background-color: #f0f4f2; /* 기존보다 살짝 더 부드러운 배경색 */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -31,21 +31,24 @@ const LayoutContainer = styled.div`
 
 const Header = styled.header`
   width: 100%;
-  max-width: 768px; /* Mobile/tablet friendly max width */
-  background-color: #278f5a; /* Green from the banner */
-  padding: 10px;
+  max-width: 768px;
+  background-color: #278f5a;
+  padding: 12px 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 헤더 구분감을 위한 그림자 추가 */
+  z-index: 10;
 `;
 
 const HeaderImage = styled.img`
   width: 100%;
   height: auto;
   border-radius: 8px;
+  display: block;
 `;
 
 const ContentArea = styled.main`
   width: 100%;
   max-width: 768px;
-  padding: 16px;
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
