@@ -1,85 +1,297 @@
-"use client";
+﻿"use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { keyframes } from '@emotion/react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
+type CarRole = '' | '자가운전자' | '동승자' | '택시 및 대중교통';
+
+interface FormData {
+  community: string;
+  group: string;
+  leaderName: string;
+  name: string;
+  gender: string;
+  birthdate: string;
+  phone: string;
+  privacyConsent: boolean;
+
+  departureBusTime: string;
+  returnBusTime: string;
+  carRole: CarRole;
+  carPassengerCount: string;
+  carPassengerNames: string;
+  carPlateNumber: string;
+  carArrivalTime: string;
+  carDepartureTime: string;
+
+  electiveLecture: string;
+  depositConfirm: boolean;
+
+  intercessorTeam: string;
+  volunteerTeam: string;
+  finalSubmitConfirm: boolean;
+}
+
+const initialFormData: FormData = {
+  community: '',
+  group: '',
+  leaderName: '',
+  name: '',
+  gender: '',
+  birthdate: '',
+  phone: '',
+  privacyConsent: false,
+  departureBusTime: '',
+  returnBusTime: '',
+  carRole: '',
+  carPassengerCount: '',
+  carPassengerNames: '',
+  carPlateNumber: '',
+  carArrivalTime: '',
+  carDepartureTime: '',
+  electiveLecture: '',
+  depositConfirm: false,
+  intercessorTeam: '',
+  volunteerTeam: '',
+  finalSubmitConfirm: false,
+};
+
+// ─────────────────────────────────────────────
+// 슬롯 정의 (최대 인원만 내부적으로 관리)
+// ─────────────────────────────────────────────
+const DEPARTURE_SLOTS = [
+  { value: 'bus-선발대', label: '선발대', max: 43 },
+  { value: 'bus-18:00', label: '18:00', max: 86 },
+  { value: 'bus-18:30', label: '18:30', max: 86 },
+  { value: 'bus-19:00', label: '19:00', max: 258 },
+  { value: 'bus-20:00', label: '20:00', max: 172 },
+  { value: 'car', label: '자차/대중교통 이용', max: Infinity },
+];
+
+const RETURN_SLOTS = [
+  { value: 'bus-7:00', label: '7:00 (차세대 및 예배섬김에 한함)', max: Infinity },
+  { value: 'bus-11:30', label: '11:30', max: Infinity },
+  { value: 'car', label: '자차/대중교통 이용', max: Infinity },
+];
+
+const ARRIVAL_TIME_OPTIONS = [
+  '5/15 18:00', '5/15 19:00', '5/15 20:00', '5/15 21:00', '5/15 22:00', '5/15 23:00',
+  '5/16 이후 입소',
+];
+const DEPART_TIME_OPTIONS = [
+  '5/17 07:00', '5/17 08:00', '5/17 09:00', '5/17 10:00', '5/17 11:00', '5/17 11:30', '5/17 12:00', '5/17 이후',
+];
+
+const PHONE_REGEX = /^01[0-9]-\d{3,4}-\d{4}$/;
+
+// ═══════════════════════════════════════════════════════════
+// Component
+// ═══════════════════════════════════════════════════════════
 export default function HubUpSurvey() {
   const router = useRouter();
-  // step 0은 안내사항 확인 페이지, 1~6은 실제 설문 페이지입니다.
+  const { data: session, status: sessionStatus } = useSession();
+
   const [step, setStep] = useState(0);
-  const totalSteps = 6;
+  const totalSteps = 5;
 
-  // Intro State
   const [isNoticeChecked, setIsNoticeChecked] = useState(false);
+  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [phoneError, setPhoneError] = useState('');
+  const [submitError, setSubmitError] = useState('');
 
-  // Form State
-  const [formData, setFormData] = useState({
-    community: '',
-    name: '',
-    gender: '',
-    birthdate: '',
-    phone: '',
-    group: '',
-    leaderName: '',
-    departureTransportType: '', // 'bus' | 'car'
-    departureBusTime: '',
-    returnTransportType: '', // 'bus' | 'car'
-    returnBusTime: '',
-    carDetails: {
-      role: '', // driver, passenger, taxi
-      entryTime: '',
-      exitTime: '',
-    },
-    volunteerChoice1: '',
-    volunteerChoice2: '',
-    volunteerChoice3: '',
-    capApplication: '',
-    depositStatus: '',
-    privacyConsent: '',
-    question1: '',
-    question2: '',
-  });
+  // 그룹/다락방 동적 로드
+  const [groupOptions, setGroupOptions] = useState<string[]>([]);
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    if (name.startsWith('carDetails.')) {
-      const key = name.split('.')[1];
-      setFormData((prev) => ({
-        ...prev,
-        carDetails: { ...prev.carDetails, [key]: value },
-      }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+  // 슬롯별 현재 신청 인원 map: slotValue -> count
+  const [slotCounts, setSlotCounts] = useState<Record<string, number>>({});
+
+  // ── 1) 프로필 + 그룹목록 fetch ──────────────────────────
+  useEffect(() => {
+    if (sessionStatus === 'unauthenticated') {
+      router.push('/login?redirect=/hub_up');
+      return;
+    }
+
+    if (sessionStatus === 'authenticated' && session?.user && !isProfileLoaded) {
+      const fetchData = async () => {
+        try {
+          const res = await fetch('/api/user/profile');
+          if (res.ok) {
+            const result = await res.json();
+            setFormData((prev) => ({
+              ...prev,
+              name: result.name || '',
+              gender: result.gender || '',
+              birthdate: result.birth_date || '',
+              community: result.community || '',
+              group: result.group_name && result.cell_name
+                ? `${result.group_name}-${result.cell_name}` : '',
+            }));
+          }
+
+          const [cellsRes, groupsRes] = await Promise.all([
+            fetch('/api/common/cells'),
+            fetch('/api/common/groups'),
+          ]);
+
+          if (cellsRes.ok && groupsRes.ok) {
+            const cellsJson = await cellsRes.json();
+            const groupsJson = await groupsRes.json();
+
+            const groupMap = new Map<number, string>();
+            if (Array.isArray(groupsJson)) {
+              groupsJson.forEach((g: any) => groupMap.set(g.id, g.name));
+            }
+
+            const cellsArray: any[] = Array.isArray(cellsJson.cells)
+              ? cellsJson.cells
+              : Array.isArray(cellsJson) ? cellsJson : [];
+
+            const formatted = cellsArray
+              .map((cell: any) => `${groupMap.get(cell.group_id) || '기타'}-${cell.name}`)
+              .sort((a: string, b: string) => a.localeCompare(b));
+
+            const unique = Array.from(new Set(formatted)) as string[];
+            setGroupOptions([...unique, '해당없음']);
+          } else {
+            setGroupOptions(['해당없음']);
+          }
+        } catch (err) {
+          console.error('Error loading profile/groups:', err);
+        } finally {
+          setIsProfileLoaded(true);
+        }
+      };
+      fetchData();
+    }
+  }, [sessionStatus, session, router, isProfileLoaded]);
+
+  // ── 2) 슬롯 잔여석 fetch (차량 step 진입 시) ────────────
+  const fetchSlotCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('hub_up_registrations')
+        .select('departure_slot');
+
+      if (error) { console.error('slot count error:', error); return; }
+
+      const counts: Record<string, number> = {};
+      (data || []).forEach((row: any) => {
+        const s = row.departure_slot;
+        if (s) counts[s] = (counts[s] || 0) + 1;
+      });
+      setSlotCounts(counts);
+    } catch (err) {
+      console.error('fetchSlotCounts:', err);
     }
   };
 
-  const nextStep = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    setStep((s) => Math.min(s + 1, totalSteps));
-  };
-  const prevStep = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    setStep((s) => Math.max(s - 1, 0));
+  useEffect(() => {
+    if (step === 2) fetchSlotCounts();
+  }, [step]);
+
+  // ── helpers ──────────────────────────────────────────────
+  const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  const nextStep = () => { scrollTop(); setStep((s) => Math.min(s + 1, totalSteps)); };
+  const prevStep = () => { scrollTop(); setStep((s) => Math.max(s - 1, 0)); };
+  const set = (field: keyof FormData, value: string | boolean) =>
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    set('phone', val);
+    setPhoneError(val && !PHONE_REGEX.test(val)
+      ? "하이픈('-')을 포함한 올바른 형식으로 입력해주세요. (예: 010-1234-5678)"
+      : '');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const isCarSelected = formData.departureBusTime === 'car' || formData.returnBusTime === 'car';
+
+  // ── 제출 ──────────────────────────────────────────────────
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const query = new URLSearchParams({
-      name: formData.name,
-      group: formData.group,
-      departureTime: formData.departureTransportType === 'bus' ? formData.departureBusTime : '자차/대중교통',
-      returnTime: formData.returnTransportType === 'bus' ? formData.returnBusTime : '자차/대중교통',
-    }).toString();
-    router.push(`/hub_up/myinfo?${query}`);
+    setSubmitError('');
+    try {
+      const { error } = await supabase.from('hub_up_registrations').insert([{
+        user_id: session?.user?.id || null,
+        community: formData.community,
+        group_name: formData.group,
+        leader_name: formData.leaderName,
+        name: formData.name,
+        gender: formData.gender,
+        birthdate: formData.birthdate,
+        phone: formData.phone,
+        privacy_consent: formData.privacyConsent,
+
+        departure_slot: formData.departureBusTime,
+        return_slot: formData.returnBusTime,
+        car_role: formData.carRole || null,
+        car_passenger_count: formData.carPassengerCount || null,
+        car_passenger_names: formData.carPassengerNames || null,
+        car_plate_number: formData.carPlateNumber || null,
+        car_arrival_time: formData.carArrivalTime || null,
+        car_departure_time: formData.carDepartureTime || null,
+
+        elective_lecture: formData.electiveLecture,
+        deposit_confirm: formData.depositConfirm,
+
+        intercessor_team: formData.intercessorTeam,
+        volunteer_team: formData.volunteerTeam,
+      }]);
+
+      if (error) {
+        console.error('submit error:', error);
+        setSubmitError('제출 중 오류가 발생했습니다. 다시 시도해주세요.');
+        return;
+      }
+
+      scrollTop();
+      setStep(6);
+    } catch (err) {
+      console.error('submit exception:', err);
+      setSubmitError('제출 중 오류가 발생했습니다. 다시 시도해주세요.');
+    }
   };
 
-  const needsCarDetails = formData.departureTransportType === 'car' || formData.returnTransportType === 'car';
+  const handleStepSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (step === 1 && !PHONE_REGEX.test(formData.phone)) {
+      setPhoneError("하이픈('-')을 포함한 올바른 형식으로 입력해주세요. (예: 010-1234-5678)");
+      return;
+    }
+    if (step === totalSteps) {
+      handleSubmit(e);
+    } else {
+      nextStep();
+    }
+  };
 
+  if (sessionStatus === 'loading' || (sessionStatus === 'authenticated' && !isProfileLoaded)) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa', fontSize: '15px' }}>
+        기본 정보를 불러오고 있습니다... 🌸
+      </div>
+    );
+  }
+
+  // ── render ────────────────────────────────────────────────
   return (
     <FormContainer>
-      {step === 0 ? (
+
+      {/* ── STEP 0: 안내사항 ── */}
+      {step === 0 && (
         <StepWrapper key="step-0">
           <NoticeSection>
             <NoticeHeader>
@@ -90,19 +302,20 @@ export default function HubUpSurvey() {
             <NoticeContentArea>
               <NoticeBlock>
                 <BlockTitle>📅 일정 및 장소</BlockTitle>
-                <BlockText>• <strong>일정:</strong> 5월 24-26일 (금-주일)</BlockText>
+                <BlockText>• <strong>일정:</strong> 5월 15-17일 (금-주일)</BlockText>
                 <BlockText style={{ color: '#d93025', fontSize: '14px', marginTop: '2px', marginBottom: '8px' }}>
-                  ❗️ Companion1은 5월 24일, 21시에 시작됩니다.
+                  ❗️ Companion1은 5월 15일, 추후 공지 예정 시간에 시작됩니다.
                 </BlockText>
                 <BlockText>• <strong>장소:</strong> 소망 수양관<br />&nbsp;&nbsp;&nbsp;(경기도 광주시 곤지암읍 건업길 122-83)</BlockText>
               </NoticeBlock>
 
               <NoticeBlock>
                 <BlockTitle>💸 회비 및 입금 안내</BlockTitle>
-                <BlockText>• <strong>회비:</strong> 얼리버드(4/21~5/4) 75,000원 / 일반(5/5~5/8) 85,000원</BlockText>
-                <BlockText>• <strong>입금계좌:</strong> 하나은행 573-910022-19605 / 온누리교회(허브행사비)</BlockText>
+                <BlockText>• <strong>얼리버드</strong> (4/12~4/18): 80,000원</BlockText>
+                <BlockText>• <strong>일반</strong> (4/19~4/26): 85,000원</BlockText>
+                <BlockText>• <strong>입금계좌:</strong> 하나은행 (계좌번호) / (예금주)</BlockText>
                 <HighlightBox>
-                  <strong style={{ color: '#1e7046' }}>📍 입금 주의사항 안내</strong><br />
+                  <strong style={{ color: '#1d4ed8' }}>📍 입금 주의사항 안내</strong><br />
                   - 회비를 입금 하셔야 접수 완료 입니다.<br />
                   - 입금자명 이름+연락처 끝 네자리 기입 요망 (ex. 홍길동8572)<br />
                   - 입금 후 확인 문자가 발송되오니, 연락처를 정확히 기재 바랍니다.<br />
@@ -113,27 +326,27 @@ export default function HubUpSurvey() {
 
               <NoticeBlock>
                 <BlockTitle>⚠️ 회비 환불</BlockTitle>
-                <BlockText>• 5월 18일 (토) 자정까지 환불 신청 가능</BlockText>
+                <BlockText>• 5월 3일 (일) 자정까지 환불 신청 가능</BlockText>
               </NoticeBlock>
 
               <NoticeBlock>
                 <BlockTitle>📝 신청 및 접수 확인</BlockTitle>
-                <BlockText>• <strong>신청 기간:</strong> 4월 21일 (주일) ~ 5월 8일(수) 또는 인원 마감시(600명)</BlockText>
+                <BlockText>• <strong>신청 기간:</strong> 4월 12일 (주일) ~ 4월 26일(주일) 또는 인원 마감시 (700명)</BlockText>
                 <BlockText>• <strong>접수 확인:</strong></BlockText>
                 <BlockText style={{ paddingLeft: '14px' }}>
-                  1차 : 4월 24일 (수) 18시<br />
-                  2차 : 5월 1일 (수) 18시<br />
-                  3차 : 5월 9일 (목) 18시
+                  1차 : 4월 13일 (월) 시간 추후 공지<br />
+                  2차 : 4월 20일 (월) 20시<br />
+                  3차 : 4월 27일 (월) 20시
                 </BlockText>
                 <BlockText style={{ color: '#5f6368', fontSize: '13.5px', marginTop: '6px' }}>
-                  ※ 수요일 18시 이후 신청자는 "차주 수요일" 발송<br />
+                  ※ 월요일 20시 이후 신청자는 &quot;차주 월요일&quot; 발송<br />
                   ※ 해당일에 문자를 받지 못하신 분은 서기MC에게 연락주세요 :)
                 </BlockText>
               </NoticeBlock>
 
               <NoticeBlock>
                 <BlockTitle>📞 문의</BlockTitle>
-                <BlockText>• 서기MC (010-6310-2082)</BlockText>
+                <BlockText>• 서기MC (010-8284-3283)</BlockText>
               </NoticeBlock>
 
               <Divider />
@@ -146,21 +359,43 @@ export default function HubUpSurvey() {
                 />
                 <span>위 안내사항을 모두 꼼꼼히 읽었으며, 숙지하였습니다.</span>
               </CheckboxLabel>
-              <StartButton
-                disabled={!isNoticeChecked}
-                onClick={nextStep}
-              >
+              <StartButton disabled={!isNoticeChecked} onClick={nextStep}>
                 설문 시작하기
               </StartButton>
             </NoticeContentArea>
           </NoticeSection>
         </StepWrapper>
-      ) : (
+      )}
+
+      {/* ── STEP 6: 제출 완료 ── */}
+      {step === 6 && (
+        <StepWrapper key="step-6">
+          <SubmitCompleteSection>
+            <SubmitCompleteIcon>✅</SubmitCompleteIcon>
+            <SubmitCompleteTitle>제출이 완료되었습니다!</SubmitCompleteTitle>
+            <SubmitCompleteMessage>
+              [24 허브업] Companion 신청서가 성공적으로 제출되었습니다.<br /><br />
+              입금 확인 후 접수가 완료되며,<br />
+              확인 문자가 발송될 예정입니다.<br /><br />
+              <strong>입금 계좌</strong><br />
+              하나은행 (계좌번호) / (예금주)<br /><br />
+              입금시 <strong>이름+연락처 끝 네자리</strong> 기입 요망<br />
+              (ex. 홍길동8572)
+            </SubmitCompleteMessage>
+            <SubmitCompleteNote>
+              문의: 서기MC (010-8284-3283)
+            </SubmitCompleteNote>
+          </SubmitCompleteSection>
+        </StepWrapper>
+      )}
+
+      {/* ── STEP 1~5: 설문 ── */}
+      {step >= 1 && step <= totalSteps && (
         <>
           <TitleBlock>
             <Title>[24 허브업] Companion</Title>
             <Description>
-              허브업 등록을 위한 설문입니다. <br />
+              허브업 등록을 위한 설문입니다.<br />
               <RequiredAsterisk>*</RequiredAsterisk> 표시는 필수 질문입니다.
             </Description>
           </TitleBlock>
@@ -170,246 +405,352 @@ export default function HubUpSurvey() {
           </ProgressBarContainer>
           <StepIndicator>Step {step} of {totalSteps}</StepIndicator>
 
-          <form onSubmit={step === totalSteps ? handleSubmit : (e) => { e.preventDefault(); nextStep(); }}>
+          <form onSubmit={handleStepSubmit}>
             <StepWrapper key={`step-${step}`}>
+
+              {/* ── 2p: 기본 정보 ── */}
               {step === 1 && (
                 <Section>
-                  <SectionTitle>기본정보</SectionTitle>
+                  <SectionTitle>기본 정보</SectionTitle>
+
                   <Field>
                     <Label>소속 공동체 <RequiredAsterisk>*</RequiredAsterisk></Label>
                     <RadioGroup>
-                      <RadioLabel checked={formData.community === '허브'}>
-                        <input type="radio" name="community" value="허브" onChange={handleChange} required checked={formData.community === '허브'} /> 허브
-                      </RadioLabel>
-                      <RadioLabel checked={formData.community === '타공동체(온누리)'}>
-                        <input type="radio" name="community" value="타공동체(온누리)" onChange={handleChange} checked={formData.community === '타공동체(온누리)'} /> 타공동체(온누리)
-                      </RadioLabel>
-                      <RadioLabel checked={formData.community === '타교회'}>
-                        <input type="radio" name="community" value="타교회" onChange={handleChange} checked={formData.community === '타교회'} /> 타교회
-                      </RadioLabel>
+                      {['허브', '타공동체 (온누리교회)', '타교회'].map((v) => (
+                        <RadioLabel key={v} checked={formData.community === v}>
+                          <input type="radio" name="community" value={v} required
+                            checked={formData.community === v}
+                            onChange={() => set('community', v)} /> {v}
+                        </RadioLabel>
+                      ))}
                     </RadioGroup>
                   </Field>
+
+                  <Field>
+                    <Label>그룹/다락방 <RequiredAsterisk>*</RequiredAsterisk></Label>
+                    <Select name="group" value={formData.group} required
+                      onChange={(e) => set('group', e.target.value)}>
+                      <option value="">선택해주세요</option>
+                      {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+                    </Select>
+                  </Field>
+
+                  <Field>
+                    <Label>순장님 성함 <RequiredAsterisk>*</RequiredAsterisk>
+                      <SubLabel>*순모임에 참여하고 있지 않는 경우 &quot;없음&quot;이라고 적어주세요.</SubLabel>
+                      <SubLabel>**HUB 외 타 공동체인 경우 소속된 공동체를 적어주세요.</SubLabel>
+                    </Label>
+                    <Input type="text" value={formData.leaderName} required
+                      placeholder="내 답변"
+                      onChange={(e) => set('leaderName', e.target.value)} />
+                  </Field>
+
                   <Field>
                     <Label>이름 <RequiredAsterisk>*</RequiredAsterisk></Label>
-                    <Input type="text" name="name" value={formData.name} onChange={handleChange} required placeholder="홍길동" />
+                    <Input type="text" value={formData.name} required
+                      placeholder="홍길동"
+                      onChange={(e) => set('name', e.target.value)} />
                   </Field>
+
                   <Field>
                     <Label>성별 <RequiredAsterisk>*</RequiredAsterisk></Label>
                     <RadioGroup>
-                      <RadioLabel checked={formData.gender === '남'}>
-                        <input type="radio" name="gender" value="남" onChange={handleChange} required checked={formData.gender === '남'} /> 남
-                      </RadioLabel>
-                      <RadioLabel checked={formData.gender === '여'}>
-                        <input type="radio" name="gender" value="여" onChange={handleChange} checked={formData.gender === '여'} /> 여
-                      </RadioLabel>
+                      {['남', '여'].map((v) => (
+                        <RadioLabel key={v} checked={formData.gender === v}>
+                          <input type="radio" name="gender" value={v} required
+                            checked={formData.gender === v}
+                            onChange={() => set('gender', v)} /> {v}
+                        </RadioLabel>
+                      ))}
                     </RadioGroup>
                   </Field>
+
                   <Field>
-                    <Label>생년월일 <RequiredAsterisk>*</RequiredAsterisk><SubLabel>동명이인을 확인하기 위함입니다</SubLabel></Label>
-                    <Input type="date" name="birthdate" value={formData.birthdate} onChange={handleChange} required />
+                    <Label>생년월일 <RequiredAsterisk>*</RequiredAsterisk>
+                      <SubLabel>동명이인을 확인하기 위함입니다</SubLabel>
+                    </Label>
+                    <Input type="text" value={formData.birthdate} required
+                      placeholder="0000년 00월 00일"
+                      onChange={(e) => set('birthdate', e.target.value)} />
                   </Field>
+
                   <Field>
-                    <Label>연락처 <RequiredAsterisk>*</RequiredAsterisk><SubLabel>ex. 010-1234-5678 (하이픈'-'을 꼭 넣어서 써주세요)</SubLabel></Label>
-                    <Input type="tel" name="phone" value={formData.phone} onChange={handleChange} required placeholder="010-0000-0000" />
+                    <Label>연락처 <RequiredAsterisk>*</RequiredAsterisk>
+                      <SubLabel>ex. 010-1234-5678 / 하이픈 &apos;-&apos;을 꼭 넣어서 작성해주세요</SubLabel>
+                    </Label>
+                    <Input type="tel" value={formData.phone} required
+                      placeholder="010-0000-0000"
+                      onChange={handlePhoneChange}
+                      style={phoneError ? { borderColor: '#d93025' } : {}} />
+                    {phoneError && <ErrorText>{phoneError}</ErrorText>}
+                  </Field>
+
+                  <Field>
+                    <Label>개인정보 수집 및 이용에 대한 동의 <RequiredAsterisk>*</RequiredAsterisk>
+                      <SubLabel>수집한 개인정보는 신청 후 안내 및 공지에 사용하며, 수련회 이후 파기됩니다.</SubLabel>
+                    </Label>
+                    <RadioLabel checked={formData.privacyConsent}>
+                      <input type="checkbox"
+                        checked={formData.privacyConsent}
+                        onChange={(e) => set('privacyConsent', e.target.checked)}
+                        required
+                      /> 동의합니다
+                    </RadioLabel>
                   </Field>
                 </Section>
               )}
 
+              {/* ── 3p: 차량 ── */}
               {step === 2 && (
                 <Section>
-                  <SectionTitle>소속 상세</SectionTitle>
-                  <Field>
-                    <Label>그룹/다락방 <RequiredAsterisk>*</RequiredAsterisk></Label>
-                    <Select name="group" value={formData.group} onChange={handleChange} required>
-                      <option value="">선택해주세요</option>
-                      <option value="그룹1-다락방A">그룹1-다락방A</option>
-                      <option value="그룹1-다락방B">그룹1-다락방B</option>
-                      <option value="그룹2-다락방C">그룹2-다락방C</option>
-                    </Select>
-                  </Field>
-                  <Field>
-                    <Label>순장님 성함을 기입해주세요 <RequiredAsterisk>*</RequiredAsterisk><SubLabel>순모임에 참여하고 있지 않는 경우 "없음"이라고 적어주세요.</SubLabel></Label>
-                    <Input type="text" name="leaderName" value={formData.leaderName} onChange={handleChange} required placeholder="내 답변" />
-                  </Field>
-                </Section>
-              )}
+                  <SectionTitle>차량</SectionTitle>
 
-              {step === 3 && (
-                <Section>
-                  <SectionTitle>교통 수단</SectionTitle>
                   <Field>
-                    <Label>[5/24] 출발 탑승 수단 <RequiredAsterisk>*</RequiredAsterisk></Label>
+                    <Label>[5/15] 차량 탑승 시각 <RequiredAsterisk>*</RequiredAsterisk>
+                      <SubLabel>선착순 마감됩니다. 마감된 시간대는 선택할 수 없습니다.</SubLabel>
+                    </Label>
                     <RadioGroup>
-                      <RadioLabel checked={formData.departureTransportType === 'bus'}>
-                        <input type="radio" name="departureTransportType" value="bus" onChange={handleChange} required checked={formData.departureTransportType === 'bus'} /> 버스 탑승
-                      </RadioLabel>
-                      <RadioLabel checked={formData.departureTransportType === 'car'}>
-                        <input type="radio" name="departureTransportType" value="car" onChange={handleChange} checked={formData.departureTransportType === 'car'} /> 자차/대중교통 이용
-                      </RadioLabel>
+                      {DEPARTURE_SLOTS.map((slot) => {
+                        const count = slotCounts[slot.value] || 0;
+                        const isFull = count >= slot.max;
+                        return (
+                          <RadioLabel key={slot.value}
+                            checked={formData.departureBusTime === slot.value}
+                            disabled={isFull}>
+                            <input type="radio" name="departureBusTime" value={slot.value} required
+                              disabled={isFull}
+                              checked={formData.departureBusTime === slot.value}
+                              onChange={() => !isFull && set('departureBusTime', slot.value)} />
+                            <span>
+                              {slot.label}
+                              {isFull && <SoldOutBadge>마감</SoldOutBadge>}
+                            </span>
+                          </RadioLabel>
+                        );
+                      })}
                     </RadioGroup>
                   </Field>
-
-                  {formData.departureTransportType === 'bus' && (
-                    <Field>
-                      <Label>출발 버스 탑승 시각 <RequiredAsterisk>*</RequiredAsterisk></Label>
-                      <RadioGroup>
-                        <RadioLabel checked={formData.departureBusTime === '오후 2시(선발대)'}><input type="radio" name="departureBusTime" value="오후 2시(선발대)" onChange={handleChange} required checked={formData.departureBusTime === '오후 2시(선발대)'} /> [선발대] 오후 2시</RadioLabel>
-                        <RadioLabel checked={formData.departureBusTime === '오후 6시'}><input type="radio" name="departureBusTime" value="오후 6시" onChange={handleChange} checked={formData.departureBusTime === '오후 6시'} /> [1차] 오후 6시</RadioLabel>
-                        <RadioLabel checked={formData.departureBusTime === '오후 6시 30분'}><input type="radio" name="departureBusTime" value="오후 6시 30분" onChange={handleChange} checked={formData.departureBusTime === '오후 6시 30분'} /> [2차] 오후 6시 30분</RadioLabel>
-                        <RadioLabel checked={formData.departureBusTime === '오후 7시'}><input type="radio" name="departureBusTime" value="오후 7시" onChange={handleChange} checked={formData.departureBusTime === '오후 7시'} /> [3차] 오후 7시</RadioLabel>
-                        <RadioLabel checked={formData.departureBusTime === '오후 8시'}><input type="radio" name="departureBusTime" value="오후 8시" onChange={handleChange} checked={formData.departureBusTime === '오후 8시'} /> [4차] 오후 8시</RadioLabel>
-                      </RadioGroup>
-                    </Field>
-                  )}
 
                   <Divider />
 
                   <Field>
-                    <Label>[5/26] 복귀 탑승 수단 <RequiredAsterisk>*</RequiredAsterisk></Label>
+                    <Label>[5/17] 복귀 차량 탑승 시각 <RequiredAsterisk>*</RequiredAsterisk></Label>
                     <RadioGroup>
-                      <RadioLabel checked={formData.returnTransportType === 'bus'}>
-                        <input type="radio" name="returnTransportType" value="bus" onChange={handleChange} required checked={formData.returnTransportType === 'bus'} /> 버스 탑승
-                      </RadioLabel>
-                      <RadioLabel checked={formData.returnTransportType === 'car'}>
-                        <input type="radio" name="returnTransportType" value="car" onChange={handleChange} checked={formData.returnTransportType === 'car'} /> 자차/대중교통 이용
-                      </RadioLabel>
+                      {RETURN_SLOTS.map((slot) => (
+                        <RadioLabel key={slot.value} checked={formData.returnBusTime === slot.value}>
+                          <input type="radio" name="returnBusTime" value={slot.value} required
+                            checked={formData.returnBusTime === slot.value}
+                            onChange={() => set('returnBusTime', slot.value)} />
+                          {slot.label}
+                        </RadioLabel>
+                      ))}
                     </RadioGroup>
                   </Field>
 
-                  {formData.returnTransportType === 'bus' && (
-                    <Field>
-                      <Label>복귀 버스 탑승 시각 <RequiredAsterisk>*</RequiredAsterisk></Label>
-                      <RadioGroup>
-                        <RadioLabel checked={formData.returnBusTime === '7:00'}><input type="radio" name="returnBusTime" value="7:00" onChange={handleChange} required checked={formData.returnBusTime === '7:00'} /> 7:00 (차세대 및 예배섬김)</RadioLabel>
-                        <RadioLabel checked={formData.returnBusTime === '11:30'}><input type="radio" name="returnBusTime" value="11:30" onChange={handleChange} checked={formData.returnBusTime === '11:30'} /> 11:30</RadioLabel>
-                      </RadioGroup>
-                    </Field>
-                  )}
-
-                  {needsCarDetails && (
-                    <CarDetailsBox>
-                      <WarningText>! 자차/대중교통 이용자 추가 정보</WarningText>
-                      <Field>
-                        <Label>운전자/동승자/택시 여부 <RequiredAsterisk>*</RequiredAsterisk></Label>
-                        <RadioGroup>
-                          <RadioLabel checked={formData.carDetails.role === '자가운전자'}><input type="radio" name="carDetails.role" value="자가운전자" onChange={handleChange} required checked={formData.carDetails.role === '자가운전자'} /> 자가운전자 (주차 필요)</RadioLabel>
-                          <RadioLabel checked={formData.carDetails.role === '동승자'}><input type="radio" name="carDetails.role" value="동승자" onChange={handleChange} checked={formData.carDetails.role === '동승자'} /> 동승자 (주차 필요X)</RadioLabel>
-                          <RadioLabel checked={formData.carDetails.role === '택시 및 대중교통'}><input type="radio" name="carDetails.role" value="택시 및 대중교통" onChange={handleChange} checked={formData.carDetails.role === '택시 및 대중교통'} /> 택시 및 대중교통 이동</RadioLabel>
-                        </RadioGroup>
-                      </Field>
-                      <Field>
-                        <Label>소망 수양관 입소 예정 시각</Label>
-                        <Input type="text" name="carDetails.entryTime" value={formData.carDetails.entryTime} onChange={handleChange} required placeholder="예시 | 5/24, 20:00" />
-                      </Field>
-                      <Field>
-                        <Label>소망 수양관 퇴소 예정 시각</Label>
-                        <Input type="text" name="carDetails.exitTime" value={formData.carDetails.exitTime} onChange={handleChange} required placeholder="예시 | 5/26, 8:00" />
-                      </Field>
-                    </CarDetailsBox>
-                  )}
-                </Section>
-              )}
-
-              {step === 4 && (
-                <Section>
-                  <SectionTitle>자원봉사 신청</SectionTitle>
-                  <DescriptionBox>
-                    자원봉사를 원하시는 분들을 위한 조사입니다.<br />
-                    각 부문별 1, 2, 3순위를 선택해주세요. 지원을 원치 않으시면 "지원 안함"을 선택해주세요.
-                  </DescriptionBox>
-                  <Field>
-                    <Label>1지망 <RequiredAsterisk>*</RequiredAsterisk></Label>
-                    <Select name="volunteerChoice1" value={formData.volunteerChoice1} onChange={handleChange} required>
-                      <option value="">선택</option>
-                      <option value="안내">안내</option>
-                      <option value="주차">주차</option>
-                      <option value="식당">식당</option>
-                      <option value="의료">의료</option>
-                      <option value="미디어">미디어</option>
-                      <option value="지원 안함">지원 안함</option>
-                    </Select>
-                  </Field>
-                  {formData.volunteerChoice1 && formData.volunteerChoice1 !== "지원 안함" && (
+                  {isCarSelected && (
                     <>
-                      <Field>
-                        <Label>2지망</Label>
-                        <Select name="volunteerChoice2" value={formData.volunteerChoice2} onChange={handleChange}>
-                          <option value="">선택</option>
-                          <option value="안내">안내</option>
-                          <option value="주차">주차</option>
-                          <option value="식당">식당</option>
-                          <option value="의료">의료</option>
-                          <option value="미디어">미디어</option>
-                          <option value="지원 안함">해당 없음</option>
-                        </Select>
-                      </Field>
-                      <Field>
-                        <Label>3지망</Label>
-                        <Select name="volunteerChoice3" value={formData.volunteerChoice3} onChange={handleChange}>
-                          <option value="">선택</option>
-                          <option value="안내">안내</option>
-                          <option value="주차">주차</option>
-                          <option value="식당">식당</option>
-                          <option value="의료">의료</option>
-                          <option value="미디어">미디어</option>
-                          <option value="지원 안함">해당 없음</option>
-                        </Select>
-                      </Field>
+                      <Divider />
+                      <CarDetailsBox>
+                        <WarningText>🚗 자차/대중교통 이용자 추가 정보</WarningText>
+
+                        <Field>
+                          <Label>자차/대중교통 해당사항 체크 <RequiredAsterisk>*</RequiredAsterisk>
+                            <SubLabel>주차 대수 파악을 위한 조사입니다.</SubLabel>
+                          </Label>
+                          <RadioGroup>
+                            {([
+                              ['자가운전자', '자가운전자 (주차O)'],
+                              ['동승자', '동승자 (주차X)'],
+                              ['택시 및 대중교통', '택시 및 대중교통 이용'],
+                            ] as const).map(([val, label]) => (
+                              <RadioLabel key={val} checked={formData.carRole === val}>
+                                <input type="radio" name="carRole" value={val} required
+                                  checked={formData.carRole === val}
+                                  onChange={() => set('carRole', val)} />
+                                {label}
+                              </RadioLabel>
+                            ))}
+                          </RadioGroup>
+                        </Field>
+
+                        {formData.carRole === '자가운전자' && (
+                          <>
+                            <Field>
+                              <Label>총 탑승 인원 <RequiredAsterisk>*</RequiredAsterisk>
+                                <SubLabel>본인 포함 최대 8명</SubLabel>
+                              </Label>
+                              <Select value={formData.carPassengerCount} required
+                                onChange={(e) => set('carPassengerCount', e.target.value)}>
+                                <option value="">선택</option>
+                                <option value="1">1명 (혼자 - 동승자 없음)</option>
+                                {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+                                  <option key={n} value={String(n)}>{n}명</option>
+                                ))}
+                              </Select>
+                            </Field>
+                            {formData.carPassengerCount && formData.carPassengerCount !== '1' && (
+                              <Field>
+                                <Label>동승자 이름 기입
+                                  <SubLabel>쉼표(,)로 구분해서 작성해주세요.</SubLabel>
+                                </Label>
+                                <Input type="text" value={formData.carPassengerNames}
+                                  placeholder="예: 홍길동, 김철수"
+                                  onChange={(e) => set('carPassengerNames', e.target.value)} />
+                              </Field>
+                            )}
+                            <Field>
+                              <Label>차량 번호 <RequiredAsterisk>*</RequiredAsterisk></Label>
+                              <Input type="text" value={formData.carPlateNumber} required
+                                placeholder="예: 12가 3456"
+                                onChange={(e) => set('carPlateNumber', e.target.value)} />
+                            </Field>
+                          </>
+                        )}
+
+                        {(formData.carRole === '자가운전자' || formData.carRole === '동승자') && (
+                          <Field>
+                            <Label>입소 예정 시간 <RequiredAsterisk>*</RequiredAsterisk></Label>
+                            <Select value={formData.carArrivalTime} required
+                              onChange={(e) => set('carArrivalTime', e.target.value)}>
+                              <option value="">선택해주세요</option>
+                              {ARRIVAL_TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                            </Select>
+                          </Field>
+                        )}
+
+                        {formData.carRole !== '' && formData.carRole !== '택시 및 대중교통' && (
+                          <Field>
+                            <Label>퇴소 예정 시간 <RequiredAsterisk>*</RequiredAsterisk></Label>
+                            <Select value={formData.carDepartureTime} required
+                              onChange={(e) => set('carDepartureTime', e.target.value)}>
+                              <option value="">선택해주세요</option>
+                              {DEPART_TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                            </Select>
+                          </Field>
+                        )}
+                      </CarDetailsBox>
                     </>
                   )}
                 </Section>
               )}
 
-              {step === 5 && (
+              {/* ── 4p: 선택강의 + 입금 ── */}
+              {step === 3 && (
                 <Section>
-                  <SectionTitle>중보기도자 신청 (CAP)</SectionTitle>
-                  <DescriptionBox>
-                    2024 허브업 중보기도팀 Come&Pray, "CAP"팀을 모집합니다.<br /><br />
-                    단톡방을 통해 허브업 30일 전부터 공유된 기도문으로 함께 기도합니다.<br />
-                    허브업이 진행되는 기간 동안 릴레이 중보기도가 이어질 예정입니다.
-                  </DescriptionBox>
+                  <SectionTitle>선택강의 및 입금 확인</SectionTitle>
+
                   <Field>
-                    <Label>CAP 지원 여부 <RequiredAsterisk>*</RequiredAsterisk></Label>
+                    <Label>선택강의 수강 조사 <RequiredAsterisk>*</RequiredAsterisk>
+                      <SubLabel>허브업 기간 중 진행되는 선택강의입니다. 중복 신청은 불가합니다.</SubLabel>
+                    </Label>
                     <RadioGroup>
-                      <RadioLabel checked={formData.capApplication === '지원함'}><input type="radio" name="capApplication" value="지원함" onChange={handleChange} required checked={formData.capApplication === '지원함'} /> 지원함</RadioLabel>
-                      <RadioLabel checked={formData.capApplication === '지원 안함'}><input type="radio" name="capApplication" value="지원 안함" onChange={handleChange} checked={formData.capApplication === '지원 안함'} /> 지원 안함</RadioLabel>
+                      {[
+                        ['연애/결혼', '연애 / 결혼'],
+                        ['돈/재정', '돈 / 재정'],
+                      ].map(([val, label]) => (
+                        <RadioLabel key={val} checked={formData.electiveLecture === val}>
+                          <input type="radio" name="electiveLecture" value={val} required
+                            checked={formData.electiveLecture === val}
+                            onChange={() => set('electiveLecture', val)} />
+                          {label}
+                        </RadioLabel>
+                      ))}
                     </RadioGroup>
                   </Field>
-                </Section>
-              )}
 
-              {step === 6 && (
-                <Section>
-                  <SectionTitle>추가 정보 및 결제</SectionTitle>
-                  <Field>
-                    <Label>크리스천으로써 세상을 살아갈 때 마주하는 고민들을 나누어주세요! <RequiredAsterisk>*</RequiredAsterisk><SubLabel>Companion 2는 렌토토크쇼로 진행될 예정입니다.</SubLabel></Label>
-                    <TextArea name="question1" value={formData.question1} onChange={handleChange} required rows={4} placeholder="고민을 자유롭게 작성해주세요." />
-                  </Field>
-                  <Field>
-                    <Label>평소 연애를 하면서 생겼던 질문이나 어려웠던 점을 나누어주세요! <RequiredAsterisk>*</RequiredAsterisk><SubLabel>Companion 3은 사랑,연애 주제로 진행될 예정입니다.</SubLabel></Label>
-                    <TextArea name="question2" value={formData.question2} onChange={handleChange} required rows={4} placeholder="질문이나 어려웠던 점을 작성해주세요." />
-                  </Field>
+                  <Divider />
 
                   <NoticeBox>
-                    <strong>입금을 하신 후에 신청서 제출 부탁드립니다 <RequiredAsterisk>*</RequiredAsterisk></strong><br />
-                    ✔ 하나 573-910022-19605 온누리교회(허브행사)<br />
-                    * 입금시 연락처 끝 네자리 기입 요망
+                    <strong>입금 하신 후 신청서 제출 부탁드립니다. <RequiredAsterisk>*</RequiredAsterisk></strong><br />
+                    하나 (계좌번호) / (예금주)<br />
+                    입금시 본인 연락처 끝 네자리 기입 필수<br />
+                    <span style={{ color: '#5f6368', fontSize: '13px' }}>EX. 이지원3283</span>
                   </NoticeBox>
+
                   <Field>
+                    <RadioLabel checked={formData.depositConfirm}>
+                      <input type="checkbox"
+                        checked={formData.depositConfirm}
+                        required
+                        onChange={(e) => set('depositConfirm', e.target.checked)} />
+                      입금했습니다
+                    </RadioLabel>
+                    <SubLabel style={{ marginTop: '12px', color: '#f59e0b', fontWeight: 600 }}>
+                      ※ 얼리버드 및 기획 이벤트 진행 시 양식이 변경될 가능성이 있습니다.
+                    </SubLabel>
+                  </Field>
+                </Section>
+              )}
+
+              {/* ── 5p: 팀 섬김 ── */}
+              {step === 4 && (
+                <Section>
+                  <SectionTitle>팀 섬김 신청</SectionTitle>
+
+                  <Field>
+                    <Label>중보팀 섬김 여부 <RequiredAsterisk>*</RequiredAsterisk>
+                      <SubLabel>중보기도팀은 허브업 기간 동안 릴레이 중보기도를 섬깁니다.</SubLabel>
+                    </Label>
                     <RadioGroup>
-                      <RadioLabel checked={formData.depositStatus === '입금완료'}><input type="radio" name="depositStatus" value="입금완료" onChange={handleChange} required checked={formData.depositStatus === '입금완료'} /> 입금했습니다</RadioLabel>
+                      {[
+                        ['신청', '중보기도자로 신청합니다'],
+                        ['없음', '해당 사항 없음'],
+                      ].map(([val, label]) => (
+                        <RadioLabel key={val} checked={formData.intercessorTeam === val}>
+                          <input type="radio" name="intercessorTeam" value={val} required
+                            checked={formData.intercessorTeam === val}
+                            onChange={() => set('intercessorTeam', val)} />
+                          {label}
+                        </RadioLabel>
+                      ))}
                     </RadioGroup>
                   </Field>
 
                   <Field>
-                    <Label>개인정보 수집 및 이용에 대한 동의 <RequiredAsterisk>*</RequiredAsterisk></Label>
-                    <SubLabel>수집한 개인정보는 향후 안내 및 공지에 사용하며, 수련회 이후 파기됩니다</SubLabel>
+                    <Label>자원봉사 섬김 여부 <RequiredAsterisk>*</RequiredAsterisk>
+                      <SubLabel>자원봉사팀은 허브업 행사 운영을 위해 다양한 분야에서 섬깁니다.</SubLabel>
+                    </Label>
                     <RadioGroup>
-                      <RadioLabel checked={formData.privacyConsent === '동의'}><input type="radio" name="privacyConsent" value="동의" onChange={handleChange} required checked={formData.privacyConsent === '동의'} /> 동의</RadioLabel>
+                      {[
+                        ['신청', '자원봉사자로 신청합니다'],
+                        ['없음', '해당 사항 없음'],
+                      ].map(([val, label]) => (
+                        <RadioLabel key={val} checked={formData.volunteerTeam === val}>
+                          <input type="radio" name="volunteerTeam" value={val} required
+                            checked={formData.volunteerTeam === val}
+                            onChange={() => set('volunteerTeam', val)} />
+                          {label}
+                        </RadioLabel>
+                      ))}
                     </RadioGroup>
                   </Field>
                 </Section>
               )}
+
+              {/* ── 6p: 최종 제출 확인 ── */}
+              {step === 5 && (
+                <Section>
+                  <SectionTitle>최종 제출 확인</SectionTitle>
+                  <DescriptionBox>
+                    지금까지 입력하신 내용을 확인 후 제출해주세요.<br />
+                    제출 후에는 수정이 어려우니 신중하게 확인해주세요.
+                  </DescriptionBox>
+
+                  <Field>
+                    <Label>위 내용을 제출하시겠습니까? <RequiredAsterisk>*</RequiredAsterisk></Label>
+                    <RadioLabel checked={formData.finalSubmitConfirm}>
+                      <input type="checkbox"
+                        checked={formData.finalSubmitConfirm}
+                        required
+                        onChange={(e) => set('finalSubmitConfirm', e.target.checked)} />
+                      네, 제출합니다
+                    </RadioLabel>
+                  </Field>
+
+                  {submitError && <ErrorText style={{ marginTop: '12px', fontSize: '14px' }}>{submitError}</ErrorText>}
+                </Section>
+              )}
+
             </StepWrapper>
 
             <ButtonGroup>
@@ -417,7 +758,10 @@ export default function HubUpSurvey() {
               {step < totalSteps ? (
                 <Button type="submit" variant="primary">다음으로</Button>
               ) : (
-                <Button type="submit" variant="submit">제출하기</Button>
+                <Button type="submit" variant="submit"
+                  disabled={!formData.finalSubmitConfirm}>
+                  제출하기
+                </Button>
               )}
             </ButtonGroup>
           </form>
@@ -427,13 +771,14 @@ export default function HubUpSurvey() {
   );
 }
 
-// Animations
+// ═══════════════════════════════════════════════════════════
+// Animations & Styled Components
+// ═══════════════════════════════════════════════════════════
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 `;
 
-// Styled Components
 const FormContainer = styled.div`
   width: 100%;
 `;
@@ -442,26 +787,26 @@ const StepWrapper = styled.div`
   animation: ${fadeIn} 0.3s ease-out;
 `;
 
-// --- Text Notice (Step 0) Styles ---
+// ── Notice (step 0) ───────────────────────────────────────
 const NoticeSection = styled.div`
   background: white;
-  border-top: 8px solid #278f5a;
+  border-top: 8px solid #2563eb;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 `;
 
 const NoticeHeader = styled.div`
-  background: #f0f8f4;
+  background: #eff6ff;
   padding: 32px 24px;
   text-align: center;
-  border-bottom: 1px solid #e2eee7;
+  border-bottom: 1px solid #bfdbfe;
 `;
 
 const NoticeTitle = styled.h1`
   font-size: 24px;
   font-weight: 700;
-  color: #1e7046;
+  color: #1d4ed8;
   margin: 0 0 8px 0;
   letter-spacing: -0.5px;
 `;
@@ -478,9 +823,7 @@ const NoticeContentArea = styled.div`
 
 const NoticeBlock = styled.div`
   margin-bottom: 24px;
-  &:last-of-type {
-    margin-bottom: 0;
-  }
+  &:last-of-type { margin-bottom: 0; }
 `;
 
 const BlockTitle = styled.h3`
@@ -510,7 +853,7 @@ const HighlightBox = styled.div`
   line-height: 1.6;
   margin-top: 12px;
   margin-left: 4px;
-  border-left: 3px solid #278f5a;
+  border-left: 3px solid #2563eb;
 `;
 
 const CheckboxLabel = styled.label<{ checked: boolean }>`
@@ -518,20 +861,20 @@ const CheckboxLabel = styled.label<{ checked: boolean }>`
   align-items: center;
   gap: 12px;
   padding: 20px;
-  background: ${(props) => (props.checked ? 'rgba(39, 143, 90, 0.08)' : '#f8f9fa')};
-  border: 2px solid ${(props) => (props.checked ? '#278f5a' : '#dadce0')};
+  background: ${(p) => (p.checked ? 'rgba(37,99,235,0.08)' : '#f8f9fa')};
+  border: 2px solid ${(p) => (p.checked ? '#2563eb' : '#dadce0')};
   border-radius: 12px;
   cursor: pointer;
   font-weight: 600;
   font-size: 15px;
-  color: ${(props) => (props.checked ? '#1e7046' : '#202124')};
+  color: ${(p) => (p.checked ? '#1d4ed8' : '#202124')};
   transition: all 0.2s;
   margin-bottom: 24px;
 
   input[type="checkbox"] {
     width: 22px;
     height: 22px;
-    accent-color: #278f5a;
+    accent-color: #2563eb;
     cursor: pointer;
     flex-shrink: 0;
   }
@@ -546,7 +889,7 @@ const StartButton = styled.button`
   cursor: pointer;
   border: none;
   transition: all 0.2s;
-  background: #278f5a;
+  background: #2563eb;
   color: white;
 
   &:disabled {
@@ -554,18 +897,58 @@ const StartButton = styled.button`
     color: #9aa0a6;
     cursor: not-allowed;
   }
-
   &:not(:disabled):hover {
-    background: #1e7046;
+    background: #1d4ed8;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(39, 143, 90, 0.2);
+    box-shadow: 0 4px 12px rgba(37,99,235,0.25);
   }
 `;
 
-// --- Form Styles ---
+// ── Submit complete ───────────────────────────────────────
+const SubmitCompleteSection = styled.div`
+  background: white;
+  border-top: 8px solid #2563eb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  padding: 48px 24px;
+  text-align: center;
+`;
+
+const SubmitCompleteIcon = styled.div`
+  font-size: 56px;
+  margin-bottom: 20px;
+`;
+
+const SubmitCompleteTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 700;
+  color: #1d4ed8;
+  margin: 0 0 24px 0;
+  letter-spacing: -0.5px;
+`;
+
+const SubmitCompleteMessage = styled.p`
+  font-size: 15px;
+  color: #3c4043;
+  line-height: 1.8;
+  margin: 0 0 24px 0;
+  background: #eff6ff;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: left;
+`;
+
+const SubmitCompleteNote = styled.p`
+  font-size: 14px;
+  color: #5f6368;
+  margin: 0;
+`;
+
+// ── Form (step 1~5) ───────────────────────────────────────
 const TitleBlock = styled.div`
   background: white;
-  border-top: 8px solid #278f5a;
+  border-top: 8px solid #2563eb;
   border-radius: 12px;
   padding: 32px 24px;
   margin-bottom: 24px;
@@ -604,9 +987,9 @@ const ProgressBarContainer = styled.div`
 
 const Progress = styled.div<{ fill: number }>`
   height: 100%;
-  background: #278f5a;
+  background: #2563eb;
   border-radius: 3px;
-  width: ${(props) => props.fill}%;
+  width: ${(p) => p.fill}%;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 `;
 
@@ -627,7 +1010,7 @@ const Section = styled.div`
 `;
 
 const SectionTitle = styled.h2`
-  background: #278f5a;
+  background: #2563eb;
   color: white;
   margin: -32px -24px 32px -24px;
   padding: 20px 24px;
@@ -640,9 +1023,7 @@ const SectionTitle = styled.h2`
 
 const Field = styled.div`
   margin-bottom: 32px;
-  &:last-child {
-    margin-bottom: 0;
-  }
+  &:last-child { margin-bottom: 0; }
 `;
 
 const Label = styled.label`
@@ -663,6 +1044,13 @@ const SubLabel = styled.span`
   line-height: 1.4;
 `;
 
+const ErrorText = styled.span`
+  display: block;
+  font-size: 13px;
+  color: #d93025;
+  margin-top: 6px;
+`;
+
 const Input = styled.input`
   width: 100%;
   border: 1px solid #dadce0;
@@ -672,39 +1060,14 @@ const Input = styled.input`
   outline: none;
   background: #fafafa;
   transition: all 0.2s;
-  
-  &:focus {
-    border-color: #278f5a;
-    background: white;
-    box-shadow: 0 0 0 3px rgba(39, 143, 90, 0.1);
-  }
-  
-  &::placeholder {
-    color: #9aa0a6;
-  }
-`;
+  box-sizing: border-box;
 
-const TextArea = styled.textarea`
-  width: 100%;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
-  padding: 14px 16px;
-  font-size: 15px;
-  outline: none;
-  background: #fafafa;
-  resize: vertical;
-  font-family: inherit;
-  transition: all 0.2s;
-  
   &:focus {
-    border-color: #278f5a;
+    border-color: #2563eb;
     background: white;
-    box-shadow: 0 0 0 3px rgba(39, 143, 90, 0.1);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
   }
-
-  &::placeholder {
-    color: #9aa0a6;
-  }
+  &::placeholder { color: #9aa0a6; }
 `;
 
 const Select = styled.select`
@@ -718,11 +1081,11 @@ const Select = styled.select`
   cursor: pointer;
   appearance: none;
   transition: all 0.2s;
-  
+
   &:focus {
-    border-color: #278f5a;
+    border-color: #2563eb;
     background: white;
-    box-shadow: 0 0 0 3px rgba(39, 143, 90, 0.1);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
   }
 `;
 
@@ -732,31 +1095,45 @@ const RadioGroup = styled.div`
   gap: 10px;
 `;
 
-const RadioLabel = styled.label<{ checked?: boolean }>`
+const RadioLabel = styled.label<{ checked?: boolean; disabled?: boolean }>`
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border: 1px solid ${(props) => (props.checked ? '#278f5a' : '#dadce0')};
+  border: 1px solid ${(p) => p.disabled ? '#e8eaed' : p.checked ? '#2563eb' : '#dadce0'};
   border-radius: 8px;
-  background: ${(props) => (props.checked ? 'rgba(39, 143, 90, 0.04)' : 'white')};
-  cursor: pointer;
+  background: ${(p) => p.disabled ? '#f8f9fa' : p.checked ? 'rgba(37,99,235,0.04)' : 'white'};
+  cursor: ${(p) => p.disabled ? 'not-allowed' : 'pointer'};
   transition: all 0.2s;
   font-size: 15px;
-  font-weight: ${(props) => (props.checked ? '600' : '400')};
-  color: ${(props) => (props.checked ? '#1e7046' : '#202124')};
+  font-weight: ${(p) => p.checked ? '600' : '400'};
+  color: ${(p) => p.disabled ? '#9aa0a6' : p.checked ? '#1d4ed8' : '#202124'};
+  opacity: ${(p) => p.disabled ? 0.6 : 1};
 
   &:hover {
-    background: ${(props) => (props.checked ? 'rgba(39, 143, 90, 0.06)' : '#f8f9fa')};
+    background: ${(p) => p.disabled ? '#f8f9fa' : p.checked ? 'rgba(37,99,235,0.06)' : '#f8f9fa'};
   }
 
-  input[type="radio"] {
-    accent-color: #278f5a;
+  input[type="radio"], input[type="checkbox"] {
+    accent-color: #2563eb;
     width: 20px;
     height: 20px;
     margin: 0;
-    cursor: pointer;
+    cursor: ${(p) => p.disabled ? 'not-allowed' : 'pointer'};
+    flex-shrink: 0;
   }
+`;
+
+const SoldOutBadge = styled.span`
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 4px;
+  vertical-align: middle;
 `;
 
 const Divider = styled.hr`
@@ -796,12 +1173,12 @@ const DescriptionBox = styled.div`
 `;
 
 const NoticeBox = styled.div`
-  background: rgba(39, 143, 90, 0.08);
-  border: 1px solid rgba(39, 143, 90, 0.2);
+  background: rgba(37,99,235,0.07);
+  border: 1px solid rgba(37,99,235,0.2);
   padding: 20px;
   border-radius: 8px;
   font-size: 15px;
-  color: #1e7046;
+  color: #1d4ed8;
   line-height: 1.6;
   margin-bottom: 20px;
 `;
@@ -823,23 +1200,24 @@ const Button = styled.button<{ variant: 'primary' | 'secondary' | 'submit' }>`
   transition: all 0.2s;
   flex: 1;
 
-  ${(props) => props.variant === 'primary' && `
-    background: #278f5a;
+  ${(p) => p.variant === 'primary' && `
+    background: #2563eb;
     color: white;
     max-width: fit-content;
     margin-left: auto;
-    &:hover { background: #1e7046; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(39, 143, 90, 0.2); }
+    &:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(37,99,235,0.25); }
   `}
 
-  ${(props) => props.variant === 'submit' && `
-    background: #1a73e8;
+  ${(p) => p.variant === 'submit' && `
+    background: #2563eb;
     color: white;
     max-width: fit-content;
     margin-left: auto;
-    &:hover { background: #1557b0; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(26, 115, 232, 0.2); }
+    &:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(37,99,235,0.25); }
+    &:disabled { background: #dadce0; color: #9aa0a6; cursor: not-allowed; transform: none; box-shadow: none; }
   `}
 
-  ${(props) => props.variant === 'secondary' && `
+  ${(p) => p.variant === 'secondary' && `
     background: white;
     color: #5f6368;
     border: 1px solid #dadce0;
