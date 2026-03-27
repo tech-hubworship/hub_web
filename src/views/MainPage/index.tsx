@@ -183,12 +183,6 @@ const MainPage = memo(function MainPage() {
           <Main />
         </LazyLoadSection>
     
-        {/* 허브업 D-day 배너 */}
-        <LazyLoadSection id="hubup-banner-section" priority={true}>
-          <ContentWrapper>
-            <HubUpBanner />
-          </ContentWrapper>
-        </LazyLoadSection>
 
         {/* 말씀카드 페이지 광고 섹션 - 두 번째 섹션 (전체 너비) */}
         <LazyLoadSection id="bible-card-promotion-section" priority={true}>

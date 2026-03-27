@@ -15,12 +15,7 @@ function getDaysRemaining(): number {
 }
 
 export default function HubUpBanner() {
-  const router = useRouter();
-  const [daysLeft, setDaysLeft] = useState<number | null>(null);
-
-  useEffect(() => {
-    setDaysLeft(getDaysRemaining());
-  }, []);
+  return null;
 
   if (daysLeft === null) return null;
 
