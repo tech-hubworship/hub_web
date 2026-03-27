@@ -4,7 +4,8 @@ import { authOptions } from '@src/lib/auth';
 import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.NEXTAUTH_SECRET!;
-const BUS_APP_URL = process.env.NEXT_PUBLIC_HUB_UP_BUS_APP_URL || 'http://localhost:3001';
+const BUS_APP_URL = "https://hubupinquery.vercel.app"
+
 
 /**
  * GET /api/hub-up/bus-change-token

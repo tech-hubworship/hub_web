@@ -4,8 +4,7 @@ export const Container = styled.section<{ $anyDayOpen?: boolean }>`
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 52px;
-  /* min-height: ${props => props.$anyDayOpen ? '100vh' : '66vh'}; */
+  height: auto;
   transition: height 0.3s ease, min-height 0.3s ease;
   align-items: center;
   background-color: #000000;
@@ -13,7 +12,6 @@ export const Container = styled.section<{ $anyDayOpen?: boolean }>`
   @media (min-width: 58.75rem) {
     width: 100%;
     background-color: #000000;
-    /* min-height: ${props => props.$anyDayOpen ? '100vh' : '66vh'}; */
   }
 `;
 

@@ -42,9 +42,13 @@ const BibleCardPromotion = dynamic(() => import('./components/BibleCardPromotion
   ssr: false,
   loading: () => <div style={{ minHeight: '400px', background: '#1a1a2e' }}></div>
 });
+// ── 허브업 배너 on/off ──────────────────────────────────────
+// true = 배너 표시, false = 숨김 (변경 후 재배포)
+const HUBUP_BANNER_ENABLED = false;
+
 const HubUpBanner = dynamic(() => import('./components/HubUpBanner'), {
   ssr: false,
-  loading: () => <div style={{ minHeight: '100px' }}></div>
+  loading: () => null,
 });
 const ContentBanner = dynamic(() => import('./components/ContentBanner'), { 
   ssr: false,
@@ -183,6 +187,14 @@ const MainPage = memo(function MainPage() {
           <Main />
         </LazyLoadSection>
     
+        {/* 허브업 D-day 배너 - HUBUP_BANNER_ENABLED=true 로 활성화 */}
+        {HUBUP_BANNER_ENABLED && (
+          <LazyLoadSection id="hubup-banner-section" priority={true}>
+            <ContentWrapper>
+              <HubUpBanner />
+            </ContentWrapper>
+          </LazyLoadSection>
+        )}
 
         {/* 말씀카드 페이지 광고 섹션 - 두 번째 섹션 (전체 너비) */}
         <LazyLoadSection id="bible-card-promotion-section" priority={true}>
