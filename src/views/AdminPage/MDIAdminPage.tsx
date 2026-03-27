@@ -31,6 +31,7 @@ import PrayerTimeAdminPage from '@src/views/AdminPage/apps/prayer-time';
 import LostFoundAdminPage from '@src/views/AdminPage/apps/lost-found';
 import CalendarAdminPage from '@src/views/AdminPage/calendar';
 import RestaurantAdminPage from '@src/views/AdminPage/apps/restaurant';
+import HubUpAdminPage from '@src/views/AdminPage/hub-up';
 
 // 확장된 TabInfo 타입 (description 포함)
 interface ExtendedTabInfo extends TabInfo {
@@ -82,6 +83,7 @@ const MENU_COMPONENTS: Record<string, React.ComponentType<any>> = {
   'calendar': CalendarAdminPage,
   'restaurant': RestaurantAdminPage,
   'apps-restaurant': RestaurantAdminPage,
+  'hub-up': HubUpAdminPage,
 };
 
 export default function MDIAdminPage() {
