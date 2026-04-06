@@ -14,7 +14,7 @@ export default function HubUpMainPage() {
   return (
     <Wrap>
       <TopNav>
-        <NavTitle>[허브업] Companion</NavTitle>
+        <NavTitle>[허브업] Be Holy</NavTitle>
       </TopNav>
 
       {/* 히어로 배너 */}
@@ -36,7 +36,7 @@ export default function HubUpMainPage() {
           <InfoLabel>일정</InfoLabel>
           <InfoData>
             <strong>5월 15일 (금) - 5월 17일 (일)</strong>
-            <p>Companion1은 5월 15일, 추후 공지 예정 시간에 시작됩니다.</p>
+            <p>Be Holy는 5월 15일, 추후 공지 예정 시간에 시작됩니다.</p>
           </InfoData>
 
           <InfoLabel>장소</InfoLabel>

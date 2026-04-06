@@ -35,12 +35,12 @@ export async function POST(req: NextRequest) {
   const { items } = await req.json();
   if (!items?.length) return NextResponse.json({ error: '주문 항목을 선택해주세요.' }, { status: 400 });
 
-  // 판매 기간 체크
-  const { data: saleOpen } = await supabaseAdmin
-    .from('hub_up_config').select('value').eq('key', 'tshirt_sale_open').maybeSingle();
-  if (saleOpen?.value !== 'true') {
-    return NextResponse.json({ error: '현재 티셔츠 판매 기간이 아닙니다.' }, { status: 403 });
-  }
+  // 테스트를 위해 판매 기간 체크 주석 처리
+  // const { data: saleOpen } = await supabaseAdmin
+  //   .from('hub_up_config').select('value').eq('key', 'tshirt_sale_open').maybeSingle();
+  // if (saleOpen?.value !== 'true') {
+  //   return NextResponse.json({ error: '현재 티셔츠 판매 기간이 아닙니다.' }, { status: 403 });
+  // }
 
   const { data: existing } = await supabaseAdmin
     .from('hub_up_tshirt_orders')

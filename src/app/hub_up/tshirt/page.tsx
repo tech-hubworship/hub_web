@@ -67,18 +67,19 @@ export default function TshirtPage() {
 
   if (status === 'loading' || loading) return <LoadingWrap>불러오는 중...</LoadingWrap>;
 
-  if (config.tshirt_sale_open !== 'true') {
-    return (
-      <Wrap>
-        <TopNav><BackBtn onClick={() => router.back()}>←</BackBtn></TopNav>
-        <ClosedBox>
-          <ClosedIcon>👕</ClosedIcon>
-          <ClosedTitle>티셔츠 판매 준비 중</ClosedTitle>
-          <ClosedDesc>판매 기간이 되면 이 페이지에서 신청할 수 있어요.</ClosedDesc>
-        </ClosedBox>
-      </Wrap>
-    );
-  }
+  // 테스트를 위해 판매 기간 체크 주석 처리
+  // if (config.tshirt_sale_open !== 'true') {
+  //   return (
+  //     <Wrap>
+  //       <TopNav><BackBtn onClick={() => router.back()}>←</BackBtn></TopNav>
+  //       <ClosedBox>
+  //         <ClosedIcon>👕</ClosedIcon>
+  //         <ClosedTitle>티셔츠 판매 준비 중</ClosedTitle>
+  //         <ClosedDesc>판매 기간이 되면 이 페이지에서 신청할 수 있어요.</ClosedDesc>
+  //       </ClosedBox>
+  //     </Wrap>
+  //   );
+  // }
 
   if (done) {
     return (

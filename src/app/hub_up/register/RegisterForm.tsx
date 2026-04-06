@@ -284,7 +284,7 @@ export default function RegisterForm({
               <InfoLabel>일정</InfoLabel>
               <InfoData>
                 <strong>{config.event_dates}</strong>
-                <p>Companion1은 5월 15일, ??시에 시작됩니다.</p>
+                <p>Be Holy는 5월 15일, ??시에 시작됩니다.</p>
               </InfoData>
 
               <InfoLabel>장소</InfoLabel>

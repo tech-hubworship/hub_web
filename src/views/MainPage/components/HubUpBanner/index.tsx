@@ -38,7 +38,7 @@ export default function HubUpBanner() {
       <BannerCard>
         <LeftSection>
           <EventLabel>HUB UP 2025</EventLabel>
-          <EventName>Companion</EventName>
+          <EventName>Be Holy</EventName>
           <EventDate>5월 15–17일 · 소망수양관</EventDate>
         </LeftSection>
 
