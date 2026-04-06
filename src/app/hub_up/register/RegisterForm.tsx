@@ -6,6 +6,7 @@ import { keyframes } from '@emotion/react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import type { DepartureSlot, ReturnSlot, ElectiveLecture, HubUpConfig, FormData } from './types';
+import TimePicker from './TimePicker';
 
 // ─────────────────────────────────────────────
 // 자차 관련 고정 옵션 (날짜 기반이라 DB 불필요)
@@ -28,8 +29,8 @@ const initialFormData: FormData = {
   departureBusTime: '', returnBusTime: '', carRole: '',
   carPassengerCount: '', carPassengerNames: '', carPlateNumber: '',
   carArrivalTime: '', carDepartureTime: '',
-  electiveLecture: '', depositConfirm: false,
-  intercessorTeam: '', volunteerTeam: '', finalSubmitConfirm: false,
+  electiveLecture: '', volunteerTeam: '', depositConfirm: false,
+  intercessorTeam: '', finalSubmitConfirm: false,
 };
 
 interface Props {
@@ -47,7 +48,7 @@ export default function RegisterForm({
   const { data: session, status: sessionStatus } = useSession();
 
   const [step, setStep] = useState(0);
-  const totalSteps = 5;
+  const totalSteps = 4;
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [phoneError, setPhoneError] = useState('');
   const [submitError, setSubmitError] = useState('');
@@ -56,7 +57,10 @@ export default function RegisterForm({
   const [slotCounts, setSlotCounts] = useState<Record<string, number>>(initialSlotCounts);
 
   // 바텀 시트 상태 관리
-  const [activeSheet, setActiveSheet] = useState<'community' | 'group' | 'gender' | null>(null);
+  const [activeSheet, setActiveSheet] = useState<
+    'community' | 'group' | 'gender' | 'volunteer' |
+    'departureBus' | 'returnBus' | 'carRole' | 'carPassengerCount' | null
+  >(null);
 
   // ── 프로필 + 그룹목록 fetch ──────────────────────────────
   useEffect(() => {
@@ -85,7 +89,6 @@ export default function RegisterForm({
               gender: mappedGender, // 매핑된 성별 할당
               birthdate: result.birth_date || '',
               community: result.community || '',
-              // 옵션 포맷(OO그룹 OO다락방)과 일치하도록 기본값 세팅 수정
               group: result.group_name && result.cell_name
                 ? `${result.group_name}그룹 ${result.cell_name}다락방` : '',
             }));
@@ -104,11 +107,23 @@ export default function RegisterForm({
             const cellsArray: any[] = Array.isArray(cellsJson.cells)
               ? cellsJson.cells : Array.isArray(cellsJson) ? cellsJson : [];
             const formatted = cellsArray
-              .map((cell: any) => `${groupMap.get(cell.group_id) || '기타'}그룹 ${cell.name}다락방`)
+              .map((cell: any) => {
+                const groupName = groupMap.get(cell.group_id);
+                const cellName = cell.name || '';
+                return { groupName, cellName, label: `${groupName}그룹 ${cellName}다락방` };
+              })
+              .filter(({ groupName, cellName }) => {
+                if (!groupName?.trim() || !cellName?.trim()) return false;
+                if (groupName.includes('해당없음') || cellName.includes('해당없음')) return false;
+                if (groupName.includes('실타') || cellName.includes('실타')) return false;
+                return true;
+              })
+              .map(({ label }) => label)
               .sort((a: string, b: string) => a.localeCompare(b));
-            setGroupOptions([...Array.from(new Set(formatted)) as string[], '해당없음']);
+            // 기존 그룹/다락방 목록에 추가 옵션들을 앞에 배치
+            setGroupOptions(['MC', '그룹장', '타공동체', '타교회', ...Array.from(new Set(formatted)) as string[]]);
           } else {
-            setGroupOptions(['해당없음']);
+            setGroupOptions(['MC', '그룹장', '타공동체', '타교회']);
           }
         } catch (err) {
           console.error('Error loading profile/groups:', err);
@@ -164,7 +179,7 @@ export default function RegisterForm({
         return;
       }
       scrollTop();
-      setStep(6);
+      setStep(5);
     } catch {
       setSubmitError('제출 중 오류가 발생했습니다. 다시 시도해주세요.');
     }
@@ -208,6 +223,56 @@ export default function RegisterForm({
       options = ['남자', '여자'];
       currentValue = formData.gender;
       onSelect = (val) => set('gender', val);
+    } else if (activeSheet === 'volunteer') {
+      title = '자원봉사팀 섬김 여부';
+      options = ['외부 안내팀', '시설팀', '식사팀', '허브런팀', '해당 없음'];
+      currentValue = formData.volunteerTeam;
+      onSelect = (val) => set('volunteerTeam', val);
+    } else if (activeSheet === 'departureBus') {
+      title = '[5/15] 출발 차량 탑승 시각';
+      options = departureSlots
+        .filter(slot => !(slot.max_count > 0 && (slotCounts[slot.value] || 0) >= slot.max_count))
+        .map(slot => slot.label);
+      currentValue = departureSlots.find(s => s.value === formData.departureBusTime)?.label || '';
+      onSelect = (val) => {
+        const slot = departureSlots.find(s => s.label === val);
+        if (slot) set('departureBusTime', slot.value);
+      };
+    } else if (activeSheet === 'returnBus') {
+      title = '[5/17] 복귀 차량 탑승 시각';
+      options = returnSlots.map(slot => slot.label);
+      currentValue = returnSlots.find(s => s.value === formData.returnBusTime)?.label || '';
+      onSelect = (val) => {
+        const slot = returnSlots.find(s => s.label === val);
+        if (slot) set('returnBusTime', slot.value);
+      };
+    } else if (activeSheet === 'carRole') {
+      title = '자차 / 대중교통 해당사항';
+      options = ['자가운전자 (주차O)', '동승자 (주차X)', '택시 및 대중교통 이용'];
+      const roleMap: Record<string, string> = {
+        '자가운전자': '자가운전자 (주차O)',
+        '동승자': '동승자 (주차X)',
+        '택시 및 대중교통': '택시 및 대중교통 이용',
+      };
+      currentValue = roleMap[formData.carRole] || '';
+      onSelect = (val) => {
+        const reverseMap: Record<string, string> = {
+          '자가운전자 (주차O)': '자가운전자',
+          '동승자 (주차X)': '동승자',
+          '택시 및 대중교통 이용': '택시 및 대중교통',
+        };
+        set('carRole', reverseMap[val] || '');
+      };
+    } else if (activeSheet === 'carPassengerCount') {
+      title = '총 탑승 인원';
+      options = ['1명 (혼자 - 동승자 없음)', '2명', '3명', '4명', '5명', '6명', '7명', '8명'];
+      const countMap: Record<string, string> = { '1': '1명 (혼자 - 동승자 없음)' };
+      [2,3,4,5,6,7,8].forEach(n => { countMap[String(n)] = `${n}명`; });
+      currentValue = countMap[formData.carPassengerCount] || '';
+      onSelect = (val) => {
+        const n = val.match(/^(\d+)/)?.[1] || '';
+        set('carPassengerCount', n);
+      };
     }
 
     return (
@@ -250,7 +315,7 @@ export default function RegisterForm({
     <Container>
       {/* ── 상단 네비게이션 ── */}
       <TopNav>
-        <BackButton onClick={step > 0 && step < 6 ? prevStep : () => router.back()}>
+        <BackButton onClick={step > 0 && step < 5 ? prevStep : () => router.back()}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path d="M15 19L8 12L15 5" stroke="#111111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -284,7 +349,7 @@ export default function RegisterForm({
               <InfoLabel>일정</InfoLabel>
               <InfoData>
                 <strong>{config.event_dates}</strong>
-                <p>Be Holy는 5월 15일, ??시에 시작됩니다.</p>
+                <p>Be Holy는 5월 15일, 21시 예배 시작</p>
               </InfoData>
 
               <InfoLabel>장소</InfoLabel>
@@ -295,23 +360,22 @@ export default function RegisterForm({
 
               <InfoLabel>신청</InfoLabel>
               <InfoData>
-                <strong>4월 21일 (일) - 5월 8일 (수)</strong>
-                <p>최대 {config.max_capacity}명 신청 가능</p>
+                <strong>4월 12일 (토) - 4월 26일 (토)</strong>
               </InfoData>
 
               <InfoLabel>회비</InfoLabel>
               <InfoData>
                 <FeeGrid>
                   <div>
-                    <strong>얼리버드 {config.fee_early_bird}원</strong>
-                    <p>{config.fee_early_bird_until}</p>
+                    <strong>얼리버드 8만원</strong>
+                    <p>4월 12일 - 4월 18일</p>
                   </div>
                   <div>
-                    <strong>일반 {config.fee_regular}원</strong>
-                    <p>{config.registration_deadline}</p>
+                    <strong>일반 8만 5천원</strong>
+                    <p>4월 19일 - 4월 26일</p>
                   </div>
                 </FeeGrid>
-                <p className="account">{config.bank_name} {config.bank_account} / {config.bank_holder}</p>
+                <p className="account">하나은행 573-910022-19605 / 온누리교회(허브행사비)</p>
               </InfoData>
             </InfoGrid>
           </InfoSection>
@@ -331,20 +395,21 @@ export default function RegisterForm({
             <GuideBlock>
               <GuideTitle>회비 환불 안내</GuideTitle>
               <GuideList>
-                <li>5월 18일 (토) 자정까지 환불 신청 가능합니다.</li>
+                <li>5월 3일 (일) 자정까지 환불 신청 가능합니다.</li>
               </GuideList>
             </GuideBlock>
 
             <GuideBlock>
               <GuideTitle>접수 확인</GuideTitle>
               <GuideList>
-                <li>1차 : 4월 13일 (월) 오후 ??시</li>
-                <li>2차 : 4월 20일 (월) 오후 8시</li>
-                <li>3차 : 4월 27일 (월) 20시</li>
+                <li>1차 : 4월 15일 (수) 9시</li>
+                <li>2차 : 4월 20일 (월) 9시</li>
+                <li>3차 : 4월 27일 (월) 9시</li>
               </GuideList>
               <GuideSubText>
-                ※ 월요일 20시 이후 신청자는 "차주 수요일" 발송<br/>
-                ※ 해당일에 문자를 받지 못하신 분은 {config.contact_name}에게 연락주세요 :)
+                ※ 4월 15일 이후 신청 → 다음 주 월요일<br/>
+                ※ 4월 20일 이후 신청 → 다음 주 수요일<br/>
+                ※ 해당일에 문자를 받지 못하신 분은 서기MC에게 연락주세요 :)
               </GuideSubText>
             </GuideBlock>
 
@@ -451,10 +516,11 @@ export default function RegisterForm({
                 </InputGroup>
 
                 <InputGroup>
-                  <Label>연락처 <span style={{fontWeight: 400, color: '#888', fontSize: '12px'}}>(ex. 010-1234-5678 / 하이픈 '-' 포함)</span></Label>
+                  <Label>연락처 <span style={{fontWeight: 400, color: '#888', fontSize: '12px'}}>(ex. 010-1234-5678)</span></Label>
                   <UnderlineInput 
-                    type="tel" 
-                    placeholder="연락처 입력" 
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="010-1234-5678" 
                     value={formData.phone}
                     onChange={handlePhoneChange}
                     required 
@@ -467,11 +533,11 @@ export default function RegisterForm({
                     <strong>개인정보 수집 및 이용에 대한 동의</strong>
                     <p>수집한 개인정보는 신청 후 안내 및 공지에 사용하며,<br/>수련회 이후 파기됩니다.</p>
                   </ConsentText>
-                  <CheckIcon selected={formData.privacyConsent}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <CheckIconLarge selected={formData.privacyConsent}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                       <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                  </CheckIcon>
+                  </CheckIconLarge>
                 </ConsentWrapper>
               </>
             )}
@@ -483,27 +549,26 @@ export default function RegisterForm({
                 <LegacySection>
                   <Label>[5/15] 출발 차량 탑승 시각</Label>
                   <SubLabel>선착순 마감됩니다. 마감된 시간대는 선택할 수 없습니다.</SubLabel>
-                  <LegacySelect value={formData.departureBusTime} onChange={(e) => set('departureBusTime', e.target.value)} required>
-                    <option value="">선택해주세요</option>
-                    {departureSlots.map((slot) => {
-                      const isFull = slot.max_count > 0 && (slotCounts[slot.value] || 0) >= slot.max_count;
-                      return (
-                        <option key={slot.value} value={slot.value} disabled={isFull}>
-                          {slot.label} {isFull ? '(마감)' : ''}
-                        </option>
-                      );
-                    })}
-                  </LegacySelect>
+                  <SelectField onClick={() => setActiveSheet('departureBus')}>
+                    <span className={formData.departureBusTime ? 'selected' : 'placeholder'}>
+                      {departureSlots.find(s => s.value === formData.departureBusTime)?.label || '선택해주세요'}
+                    </span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M6 9L12 15L18 9" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </SelectField>
                 </LegacySection>
 
                 <LegacySection>
                   <Label>[5/17] 복귀 차량 탑승 시각</Label>
-                  <LegacySelect value={formData.returnBusTime} onChange={(e) => set('returnBusTime', e.target.value)} required>
-                    <option value="">선택해주세요</option>
-                    {returnSlots.map((slot) => (
-                      <option key={slot.value} value={slot.value}>{slot.label}</option>
-                    ))}
-                  </LegacySelect>
+                  <SelectField onClick={() => setActiveSheet('returnBus')}>
+                    <span className={formData.returnBusTime ? 'selected' : 'placeholder'}>
+                      {returnSlots.find(s => s.value === formData.returnBusTime)?.label || '선택해주세요'}
+                    </span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M6 9L12 15L18 9" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </SelectField>
                 </LegacySection>
 
                 {isCarSelected && (
@@ -511,12 +576,17 @@ export default function RegisterForm({
                     <LegacySection>
                       <Label>자차 / 대중교통 해당사항 체크</Label>
                       <SubLabel>주차 대수 파악을 위한 조사입니다.</SubLabel>
-                      <LegacySelect value={formData.carRole} onChange={(e) => set('carRole', e.target.value)} required>
-                        <option value="">선택해주세요</option>
-                        <option value="자가운전자">자가운전자 (주차O)</option>
-                        <option value="동승자">동승자 (주차X)</option>
-                        <option value="택시 및 대중교통">택시 및 대중교통 이용</option>
-                      </LegacySelect>
+                      <SelectField onClick={() => setActiveSheet('carRole')}>
+                        <span className={formData.carRole ? 'selected' : 'placeholder'}>
+                          {formData.carRole === '자가운전자' ? '자가운전자 (주차O)'
+                            : formData.carRole === '동승자' ? '동승자 (주차X)'
+                            : formData.carRole === '택시 및 대중교통' ? '택시 및 대중교통 이용'
+                            : '선택해주세요'}
+                        </span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <path d="M6 9L12 15L18 9" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </SelectField>
                     </LegacySection>
 
                     {formData.carRole === '자가운전자' && (
@@ -524,13 +594,16 @@ export default function RegisterForm({
                         <LegacySection>
                           <Label>총 탑승 인원</Label>
                           <SubLabel>본인 포함 최대 8명</SubLabel>
-                          <LegacySelect value={formData.carPassengerCount} onChange={(e) => set('carPassengerCount', e.target.value)} required>
-                            <option value="">선택</option>
-                            <option value="1">1명 (혼자 - 동승자 없음)</option>
-                            {[2,3,4,5,6,7,8].map((n) => (
-                              <option key={n} value={String(n)}>{n}명</option>
-                            ))}
-                          </LegacySelect>
+                          <SelectField onClick={() => setActiveSheet('carPassengerCount')}>
+                            <span className={formData.carPassengerCount ? 'selected' : 'placeholder'}>
+                              {formData.carPassengerCount === '1' ? '1명 (혼자 - 동승자 없음)'
+                                : formData.carPassengerCount ? `${formData.carPassengerCount}명`
+                                : '선택해주세요'}
+                            </span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                              <path d="M6 9L12 15L18 9" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </SelectField>
                         </LegacySection>
 
                         {formData.carPassengerCount && formData.carPassengerCount !== '1' && (
@@ -559,23 +632,29 @@ export default function RegisterForm({
                       </>
                     )}
 
-                    {(formData.carRole === '자가운전자' || formData.carRole === '동승자') && (
+                    {(formData.carRole === '자가운전자' || formData.carRole === '동승자' || formData.carRole === '택시 및 대중교통') && (
                       <LegacySection>
-                        <Label>입소 예정 시간</Label>
-                        <LegacySelect value={formData.carArrivalTime} onChange={(e) => set('carArrivalTime', e.target.value)} required>
-                          <option value="">선택해주세요</option>
-                          {ARRIVAL_TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                        </LegacySelect>
+                        <TimePicker
+                          label="입소 예정 시간"
+                          value={formData.carArrivalTime}
+                          onChange={(val) => set('carArrivalTime', val)}
+                          minHour={14}
+                          maxHour={23}
+                          dates={['5/15', '5/16']}
+                        />
                       </LegacySection>
                     )}
 
                     {formData.carRole !== '' && formData.carRole !== '택시 및 대중교통' && (
                       <LegacySection>
-                        <Label>퇴소 예정 시간</Label>
-                        <LegacySelect value={formData.carDepartureTime} onChange={(e) => set('carDepartureTime', e.target.value)} required>
-                          <option value="">선택해주세요</option>
-                          {DEPART_TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                        </LegacySelect>
+                        <TimePicker
+                          label="퇴소 예정 시간"
+                          value={formData.carDepartureTime}
+                          onChange={(val) => set('carDepartureTime', val)}
+                          minHour={7}
+                          maxHour={23}
+                          dates={['5/16', '5/17']}
+                        />
                       </LegacySection>
                     )}
                   </>
@@ -585,72 +664,116 @@ export default function RegisterForm({
 
             {step === 3 && (
                <>
-                 <FormHeader>선택강의 및 입금 확인</FormHeader>
+                 <FormHeader>선택강의 및 자원봉사</FormHeader>
                  <LegacySection>
                    <Label>선택강의 수강 조사</Label>
                    <SubLabel>허브업 기간 중 진행되는 선택강의입니다. 중복 신청은 불가합니다.</SubLabel>
                    <ElectiveGroup>
-                     {electives.map((e) => (
-                       <ElectiveCard
-                         key={e.value}
-                         selected={formData.electiveLecture === e.value}
-                         onClick={() => set('electiveLecture', formData.electiveLecture === e.value ? '' : e.value)}
-                       >
-                         <ElectiveCheck selected={formData.electiveLecture === e.value}>
-                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                             <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                           </svg>
-                         </ElectiveCheck>
-                         <span>{e.label}</span>
-                       </ElectiveCard>
-                     ))}
+                     <ElectiveCard
+                       selected={formData.electiveLecture === '삶과 사역의 밸런스'}
+                       onClick={() => set('electiveLecture', formData.electiveLecture === '삶과 사역의 밸런스' ? '' : '삶과 사역의 밸런스')}
+                     >
+                       <ElectiveCheck selected={formData.electiveLecture === '삶과 사역의 밸런스'}>
+                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                           <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                         </svg>
+                       </ElectiveCheck>
+                       <span>삶과 사역의 밸런스</span>
+                     </ElectiveCard>
+                     <ElectiveCard
+                       selected={formData.electiveLecture === '돈, 재정'}
+                       onClick={() => set('electiveLecture', formData.electiveLecture === '돈, 재정' ? '' : '돈, 재정')}
+                     >
+                       <ElectiveCheck selected={formData.electiveLecture === '돈, 재정'}>
+                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                           <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                         </svg>
+                       </ElectiveCheck>
+                       <span>돈, 재정</span>
+                     </ElectiveCard>
+                     <ElectiveCard
+                       selected={formData.electiveLecture === '관계 및 소통'}
+                       onClick={() => set('electiveLecture', formData.electiveLecture === '관계 및 소통' ? '' : '관계 및 소통')}
+                     >
+                       <ElectiveCheck selected={formData.electiveLecture === '관계 및 소통'}>
+                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                           <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                         </svg>
+                       </ElectiveCheck>
+                       <span>관계 및 소통</span>
+                     </ElectiveCard>
                    </ElectiveGroup>
                  </LegacySection>
-                 <ConsentWrapper onClick={() => set('depositConfirm', !formData.depositConfirm)}>
-                  <ConsentText>
-                    <strong>입금 확인</strong>
-                    <p>입금 하신 후 신청서 제출 부탁드립니다.</p>
-                  </ConsentText>
-                  <CheckIcon selected={formData.depositConfirm}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </CheckIcon>
-                </ConsentWrapper>
+                 
+                 <LegacySection>
+                   <Label>자원봉사팀 섬김 여부</Label>
+                   <SelectField onClick={() => setActiveSheet('volunteer')}>
+                     <span className={formData.volunteerTeam ? 'selected' : 'placeholder'}>
+                       {formData.volunteerTeam || '선택해주세요'}
+                     </span>
+                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                       <path d="M6 9L12 15L18 9" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                     </svg>
+                   </SelectField>
+                 </LegacySection>
                </>
             )}
 
             {step === 4 && (
               <>
-                <FormHeader>팀 섬김 신청</FormHeader>
-                <LegacySection>
-                  <Label>중보팀 섬김 여부</Label>
-                  <LegacySelect value={formData.intercessorTeam} onChange={(e) => set('intercessorTeam', e.target.value)} required>
-                     <option value="">선택해주세요</option>
-                     <option value="신청">신청합니다</option>
-                     <option value="없음">해당 없음</option>
-                  </LegacySelect>
-                </LegacySection>
-                <LegacySection>
-                  <Label>자원봉사 섬김 여부</Label>
-                  <LegacySelect value={formData.volunteerTeam} onChange={(e) => set('volunteerTeam', e.target.value)} required>
-                     <option value="">선택해주세요</option>
-                     <option value="신청">신청합니다</option>
-                     <option value="없음">해당 없음</option>
-                  </LegacySelect>
-                </LegacySection>
-              </>
-            )}
+                <FormHeader>입금 확인 및 최종 제출</FormHeader>
+                
+                <DepositInfoBox>
+                  <DepositInfoTitle>입금 계좌 정보</DepositInfoTitle>
+                  <DepositInfoRow>
+                    <DepositInfoLabel>계좌번호</DepositInfoLabel>
+                    <DepositInfoValue>하나은행 573-910022-19605</DepositInfoValue>
+                  </DepositInfoRow>
+                  <DepositInfoRow>
+                    <DepositInfoLabel>예금주</DepositInfoLabel>
+                    <DepositInfoValue>온누리교회(허브행사비)</DepositInfoValue>
+                  </DepositInfoRow>
+                  <DepositDivider />
+                  <DepositFeeTitle>회비 안내</DepositFeeTitle>
+                  <DepositFeeRow>
+                    <span>얼리버드 8만원</span>
+                    <span>4월 12일 - 4월 18일</span>
+                  </DepositFeeRow>
+                  <DepositFeeRow>
+                    <span>일반 8만 5천원</span>
+                    <span>4월 19일 - 4월 26일</span>
+                  </DepositFeeRow>
+                  <DepositFeeRow highlight>
+                    <span>아차차 이벤트 8만원</span>
+                    <span>4월 19일 이벤트 해당자만</span>
+                  </DepositFeeRow>
+                  <DepositNote>
+                    ※ 입금자명: 이름+연락처 끝 네자리 (ex. 홍길동8572)
+                  </DepositNote>
+                </DepositInfoBox>
 
-            {step === 5 && (
-              <>
-                <FormHeader>최종 제출 확인</FormHeader>
+                <ConsentWrapper onClick={() => set('depositConfirm', !formData.depositConfirm)}>
+                  <ConsentText>
+                    <strong>입금 확인</strong>
+                    <p>입금 하신 후 신청서 제출 부탁드립니다.</p>
+                  </ConsentText>
+                  <CheckIconLarge selected={formData.depositConfirm}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </CheckIconLarge>
+                </ConsentWrapper>
+
                 <ConsentWrapper onClick={() => set('finalSubmitConfirm', !formData.finalSubmitConfirm)}>
                   <ConsentText>
                     <strong>위 내용을 제출하시겠습니까?</strong>
                     <p>제출 후에는 수정이 어려우니 신중하게 확인해주세요.</p>
                   </ConsentText>
-                  <CheckIcon selected={formData.finalSubmitConfirm}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </CheckIcon>
+                  <CheckIconLarge selected={formData.finalSubmitConfirm}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </CheckIconLarge>
                 </ConsentWrapper>
                 {submitError && <ErrorText>{submitError}</ErrorText>}
               </>
@@ -671,7 +794,7 @@ export default function RegisterForm({
                 다음
               </NextStepButton>
             ) : (
-              <NextStepButton type="submit" disabled={!formData.finalSubmitConfirm}>
+              <NextStepButton type="submit" disabled={!formData.depositConfirm || !formData.finalSubmitConfirm}>
                 제출
               </NextStepButton>
             )}
@@ -680,7 +803,7 @@ export default function RegisterForm({
       )}
 
       {/* ── STEP 6: 제출 완료 ── */}
-      {step === 6 && (
+      {step === 5 && (
         <CompleteWrapper>
           <FormHeader style={{textAlign: 'center', marginTop: '60px'}}>제출이 완료되었습니다!</FormHeader>
           <p style={{textAlign: 'center', color: '#666', lineHeight: 1.6}}>
@@ -955,6 +1078,75 @@ const CheckIcon = styled.div<{ selected: boolean }>`
   color: ${(p) => p.selected ? PRIMARY_COLOR : '#E5E5EA'};
   display: flex; align-items: center; justify-content: center;
   transition: color 0.2s ease;
+`;
+
+const CheckIconLarge = styled.div<{ selected: boolean }>`
+  color: ${(p) => p.selected ? PRIMARY_COLOR : '#E5E5EA'};
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.2s ease;
+  min-width: 32px;
+  min-height: 32px;
+`;
+
+const DepositInfoBox = styled.div`
+  background: #FFF9F0;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 0 24px 24px 24px;
+`;
+
+const DepositInfoTitle = styled.div`
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 16px;
+`;
+
+const DepositInfoRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+`;
+
+const DepositInfoLabel = styled.span`
+  font-size: 13px;
+  color: #888;
+`;
+
+const DepositInfoValue = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+`;
+
+const DepositDivider = styled.div`
+  height: 1px;
+  background: #E5E5EA;
+  margin: 16px 0;
+`;
+
+const DepositFeeTitle = styled.div`
+  font-size: 14px;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 12px;
+`;
+
+const DepositFeeRow = styled.div<{ highlight?: boolean }>`
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: ${(p) => p.highlight ? PRIMARY_COLOR : '#666'};
+  margin-bottom: 6px;
+  font-weight: ${(p) => p.highlight ? 600 : 400};
+`;
+
+const DepositNote = styled.div`
+  font-size: 12px;
+  color: #888;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #E5E5EA;
 `;
 
 // ── 기타 공통 컴포넌트 ──

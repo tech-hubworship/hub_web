@@ -36,7 +36,7 @@ export default function HubUpMainPage() {
           <InfoLabel>일정</InfoLabel>
           <InfoData>
             <strong>5월 15일 (금) - 5월 17일 (일)</strong>
-            <p>Be Holy는 5월 15일, 추후 공지 예정 시간에 시작됩니다.</p>
+            <p>Be Holy는 5월 15일, 21시 예배 시작</p>
           </InfoData>
 
           <InfoLabel>장소</InfoLabel>
@@ -47,8 +47,7 @@ export default function HubUpMainPage() {
 
           <InfoLabel>신청</InfoLabel>
           <InfoData>
-            <strong>4월 12일 (일) - 4월 26일 (토)</strong>
-            <p>최대 700명 신청 가능</p>
+            <strong>4월 12일 (토) - 4월 26일 (토)</strong>
           </InfoData>
 
           <InfoLabel>회비</InfoLabel>
@@ -63,7 +62,7 @@ export default function HubUpMainPage() {
                 <p>4월 19일 - 4월 26일</p>
               </div>
             </FeeGrid>
-            <p className="account">하나은행 계좌번호 / 예금주</p>
+            <p className="account">하나은행 573-910022-19605 / 온누리교회(허브행사비)</p>
           </InfoData>
         </InfoGrid>
       </InfoCard>

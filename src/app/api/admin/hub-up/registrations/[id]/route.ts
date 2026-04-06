@@ -14,11 +14,16 @@ export async function PATCH(
 
   const { id } = await ctx.params;
   const body = await req.json();
-  const { room_number, room_note } = body;
+  const { room_number, room_note, admin_deposit_confirm } = body;
+
+  const updateData: Record<string, any> = {};
+  if ('room_number' in body) updateData.room_number = room_number ?? null;
+  if ('room_note' in body) updateData.room_note = room_note ?? null;
+  if ('admin_deposit_confirm' in body) updateData.admin_deposit_confirm = admin_deposit_confirm;
 
   const { error } = await supabaseAdmin
     .from('hub_up_registrations')
-    .update({ room_number: room_number ?? null, room_note: room_note ?? null })
+    .update(updateData)
     .eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

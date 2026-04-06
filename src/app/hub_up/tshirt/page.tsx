@@ -27,16 +27,17 @@ export default function TshirtPage() {
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login?redirect=/hub_up/tshirt'); return; }
     if (status !== 'authenticated') return;
-    fetch('/api/hub-up/tshirt')
-      .then((r) => r.json())
-      .then((d) => {
-        setConfig(d.config || {});
-        if (d.order) {
-          setExistingOrder(d.order);
-          setItems(d.order.items || []);
-        }
-      })
-      .finally(() => setLoading(false));
+    // config는 캐싱된 공개 API, 주문은 인증 API - 병렬 fetch
+    Promise.all([
+      fetch('/api/hub-up/config').then((r) => r.json()),
+      fetch('/api/hub-up/tshirt').then((r) => r.json()),
+    ]).then(([config, tshirt]) => {
+      setConfig({ ...config, ...(tshirt.config || {}) });
+      if (tshirt.order) {
+        setExistingOrder(tshirt.order);
+        setItems(tshirt.order.items || []);
+      }
+    }).finally(() => setLoading(false));
   }, [status, router]);
 
   const getQty = (color: string, size: string) =>
@@ -121,7 +122,7 @@ export default function TshirtPage() {
       {/* Hero Banner */}
       <HeroBanner bg={currentColor.bg}>
         <BannerTop>
-          <EssenceLogo color={currentColor.text}>Essence</EssenceLogo>
+          <EssenceLogo color={currentColor.text}>2026 Be Holy</EssenceLogo>
           <ColorBadge color={currentColor.text}>{currentColor.label}</ColorBadge>
         </BannerTop>
         <TshirtTitle color={currentColor.text}>T-SHIRTS</TshirtTitle>
@@ -223,8 +224,8 @@ const BackBtn = styled.button`background: none; border: none; cursor: pointer; p
 
 const HeroBanner = styled.div<{ bg: string }>`
   background: ${p => p.bg};
-  padding: 32px 24px 40px;
-  position: relative;
+  padding: 24px 24px 28px;
+  border-bottom: 1px solid #E5E5EA;
 `;
 const BannerTop = styled.div`display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;`;
 const EssenceLogo = styled.div<{ color: string }>`
@@ -243,10 +244,10 @@ const ColorBadge = styled.div<{ color: string }>`
   letter-spacing: 0.1em;
 `;
 const TshirtTitle = styled.h1<{ color: string }>`
-  font-size: 48px;
+  font-size: 36px;
   font-weight: 900;
   color: ${p => p.color};
-  margin: 0;
+  margin: 8px 0 0 0;
   letter-spacing: -0.02em;
   line-height: 1;
 `;
@@ -397,8 +398,10 @@ const BottomSpacer = styled.div`height: 20px;`;
 const BottomBar = styled.div`
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
   background: #fff;
   border-top: 1px solid #E5E5EA;
   padding: 16px 20px;

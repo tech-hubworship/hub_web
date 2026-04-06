@@ -59,37 +59,31 @@ function RegisterPageInner() {
   const router = useRouter();
 
   useEffect(() => {
-    // 이미 신청했는지 먼저 확인
-    fetch('/api/hub-up/myinfo')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.registration) {
-          router.replace('/hub_up/myinfo');
-          return;
-        }
-        // 신청 안 했으면 폼 데이터 로드
-        return fetch('/api/hub-up/form-data')
-          .then((r) => r.json())
-          .then((fd) => {
-            if (!fd.departureSlots?.length) {
-              setData(FALLBACK);
-            } else {
-              setData({
-                departureSlots: fd.departureSlots,
-                returnSlots: fd.returnSlots,
-                electives: fd.electives,
-                config: fd.config,
-                initialSlotCounts: fd.slotCounts || {},
-              });
-            }
-          });
-      })
-      .catch(() => setData(FALLBACK));
+    // myinfo + form-data 병렬 fetch
+    Promise.all([
+      fetch('/api/hub-up/myinfo').then((r) => r.json()).catch(() => null),
+      fetch('/api/hub-up/form-data').then((r) => r.json()).catch(() => null),
+    ]).then(([myinfo, fd]) => {
+      // 이미 신청한 경우 바로 redirect
+      if (myinfo?.registration) {
+        router.replace('/hub_up/myinfo');
+        return;
+      }
+      if (!fd?.departureSlots?.length) {
+        setData(FALLBACK);
+      } else {
+        setData({
+          departureSlots: fd.departureSlots,
+          returnSlots: fd.returnSlots,
+          electives: fd.electives,
+          config: fd.config,
+          initialSlotCounts: fd.slotCounts || {},
+        });
+      }
+    }).catch(() => setData(FALLBACK));
   }, [router]);
 
-  if (!data) {
-    return null;
-  }
+  if (!data) return null;
 
   return <RegisterForm {...data} />;
 }

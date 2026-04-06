@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@src/lib/supabase';
 
-export const revalidate = 60; // 1분 ISR 캐싱
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic'; // slot counts는 실시간 필요
 
 /**
  * GET /api/hub-up/form-data
- * 신청 폼 렌더링에 필요한 정적 데이터를 한 번에 반환
- * - 출발 슬롯 목록 + 현재 신청 인원
- * - 복귀 슬롯 목록
- * - 선택강의 목록
- * - 행사 설정 (config)
+ * - slots/config: 자주 안 바뀜 → s-maxage로 CDN 캐싱
+ * - slotCounts: 실시간 필요하지만 stale-while-revalidate로 부하 완화
  */
 export async function GET() {
   const [
@@ -46,23 +44,29 @@ export async function GET() {
       .select('departure_slot'),
   ]);
 
-  // 슬롯별 현재 신청 인원 집계
   const counts: Record<string, number> = {};
   (slotCounts || []).forEach((row: { departure_slot: string }) => {
     counts[row.departure_slot] = (counts[row.departure_slot] || 0) + 1;
   });
 
-  // config 배열 → 객체로 변환
   const configMap: Record<string, string> = {};
   (config || []).forEach((row: { key: string; value: string }) => {
     configMap[row.key] = row.value;
   });
 
-  return NextResponse.json({
-    departureSlots: departureSlots || [],
-    returnSlots: returnSlots || [],
-    electives: electives || [],
-    config: configMap,
-    slotCounts: counts,
-  });
+  return NextResponse.json(
+    {
+      departureSlots: departureSlots || [],
+      returnSlots: returnSlots || [],
+      electives: electives || [],
+      config: configMap,
+      slotCounts: counts,
+    },
+    {
+      headers: {
+        // slots/config는 30초 CDN 캐시, 최대 2분 stale 허용
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120',
+      },
+    }
+  );
 }

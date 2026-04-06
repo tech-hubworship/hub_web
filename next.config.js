@@ -77,6 +77,32 @@ const nextConfig = {
           },
         ],
       },
+      // hub_up 정적 페이지 - 클라이언트 컴포넌트지만 HTML shell은 CDN 캐싱
+      {
+        source: '/hub_up',
+        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=300' }],
+      },
+      {
+        source: '/hub_up/faq',
+        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=3600, stale-while-revalidate=86400' }],
+      },
+      {
+        source: '/hub_up/register',
+        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=300' }],
+      },
+      {
+        source: '/hub_up/tshirt',
+        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=300' }],
+      },
+      // hub_up 공개 API - CDN 캐싱
+      {
+        source: '/api/hub-up/config',
+        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=600' }],
+      },
+      {
+        source: '/api/hub-up/form-data',
+        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=30, stale-while-revalidate=120' }],
+      },
     ];
   },
   async redirects() {

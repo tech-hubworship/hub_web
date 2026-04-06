@@ -8,23 +8,28 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
 
-  const { data } = await supabaseAdmin
-    .from('hub_up_tshirt_orders')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .maybeSingle();
-
-  const { data: config } = await supabaseAdmin
-    .from('hub_up_config')
-    .select('key, value')
-    .in('key', ['tshirt_sale_open', 'tshirt_sale_deadline', 'tshirt_change_deadline',
-                 'tshirt_distribute_start', 'tshirt_bank_name', 'tshirt_bank_account',
-                 'tshirt_bank_holder', 'tshirt_price_black', 'tshirt_price_white']);
+  // 주문 + config 병렬 조회
+  const [{ data }, { data: config }] = await Promise.all([
+    supabaseAdmin
+      .from('hub_up_tshirt_orders')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('hub_up_config')
+      .select('key, value')
+      .in('key', ['tshirt_sale_open', 'tshirt_sale_deadline', 'tshirt_change_deadline',
+                   'tshirt_distribute_start', 'tshirt_bank_name', 'tshirt_bank_account',
+                   'tshirt_bank_holder', 'tshirt_price_black', 'tshirt_price_white']),
+  ]);
 
   const configMap: Record<string, string> = {};
   (config || []).forEach((r: any) => { configMap[r.key] = r.value; });
 
-  return NextResponse.json({ order: data, config: configMap });
+  // 개인 데이터라 캐싱 불가, 단 config는 private 캐시 허용
+  return NextResponse.json({ order: data, config: configMap }, {
+    headers: { 'Cache-Control': 'private, no-store' },
+  });
 }
 
 // POST: 티셔츠 주문 생성/수정

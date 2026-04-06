@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from('hub_up_registrations')
-    .select('id, created_at, name, group_name, community, gender, departure_slot, return_slot, elective_lecture, intercessor_team, volunteer_team, deposit_confirm, room_number, room_note, phone')
+    .select('id, created_at, name, group_name, community, gender, departure_slot, return_slot, elective_lecture, intercessor_team, volunteer_team, deposit_confirm, admin_deposit_confirm, room_number, room_note, phone')
     .order('created_at', { ascending: true });
 
   if (search) {

@@ -20,7 +20,7 @@ export async function GET() {
   const male = rows.filter((r) => r.gender === '남' || r.gender === '남자').length;
   const female = rows.filter((r) => r.gender === '여' || r.gender === '여자').length;
   const other = total - male - female;
-  const deposited = rows.filter((r) => r.deposit_confirm).length;
+  const deposited = rows.filter((r) => r.admin_deposit_confirm).length;
 
   // 출발 슬롯별
   const departureCounts: Record<string, number> = {};

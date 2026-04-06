@@ -15,7 +15,7 @@ interface Registration {
   elective_lecture: string;
   intercessor_team: string;
   volunteer_team: string;
-  deposit_confirm: boolean;
+  admin_deposit_confirm: boolean;
   room_number: string | null;
   room_note: string | null;
 }
@@ -53,13 +53,15 @@ export default function MyInfoPage() {
     Promise.all([
       fetch('/api/hub-up/myinfo').then((r) => r.json()),
       fetch('/api/hub-up/tshirt').then((r) => r.json()),
+      fetch('/api/hub-up/config').then((r) => r.json()),
     ])
-      .then(([myinfo, tshirt]) => {
+      .then(([myinfo, tshirt, config]) => {
         if (myinfo.error) { setError(myinfo.error); return; }
         setRegistration(myinfo.registration);
         setContactPhone(myinfo.contactPhone || '');
         setTshirtOrder(tshirt.order || null);
-        setTshirtConfig(tshirt.config || {});
+        // config는 공개 API에서 가져온 것 우선, tshirt 응답 config로 fallback
+        setTshirtConfig({ ...(tshirt.config || {}), ...config });
       })
       .catch(() => setError('정보를 불러오는 중 오류가 발생했습니다.'))
       .finally(() => setLoading(false));
@@ -104,12 +106,11 @@ export default function MyInfoPage() {
           <InfoRow><InfoLabel>이름</InfoLabel><InfoValue>{registration.name}</InfoValue></InfoRow>
           <InfoRow><InfoLabel>그룹/다락방</InfoLabel><InfoValue>{registration.group_name}</InfoValue></InfoRow>
           <InfoRow><InfoLabel>선택강의</InfoLabel><InfoValue>{registration.elective_lecture}</InfoValue></InfoRow>
-          <InfoRow><InfoLabel>중보팀</InfoLabel><InfoValue>{registration.intercessor_team}</InfoValue></InfoRow>
           <InfoRow><InfoLabel>자원봉사</InfoLabel><InfoValue>{registration.volunteer_team}</InfoValue></InfoRow>
           <InfoRow>
             <InfoLabel>입금</InfoLabel>
-            <StatusBadge ok={registration.deposit_confirm}>
-              {registration.deposit_confirm ? '완료' : '미확인'}
+            <StatusBadge ok={registration.admin_deposit_confirm}>
+              {registration.admin_deposit_confirm ? '확인완료' : '입금확인중'}
             </StatusBadge>
           </InfoRow>
         </Section>

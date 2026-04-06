@@ -8,7 +8,8 @@ interface Registration {
   community: string; gender: string; phone: string;
   departure_slot: string; return_slot: string; elective_lecture: string;
   intercessor_team: string; volunteer_team: string;
-  deposit_confirm: boolean; room_number: string | null; room_note: string | null;
+  deposit_confirm: boolean; admin_deposit_confirm: boolean;
+  room_number: string | null; room_note: string | null;
 }
 interface SlotStat { value: string; label: string; max_count: number; current_count: number; is_full: boolean; }
 interface Stats {
@@ -28,7 +29,7 @@ const sl = (slot: string) => slot === 'car' ? '자차' : slot.replace('bus-', ''
 
 export default function HubUpAdminPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'stats' | 'room' | 'bus'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'deposit' | 'room' | 'bus'>('stats');
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [roomFilter, setRoomFilter] = useState('');
@@ -59,6 +60,20 @@ export default function HubUpAdminPage() {
       const res = await fetch(`/api/admin/hub-up/registrations?${p}`);
       if (!res.ok) throw new Error('조회 실패');
       return res.json();
+    },
+  });
+
+  const depositMutation = useMutation({
+    mutationFn: async ({ id, confirmed }: { id: string; confirmed: boolean }) => {
+      const res = await fetch(`/api/admin/hub-up/registrations/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_deposit_confirm: confirmed }),
+      });
+      if (!res.ok) throw new Error('저장 실패');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hub-up-registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['hub-up-stats'] });
     },
   });
 
@@ -112,6 +127,7 @@ export default function HubUpAdminPage() {
       {/* 탭 */}
       <TabBar>
         <Tab active={activeTab === 'stats'} onClick={() => setActiveTab('stats')}>📊 전체 통계</Tab>
+        <Tab active={activeTab === 'deposit'} onClick={() => setActiveTab('deposit')}>💰 입금 확인</Tab>
         <Tab active={activeTab === 'room'} onClick={() => setActiveTab('room')}>🏠 숙소 배정</Tab>
         <Tab active={activeTab === 'bus'} onClick={() => setActiveTab('bus')}>🚌 버스 현황</Tab>
       </TabBar>
@@ -271,6 +287,82 @@ export default function HubUpAdminPage() {
               </>
             )}
           </StatsWrap>
+        )}
+
+        {/* ── 입금 확인 탭 ── */}
+        {activeTab === 'deposit' && (
+          <div>
+            <DepositSummary>
+              <RoomStatItem>
+                <RoomStatNum>{registrations.length}</RoomStatNum>
+                <RoomStatLabel>전체 신청</RoomStatLabel>
+              </RoomStatItem>
+              <RoomStatItem>
+                <RoomStatNum style={{color:'#278f5a'}}>{registrations.filter(r => r.admin_deposit_confirm).length}</RoomStatNum>
+                <RoomStatLabel>입금 확인</RoomStatLabel>
+              </RoomStatItem>
+              <RoomStatItem>
+                <RoomStatNum style={{color:'#d93025'}}>{registrations.filter(r => !r.admin_deposit_confirm).length}</RoomStatNum>
+                <RoomStatLabel>미확인</RoomStatLabel>
+              </RoomStatItem>
+            </DepositSummary>
+
+            <ToolRow>
+              <SearchBox>
+                <SearchIn placeholder="이름 / 그룹 / 연락처" value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && setAppliedSearch(search)} />
+                <SearchBtn onClick={() => setAppliedSearch(search)}>검색</SearchBtn>
+                {appliedSearch && <SearchBtn onClick={() => { setSearch(''); setAppliedSearch(''); }} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>}
+              </SearchBox>
+            </ToolRow>
+
+            {isLoading ? <Loading>불러오는 중...</Loading> : (
+              <TableWrap>
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>이름</Th><Th>그룹</Th><Th>연락처</Th><Th>자기신고</Th><Th>입금확인</Th><Th>관리</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {registrations.map(r => (
+                      <tr key={r.id} style={{background: r.admin_deposit_confirm ? '#f0fdf4' : undefined}}>
+                        <Td><strong>{r.name}</strong></Td>
+                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
+                        <Td style={{fontSize:'13px'}}>{r.phone}</Td>
+                        <Td>
+                          <DepBadge ok={r.deposit_confirm}>
+                            {r.deposit_confirm ? '입금했다고 함' : '미신고'}
+                          </DepBadge>
+                        </Td>
+                        <Td>
+                          <DepBadge ok={r.admin_deposit_confirm}>
+                            {r.admin_deposit_confirm ? '확인완료' : '확인중'}
+                          </DepBadge>
+                        </Td>
+                        <Td>
+                          {r.admin_deposit_confirm ? (
+                            <CancelBtn onClick={() => depositMutation.mutate({ id: r.id, confirmed: false })}>
+                              취소
+                            </CancelBtn>
+                          ) : (
+                            <SaveBtn onClick={() => depositMutation.mutate({ id: r.id, confirmed: true })}
+                              disabled={depositMutation.isPending}>
+                              입금확인
+                            </SaveBtn>
+                          )}
+                        </Td>
+                      </tr>
+                    ))}
+                    {registrations.length === 0 && (
+                      <tr><td colSpan={6} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>
+                    )}
+                  </tbody>
+                </Table>
+              </TableWrap>
+            )}
+          </div>
         )}
 
         {/* ── 버스 현황 탭 ── */}
@@ -439,7 +531,7 @@ const LecCnt = styled.div`font-size: 13px; font-weight: 700; width: 36px; flex-s
 const LecBar = styled.div`flex: 1; height: 6px; background: #f1f3f4; border-radius: 3px; overflow: hidden;`;
 const LecFill = styled.div<{w:number}>`height: 100%; width: ${p=>p.w}%; background: #278f5a;`;
 
-// Bus
+const DepositSummary = styled.div`display: flex; gap: 12px; margin-bottom: 14px;`;
 const BusGrid = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px;`;
 const BusCard = styled.div<{full:boolean}>`background: white; border-radius: 10px; padding: 14px; text-align: center; border: 2px solid ${p=>p.full?'#d93025':'#e8eaed'}; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.05);`;
 const BusCardLabel = styled.div`font-size: 12px; font-weight: 600; color: #5f6368; margin-bottom: 6px;`;

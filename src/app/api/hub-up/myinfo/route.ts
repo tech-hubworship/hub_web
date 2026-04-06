@@ -25,7 +25,7 @@ export async function GET() {
       elective_lecture,
       intercessor_team,
       volunteer_team,
-      deposit_confirm,
+      admin_deposit_confirm,
       room_number,
       room_note
     `)
@@ -55,5 +55,7 @@ export async function GET() {
     registration: data,
     contactPhone: configMap['contact_phone'] || null,
     contactName: configMap['contact_name'] || null,
+  }, {
+    headers: { 'Cache-Control': 'private, no-store' },
   });
 }
