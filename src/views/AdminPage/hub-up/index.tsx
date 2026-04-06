@@ -2,40 +2,33 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
 
+// ── Types ──────────────────────────────────────────────────
 interface Registration {
-  id: string;
-  created_at: string;
-  name: string;
-  group_name: string;
-  community: string;
-  gender: string;
-  phone: string;
-  departure_slot: string;
-  return_slot: string;
-  elective_lecture: string;
-  intercessor_team: string;
-  volunteer_team: string;
-  deposit_confirm: boolean;
-  room_number: string | null;
-  room_note: string | null;
+  id: string; created_at: string; name: string; group_name: string;
+  community: string; gender: string; phone: string;
+  departure_slot: string; return_slot: string; elective_lecture: string;
+  intercessor_team: string; volunteer_team: string;
+  deposit_confirm: boolean; room_number: string | null; room_note: string | null;
+}
+interface SlotStat { value: string; label: string; max_count: number; current_count: number; is_full: boolean; }
+interface Stats {
+  total: number;
+  gender: { male: number; female: number; other: number };
+  deposited: number; depositRate: number;
+  departureCounts: Record<string, number>;
+  returnCounts: Record<string, number>;
+  carRoleCounts: Record<string, number>;
+  groupCounts: Record<string, { male: number; female: number; total: number }>;
+  intercessorCount: number; volunteerCount: number;
+  electiveCounts: Record<string, number>;
+  communityCounts: Record<string, number>;
 }
 
-interface SlotStat {
-  value: string;
-  label: string;
-  max_count: number;
-  current_count: number;
-  is_full: boolean;
-}
-
-const slotLabel = (slot: string) => {
-  if (slot === 'car') return '자차';
-  return slot.replace('bus-', '');
-};
+const sl = (slot: string) => slot === 'car' ? '자차' : slot.replace('bus-', '');
 
 export default function HubUpAdminPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'room' | 'bus'>('room');
+  const [activeTab, setActiveTab] = useState<'stats' | 'room' | 'bus'>('stats');
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [roomFilter, setRoomFilter] = useState('');
@@ -45,451 +38,442 @@ export default function HubUpAdminPage() {
   const [bulkRoom, setBulkRoom] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const { data: registrations = [], isLoading } = useQuery<Registration[]>({
-    queryKey: ['hub-up-registrations', appliedSearch, roomFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (appliedSearch) params.set('search', appliedSearch);
-      if (roomFilter) params.set('room', roomFilter);
-      const res = await fetch(`/api/admin/hub-up/registrations?${params}`);
-      if (!res.ok) throw new Error('조회 실패');
-      return res.json();
-    },
+  const { data: stats } = useQuery<Stats>({
+    queryKey: ['hub-up-stats'],
+    queryFn: () => fetch('/api/admin/hub-up/stats').then(r => r.json()),
+    refetchInterval: 30000,
   });
 
   const { data: busStats } = useQuery<{ slotStats: SlotStat[]; registrations: Registration[] }>({
     queryKey: ['hub-up-bus-stats'],
+    queryFn: () => fetch('/api/admin/hub-up/bus-stats').then(r => r.json()),
+    refetchInterval: 30000,
+  });
+
+  const { data: registrations = [], isLoading } = useQuery<Registration[]>({
+    queryKey: ['hub-up-registrations', appliedSearch, roomFilter],
     queryFn: async () => {
-      const res = await fetch('/api/admin/hub-up/bus-stats');
+      const p = new URLSearchParams();
+      if (appliedSearch) p.set('search', appliedSearch);
+      if (roomFilter) p.set('room', roomFilter);
+      const res = await fetch(`/api/admin/hub-up/registrations?${p}`);
       if (!res.ok) throw new Error('조회 실패');
       return res.json();
     },
-    refetchInterval: 30000,
   });
 
   const patchMutation = useMutation({
     mutationFn: async ({ id, room_number, room_note }: { id: string; room_number: string; room_note: string }) => {
       const res = await fetch(`/api/admin/hub-up/registrations/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room_number: room_number || null, room_note: room_note || null }),
       });
       if (!res.ok) throw new Error('저장 실패');
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['hub-up-registrations'] });
-      setEditingId(null);
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['hub-up-registrations'] }); setEditingId(null); },
   });
 
   const bulkMutation = useMutation({
     mutationFn: async () => {
-      await Promise.all(
-        Array.from(selectedIds).map((id) =>
-          fetch(`/api/admin/hub-up/registrations/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ room_number: bulkRoom || null }),
-          })
-        )
-      );
+      await Promise.all(Array.from(selectedIds).map(id =>
+        fetch(`/api/admin/hub-up/registrations/${id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room_number: bulkRoom || null }),
+        })
+      ));
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['hub-up-registrations'] });
-      setSelectedIds(new Set());
-      setBulkRoom('');
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['hub-up-registrations'] }); setSelectedIds(new Set()); setBulkRoom(''); },
   });
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === registrations.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(registrations.map((r) => r.id)));
-    }
-  };
-
-  const startEdit = (r: Registration) => {
-    setEditingId(r.id);
-    setEditRoom(r.room_number || '');
-    setEditNote(r.room_note || '');
-  };
+  const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleAll = () => setSelectedIds(selectedIds.size === registrations.length ? new Set() : new Set(registrations.map(r => r.id)));
+  const startEdit = (r: Registration) => { setEditingId(r.id); setEditRoom(r.room_number || ''); setEditNote(r.room_note || ''); };
 
   const total = registrations.length;
-  const assigned = registrations.filter((r) => r.room_number).length;
-  const unassigned = total - assigned;
-
+  const assigned = registrations.filter(r => r.room_number).length;
   const roomGroups = registrations.reduce<Record<string, number>>((acc, r) => {
-    const key = r.room_number || '미배정';
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
+    const k = r.room_number || '미배정'; acc[k] = (acc[k] || 0) + 1; return acc;
   }, {});
 
-  return (
-    <Container>
-      <Header>
-        <Title>🏠 허브업 관리</Title>
-        <Stats>
-          <StatBadge color="#278f5a">전체 {total}명</StatBadge>
-          <StatBadge color="#2563eb">배정 {assigned}명</StatBadge>
-          <StatBadge color="#d93025">미배정 {unassigned}명</StatBadge>
-        </Stats>
-      </Header>
+  const pct = (n: number, d: number) => d > 0 ? Math.round((n / d) * 100) : 0;
 
+  return (
+    <Wrap>
+      {/* 헤더 */}
+      <PageHeader>
+        <PageTitle>🎪 허브업 관리</PageTitle>
+        <HeaderBadges>
+          <Badge color="#278f5a">전체 {stats?.total ?? 0}명</Badge>
+          <Badge color="#2563eb">입금 {stats?.deposited ?? 0}명</Badge>
+          <Badge color="#d93025">미입금 {(stats?.total ?? 0) - (stats?.deposited ?? 0)}명</Badge>
+        </HeaderBadges>
+      </PageHeader>
+
+      {/* 탭 */}
       <TabBar>
-        <TabBtn active={activeTab === 'room'} onClick={() => setActiveTab('room')}>🏠 숙소 배정</TabBtn>
-        <TabBtn active={activeTab === 'bus'} onClick={() => setActiveTab('bus')}>🚌 버스 현황</TabBtn>
+        <Tab active={activeTab === 'stats'} onClick={() => setActiveTab('stats')}>📊 전체 통계</Tab>
+        <Tab active={activeTab === 'room'} onClick={() => setActiveTab('room')}>🏠 숙소 배정</Tab>
+        <Tab active={activeTab === 'bus'} onClick={() => setActiveTab('bus')}>🚌 버스 현황</Tab>
       </TabBar>
 
-      {activeTab === 'bus' && (
-        <BusTabContent>
-          <BusGrid>
-            {(busStats?.slotStats || []).map((s) => (
-              <BusCard key={s.value} full={s.is_full}>
-                <BusLabel>{s.label}</BusLabel>
-                <BusCount>
-                  <BusNum>{s.current_count}</BusNum>
-                  <BusMax>/ {s.max_count > 0 ? s.max_count : '∞'}</BusMax>
-                </BusCount>
-                {s.max_count > 0 && (
-                  <BusBar>
-                    <BusFill
-                      pct={Math.min((s.current_count / s.max_count) * 100, 100)}
-                      full={s.is_full}
-                    />
-                  </BusBar>
-                )}
-                {s.is_full && <FullBadge>마감</FullBadge>}
-              </BusCard>
-            ))}
-          </BusGrid>
-          <TableWrapper>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>이름</Th>
-                  <Th>그룹</Th>
-                  <Th>출발</Th>
-                  <Th>복귀</Th>
-                  <Th>입금</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {(busStats?.registrations || []).map((r) => (
-                  <tr key={r.id}>
-                    <Td><strong>{r.name}</strong></Td>
-                    <Td style={{ fontSize: '13px', color: '#5f6368' }}>{r.group_name}</Td>
-                    <Td><SlotTag slot={r.departure_slot}>{slotLabel(r.departure_slot)}</SlotTag></Td>
-                    <Td>{slotLabel(r.return_slot)}</Td>
-                    <Td>
-                      <DepositBadge confirmed={r.deposit_confirm}>
-                        {r.deposit_confirm ? '완료' : '미확인'}
-                      </DepositBadge>
-                    </Td>
-                  </tr>
-                ))}
-                {!busStats?.registrations?.length && (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#9aa0a6' }}>
-                      신청자가 없습니다.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </Table>
-          </TableWrapper>
-        </BusTabContent>
-      )}
+      <TabContent>
 
-      {activeTab === 'room' && (
-        <RoomTabContent>
-          <RoomSummary>
-            {Object.entries(roomGroups)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([room, count]) => (
-                <RoomChip
-                  key={room}
-                  active={roomFilter === (room === '미배정' ? 'unassigned' : room)}
-                  onClick={() => setRoomFilter(
-                    roomFilter === (room === '미배정' ? 'unassigned' : room)
-                      ? ''
-                      : room === '미배정' ? 'unassigned' : room
+        {/* ── 전체 통계 탭 ── */}
+        {activeTab === 'stats' && (
+          <StatsWrap>
+            {!stats ? <Loading>불러오는 중...</Loading> : (
+              <>
+                {/* 상단 KPI 카드 */}
+                <KpiRow>
+                  <KpiCard accent="#202124">
+                    <KpiNum>{stats.total}</KpiNum>
+                    <KpiLabel>총 접수</KpiLabel>
+                  </KpiCard>
+                  <KpiCard accent="#2563eb">
+                    <KpiNum style={{color:'#2563eb'}}>{stats.gender.male}</KpiNum>
+                    <KpiLabel>남</KpiLabel>
+                  </KpiCard>
+                  <KpiCard accent="#d93025">
+                    <KpiNum style={{color:'#d93025'}}>{stats.gender.female}</KpiNum>
+                    <KpiLabel>여</KpiLabel>
+                  </KpiCard>
+                  <KpiCard accent="#278f5a">
+                    <KpiNum style={{color:'#278f5a'}}>{stats.deposited}</KpiNum>
+                    <KpiLabel>입금완료</KpiLabel>
+                  </KpiCard>
+                  <KpiCard accent="#f59e0b">
+                    <KpiNum style={{color:'#f59e0b'}}>{stats.depositRate}%</KpiNum>
+                    <KpiLabel>입금률</KpiLabel>
+                  </KpiCard>
+                </KpiRow>
+
+                {/* 성별 바 */}
+                <Card>
+                  <CardTitle>성별 비율</CardTitle>
+                  <GenderBarWrap>
+                    <GenderSeg w={pct(stats.gender.male, stats.total)} color="#2563eb" />
+                    <GenderSeg w={pct(stats.gender.female, stats.total)} color="#d93025" />
+                  </GenderBarWrap>
+                  <GenderLegend>
+                    <GenderItem color="#2563eb">남 {stats.gender.male}명 ({pct(stats.gender.male, stats.total)}%)</GenderItem>
+                    <GenderItem color="#d93025">여 {stats.gender.female}명 ({pct(stats.gender.female, stats.total)}%)</GenderItem>
+                  </GenderLegend>
+                </Card>
+
+                {/* 차량 현황 2열 */}
+                <TwoCol>
+                  <Card>
+                    <CardTitle>[출발] 차량 현황</CardTitle>
+                    <DenseTable>
+                      <thead><tr><DTh>슬롯</DTh><DTh right>인원</DTh><DTh right>비율</DTh></tr></thead>
+                      <tbody>
+                        {Object.entries(stats.departureCounts).sort(([a],[b])=>a.localeCompare(b)).map(([slot, cnt]) => (
+                          <tr key={slot}>
+                            <DTd>{sl(slot)}</DTd>
+                            <DTd right><strong>{cnt}</strong></DTd>
+                            <DTd right>{pct(cnt, stats.total)}%</DTd>
+                          </tr>
+                        ))}
+                        <tr style={{borderTop:'2px solid #e8eaed'}}>
+                          <DTd><strong>합계</strong></DTd>
+                          <DTd right><strong>{stats.total}</strong></DTd>
+                          <DTd right><strong>100%</strong></DTd>
+                        </tr>
+                      </tbody>
+                    </DenseTable>
+                    {Object.keys(stats.carRoleCounts).length > 0 && (
+                      <SubBox>
+                        <SubTitle>자차 세부</SubTitle>
+                        {Object.entries(stats.carRoleCounts).map(([role, cnt]) => (
+                          <SubRow key={role}><span>{role}</span><strong>{cnt}명</strong></SubRow>
+                        ))}
+                      </SubBox>
+                    )}
+                  </Card>
+                  <Card>
+                    <CardTitle>[복귀] 차량 현황</CardTitle>
+                    <DenseTable>
+                      <thead><tr><DTh>슬롯</DTh><DTh right>인원</DTh><DTh right>비율</DTh></tr></thead>
+                      <tbody>
+                        {Object.entries(stats.returnCounts).sort(([a],[b])=>a.localeCompare(b)).map(([slot, cnt]) => (
+                          <tr key={slot}>
+                            <DTd>{sl(slot)}</DTd>
+                            <DTd right><strong>{cnt}</strong></DTd>
+                            <DTd right>{pct(cnt, stats.total)}%</DTd>
+                          </tr>
+                        ))}
+                        <tr style={{borderTop:'2px solid #e8eaed'}}>
+                          <DTd><strong>합계</strong></DTd>
+                          <DTd right><strong>{stats.total}</strong></DTd>
+                          <DTd right><strong>100%</strong></DTd>
+                        </tr>
+                      </tbody>
+                    </DenseTable>
+                  </Card>
+                </TwoCol>
+
+                {/* 그룹별 */}
+                <Card>
+                  <CardTitle>그룹별 인원</CardTitle>
+                  <DenseTable>
+                    <thead><tr><DTh>그룹</DTh><DTh right>남</DTh><DTh right>여</DTh><DTh right>합계</DTh><DTh right>비율</DTh></tr></thead>
+                    <tbody>
+                      {Object.entries(stats.groupCounts).sort(([,a],[,b])=>b.total-a.total).map(([g, c]) => (
+                        <tr key={g}>
+                          <DTd>{g}</DTd>
+                          <DTd right>{c.male}</DTd>
+                          <DTd right>{c.female}</DTd>
+                          <DTd right><strong>{c.total}</strong></DTd>
+                          <DTd right>{pct(c.total, stats.total)}%</DTd>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </DenseTable>
+                </Card>
+
+                {/* 팀섬김 + 선택강의 + 공동체 */}
+                <ThreeCol>
+                  <Card>
+                    <CardTitle>팀 섬김</CardTitle>
+                    <TeamRow>
+                      <TeamStat>
+                        <TeamNum>{stats.intercessorCount}</TeamNum>
+                        <TeamLabel>중보기도팀</TeamLabel>
+                      </TeamStat>
+                      <TeamStat>
+                        <TeamNum>{stats.volunteerCount}</TeamNum>
+                        <TeamLabel>자원봉사팀</TeamLabel>
+                      </TeamStat>
+                    </TeamRow>
+                  </Card>
+                  <Card>
+                    <CardTitle>선택강의</CardTitle>
+                    {Object.entries(stats.electiveCounts).map(([lec, cnt]) => (
+                      <LecRow key={lec}>
+                        <LecName>{lec}</LecName>
+                        <LecCnt>{cnt}명</LecCnt>
+                        <LecBar><LecFill w={pct(cnt, stats.total)} /></LecBar>
+                      </LecRow>
+                    ))}
+                  </Card>
+                  <Card>
+                    <CardTitle>공동체별</CardTitle>
+                    <DenseTable>
+                      <thead><tr><DTh>공동체</DTh><DTh right>인원</DTh><DTh right>비율</DTh></tr></thead>
+                      <tbody>
+                        {Object.entries(stats.communityCounts).sort(([,a],[,b])=>b-a).map(([c, cnt]) => (
+                          <tr key={c}><DTd>{c}</DTd><DTd right><strong>{cnt}</strong></DTd><DTd right>{pct(cnt, stats.total)}%</DTd></tr>
+                        ))}
+                      </tbody>
+                    </DenseTable>
+                  </Card>
+                </ThreeCol>
+              </>
+            )}
+          </StatsWrap>
+        )}
+
+        {/* ── 버스 현황 탭 ── */}
+        {activeTab === 'bus' && (
+          <div>
+            <BusGrid>
+              {(busStats?.slotStats || []).map(s => (
+                <BusCard key={s.value} full={s.is_full}>
+                  <BusCardLabel>{s.label}</BusCardLabel>
+                  <BusCardCount>
+                    <BusNum>{s.current_count}</BusNum>
+                    <BusMax>/ {s.max_count > 0 ? s.max_count : '∞'}</BusMax>
+                  </BusCardCount>
+                  {s.max_count > 0 && (
+                    <BusBarWrap><BusFill pct={Math.min((s.current_count/s.max_count)*100,100)} full={s.is_full} /></BusBarWrap>
                   )}
-                >
-                  {room} ({count})
-                </RoomChip>
+                  {s.is_full && <FullTag>마감</FullTag>}
+                </BusCard>
               ))}
-            {roomFilter && (
-              <ClearChip onClick={() => setRoomFilter('')}>✕ 필터 해제</ClearChip>
-            )}
-          </RoomSummary>
-
-          <Toolbar>
-            <SearchRow>
-              <SearchInput
-                placeholder="이름 / 그룹 / 연락처 검색"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && setAppliedSearch(search)}
-              />
-              <SearchBtn onClick={() => setAppliedSearch(search)}>검색</SearchBtn>
-              {appliedSearch && (
-                <SearchBtn
-                  onClick={() => { setSearch(''); setAppliedSearch(''); }}
-                  style={{ background: '#f1f3f4', color: '#5f6368' }}
-                >
-                  초기화
-                </SearchBtn>
-              )}
-            </SearchRow>
-            {selectedIds.size > 0 && (
-              <BulkRow>
-                <span style={{ fontSize: '14px', color: '#5f6368' }}>{selectedIds.size}명 선택됨</span>
-                <BulkInput
-                  placeholder="숙소 호수 입력"
-                  value={bulkRoom}
-                  onChange={(e) => setBulkRoom(e.target.value)}
-                />
-                <BulkBtn
-                  disabled={!bulkRoom || bulkMutation.isPending}
-                  onClick={() => bulkMutation.mutate()}
-                >
-                  일괄 배정
-                </BulkBtn>
-              </BulkRow>
-            )}
-          </Toolbar>
-
-          {isLoading ? (
-            <LoadingText>불러오는 중...</LoadingText>
-          ) : (
-            <TableWrapper>
+            </BusGrid>
+            <TableWrap>
               <Table>
-                <thead>
-                  <tr>
-                    <Th style={{ width: 36 }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.size === registrations.length && registrations.length > 0}
-                        onChange={toggleSelectAll}
-                      />
-                    </Th>
-                    <Th>이름</Th>
-                    <Th>그룹</Th>
-                    <Th>성별</Th>
-                    <Th>출발</Th>
-                    <Th>복귀</Th>
-                    <Th>강의</Th>
-                    <Th>입금</Th>
-                    <Th>숙소</Th>
-                    <Th>메모</Th>
-                    <Th>관리</Th>
-                  </tr>
-                </thead>
+                <thead><tr><Th>이름</Th><Th>그룹</Th><Th>출발</Th><Th>복귀</Th><Th>입금</Th></tr></thead>
                 <tbody>
-                  {registrations.map((r) => (
+                  {(busStats?.registrations || []).map(r => (
                     <tr key={r.id}>
-                      <Td>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(r.id)}
-                          onChange={() => toggleSelect(r.id)}
-                        />
-                      </Td>
                       <Td><strong>{r.name}</strong></Td>
-                      <Td style={{ fontSize: '13px', color: '#5f6368' }}>{r.group_name}</Td>
-                      <Td>{r.gender}</Td>
-                      <Td>{slotLabel(r.departure_slot)}</Td>
-                      <Td>{slotLabel(r.return_slot)}</Td>
-                      <Td style={{ fontSize: '13px' }}>{r.elective_lecture}</Td>
-                      <Td>
-                        <DepositBadge confirmed={r.deposit_confirm}>
-                          {r.deposit_confirm ? '완료' : '미확인'}
-                        </DepositBadge>
-                      </Td>
-                      <Td>
-                        {editingId === r.id ? (
-                          <RoomInput
-                            value={editRoom}
-                            onChange={(e) => setEditRoom(e.target.value)}
-                            placeholder="호수"
-                            autoFocus
-                          />
-                        ) : (
-                          <RoomBadge assigned={!!r.room_number}>
-                            {r.room_number || '미배정'}
-                          </RoomBadge>
-                        )}
-                      </Td>
-                      <Td>
-                        {editingId === r.id ? (
-                          <RoomInput
-                            value={editNote}
-                            onChange={(e) => setEditNote(e.target.value)}
-                            placeholder="메모"
-                          />
-                        ) : (
-                          <span style={{ fontSize: '13px', color: '#5f6368' }}>{r.room_note || '-'}</span>
-                        )}
-                      </Td>
-                      <Td>
-                        {editingId === r.id ? (
-                          <BtnGroup>
-                            <SaveBtn
-                              onClick={() => patchMutation.mutate({ id: r.id, room_number: editRoom, room_note: editNote })}
-                              disabled={patchMutation.isPending}
-                            >
-                              저장
-                            </SaveBtn>
-                            <CancelBtn onClick={() => setEditingId(null)}>취소</CancelBtn>
-                          </BtnGroup>
-                        ) : (
-                          <EditBtn onClick={() => startEdit(r)}>배정</EditBtn>
-                        )}
-                      </Td>
+                      <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
+                      <Td><SlotChip>{sl(r.departure_slot)}</SlotChip></Td>
+                      <Td>{sl(r.return_slot)}</Td>
+                      <Td><DepBadge ok={r.deposit_confirm}>{r.deposit_confirm?'완료':'미확인'}</DepBadge></Td>
                     </tr>
                   ))}
-                  {registrations.length === 0 && (
-                    <tr>
-                      <td colSpan={11} style={{ textAlign: 'center', padding: '40px', color: '#9aa0a6' }}>
-                        신청자가 없습니다.
-                      </td>
-                    </tr>
-                  )}
+                  {!busStats?.registrations?.length && <tr><td colSpan={5} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
                 </tbody>
               </Table>
-            </TableWrapper>
-          )}
-        </RoomTabContent>
-      )}
-    </Container>
+            </TableWrap>
+          </div>
+        )}
+
+        {/* ── 숙소 배정 탭 ── */}
+        {activeTab === 'room' && (
+          <div>
+            <RoomStats>
+              <RoomStatItem><RoomStatNum>{total}</RoomStatNum><RoomStatLabel>전체</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#278f5a'}}>{assigned}</RoomStatNum><RoomStatLabel>배정완료</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#d93025'}}>{total-assigned}</RoomStatNum><RoomStatLabel>미배정</RoomStatLabel></RoomStatItem>
+            </RoomStats>
+
+            <RoomChips>
+              {Object.entries(roomGroups).sort(([a],[b])=>a.localeCompare(b)).map(([room, cnt]) => (
+                <RoomChip key={room} active={roomFilter===(room==='미배정'?'unassigned':room)}
+                  onClick={() => setRoomFilter(roomFilter===(room==='미배정'?'unassigned':room)?'':(room==='미배정'?'unassigned':room))}>
+                  {room} ({cnt})
+                </RoomChip>
+              ))}
+              {roomFilter && <ClearChip onClick={()=>setRoomFilter('')}>✕ 해제</ClearChip>}
+            </RoomChips>
+
+            <ToolRow>
+              <SearchBox>
+                <SearchIn placeholder="이름 / 그룹 / 연락처" value={search}
+                  onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&setAppliedSearch(search)} />
+                <SearchBtn onClick={()=>setAppliedSearch(search)}>검색</SearchBtn>
+                {appliedSearch && <SearchBtn onClick={()=>{setSearch('');setAppliedSearch('');}} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>}
+              </SearchBox>
+              {selectedIds.size > 0 && (
+                <BulkBox>
+                  <span style={{fontSize:'13px',color:'#5f6368'}}>{selectedIds.size}명 선택</span>
+                  <BulkIn placeholder="호수" value={bulkRoom} onChange={e=>setBulkRoom(e.target.value)} />
+                  <BulkBtn disabled={!bulkRoom||bulkMutation.isPending} onClick={()=>bulkMutation.mutate()}>일괄 배정</BulkBtn>
+                </BulkBox>
+              )}
+            </ToolRow>
+
+            {isLoading ? <Loading>불러오는 중...</Loading> : (
+              <TableWrap>
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th style={{width:36}}><input type="checkbox" checked={selectedIds.size===registrations.length&&registrations.length>0} onChange={toggleAll}/></Th>
+                      <Th>이름</Th><Th>그룹</Th><Th>성별</Th><Th>출발</Th><Th>복귀</Th><Th>강의</Th><Th>입금</Th><Th>숙소</Th><Th>메모</Th><Th>관리</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {registrations.map(r => (
+                      <tr key={r.id}>
+                        <Td><input type="checkbox" checked={selectedIds.has(r.id)} onChange={()=>toggleSelect(r.id)}/></Td>
+                        <Td><strong>{r.name}</strong></Td>
+                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
+                        <Td>{r.gender}</Td>
+                        <Td>{sl(r.departure_slot)}</Td>
+                        <Td>{sl(r.return_slot)}</Td>
+                        <Td style={{fontSize:'13px'}}>{r.elective_lecture}</Td>
+                        <Td><DepBadge ok={r.deposit_confirm}>{r.deposit_confirm?'완료':'미확인'}</DepBadge></Td>
+                        <Td>
+                          {editingId===r.id
+                            ? <RoomIn value={editRoom} onChange={e=>setEditRoom(e.target.value)} placeholder="호수" autoFocus/>
+                            : <RoomBadge ok={!!r.room_number}>{r.room_number||'미배정'}</RoomBadge>}
+                        </Td>
+                        <Td>
+                          {editingId===r.id
+                            ? <RoomIn value={editNote} onChange={e=>setEditNote(e.target.value)} placeholder="메모"/>
+                            : <span style={{fontSize:'13px',color:'#5f6368'}}>{r.room_note||'-'}</span>}
+                        </Td>
+                        <Td>
+                          {editingId===r.id
+                            ? <BtnGrp>
+                                <SaveBtn onClick={()=>patchMutation.mutate({id:r.id,room_number:editRoom,room_note:editNote})} disabled={patchMutation.isPending}>저장</SaveBtn>
+                                <CancelBtn onClick={()=>setEditingId(null)}>취소</CancelBtn>
+                              </BtnGrp>
+                            : <EditBtn onClick={()=>startEdit(r)}>배정</EditBtn>}
+                        </Td>
+                      </tr>
+                    ))}
+                    {registrations.length===0 && <tr><td colSpan={11} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
+                  </tbody>
+                </Table>
+              </TableWrap>
+            )}
+          </div>
+        )}
+      </TabContent>
+    </Wrap>
   );
 }
 
-const Container = styled.div`padding: 24px; font-family: 'Pretendard', sans-serif;`;
-const Header = styled.div`display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;`;
-const Title = styled.h2`font-size: 20px; font-weight: 700; color: #202124; margin: 0;`;
-const Stats = styled.div`display: flex; gap: 8px; flex-wrap: wrap;`;
-const StatBadge = styled.span<{ color: string }>`
-  background: ${(p) => p.color}18; color: ${(p) => p.color};
-  border: 1px solid ${(p) => p.color}40;
-  padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;
-`;
-const TabBar = styled.div`display: flex; margin-bottom: 16px; border-bottom: 2px solid #e8eaed;`;
-const TabBtn = styled.button<{ active: boolean }>`
-  padding: 10px 20px; background: none; border: none; font-size: 14px; font-weight: 600;
-  cursor: pointer; border-bottom: 2px solid ${(p) => p.active ? '#278f5a' : 'transparent'};
-  margin-bottom: -2px; color: ${(p) => p.active ? '#278f5a' : '#9aa0a6'};
-`;
-const BusTabContent = styled.div``;
-const RoomTabContent = styled.div``;
-const BusGrid = styled.div`
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px; margin-bottom: 20px;
-`;
-const BusCard = styled.div<{ full: boolean }>`
-  background: white; border-radius: 12px; padding: 16px; text-align: center;
-  border: 2px solid ${(p) => p.full ? '#d93025' : '#e8eaed'};
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: relative;
-`;
-const BusLabel = styled.div`font-size: 13px; font-weight: 600; color: #5f6368; margin-bottom: 8px;`;
-const BusCount = styled.div`display: flex; align-items: baseline; justify-content: center; gap: 2px;`;
-const BusNum = styled.span`font-size: 28px; font-weight: 800; color: #202124;`;
-const BusMax = styled.span`font-size: 13px; color: #9aa0a6;`;
-const BusBar = styled.div`height: 4px; background: #f1f3f4; border-radius: 2px; margin-top: 8px; overflow: hidden;`;
-const BusFill = styled.div<{ pct: number; full: boolean }>`
-  height: 100%; border-radius: 2px; width: ${(p) => p.pct}%;
-  background: ${(p) => p.full ? '#d93025' : p.pct > 80 ? '#f59e0b' : '#278f5a'};
-  transition: width 0.3s;
-`;
-const FullBadge = styled.div`
-  position: absolute; top: 8px; right: 8px;
-  background: #d93025; color: white; font-size: 10px; font-weight: 700;
-  padding: 2px 6px; border-radius: 4px;
-`;
-const SlotTag = styled.span<{ slot: string }>`
-  padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;
-  background: ${(p) => p.slot === 'car' ? '#f1f3f4' : '#e8f0fe'};
-  color: ${(p) => p.slot === 'car' ? '#5f6368' : '#1d4ed8'};
-`;
-const RoomSummary = styled.div`display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;`;
-const RoomChip = styled.button<{ active: boolean }>`
-  padding: 4px 12px; border-radius: 20px; font-size: 13px; cursor: pointer; border: 1px solid;
-  background: ${(p) => p.active ? '#2563eb' : 'white'};
-  color: ${(p) => p.active ? 'white' : '#3c4043'};
-  border-color: ${(p) => p.active ? '#2563eb' : '#dadce0'};
-  transition: all 0.15s;
-`;
-const ClearChip = styled.button`
-  padding: 4px 12px; border-radius: 20px; font-size: 13px; cursor: pointer;
-  border: 1px solid #dadce0; background: #f8f9fa; color: #d93025;
-`;
-const Toolbar = styled.div`display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;`;
-const SearchRow = styled.div`display: flex; gap: 8px;`;
-const SearchInput = styled.input`
-  flex: 1; max-width: 320px; padding: 8px 12px; border: 1px solid #dadce0;
-  border-radius: 8px; font-size: 14px; outline: none;
-  &:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
-`;
-const SearchBtn = styled.button`
-  padding: 8px 16px; background: #2563eb; color: white; border: none;
-  border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
-  &:hover { background: #1d4ed8; }
-`;
-const BulkRow = styled.div`display: flex; align-items: center; gap: 8px; flex-wrap: wrap;`;
-const BulkInput = styled.input`
-  padding: 6px 12px; border: 1px solid #dadce0; border-radius: 6px; font-size: 14px;
-  width: 120px; outline: none;
-  &:focus { border-color: #2563eb; }
-`;
-const BulkBtn = styled.button`
-  padding: 6px 14px; background: #278f5a; color: white; border: none;
-  border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
-  &:disabled { background: #dadce0; cursor: not-allowed; }
-  &:not(:disabled):hover { background: #1e7046; }
-`;
-const LoadingText = styled.div`text-align: center; padding: 40px; color: #9aa0a6;`;
-const TableWrapper = styled.div`overflow-x: auto; border-radius: 10px; border: 1px solid #e8eaed;`;
-const Table = styled.table`width: 100%; border-collapse: collapse; font-size: 14px;`;
-const Th = styled.th`
-  padding: 10px 12px; background: #f8f9fa; text-align: left; font-weight: 600;
-  color: #5f6368; border-bottom: 1px solid #e8eaed; white-space: nowrap;
-`;
-const Td = styled.td`padding: 10px 12px; border-bottom: 1px solid #f1f3f4; vertical-align: middle;`;
-const DepositBadge = styled.span<{ confirmed: boolean }>`
-  padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;
-  background: ${(p) => p.confirmed ? '#e6f4ea' : '#fce8e6'};
-  color: ${(p) => p.confirmed ? '#278f5a' : '#d93025'};
-`;
-const RoomBadge = styled.span<{ assigned: boolean }>`
-  padding: 2px 8px; border-radius: 4px; font-size: 13px; font-weight: 600;
-  background: ${(p) => p.assigned ? '#e8f0fe' : '#f1f3f4'};
-  color: ${(p) => p.assigned ? '#1d4ed8' : '#9aa0a6'};
-`;
-const RoomInput = styled.input`
-  width: 80px; padding: 4px 8px; border: 1px solid #2563eb; border-radius: 4px;
-  font-size: 13px; outline: none;
-`;
-const BtnGroup = styled.div`display: flex; gap: 4px;`;
-const EditBtn = styled.button`
-  padding: 4px 10px; background: #e8f0fe; color: #1d4ed8; border: none;
-  border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer;
-  &:hover { background: #d2e3fc; }
-`;
-const SaveBtn = styled.button`
-  padding: 4px 10px; background: #278f5a; color: white; border: none;
-  border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer;
-  &:disabled { opacity: 0.6; }
-`;
-const CancelBtn = styled.button`
-  padding: 4px 10px; background: #f1f3f4; color: #5f6368; border: none;
-  border-radius: 4px; font-size: 13px; cursor: pointer;
-`;
+// ── Styles ──────────────────────────────────────────────────
+const Wrap = styled.div`padding: 20px; font-family: 'Pretendard', sans-serif; background: #f8f9fa; min-height: 100%;`;
+const PageHeader = styled.div`display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;`;
+const PageTitle = styled.h2`font-size: 18px; font-weight: 700; color: #202124; margin: 0;`;
+const HeaderBadges = styled.div`display: flex; gap: 6px;`;
+const Badge = styled.span<{color:string}>`padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; background: ${p=>p.color}18; color: ${p=>p.color}; border: 1px solid ${p=>p.color}30;`;
+const TabBar = styled.div`display: flex; border-bottom: 2px solid #e8eaed; margin-bottom: 20px;`;
+const Tab = styled.button<{active:boolean}>`padding: 10px 18px; background: none; border: none; font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 2px solid ${p=>p.active?'#278f5a':'transparent'}; margin-bottom: -2px; color: ${p=>p.active?'#278f5a':'#9aa0a6'};`;
+const TabContent = styled.div``;
+const Loading = styled.div`text-align: center; padding: 40px; color: #9aa0a6;`;
+
+// Stats
+const StatsWrap = styled.div`display: flex; flex-direction: column; gap: 14px;`;
+const KpiRow = styled.div`display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;`;
+const KpiCard = styled.div<{accent:string}>`background: white; border-radius: 10px; padding: 16px; text-align: center; border-top: 3px solid ${p=>p.accent}; box-shadow: 0 1px 4px rgba(0,0,0,0.06);`;
+const KpiNum = styled.div`font-size: 28px; font-weight: 800; color: #202124;`;
+const KpiLabel = styled.div`font-size: 12px; color: #9aa0a6; margin-top: 4px;`;
+const Card = styled.div`background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);`;
+const CardTitle = styled.div`font-size: 12px; font-weight: 700; color: #9aa0a6; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;`;
+const GenderBarWrap = styled.div`height: 10px; border-radius: 5px; overflow: hidden; display: flex; background: #f1f3f4; margin-bottom: 8px;`;
+const GenderSeg = styled.div<{w:number;color:string}>`height: 100%; width: ${p=>p.w}%; background: ${p=>p.color};`;
+const GenderLegend = styled.div`display: flex; gap: 16px;`;
+const GenderItem = styled.span<{color:string}>`font-size: 13px; font-weight: 600; color: ${p=>p.color};`;
+const TwoCol = styled.div`display: grid; grid-template-columns: 1fr 1fr; gap: 14px;`;
+const ThreeCol = styled.div`display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;`;
+const DenseTable = styled.table`width: 100%; border-collapse: collapse; font-size: 13px;`;
+const DTh = styled.th<{right?:boolean}>`padding: 6px 8px; background: #f8f9fa; text-align: ${p=>p.right?'right':'left'}; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; white-space: nowrap;`;
+const DTd = styled.td<{right?:boolean}>`padding: 6px 8px; border-bottom: 1px solid #f1f3f4; text-align: ${p=>p.right?'right':'left'};`;
+const SubBox = styled.div`margin-top: 10px; background: #f8f9fa; border-radius: 6px; padding: 8px 10px;`;
+const SubTitle = styled.div`font-size: 11px; color: #9aa0a6; margin-bottom: 4px;`;
+const SubRow = styled.div`display: flex; justify-content: space-between; font-size: 12px; color: #3c4043; margin-bottom: 3px;`;
+const TeamRow = styled.div`display: flex; gap: 12px;`;
+const TeamStat = styled.div`flex: 1; text-align: center; background: #f8f9fa; border-radius: 8px; padding: 12px;`;
+const TeamNum = styled.div`font-size: 22px; font-weight: 800; color: #202124;`;
+const TeamLabel = styled.div`font-size: 11px; color: #9aa0a6; margin-top: 3px;`;
+const LecRow = styled.div`display: flex; align-items: center; gap: 8px; margin-bottom: 8px;`;
+const LecName = styled.div`font-size: 13px; color: #3c4043; width: 80px; flex-shrink: 0;`;
+const LecCnt = styled.div`font-size: 13px; font-weight: 700; width: 36px; flex-shrink: 0;`;
+const LecBar = styled.div`flex: 1; height: 6px; background: #f1f3f4; border-radius: 3px; overflow: hidden;`;
+const LecFill = styled.div<{w:number}>`height: 100%; width: ${p=>p.w}%; background: #278f5a;`;
+
+// Bus
+const BusGrid = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px;`;
+const BusCard = styled.div<{full:boolean}>`background: white; border-radius: 10px; padding: 14px; text-align: center; border: 2px solid ${p=>p.full?'#d93025':'#e8eaed'}; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.05);`;
+const BusCardLabel = styled.div`font-size: 12px; font-weight: 600; color: #5f6368; margin-bottom: 6px;`;
+const BusCardCount = styled.div`display: flex; align-items: baseline; justify-content: center; gap: 2px;`;
+const BusNum = styled.span`font-size: 26px; font-weight: 800; color: #202124;`;
+const BusMax = styled.span`font-size: 12px; color: #9aa0a6;`;
+const BusBarWrap = styled.div`height: 4px; background: #f1f3f4; border-radius: 2px; margin-top: 6px; overflow: hidden;`;
+const BusFill = styled.div<{pct:number;full:boolean}>`height: 100%; width: ${p=>p.pct}%; background: ${p=>p.full?'#d93025':p.pct>80?'#f59e0b':'#278f5a'};`;
+const FullTag = styled.div`position: absolute; top: 6px; right: 6px; background: #d93025; color: white; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px;`;
+const SlotChip = styled.span`padding: 2px 7px; border-radius: 4px; font-size: 12px; font-weight: 600; background: #e8f0fe; color: #1d4ed8;`;
+
+// Room
+const RoomStats = styled.div`display: flex; gap: 12px; margin-bottom: 14px;`;
+const RoomStatItem = styled.div`background: white; border-radius: 8px; padding: 12px 16px; text-align: center; flex: 1; box-shadow: 0 1px 4px rgba(0,0,0,0.05);`;
+const RoomStatNum = styled.div`font-size: 22px; font-weight: 800; color: #202124;`;
+const RoomStatLabel = styled.div`font-size: 12px; color: #9aa0a6; margin-top: 2px;`;
+const RoomChips = styled.div`display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;`;
+const RoomChip = styled.button<{active:boolean}>`padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 1px solid; background: ${p=>p.active?'#2563eb':'white'}; color: ${p=>p.active?'white':'#3c4043'}; border-color: ${p=>p.active?'#2563eb':'#dadce0'};`;
+const ClearChip = styled.button`padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 1px solid #dadce0; background: #f8f9fa; color: #d93025;`;
+const ToolRow = styled.div`display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;`;
+const SearchBox = styled.div`display: flex; gap: 6px;`;
+const SearchIn = styled.input`flex: 1; max-width: 280px; padding: 7px 12px; border: 1px solid #dadce0; border-radius: 7px; font-size: 13px; outline: none; &:focus{border-color:#2563eb;}`;
+const SearchBtn = styled.button`padding: 7px 14px; background: #2563eb; color: white; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; &:hover{background:#1d4ed8;}`;
+const BulkBox = styled.div`display: flex; align-items: center; gap: 8px; flex-wrap: wrap;`;
+const BulkIn = styled.input`padding: 6px 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 13px; width: 100px; outline: none;`;
+const BulkBtn = styled.button`padding: 6px 12px; background: #278f5a; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; &:disabled{background:#dadce0;cursor:not-allowed;} &:not(:disabled):hover{background:#1e7046;}`;
+const TableWrap = styled.div`overflow-x: auto; border-radius: 10px; border: 1px solid #e8eaed; background: white;`;
+const Table = styled.table`width: 100%; border-collapse: collapse; font-size: 13px;`;
+const Th = styled.th`padding: 9px 10px; background: #f8f9fa; text-align: left; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; white-space: nowrap;`;
+const Td = styled.td`padding: 9px 10px; border-bottom: 1px solid #f1f3f4; vertical-align: middle;`;
+const DepBadge = styled.span<{ok:boolean}>`padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; background: ${p=>p.ok?'#e6f4ea':'#fce8e6'}; color: ${p=>p.ok?'#278f5a':'#d93025'};`;
+const RoomBadge = styled.span<{ok:boolean}>`padding: 2px 7px; border-radius: 4px; font-size: 12px; font-weight: 600; background: ${p=>p.ok?'#e8f0fe':'#f1f3f4'}; color: ${p=>p.ok?'#1d4ed8':'#9aa0a6'};`;
+const RoomIn = styled.input`width: 70px; padding: 3px 7px; border: 1px solid #2563eb; border-radius: 4px; font-size: 12px; outline: none;`;
+const BtnGrp = styled.div`display: flex; gap: 3px;`;
+const EditBtn = styled.button`padding: 3px 9px; background: #e8f0fe; color: #1d4ed8; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;`;
+const SaveBtn = styled.button`padding: 3px 9px; background: #278f5a; color: white; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; &:disabled{opacity:0.6;}`;
+const CancelBtn = styled.button`padding: 3px 9px; background: #f1f3f4; color: #5f6368; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;`;

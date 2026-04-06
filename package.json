@@ -32,7 +32,7 @@
     "@vercel/speed-insights": "^1.2.0",
     "@zxing/library": "^0.21.3",
     "antd": "^5.24.6",
-    "axios": "^0.27.2",
+    "axios": "0.27.2",
     "cloudinary": "^2.9.0",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.3",

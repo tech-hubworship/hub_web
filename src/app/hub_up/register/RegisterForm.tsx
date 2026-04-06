@@ -427,6 +427,18 @@ export default function RegisterForm({
                 </InputGroup>
 
                 <InputGroup>
+                  <Label>생년월일</Label>
+                  <SubLabel>동명이인을 확인하기 위함입니다.</SubLabel>
+                  <UnderlineInput
+                    type="text"
+                    placeholder="0000년 00월 00일"
+                    value={formData.birthdate}
+                    onChange={(e) => set('birthdate', e.target.value)}
+                    required
+                  />
+                </InputGroup>
+
+                <InputGroup>
                   <Label>성별</Label>
                   <SelectField onClick={() => setActiveSheet('gender')}>
                     <span className={formData.gender ? 'selected' : 'placeholder'}>
@@ -469,16 +481,21 @@ export default function RegisterForm({
               <>
                 <FormHeader>차량 탑승 정보</FormHeader>
                 <LegacySection>
-                  <Label>[5/15] 차량 탑승 시각</Label>
+                  <Label>[5/15] 출발 차량 탑승 시각</Label>
+                  <SubLabel>선착순 마감됩니다. 마감된 시간대는 선택할 수 없습니다.</SubLabel>
                   <LegacySelect value={formData.departureBusTime} onChange={(e) => set('departureBusTime', e.target.value)} required>
                     <option value="">선택해주세요</option>
-                    {departureSlots.map((slot) => (
-                      <option key={slot.value} value={slot.value} disabled={slot.max_count > 0 && (slotCounts[slot.value] || 0) >= slot.max_count}>
-                        {slot.label} {slot.max_count > 0 && (slotCounts[slot.value] || 0) >= slot.max_count ? '(마감)' : ''}
-                      </option>
-                    ))}
+                    {departureSlots.map((slot) => {
+                      const isFull = slot.max_count > 0 && (slotCounts[slot.value] || 0) >= slot.max_count;
+                      return (
+                        <option key={slot.value} value={slot.value} disabled={isFull}>
+                          {slot.label} {isFull ? '(마감)' : ''}
+                        </option>
+                      );
+                    })}
                   </LegacySelect>
                 </LegacySection>
+
                 <LegacySection>
                   <Label>[5/17] 복귀 차량 탑승 시각</Label>
                   <LegacySelect value={formData.returnBusTime} onChange={(e) => set('returnBusTime', e.target.value)} required>
@@ -488,6 +505,81 @@ export default function RegisterForm({
                     ))}
                   </LegacySelect>
                 </LegacySection>
+
+                {isCarSelected && (
+                  <>
+                    <LegacySection>
+                      <Label>자차 / 대중교통 해당사항 체크</Label>
+                      <SubLabel>주차 대수 파악을 위한 조사입니다.</SubLabel>
+                      <LegacySelect value={formData.carRole} onChange={(e) => set('carRole', e.target.value)} required>
+                        <option value="">선택해주세요</option>
+                        <option value="자가운전자">자가운전자 (주차O)</option>
+                        <option value="동승자">동승자 (주차X)</option>
+                        <option value="택시 및 대중교통">택시 및 대중교통 이용</option>
+                      </LegacySelect>
+                    </LegacySection>
+
+                    {formData.carRole === '자가운전자' && (
+                      <>
+                        <LegacySection>
+                          <Label>총 탑승 인원</Label>
+                          <SubLabel>본인 포함 최대 8명</SubLabel>
+                          <LegacySelect value={formData.carPassengerCount} onChange={(e) => set('carPassengerCount', e.target.value)} required>
+                            <option value="">선택</option>
+                            <option value="1">1명 (혼자 - 동승자 없음)</option>
+                            {[2,3,4,5,6,7,8].map((n) => (
+                              <option key={n} value={String(n)}>{n}명</option>
+                            ))}
+                          </LegacySelect>
+                        </LegacySection>
+
+                        {formData.carPassengerCount && formData.carPassengerCount !== '1' && (
+                          <InputGroup>
+                            <Label>동승자 이름</Label>
+                            <SubLabel>쉼표(,)로 구분해서 작성해주세요.</SubLabel>
+                            <UnderlineInput
+                              type="text"
+                              placeholder="예: 홍길동, 김철수"
+                              value={formData.carPassengerNames}
+                              onChange={(e) => set('carPassengerNames', e.target.value)}
+                            />
+                          </InputGroup>
+                        )}
+
+                        <InputGroup>
+                          <Label>차량 번호</Label>
+                          <UnderlineInput
+                            type="text"
+                            placeholder="예: 12가 3456"
+                            value={formData.carPlateNumber}
+                            onChange={(e) => set('carPlateNumber', e.target.value)}
+                            required
+                          />
+                        </InputGroup>
+                      </>
+                    )}
+
+                    {(formData.carRole === '자가운전자' || formData.carRole === '동승자') && (
+                      <LegacySection>
+                        <Label>입소 예정 시간</Label>
+                        <LegacySelect value={formData.carArrivalTime} onChange={(e) => set('carArrivalTime', e.target.value)} required>
+                          <option value="">선택해주세요</option>
+                          {ARRIVAL_TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </LegacySelect>
+                      </LegacySection>
+                    )}
+
+                    {formData.carRole !== '' && formData.carRole !== '택시 및 대중교통' && (
+                      <LegacySection>
+                        <Label>퇴소 예정 시간</Label>
+                        <LegacySelect value={formData.carDepartureTime} onChange={(e) => set('carDepartureTime', e.target.value)} required>
+                          <option value="">선택해주세요</option>
+                          {DEPART_TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </LegacySelect>
+                      </LegacySection>
+                    )}
+                  </>
+                )}
               </>
             )}
 
@@ -496,10 +588,23 @@ export default function RegisterForm({
                  <FormHeader>선택강의 및 입금 확인</FormHeader>
                  <LegacySection>
                    <Label>선택강의 수강 조사</Label>
-                   <LegacySelect value={formData.electiveLecture} onChange={(e) => set('electiveLecture', e.target.value)} required>
-                     <option value="">선택해주세요</option>
-                     {electives.map((e) => <option key={e.value} value={e.value}>{e.label}</option>)}
-                   </LegacySelect>
+                   <SubLabel>허브업 기간 중 진행되는 선택강의입니다. 중복 신청은 불가합니다.</SubLabel>
+                   <ElectiveGroup>
+                     {electives.map((e) => (
+                       <ElectiveCard
+                         key={e.value}
+                         selected={formData.electiveLecture === e.value}
+                         onClick={() => set('electiveLecture', formData.electiveLecture === e.value ? '' : e.value)}
+                       >
+                         <ElectiveCheck selected={formData.electiveLecture === e.value}>
+                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                             <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                           </svg>
+                         </ElectiveCheck>
+                         <span>{e.label}</span>
+                       </ElectiveCard>
+                     ))}
+                   </ElectiveGroup>
                  </LegacySection>
                  <ConsentWrapper onClick={() => set('depositConfirm', !formData.depositConfirm)}>
                   <ConsentText>
@@ -595,8 +700,7 @@ export default function RegisterForm({
 // ═══════════════════════════════════════════════════════════
 
 const Container = styled.div`
-  max-width: 480px;
-  margin: 0 auto;
+  width: 100%;
   min-height: 100vh;
   background-color: #FAFAFA;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -721,15 +825,17 @@ const FormWrapper = styled.form`
 `;
 
 const StepContent = styled.div`
-  flex: 1; padding: 32px 24px;
+  flex: 1; padding: 32px 0;
 `;
 
 const FormHeader = styled.h2`
   font-size: 22px; font-weight: 700; color: #111; line-height: 1.4; margin: 0 0 40px 0;
+  padding: 0 24px;
 `;
 
 const InputGroup = styled.div`
   margin-bottom: 32px;
+  padding: 0 24px;
 `;
 
 const Label = styled.label`
@@ -760,7 +866,7 @@ const ErrorText = styled.p`
 
 const ConsentWrapper = styled.div`
   display: flex; justify-content: space-between; align-items: flex-start;
-  padding-top: 24px; margin-top: 16px; cursor: pointer;
+  padding: 24px 24px 0 24px; margin-top: 16px; cursor: pointer;
 `;
 
 const ConsentText = styled.div`
@@ -858,11 +964,38 @@ const CompleteWrapper = styled.div`
 
 const LegacySection = styled.div`
   margin-bottom: 24px;
+  padding: 0 24px;
 `;
 
 const LegacySelect = styled.select`
   width: 100%; border: none; border-bottom: 1px solid #E5E5EA; padding: 8px 0;
   font-size: 16px; background: transparent; outline: none; appearance: none;
+`;
+
+const SubLabel = styled.p`
+  font-size: 12px; color: #888; margin: 4px 0 12px 0; line-height: 1.4;
+`;
+
+const ElectiveGroup = styled.div`
+  display: flex; flex-direction: column; gap: 10px; margin-top: 8px;
+`;
+
+const ElectiveCard = styled.div<{ selected: boolean }>`
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: 12px; cursor: pointer;
+  border: 1.5px solid ${(p) => p.selected ? PRIMARY_COLOR : '#E5E5EA'};
+  background: ${(p) => p.selected ? '#FFF5F5' : 'white'};
+  font-size: 15px; font-weight: ${(p) => p.selected ? 600 : 400};
+  color: ${(p) => p.selected ? PRIMARY_COLOR : '#111'};
+  transition: all 0.15s;
+`;
+
+const ElectiveCheck = styled.div<{ selected: boolean }>`
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: ${(p) => p.selected ? PRIMARY_COLOR : 'transparent'};
+  border: 1.5px solid ${(p) => p.selected ? PRIMARY_COLOR : '#CCC'};
+  color: white; transition: all 0.15s;
 `;
 
 const LoaderWrap = styled.div`
