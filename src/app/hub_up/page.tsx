@@ -18,6 +18,23 @@ export default function HubUpMainPage() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // 날짜 기반 D-day 계산 (KST)
+  const now = new Date();
+  const toKST = (dateStr: string) => new Date(dateStr + 'T00:00:00+09:00');
+
+  const earlyBirdEnd  = toKST('2026-04-18'); // 얼리버드 마감
+  const regDeadline   = toKST('2026-04-26'); // 신청 마감
+  const busChangeEnd  = toKST('2026-05-13'); // 차량 변경 마감
+
+  const daysLeft = (target: Date) => {
+    const diff = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return '마감';
+    if (diff === 0) return 'D-Day';
+    return `${diff}일 남음`;
+  };
+
+  const isPast = (target: Date) => now > target;
+
   return (
     <Wrap>
       {/* 네비게이션 */}
@@ -93,10 +110,10 @@ export default function HubUpMainPage() {
 
         {/* 피그마: Frame 2 (CDCDCD) + 얼리버드 신청 기간 y:1202~1246 */}
         <TimelineRow>
-          <DateBadge gray>04.12 - 18</DateBadge>
+          <DateBadge gray={isPast(earlyBirdEnd)}>04.12 - 18</DateBadge>
           <TimelineConnector />
-          <TimelineText gray>얼리버드 신청 기간</TimelineText>
-          <TimelineRight gray>14일 남음</TimelineRight>
+          <TimelineText gray={isPast(earlyBirdEnd)}>얼리버드 신청 기간</TimelineText>
+          <TimelineRight>{daysLeft(earlyBirdEnd)}</TimelineRight>
         </TimelineRow>
 
         {/* 피그마: Line 5 y:1292 */}
@@ -104,20 +121,20 @@ export default function HubUpMainPage() {
 
         {/* 피그마: Frame 4 (2D478C) + 참가 신청 마감 y:1312~1356 */}
         <TimelineRow>
-          <DateBadge navy>04.26</DateBadge>
+          <DateBadge gray={isPast(regDeadline)}>04.26</DateBadge>
           <TimelineConnector />
-          <TimelineText>참가 신청 마감</TimelineText>
-          <TimelineRight>마감</TimelineRight>
+          <TimelineText gray={isPast(regDeadline)}>참가 신청 마감</TimelineText>
+          <TimelineRight>{daysLeft(regDeadline)}</TimelineRight>
         </TimelineRow>
 
         <TimelineDivider />
 
         {/* 피그마: Frame 5 (2D478C) + 차량 변경 마감 y:1422~1466 */}
         <TimelineRow>
-          <DateBadge navy>05.13</DateBadge>
+          <DateBadge gray={isPast(busChangeEnd)}>05.13</DateBadge>
           <TimelineConnector />
-          <TimelineText>차량 변경 마감</TimelineText>
-          <TimelineRight>17일 남음</TimelineRight>
+          <TimelineText gray={isPast(busChangeEnd)}>차량 변경 마감</TimelineText>
+          <TimelineRight>{daysLeft(busChangeEnd)}</TimelineRight>
         </TimelineRow>
 
         <TimelineDivider />
