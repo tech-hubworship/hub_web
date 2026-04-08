@@ -11,6 +11,8 @@ export default function HubUpMainPage() {
   const { data: session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [openDay, setOpenDay] = useState<number | null>(null);
+  const [openFaq, setOpenFaq] = useState<string | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 460);
@@ -18,22 +20,52 @@ export default function HubUpMainPage() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // 날짜 기반 D-day 계산 (KST)
   const now = new Date();
   const toKST = (dateStr: string) => new Date(dateStr + 'T00:00:00+09:00');
-
-  const earlyBirdEnd  = toKST('2026-04-18'); // 얼리버드 마감
-  const regDeadline   = toKST('2026-04-26'); // 신청 마감
-  const busChangeEnd  = toKST('2026-05-13'); // 차량 변경 마감
-
+  const earlyBirdEnd = toKST('2026-04-18');
+  const regDeadline  = toKST('2026-04-26');
+  const busChangeEnd = toKST('2026-05-13');
   const daysLeft = (target: Date) => {
     const diff = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     if (diff < 0) return '마감';
     if (diff === 0) return 'D-Day';
     return `${diff}일 남음`;
   };
-
   const isPast = (target: Date) => now > target;
+
+  const DAYS = [
+    {
+      label: 'Day 1',
+      sessions: [
+        { title: 'Be Holy 1', name: '기도', speaker: '이서진 목사 여호수아 청년부' },
+      ],
+    },
+    {
+      label: 'Day 2',
+      sessions: [
+        { title: 'Be Holy 2', name: '동행', speaker: '연사 추후 공개' },
+        { title: 'Be Holy 3', name: 'Hub Run!', speaker: '콘텐츠 추후 공개' },
+        { title: 'Be Holy 4', name: '멘토 선택 특강', speaker: '연사 추후 공개' },
+        { title: 'Be Holy 5', name: '말씀', speaker: '오현교 목사 허브 대학부' },
+      ],
+    },
+    {
+      label: 'Day 3',
+      sessions: [
+        { title: 'Be Holy 6', name: '전도', speaker: '이은호 목사 얼바인샤이닝헬로쉽교회 담임목사' },
+        { title: 'Be Holy 7', name: '거룩', speaker: '오현교 목사 허브 대학부' },
+      ],
+    },
+  ];
+
+  const isAchachaVisible = now >= new Date('2026-04-19T00:00:00+09:00');
+
+  const FAQS = [
+    { cat: '접수', q: '허브업 신청을 취소하고 싶어요.', a: '5월 3일 (일) 자정까지 환불 가능합니다. 이후에는 숙소 및 식사 예약금 지불로 인해 환불이 불가합니다.' },
+    { cat: '차량', q: '차량 시간을 변경하고 싶어요.', a: '차량 변경은 5월 13일까지 가능합니다. 선탑자에게 문의해 주세요.' },
+    { cat: '접수', q: '부분 참석시 회비 할인이 되나요?', a: '부분 참석도 회비는 동일하게 적용됩니다.' },
+    ...(isAchachaVisible ? [{ cat: '이벤트', q: '아차차 이벤트가 뭔가요?', a: '4월 19일 (하루) 1시 30분 ~ 1시 50분까지 성경책 지참 후 기쁨홀 앞 데스크에서 인증 받은 사람에 한하여 회비 8만원이 적용됩니다.' }] : []),
+  ];
 
   return (
     <Wrap>
@@ -86,19 +118,30 @@ export default function HubUpMainPage() {
         <VenueText>2026.5.15-17</VenueText>
       </VenueRow>
 
-      {/* 피그마: Day 1/2/3 + Line 구분선 y:743~944 */}
+      {/* Day 1/2/3 - 클릭 시 세션 펼침 */}
       <DaySection>
-        <DayItem>
-          <DayLabel>Day 1</DayLabel>
-          <DayLine />
-        </DayItem>
-        <DayItem>
-          <DayLabel>Day 2</DayLabel>
-          <DayLine />
-        </DayItem>
-        <DayItem>
-          <DayLabel>Day 3</DayLabel>
-        </DayItem>
+        {DAYS.map((day, idx) => (
+          <div key={day.label}>
+            <DayRow onClick={() => setOpenDay(openDay === idx ? null : idx)}>
+              <DayLabel>{day.label}</DayLabel>
+              <DayToggle open={openDay === idx}>
+                {openDay === idx ? '×' : '+'}
+              </DayToggle>
+            </DayRow>
+            {openDay === idx && (
+              <SessionList>
+                {day.sessions.map((s) => (
+                  <SessionItem key={s.title}>
+                    <SessionTitle>{s.title}</SessionTitle>
+                    <SessionName>{s.name}</SessionName>
+                    <SessionSpeaker>{s.speaker}</SessionSpeaker>
+                  </SessionItem>
+                ))}
+              </SessionList>
+            )}
+            <DayDivider />
+          </div>
+        ))}
       </DaySection>
 
       {/* 피그마: Rectangle 10 (F8F8F8 배경) y:1003 h:654 */}
@@ -174,23 +217,23 @@ export default function HubUpMainPage() {
         </ClosingDesc>
       </WhiteSection>
 
-      {/* 피그마: FAQ 섹션 y:1985~2244 */}
+      {/* FAQ */}
       <FaqSection>
         <FaqTitle>FAQ</FaqTitle>
-        <FaqItem onClick={() => router.push('/hub_up/faq')}>
-          <FaqCat>접수</FaqCat>
-          <FaqQ>허브업 신청을 취소하고 싶어요.</FaqQ>
-        </FaqItem>
-        <FaqDivider />
-        <FaqItem onClick={() => router.push('/hub_up/faq')}>
-          <FaqCat>차량</FaqCat>
-          <FaqQ>차량 시간을 변경하고 싶어요.</FaqQ>
-        </FaqItem>
-        <FaqDivider />
-        <FaqItem onClick={() => router.push('/hub_up/faq')}>
-          <FaqCat>접수</FaqCat>
-          <FaqQ>부분 참석시 회비 할인이 되나요?</FaqQ>
-        </FaqItem>
+        {FAQS.map((faq, i) => (
+          <div key={i}>
+            <FaqItem onClick={() => setOpenFaq(openFaq === String(i) ? null : String(i))}>
+              <FaqCat>{faq.cat}</FaqCat>
+              <FaqQ>{faq.q}</FaqQ>
+              <FaqToggle>{openFaq === String(i) ? '×' : '+'}</FaqToggle>
+            </FaqItem>
+            {openFaq === String(i) && <FaqAnswer>{faq.a}</FaqAnswer>}
+            <FaqDivider />
+          </div>
+        ))}
+        <FaqMoreBtn onClick={() => router.push('/hub_up/faq')}>
+          더 많은 FAQ 보기 →
+        </FaqMoreBtn>
       </FaqSection>
 
       {/* 피그마: 푸터 Rectangle 12 (C5C5C5) y:2700 h:84 */}
@@ -322,20 +365,18 @@ const VenueSep = styled.span`
   opacity: 0.4;
 `;
 
-/* 피그마: Day 1/2/3 - fontSize:28, fontWeight:700, color:#000 */
+/* Day 섹션 - 클릭형 */
 const DaySection = styled.div`
-  display: flex;
   padding: 0 20px;
-  border-top: 1px solid #2D478C;
+  background: #fff;
 `;
 
-const DayItem = styled.div`
-  flex: 1;
+const DayRow = styled.div`
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 12px 0;
-  position: relative;
+  justify-content: space-between;
+  padding: 16px 0;
+  cursor: pointer;
 `;
 
 const DayLabel = styled.div`
@@ -345,13 +386,44 @@ const DayLabel = styled.div`
   line-height: 1.19;
 `;
 
-const DayLine = styled.div`
-  position: absolute;
-  right: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 1px;
+const DayToggle = styled.div<{ open: boolean }>`
+  font-size: 24px;
+  font-weight: 300;
+  color: #000;
+  line-height: 1;
+`;
+
+const DayDivider = styled.div`
+  height: 1px;
   background: #2D478C;
+`;
+
+const SessionList = styled.div`
+  padding: 8px 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const SessionItem = styled.div``;
+
+const SessionTitle = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #838383;
+  margin-bottom: 2px;
+`;
+
+const SessionName = styled.div`
+  font-size: 20px;
+  font-weight: 700;
+  color: #2D478C;
+  margin-bottom: 2px;
+`;
+
+const SessionSpeaker = styled.div`
+  font-size: 12px;
+  color: #838383;
 `;
 
 /* 피그마: Rectangle 10 (F8F8F8) y:1003 h:654 */
@@ -514,7 +586,6 @@ const FaqSection = styled.div`
   padding: 40px 20px;
 `;
 
-/* 피그마: FAQ - 700, 28px, center, color:#000 */
 const FaqTitle = styled.h2`
   font-size: 28px;
   font-weight: 700;
@@ -532,7 +603,6 @@ const FaqItem = styled.div`
   cursor: pointer;
 `;
 
-/* 피그마: 접수/차량 - 600, 12px, color:#838383 */
 const FaqCat = styled.span`
   font-size: 12px;
   font-weight: 600;
@@ -541,7 +611,6 @@ const FaqCat = styled.span`
   padding-top: 2px;
 `;
 
-/* 피그마: FAQ 질문 - 700, 18px, color:#000 */
 const FaqQ = styled.span`
   font-size: 18px;
   font-weight: 700;
@@ -550,9 +619,38 @@ const FaqQ = styled.span`
   line-height: 1.19;
 `;
 
+const FaqToggle = styled.span`
+  font-size: 20px;
+  font-weight: 300;
+  color: #000;
+  flex-shrink: 0;
+`;
+
+const FaqAnswer = styled.div`
+  font-size: 14px;
+  color: #757575;
+  line-height: 1.6;
+  padding: 0 0 12px 36px;
+  white-space: pre-line;
+`;
+
 const FaqDivider = styled.div`
   height: 1px;
   background: rgba(0,0,0,0.5);
+`;
+
+const FaqMoreBtn = styled.button`
+  width: 100%;
+  padding: 16px;
+  background: none;
+  border: 1px solid #E6E6E6;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #838383;
+  cursor: pointer;
+  margin-top: 16px;
+  font-family: inherit;
 `;
 
 /* 피그마: 푸터 Rectangle 12 (C5C5C5) y:2700 h:84 */
