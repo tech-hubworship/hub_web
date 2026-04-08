@@ -28,7 +28,7 @@ interface TshirtOrder {
   status: string;
 }
 
-const PRIMARY = '#F25246';
+const PRIMARY = '#2D478C';
 
 const slotLabel = (slot: string) => {
   if (!slot) return '-';

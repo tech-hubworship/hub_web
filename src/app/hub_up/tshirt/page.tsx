@@ -216,7 +216,7 @@ export default function TshirtPage() {
   );
 }
 
-const PRIMARY = '#F25246';
+const PRIMARY = '#2D478C';
 const Wrap = styled.div`width: 100%; min-height: 100vh; background: #FAFAFA; font-family: -apple-system, sans-serif; padding-bottom: 100px;`;
 const LoadingWrap = styled.div`display: flex; align-items: center; justify-content: center; min-height: 100vh; color: #888;`;
 const TopNav = styled.div`height: 56px; display: flex; align-items: center; padding: 0 16px; background: #fff; position: sticky; top: 0; z-index: 10;`;
@@ -425,7 +425,7 @@ const TotalPrice = styled.div`
 `;
 const SubmitBtn = styled.button`
   padding: 16px 32px;
-  background: #111;
+  background: #2D478C;
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -435,7 +435,7 @@ const SubmitBtn = styled.button`
   white-space: nowrap;
   transition: all 0.2s;
   &:disabled {
-    background: #E5E5EA;
+    background: #E6E6E6;
     cursor: not-allowed;
   }
   &:not(:disabled):active {

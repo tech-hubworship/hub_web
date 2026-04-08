@@ -5,6 +5,7 @@ import styled from '@emotion/styled';
 import { keyframes } from '@emotion/react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import type { DepartureSlot, ReturnSlot, ElectiveLecture, HubUpConfig, FormData } from './types';
 import TimePicker from './TimePicker';
 
@@ -21,7 +22,7 @@ const DEPART_TIME_OPTIONS = [
 ];
 
 const PHONE_REGEX = /^01[0-9]-\d{3,4}-\d{4}$/;
-const PRIMARY_COLOR = '#F25246';
+const PRIMARY_COLOR = '#2D478C';
 
 const initialFormData: FormData = {
   community: '', group: '', leaderName: '', name: '', gender: '',
@@ -58,7 +59,7 @@ export default function RegisterForm({
 
   // 바텀 시트 상태 관리
   const [activeSheet, setActiveSheet] = useState<
-    'community' | 'group' | 'gender' | 'volunteer' |
+    'community' | 'group' | 'gender' | 'volunteer' | 'elective' |
     'departureBus' | 'returnBus' | 'carRole' | 'carPassengerCount' | null
   >(null);
 
@@ -159,6 +160,9 @@ export default function RegisterForm({
 
   const isCarSelected = formData.departureBusTime === 'car' || formData.returnBusTime === 'car';
 
+  // 아차차 이벤트: 4월 19일 00:00 KST 이후 활성화
+  const isAchachaActive = new Date() >= new Date('2026-04-19T00:00:00+09:00');
+
   const checkStep1Valid = () => {
     return formData.community && formData.group && formData.leaderName && formData.name && formData.gender && formData.phone && formData.privacyConsent && !phoneError;
   };
@@ -223,8 +227,12 @@ export default function RegisterForm({
       options = ['남자', '여자'];
       currentValue = formData.gender;
       onSelect = (val) => set('gender', val);
-    } else if (activeSheet === 'volunteer') {
-      title = '자원봉사팀 섬김 여부';
+    } else if (activeSheet === 'elective') {
+      title = '선택 강의';
+      options = electives.length > 0 ? electives.map(e => e.label) : ['삶과 사역의 밸런스', '돈, 재정', '관계 및 소통'];
+      currentValue = formData.electiveLecture;
+      onSelect = (val) => set('electiveLecture', val);
+    } else if (activeSheet === 'volunteer') {      title = '자원봉사팀 섬김 여부';
       options = ['외부 안내팀', '시설팀', '식사팀', '허브런팀', '해당 없음'];
       currentValue = formData.volunteerTeam;
       onSelect = (val) => set('volunteerTeam', val);
@@ -332,17 +340,16 @@ export default function RegisterForm({
       {/* ── STEP 0: 랜딩/안내사항 ── */}
       {step === 0 && (
         <LandingWrapper>
-          <HeroSection>
-            <HeroDate>{config.event_dates}</HeroDate>
-            <HeroTitle>Title Title Title</HeroTitle>
-            <HeroSubTitle>(메인 메세지)</HeroSubTitle>
-            <HeroImagePlaceholder>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="#BDBDBD">
-                <path d="M21 19V5C21 3.9 20.1 3 19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19ZM8.5 13.5L11 16.51L14.5 12L19 18H5L8.5 13.5Z"/>
-              </svg>
-              <span>키비주얼</span>
-            </HeroImagePlaceholder>
-          </HeroSection>
+          <HeroImageFull>
+            <Image
+              src="/images/HubUpMainPage.jpg"
+              alt="BE HOLY"
+              width={480}
+              height={680}
+              style={{ width: '100%', height: 'auto', display: 'block' }}
+              priority
+            />
+          </HeroImageFull>
 
           <InfoSection>
             <InfoGrid>
@@ -421,11 +428,11 @@ export default function RegisterForm({
             </GuideBlock>
           </GuideSection>
 
-          <BottomNavFixed>
+          <InlineCtaSection>
             <PrimaryButton onClick={nextStep}>
               신청서 작성하기
             </PrimaryButton>
-          </BottomNavFixed>
+          </InlineCtaSection>
         </LandingWrapper>
       )}
 
@@ -664,49 +671,24 @@ export default function RegisterForm({
 
             {step === 3 && (
                <>
-                 <FormHeader>선택강의 및 자원봉사</FormHeader>
+                 <FormHeader>선택강의 수요 조사를 위해<br/>관심 있는 강의를 선택해주세요</FormHeader>
+
                  <LegacySection>
-                   <Label>선택강의 수강 조사</Label>
-                   <SubLabel>허브업 기간 중 진행되는 선택강의입니다. 중복 신청은 불가합니다.</SubLabel>
-                   <ElectiveGroup>
-                     <ElectiveCard
-                       selected={formData.electiveLecture === '삶과 사역의 밸런스'}
-                       onClick={() => set('electiveLecture', formData.electiveLecture === '삶과 사역의 밸런스' ? '' : '삶과 사역의 밸런스')}
-                     >
-                       <ElectiveCheck selected={formData.electiveLecture === '삶과 사역의 밸런스'}>
-                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                           <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                         </svg>
-                       </ElectiveCheck>
-                       <span>삶과 사역의 밸런스</span>
-                     </ElectiveCard>
-                     <ElectiveCard
-                       selected={formData.electiveLecture === '돈, 재정'}
-                       onClick={() => set('electiveLecture', formData.electiveLecture === '돈, 재정' ? '' : '돈, 재정')}
-                     >
-                       <ElectiveCheck selected={formData.electiveLecture === '돈, 재정'}>
-                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                           <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                         </svg>
-                       </ElectiveCheck>
-                       <span>돈, 재정</span>
-                     </ElectiveCard>
-                     <ElectiveCard
-                       selected={formData.electiveLecture === '관계 및 소통'}
-                       onClick={() => set('electiveLecture', formData.electiveLecture === '관계 및 소통' ? '' : '관계 및 소통')}
-                     >
-                       <ElectiveCheck selected={formData.electiveLecture === '관계 및 소통'}>
-                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                           <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                         </svg>
-                       </ElectiveCheck>
-                       <span>관계 및 소통</span>
-                     </ElectiveCard>
-                   </ElectiveGroup>
+                   <Label>선택 강의 <span style={{color:'#949494', fontWeight:400, fontSize:'12px'}}>(중복 불가)</span></Label>
+                   <SubLabel>허브업 기간 중 진행되는 선택강의입니다.</SubLabel>
+                   <SelectField onClick={() => setActiveSheet('elective')}>
+                     <span className={formData.electiveLecture ? 'selected' : 'placeholder'}>
+                       {formData.electiveLecture || '선택 강의 선택'}
+                     </span>
+                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                       <path d="M6 9L12 15L18 9" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                     </svg>
+                   </SelectField>
                  </LegacySection>
-                 
+
                  <LegacySection>
                    <Label>자원봉사팀 섬김 여부</Label>
+                   <SubLabel>해당하는 팀을 선택해주세요. 해당 없으면 선택하지 않아도 됩니다.</SubLabel>
                    <SelectField onClick={() => setActiveSheet('volunteer')}>
                      <span className={formData.volunteerTeam ? 'selected' : 'placeholder'}>
                        {formData.volunteerTeam || '선택해주세요'}
@@ -721,7 +703,7 @@ export default function RegisterForm({
 
             {step === 4 && (
               <>
-                <FormHeader>입금 확인 및 최종 제출</FormHeader>
+                <FormHeader>아래 계좌 정보를 참고하여<br/>입금을 완료해주세요</FormHeader>
                 
                 <DepositInfoBox>
                   <DepositInfoTitle>입금 계좌 정보</DepositInfoTitle>
@@ -743,10 +725,12 @@ export default function RegisterForm({
                     <span>일반 8만 5천원</span>
                     <span>4월 19일 - 4월 26일</span>
                   </DepositFeeRow>
-                  <DepositFeeRow highlight>
-                    <span>아차차 이벤트 8만원</span>
-                    <span>4월 19일 이벤트 해당자만</span>
-                  </DepositFeeRow>
+                  {isAchachaActive && (
+                    <DepositFeeRow highlight>
+                      <span>아차차 이벤트 8만원</span>
+                      <span>이벤트 해당자만</span>
+                    </DepositFeeRow>
+                  )}
                   <DepositNote>
                     ※ 입금자명: 이름+연락처 끝 네자리 (ex. 홍길동8572)
                   </DepositNote>
@@ -754,8 +738,8 @@ export default function RegisterForm({
 
                 <ConsentWrapper onClick={() => set('depositConfirm', !formData.depositConfirm)}>
                   <ConsentText>
-                    <strong>입금 확인</strong>
-                    <p>입금 하신 후 신청서 제출 부탁드립니다.</p>
+                    <strong>입금 완료 여부</strong>
+                    <p>입금 완료 후 체크를 눌러주세요.</p>
                   </ConsentText>
                   <CheckIconLarge selected={formData.depositConfirm}>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -805,11 +789,27 @@ export default function RegisterForm({
       {/* ── STEP 6: 제출 완료 ── */}
       {step === 5 && (
         <CompleteWrapper>
-          <FormHeader style={{textAlign: 'center', marginTop: '60px'}}>제출이 완료되었습니다!</FormHeader>
-          <p style={{textAlign: 'center', color: '#666', lineHeight: 1.6}}>
-            입금 확인 후 접수가 완료되며,<br/>
-            확인 문자가 발송될 예정입니다.
+          <FormHeader style={{textAlign: 'center', marginTop: '60px'}}>허브업 신청서<br/>제출을 완료했어요</FormHeader>
+          <p style={{textAlign: 'center', color: '#757575', lineHeight: 1.6, fontSize: '14px'}}>
+            5월 15일 소망수양관에서 만나요!
           </p>
+          <div style={{display: 'flex', justifyContent: 'center', marginTop: '40px'}}>
+            <Image
+              src="/images/HubUpImage2.jpg"
+              alt=""
+              width={480}
+              height={480}
+              style={{ width: '100%', height: 'auto', display: 'block' }}
+            />
+          </div>
+          <div style={{position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '24px 24px 32px', background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 10%, #fff 100%)'}}>
+            <button
+              onClick={() => router.push('/hub_up')}
+              style={{width: '100%', padding: '14px', background: '#2D478C', color: '#fff', border: 'none', borderRadius: 16, fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'}}
+            >
+              홈으로
+            </button>
+          </div>
         </CompleteWrapper>
       )}
 
@@ -848,14 +848,21 @@ const ProgressContainer = styled.div`
 `;
 
 const ProgressFill = styled.div<{ width: number }>`
-  height: 100%; background: #111; width: ${(p) => p.width}%;
+  height: 100%; background: ${PRIMARY_COLOR}; width: ${(p) => p.width}%;
   transition: width 0.3s ease;
 `;
 
 // ── 랜딩 페이지 (Step 0) 디자인 ──
 const LandingWrapper = styled.div`
   background: #F8F8F8;
-  padding-bottom: 100px; /* 하단 고정버튼 공간 */
+`;
+
+const HeroImageFull = styled.div`
+  width: 100%;
+`;
+
+const InlineCtaSection = styled.div`
+  padding: 24px 20px 48px;
 `;
 
 const HeroSection = styled.div`
@@ -876,9 +883,10 @@ const HeroSubTitle = styled.p`
 `;
 
 const HeroImagePlaceholder = styled.div`
-  width: 120px; height: 120px; background: #E5E5EA; border-radius: 16px;
-  margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  color: #888; font-size: 12px; gap: 8px;
+  width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 16px;
 `;
 
 const InfoSection = styled.div`
@@ -937,8 +945,8 @@ const BottomNavFixed = styled.div`
 
 const PrimaryButton = styled.button`
   width: 100%; background: ${PRIMARY_COLOR}; color: #FFF; font-size: 16px; font-weight: 600;
-  padding: 16px; border-radius: 12px; border: none; cursor: pointer;
-  &:disabled { background: #E5E5EA; color: #AFAFAF; cursor: not-allowed; }
+  padding: 14px; border-radius: 16px; border: none; cursor: pointer; font-family: inherit;
+  &:disabled { background: #E6E6E6; color: #949494; cursor: not-allowed; }
 `;
 
 // ── 폼 입력 페이지 (Step 1~5) 디자인 ──
@@ -1008,8 +1016,8 @@ const PrevTextButton = styled.button`
 
 const NextStepButton = styled.button`
   background: ${PRIMARY_COLOR}; color: #FFF; font-size: 15px; font-weight: 600;
-  padding: 12px 32px; border-radius: 12px; border: none; cursor: pointer;
-  &:disabled { background: #F4F4F4; color: #AFAFAF; cursor: not-allowed; }
+  padding: 12px 32px; border-radius: 16px; border: none; cursor: pointer; font-family: inherit;
+  &:disabled { background: #F2F2F2; color: #949494; cursor: not-allowed; }
 `;
 
 // ── 바텀 시트 관련 컴포넌트 ──
