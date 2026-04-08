@@ -32,8 +32,9 @@ const FALLBACK: FormData = {
     { value: 'car', label: '자차/대중교통 이용', max_count: 0, is_active: true },
   ],
   electives: [
-    { value: '연애/결혼', label: '연애 / 결혼' },
+    { value: '삶과 사역의 밸런스', label: '삶과 사역의 밸런스' },
     { value: '돈/재정', label: '돈 / 재정' },
+    { value: '관계 및 소통', label: '관계 및 소통' }
   ],
   config: {
     registration_open: 'true',

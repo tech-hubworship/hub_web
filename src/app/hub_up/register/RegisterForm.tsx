@@ -793,7 +793,7 @@ export default function RegisterForm({
           <p style={{textAlign: 'center', color: '#757575', lineHeight: 1.6, fontSize: '14px'}}>
             5월 15일 소망수양관에서 만나요!
           </p>
-          <div style={{display: 'flex', justifyContent: 'center', marginTop: '40px'}}>
+          <div style={{display: 'flex', justifyContent: 'center', marginTop: '40px', paddingBottom: '120px'}}>
             <Image
               src="/images/HubUpImage2.jpg"
               alt=""
@@ -802,7 +802,7 @@ export default function RegisterForm({
               style={{ width: '100%', height: 'auto', display: 'block' }}
             />
           </div>
-          <div style={{position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '24px 24px 32px', background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 10%, #fff 100%)'}}>
+          <div style={{position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '24px 24px 32px', background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 30%, #fff 100%)'}}>
             <button
               onClick={() => router.push('/hub_up')}
               style={{width: '100%', padding: '14px', background: '#2D478C', color: '#fff', border: 'none', borderRadius: 16, fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'}}

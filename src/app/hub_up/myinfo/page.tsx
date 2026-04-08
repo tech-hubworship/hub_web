@@ -164,7 +164,10 @@ export default function MyInfoPage() {
                   <QRTitle>티셔츠 수령 QR</QRTitle>
                   <QRDesc>현장에서 이 QR을 제시해주세요.</QRDesc>
                   <QRWrap>
-                    <QRCodeSVG value={tshirtOrder.qr_code} size={180} />
+                    <QRCodeSVG 
+                      value={`${registration.name}\n` + tshirtOrder.items.map(item => `${item.color === 'black' ? 'Black' : 'White'} ${item.size}: ${item.quantity}개`).join('\n')} 
+                      size={180} 
+                    />
                   </QRWrap>
                 </QRSection>
               )}
