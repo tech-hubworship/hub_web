@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styled from '@emotion/styled';
 
+const PRIMARY = '#2D478C';
+
 const FAQ_SECTIONS = [
   {
     category: '접수 관련',
@@ -53,7 +55,7 @@ export default function FaqPage() {
       <TopNav>
         <BackBtn onClick={() => router.back()}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M15 19L8 12L15 5" stroke="#111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M15 19L8 12L15 5" stroke="#1A1A1A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </BackBtn>
         <NavTitle>자주 묻는 질문</NavTitle>
@@ -62,11 +64,7 @@ export default function FaqPage() {
       <Content>
         {FAQ_SECTIONS.map((section) => (
           <Section key={section.category}>
-            <SectionHeader>
-              <SectionTitle>{section.category}</SectionTitle>
-              <SectionContact>{section.contact}</SectionContact>
-            </SectionHeader>
-
+            <SectionTitle>{section.category}</SectionTitle>
             {section.items.map((faq, i) => {
               const key = `${section.category}-${i}`;
               const isOpen = openKey === key;
@@ -77,7 +75,7 @@ export default function FaqPage() {
                     <QText>{faq.q}</QText>
                     <Arrow open={isOpen}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <path d="M6 9L12 15L18 9" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M6 9L12 15L18 9" stroke="#949494" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </Arrow>
                   </FaqQuestion>
@@ -97,34 +95,23 @@ export default function FaqPage() {
   );
 }
 
-const PRIMARY = '#F25246';
-const Wrap = styled.div`width: 100%; min-height: 100vh; background: #FAFAFA; font-family: -apple-system, sans-serif;`;
-const TopNav = styled.div`height: 56px; display: flex; align-items: center; padding: 0 16px; background: #fff; border-bottom: 1px solid #F0F0F0; gap: 8px;`;
+const Wrap = styled.div`width: 100%; min-height: 100vh; background: #F2F2F2; font-family: 'Pretendard', -apple-system, sans-serif;`;
+const TopNav = styled.div`height: 56px; display: flex; align-items: center; padding: 0 16px; background: #fff; border-bottom: 1px solid #E6E6E6; gap: 8px;`;
 const BackBtn = styled.button`background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center;`;
-const NavTitle = styled.div`font-size: 17px; font-weight: 700; color: #111;`;
+const NavTitle = styled.div`font-size: 17px; font-weight: 600; color: #1A1A1A;`;
 const Content = styled.div`padding: 16px 20px 40px;`;
-
-const Section = styled.div`margin-bottom: 28px;`;
-const SectionHeader = styled.div`display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 0 4px;`;
-const SectionTitle = styled.div`font-size: 16px; font-weight: 700; color: #111;`;
-const SectionContact = styled.div`font-size: 12px; color: #888;`;
-
-const FaqItem = styled.div`
-  background: #fff;
-  border-radius: 12px;
-  margin-bottom: 6px;
-  padding: 16px 18px;
-  cursor: pointer;
-`;
+const Section = styled.div`margin-bottom: 24px;`;
+const SectionTitle = styled.div`font-size: 14px; font-weight: 600; color: #949494; margin-bottom: 8px; padding: 0 4px; text-transform: uppercase; letter-spacing: 0.05em;`;
+const FaqItem = styled.div`background: #fff; border-radius: 12px; margin-bottom: 6px; padding: 16px 18px; cursor: pointer;`;
 const FaqQuestion = styled.div`display: flex; align-items: flex-start; gap: 8px;`;
 const QMark = styled.span`font-size: 14px; font-weight: 700; color: ${PRIMARY}; flex-shrink: 0; margin-top: 1px;`;
-const QText = styled.div`font-size: 14px; font-weight: 600; color: #111; line-height: 1.5; flex: 1;`;
+const QText = styled.div`font-size: 14px; font-weight: 600; color: #1A1A1A; line-height: 1.5; flex: 1;`;
 const Arrow = styled.div<{ open: boolean }>`
   flex-shrink: 0;
   transform: ${p => p.open ? 'rotate(180deg)' : 'rotate(0)'};
   transition: transform 0.2s;
   margin-top: 2px;
 `;
-const FaqAnswer = styled.div`display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #F0F0F0;`;
-const AMark = styled.span`font-size: 14px; font-weight: 700; color: #888; flex-shrink: 0; margin-top: 1px;`;
-const AText = styled.div`font-size: 14px; color: #666; line-height: 1.6; white-space: pre-line;`;
+const FaqAnswer = styled.div`display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #F2F2F2;`;
+const AMark = styled.span`font-size: 14px; font-weight: 700; color: #949494; flex-shrink: 0; margin-top: 1px;`;
+const AText = styled.div`font-size: 14px; color: #757575; line-height: 1.6; white-space: pre-line;`;
