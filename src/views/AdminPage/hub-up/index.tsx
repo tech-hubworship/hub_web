@@ -579,7 +579,7 @@ export default function HubUpAdminPage() {
                   <thead>
                     <tr>
                       <Th><input type="checkbox" checked={tshirts.length > 0 && selectedIds.size === tshirts.length} onChange={() => toggleAll(tshirts)} /></Th>
-                      <Th>이름</Th><Th>그룹</Th><Th>연락처</Th><Th>주문내역</Th><Th>총수량(총액)</Th><Th>자기신고</Th><Th>상태</Th>
+                      <Th>이름</Th><Th>그룹</Th><Th>연락처</Th><Th>주문내역</Th><Th>총수량(총액)</Th><Th>자기신고</Th><Th>입금확인</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -601,20 +601,18 @@ export default function HubUpAdminPage() {
                           </div>
                         </Td>
                         <Td><DepBadge ok={t.deposit_confirm}>{t.deposit_confirm ? '입금했다고 함' : '미신고'}</DepBadge></Td>
+                        <Td><DepBadge ok={t.status === 'confirmed'}>{t.status === 'confirmed' ? '입금완료' : '확인중'}</DepBadge></Td>
                         <Td>
                           <BtnGrp>
                             {t.status === 'confirmed' 
-                              ? <div style={{display:'flex',gap:'4px',alignItems:'center'}}>
-                                  <DepBadge ok={true}>완료</DepBadge>
-                                  <CancelBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'pending'})}>취소</CancelBtn>
-                                </div>
+                              ? <CancelBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'pending'})}>취소</CancelBtn>
                               : <SaveBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'confirmed'})}>입금완료</SaveBtn>
                             }
                           </BtnGrp>
                         </Td>
                       </tr>
                     ))}
-                    {tshirts.length === 0 && <tr><td colSpan={8} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>주문자가 없습니다.</td></tr>}
+                    {tshirts.length === 0 && <tr><td colSpan={9} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>주문자가 없습니다.</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>

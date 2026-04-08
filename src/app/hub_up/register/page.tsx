@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -33,7 +33,7 @@ const FALLBACK: FormData = {
   ],
   electives: [
     { value: '삶과 사역의 밸런스', label: '삶과 사역의 밸런스' },
-    { value: '돈/재정', label: '돈 / 재정' },
+    { value: '돈, 재정', label: '돈, 재정' },
     { value: '관계 및 소통', label: '관계 및 소통' }
   ],
   config: {

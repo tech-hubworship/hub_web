@@ -20,20 +20,33 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   
+  if (data.length === 0) {
+    return NextResponse.json([]);
+  }
+
   // profiles 정보 추가 조회
   const userIds = data.map(d => d.user_id);
   const { data: profiles, error: profileError } = await supabaseAdmin
     .from('profiles')
-    .select('user_id, name, call_number, hub_groups!fk_group_id(name)')
+    .select('user_id, name, hub_groups!fk_group_id(name)')
     .in('user_id', userIds);
 
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
+
+  // 연락처는 hub_up_registrations에 있으므로 가져오기
+  const { data: regs } = await supabaseAdmin
+    .from('hub_up_registrations')
+    .select('user_id, phone')
+    .in('user_id', userIds);
+
+  const regMap = new Map();
+  regs?.forEach(r => regMap.set(r.user_id, r.phone));
 
   const profileMap = new Map();
   profiles?.forEach(p => {
     profileMap.set(p.user_id, {
       name: p.name,
-      phone: p.call_number,
+      phone: regMap.get(p.user_id) || '',
       group_name: (p.hub_groups as any)?.name || '알수없음'
     });
   });

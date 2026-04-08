@@ -788,21 +788,22 @@ export default function RegisterForm({
 
       {/* ── STEP 6: 제출 완료 ── */}
       {step === 5 && (
-        <CompleteWrapper>
-          <FormHeader style={{textAlign: 'center', marginTop: '60px'}}>허브업 신청서<br/>제출을 완료했어요</FormHeader>
-          <p style={{textAlign: 'center', color: '#757575', lineHeight: 1.6, fontSize: '14px'}}>
-            5월 15일 소망수양관에서 만나요!
-          </p>
-          <div style={{display: 'flex', justifyContent: 'center', marginTop: '40px', paddingBottom: '120px'}}>
+        <CompleteWrapper style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
+          <div style={{ flexShrink: 0, paddingTop: '40px' }}>
+            <FormHeader style={{textAlign: 'center', marginBottom: '16px'}}>허브업 신청서<br/>제출을 완료했어요</FormHeader>
+            <p style={{textAlign: 'center', color: '#757575', lineHeight: 1.6, fontSize: '14px', margin: 0}}>
+              5월 15일 소망수양관에서 만나요!
+            </p>
+          </div>
+          <div style={{flex: 1, position: 'relative', marginTop: '30px', marginBottom: '30px', minHeight: 0}}>
             <Image
               src="/images/HubUpImage2.jpg"
-              alt=""
-              width={480}
-              height={480}
-              style={{ width: '100%', height: 'auto', display: 'block' }}
+              alt="완료 이미지"
+              fill
+              style={{ objectFit: 'contain' }}
             />
           </div>
-          <div style={{position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '24px 24px 32px', background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 30%, #fff 100%)'}}>
+          <div style={{ flexShrink: 0, width: '100%', padding: '0 24px 32px' }}>
             <button
               onClick={() => router.push('/hub_up')}
               style={{width: '100%', padding: '14px', background: '#2D478C', color: '#fff', border: 'none', borderRadius: 16, fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'}}
