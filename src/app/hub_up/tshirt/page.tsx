@@ -159,7 +159,7 @@ export default function TshirtPage() {
         <SliderTrack style={{ transform: `translateX(-${imgIndex * 100}%)` }}>
           {COLOR_IMAGES[activeColor].map((src, i) => (
             <SliderSlide key={i}>
-              <Image src={src} alt="ESSENCE 티셔츠" fill style={{ objectFit: 'cover', objectPosition: 'center' }} priority={i === 0} />
+              <Image src={src} alt="ESSENCE 티셔츠" fill style={{ objectFit: 'cover', objectPosition: 'center' }} priority />
             </SliderSlide>
           ))}
         </SliderTrack>
