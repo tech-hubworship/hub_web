@@ -24,6 +24,13 @@ const DEPART_TIME_OPTIONS = [
 const PHONE_REGEX = /^01[0-9]-\d{3,4}-\d{4}$/;
 const PRIMARY_COLOR = '#2D478C';
 
+const VOLUNTEER_DESC: Record<string, string> = {
+  '외부 안내팀': '행사장 외부 입구 안내 및 주차 유도',
+  '시설팀': '행사장 내부 세팅, 음향·조명 보조',
+  '식사팀': '식사 준비 및 배식, 정리',
+  '허브런팀': '허브런 행사 진행 보조 및 운영',
+};
+
 const initialFormData: FormData = {
   community: '', group: '', leaderName: '', name: '', gender: '',
   birthdate: '', phone: '', privacyConsent: false,
@@ -362,10 +369,15 @@ export default function RegisterForm({
                       <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </CheckIcon>
-                  <OptionText selected={isSelected}>
-                    {opt}
-                    {isClosed && <span style={{marginLeft: '8px', color: '#FF3B30', fontSize: '13px', fontWeight: 600}}>(마감)</span>}
-                  </OptionText>
+                  <OptionTextWrap>
+                    <OptionText selected={isSelected}>
+                      {opt}
+                      {isClosed && <span style={{marginLeft: '8px', color: '#FF3B30', fontSize: '13px', fontWeight: 600}}>(마감)</span>}
+                    </OptionText>
+                    {activeSheet === 'volunteer' && VOLUNTEER_DESC[opt] && (
+                      <VolunteerDesc>{VOLUNTEER_DESC[opt]}</VolunteerDesc>
+                    )}
+                  </OptionTextWrap>
                 </SheetOption>
               );
             })}
@@ -1139,6 +1151,14 @@ const OptionText = styled.span<{ selected: boolean }>`
   font-size: 16px; color: ${(p) => p.selected ? PRIMARY_COLOR : '#111'};
   font-weight: ${(p) => p.selected ? 600 : 400};
   transition: color 0.2s ease;
+`;
+
+const VolunteerDesc = styled.div`
+  font-size: 12px; color: #888; margin-top: 2px; font-weight: 400; line-height: 1.4;
+`;
+
+const OptionTextWrap = styled.div`
+  display: flex; flex-direction: column;
 `;
 
 const CheckIcon = styled.div<{ selected: boolean }>`

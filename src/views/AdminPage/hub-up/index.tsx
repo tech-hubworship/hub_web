@@ -86,6 +86,7 @@ export default function HubUpAdminPage() {
   const [editNote, setEditNote] = useState('');
   const [bulkRoom, setBulkRoom] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
 
   const { data: stats, error: statsError, isLoading: isStatsLoading } = useQuery<Stats>({
     queryKey: ['hub-up-stats'],
@@ -286,9 +287,31 @@ export default function HubUpAdminPage() {
                       <TeamNum>{stats.volunteerCount}</TeamNum>
                       <TeamLabel>전체 자원봉사자</TeamLabel>
                     </div>
-                    {Object.entries(stats.volunteerCounts || {}).map(([team, cnt]) => (
-                      <LecRow key={team}><LecName>{team}</LecName><LecCnt>{cnt}명</LecCnt><LecBar><LecFill w={pct(cnt, stats.volunteerCount)} /></LecBar></LecRow>
-                    ))}
+                    <VolunteerTable>
+                      <thead>
+                        <tr>
+                          <VolTh>팀</VolTh>
+                          <VolTh>남</VolTh>
+                          <VolTh>여</VolTh>
+                          <VolTh>총합</VolTh>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(stats.volunteerCounts || {}).map(([team, cnt]) => {
+                          const members = registrations.filter(r => r.volunteer_team === team);
+                          const male = members.filter(r => r.gender === '남자' || r.gender === 'M').length;
+                          const female = members.filter(r => r.gender === '여자' || r.gender === 'F').length;
+                          return (
+                            <tr key={team}>
+                              <VolTd>{team}</VolTd>
+                              <VolTd>{male}</VolTd>
+                              <VolTd>{female}</VolTd>
+                              <VolTdBold>{cnt as number}</VolTdBold>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </VolunteerTable>
                   </Card>
                   <Card>
                     <CardTitle>선택강의</CardTitle>
@@ -662,6 +685,28 @@ const TeamStat = styled.div`flex: 1; text-align: center; background: #f8f9fa; bo
 const TeamNum = styled.div`font-size: 22px; font-weight: 800; color: #202124;`;
 const TeamLabel = styled.div`font-size: 11px; color: #9aa0a6; margin-top: 3px;`;
 const LecRow = styled.div`display: flex; align-items: center; gap: 8px; margin-bottom: 8px;`;
+
+const TeamMemberList = styled.div`
+  background: #f8f9fa; border-radius: 8px; padding: 8px 12px;
+  margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px;
+`;
+const TeamMemberRow = styled.div`
+  display: flex; align-items: center; gap: 8px; font-size: 13px;
+`;
+
+const VolunteerTable = styled.table`
+  width: 100%; border-collapse: collapse; font-size: 13px;
+`;
+const VolTh = styled.th`
+  text-align: center; padding: 5px 8px; color: #9aa0a6;
+  font-weight: 600; font-size: 11px; border-bottom: 1px solid #e8eaed;
+`;
+const VolTd = styled.td`
+  text-align: center; padding: 6px 8px; color: #3c4043;
+  border-bottom: 1px solid #f1f3f4;
+  &:first-of-type { text-align: left; }
+`;
+const VolTdBold = styled(VolTd)`font-weight: 700; color: #202124;`;
 const LecName = styled.div`font-size: 13px; color: #3c4043; width: 80px; flex-shrink: 0;`;
 const LecCnt = styled.div`font-size: 13px; font-weight: 700; width: 36px; flex-shrink: 0;`;
 const LecBar = styled.div`flex: 1; height: 6px; background: #f1f3f4; border-radius: 3px; overflow: hidden;`;
