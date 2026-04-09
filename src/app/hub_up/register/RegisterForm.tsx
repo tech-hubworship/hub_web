@@ -257,9 +257,7 @@ export default function RegisterForm({
 
     } else if (activeSheet === 'departureBus') {
       title = '[5/15] 출발 차량 탑승 시각';
-      options = departureSlots
-        .filter(slot => !(slot.max_count > 0 && (slotCounts[slot.value] || 0) >= slot.max_count))
-        .map(slot => slot.label);
+      options = departureSlots.map(slot => slot.label);
       currentValue = departureSlots.find(s => s.value === formData.departureBusTime)?.label || '';
       onSelect = (val) => {
         const slot = departureSlots.find(s => s.label === val);
@@ -328,7 +326,19 @@ export default function RegisterForm({
                 ? options.filter(opt => formData.electiveLecture.includes(opt))
                 : [];
               const isSelected = isMulti ? selectedItems.includes(opt) : currentValue === opt;
-              const isDisabled = isMulti && !isSelected && selectedItems.length >= 2;
+              
+              // 슬롯 마감 체크 (출발/복귀 버스용)
+              let isClosed = false;
+              if (activeSheet === 'departureBus') {
+                const s = departureSlots.find(sl => sl.label === opt);
+                if (s && s.max_count > 0 && (slotCounts[s.value] || 0) >= s.max_count) isClosed = true;
+              } else if (activeSheet === 'returnBus') {
+                const s = returnSlots.find(sl => sl.label === opt);
+                if (s && s.max_count > 0 && (slotCounts[s.value] || 0) >= s.max_count) isClosed = true;
+              }
+
+              const isDisabled = (isMulti && !isSelected && selectedItems.length >= 2) || (isClosed && !isSelected);
+
               return (
                 <SheetOption
                   key={opt}
@@ -336,7 +346,6 @@ export default function RegisterForm({
                   onClick={() => {
                     if (isDisabled) return;
                     onSelect(opt);
-                    // 다중선택(elective)은 2개 선택 완료 시에만 닫힘, 단일선택은 바로 닫힘
                     if (!isMulti) {
                       setActiveSheet(null);
                     } else {
@@ -353,7 +362,10 @@ export default function RegisterForm({
                       <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </CheckIcon>
-                  <OptionText selected={isSelected}>{opt}</OptionText>
+                  <OptionText selected={isSelected}>
+                    {opt}
+                    {isClosed && <span style={{marginLeft: '8px', color: '#FF3B30', fontSize: '13px', fontWeight: 600}}>(마감)</span>}
+                  </OptionText>
                 </SheetOption>
               );
             })}

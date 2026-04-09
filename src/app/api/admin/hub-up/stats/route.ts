@@ -51,21 +51,35 @@ export async function GET() {
   });
 
   // 팀 섬김
-  const intercessorCount = rows.filter((r) => r.intercessor_team === '신청').length;
-  const volunteerCount = rows.filter((r) => r.volunteer_team === '신청').length;
+  const volunteerCounts: Record<string, number> = {};
+  rows.forEach((r) => {
+    try {
+      if (r.volunteer_team && r.volunteer_team !== '해당 없음') {
+        volunteerCounts[r.volunteer_team] = (volunteerCounts[r.volunteer_team] || 0) + 1;
+      }
+    } catch (e) {}
+  });
+  const volunteerCount = rows.filter((r) => r.volunteer_team && r.volunteer_team !== '해당 없음').length;
 
   // 선택강의
   const electiveCounts: Record<string, number> = {};
   rows.forEach((r) => {
-    if (r.elective_lecture) {
-      electiveCounts[r.elective_lecture] = (electiveCounts[r.elective_lecture] || 0) + 1;
-    }
+    try {
+      if (r.elective_lecture && typeof r.elective_lecture === 'string') {
+        const lecs = r.elective_lecture.split(',').map((s: string) => s.trim());
+        lecs.forEach((l: string) => {
+          if (l) electiveCounts[l] = (electiveCounts[l] || 0) + 1;
+        });
+      }
+    } catch (e) {}
   });
 
   // 공동체별
   const communityCounts: Record<string, number> = {};
   rows.forEach((r) => {
-    communityCounts[r.community] = (communityCounts[r.community] || 0) + 1;
+    if (r.community) {
+      communityCounts[r.community] = (communityCounts[r.community] || 0) + 1;
+    }
   });
 
   return NextResponse.json({
@@ -77,9 +91,10 @@ export async function GET() {
     returnCounts,
     carRoleCounts,
     groupCounts,
-    intercessorCount,
     volunteerCount,
+    volunteerCounts,
     electiveCounts,
     communityCounts,
   });
 }
+

@@ -180,10 +180,8 @@ export default function MyInfoPage() {
             </>
           ) : (
             <>
-              <EmptyDesc style={{ marginBottom: '12px' }}>아직 티셔츠를 신청하지 않으셨습니다.</EmptyDesc>
-              {tshirtConfig.tshirt_sale_open === 'true' && (
-                <PrimaryBtn onClick={() => router.push('/hub_up/tshirt')}>티셔츠 신청하기</PrimaryBtn>
-              )}
+              <EmptyDesc style={{ marginBottom: '16px' }}>아직 티셔츠를 신청하지 않으셨습니다.</EmptyDesc>
+              <PrimaryBtn onClick={() => router.push('/hub_up/tshirt')}>티셔츠 신청하러 가기</PrimaryBtn>
             </>
           )}
         </Section>

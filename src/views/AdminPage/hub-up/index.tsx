@@ -21,7 +21,7 @@ interface Stats {
   returnCounts: Record<string, number>;
   carRoleCounts: Record<string, number>;
   groupCounts: Record<string, { male: number; female: number; total: number }>;
-  intercessorCount: number; volunteerCount: number;
+  volunteerCount: number; volunteerCounts: Record<string, number>;
   electiveCounts: Record<string, number>;
   communityCounts: Record<string, number>;
 }
@@ -87,9 +87,13 @@ export default function HubUpAdminPage() {
   const [bulkRoom, setBulkRoom] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const { data: stats } = useQuery<Stats>({
+  const { data: stats, error: statsError, isLoading: isStatsLoading } = useQuery<Stats>({
     queryKey: ['hub-up-stats'],
-    queryFn: () => fetch('/api/admin/hub-up/stats').then(r => r.json()),
+    queryFn: async () => {
+      const res = await fetch('/api/admin/hub-up/stats');
+      if (!res.ok) throw new Error('데이터 로드 실패');
+      return res.json();
+    },
     refetchInterval: 30000,
   });
 
@@ -229,31 +233,31 @@ export default function HubUpAdminPage() {
         {/* ── 통계 탭 ── */}
         {activeTab === 'stats' && (
           <StatsWrap>
-            {!stats ? <Loading>불러오는 중...</Loading> : (
+            {isStatsLoading ? <Loading>불러오는 중...</Loading> : statsError ? <Loading style={{color:'#d93025'}}>데이터를 불러올 수 없습니다.</Loading> : !stats ? <Loading>데이터가 없습니다.</Loading> : (
               <>
                 <KpiRow>
                   <KpiCard accent="#202124"><KpiNum>{stats.total}</KpiNum><KpiLabel>총 접수</KpiLabel></KpiCard>
-                  <KpiCard accent="#2563eb"><KpiNum style={{color:'#2563eb'}}>{stats.gender.male}</KpiNum><KpiLabel>남</KpiLabel></KpiCard>
-                  <KpiCard accent="#d93025"><KpiNum style={{color:'#d93025'}}>{stats.gender.female}</KpiNum><KpiLabel>여</KpiLabel></KpiCard>
+                  <KpiCard accent="#2563eb"><KpiNum style={{color:'#2563eb'}}>{stats.gender?.male ?? 0}</KpiNum><KpiLabel>남</KpiLabel></KpiCard>
+                  <KpiCard accent="#d93025"><KpiNum style={{color:'#d93025'}}>{stats.gender?.female ?? 0}</KpiNum><KpiLabel>여</KpiLabel></KpiCard>
                   <KpiCard accent="#278f5a"><KpiNum style={{color:'#278f5a'}}>{stats.deposited}</KpiNum><KpiLabel>입금완료</KpiLabel></KpiCard>
                   <KpiCard accent="#f59e0b"><KpiNum style={{color:'#f59e0b'}}>{stats.depositRate}%</KpiNum><KpiLabel>입금률</KpiLabel></KpiCard>
                 </KpiRow>
                 <Card>
                   <CardTitle>성별 비율</CardTitle>
                   <GenderBarWrap>
-                    <GenderSeg w={pct(stats.gender.male, stats.total)} color="#2563eb" />
-                    <GenderSeg w={pct(stats.gender.female, stats.total)} color="#d93025" />
+                    <GenderSeg w={pct(stats.gender?.male ?? 0, stats.total)} color="#2563eb" />
+                    <GenderSeg w={pct(stats.gender?.female ?? 0, stats.total)} color="#d93025" />
                   </GenderBarWrap>
                   <GenderLegend>
-                    <GenderItem color="#2563eb">남 {stats.gender.male}명 ({pct(stats.gender.male, stats.total)}%)</GenderItem>
-                    <GenderItem color="#d93025">여 {stats.gender.female}명 ({pct(stats.gender.female, stats.total)}%)</GenderItem>
+                    <GenderItem color="#2563eb">남 {stats.gender?.male ?? 0}명 ({pct(stats.gender?.male ?? 0, stats.total)}%)</GenderItem>
+                    <GenderItem color="#d93025">여 {stats.gender?.female ?? 0}명 ({pct(stats.gender?.female ?? 0, stats.total)}%)</GenderItem>
                   </GenderLegend>
                 </Card>
                 <TwoCol>
                   <Card>
                     <CardTitle>[출발] 차량 현황</CardTitle>
                     <DenseTable><thead><tr><DTh>슬롯</DTh><DTh right>인원</DTh><DTh right>비율</DTh></tr></thead>
-                      <tbody>{Object.entries(stats.departureCounts).sort(([a],[b])=>a.localeCompare(b)).map(([slot, cnt]) => (
+                      <tbody>{Object.entries(stats.departureCounts || {}).sort(([a],[b])=>a.localeCompare(b)).map(([slot, cnt]) => (
                         <tr key={slot}><DTd>{sl(slot)}</DTd><DTd right><strong>{cnt}</strong></DTd><DTd right>{pct(cnt, stats.total)}%</DTd></tr>
                       ))}</tbody>
                     </DenseTable>
@@ -261,7 +265,7 @@ export default function HubUpAdminPage() {
                   <Card>
                     <CardTitle>[복귀] 차량 현황</CardTitle>
                     <DenseTable><thead><tr><DTh>슬롯</DTh><DTh right>인원</DTh><DTh right>비율</DTh></tr></thead>
-                      <tbody>{Object.entries(stats.returnCounts).sort(([a],[b])=>a.localeCompare(b)).map(([slot, cnt]) => (
+                      <tbody>{Object.entries(stats.returnCounts || {}).sort(([a],[b])=>a.localeCompare(b)).map(([slot, cnt]) => (
                         <tr key={slot}><DTd>{sl(slot)}</DTd><DTd right><strong>{cnt}</strong></DTd><DTd right>{pct(cnt, stats.total)}%</DTd></tr>
                       ))}</tbody>
                     </DenseTable>
@@ -270,7 +274,7 @@ export default function HubUpAdminPage() {
                 <Card>
                   <CardTitle>그룹별 인원</CardTitle>
                   <DenseTable><thead><tr><DTh>그룹</DTh><DTh right>남</DTh><DTh right>여</DTh><DTh right>합계</DTh><DTh right>비율</DTh></tr></thead>
-                    <tbody>{Object.entries(stats.groupCounts).sort(([,a],[,b])=>b.total-a.total).map(([g, c]) => (
+                    <tbody>{Object.entries(stats.groupCounts || {}).sort(([,a],[,b])=>b.total-a.total).map(([g, c]) => (
                       <tr key={g}><DTd>{g}</DTd><DTd right>{c.male}</DTd><DTd right>{c.female}</DTd><DTd right><strong>{c.total}</strong></DTd><DTd right>{pct(c.total, stats.total)}%</DTd></tr>
                     ))}</tbody>
                   </DenseTable>
@@ -278,20 +282,24 @@ export default function HubUpAdminPage() {
                 <ThreeCol>
                   <Card>
                     <CardTitle>팀 섬김</CardTitle>
-                    <TeamRow>
-                      <TeamStat><TeamNum>{stats.volunteerCount}</TeamNum><TeamLabel>자원봉사팀</TeamLabel></TeamStat>
-                    </TeamRow>
+                    <div style={{marginBottom:'10px'}}>
+                      <TeamNum>{stats.volunteerCount}</TeamNum>
+                      <TeamLabel>전체 자원봉사자</TeamLabel>
+                    </div>
+                    {Object.entries(stats.volunteerCounts || {}).map(([team, cnt]) => (
+                      <LecRow key={team}><LecName>{team}</LecName><LecCnt>{cnt}명</LecCnt><LecBar><LecFill w={pct(cnt, stats.volunteerCount)} /></LecBar></LecRow>
+                    ))}
                   </Card>
                   <Card>
                     <CardTitle>선택강의</CardTitle>
-                    {Object.entries(stats.electiveCounts).map(([lec, cnt]) => (
+                    {Object.entries(stats.electiveCounts || {}).map(([lec, cnt]) => (
                       <LecRow key={lec}><LecName>{lec}</LecName><LecCnt>{cnt}명</LecCnt><LecBar><LecFill w={pct(cnt, stats.total)} /></LecBar></LecRow>
                     ))}
                   </Card>
                   <Card>
                     <CardTitle>공동체별</CardTitle>
                     <DenseTable><thead><tr><DTh>공동체</DTh><DTh right>인원</DTh></tr></thead>
-                      <tbody>{Object.entries(stats.communityCounts).sort(([,a],[,b])=>b-a).map(([c, cnt]) => (
+                      <tbody>{Object.entries(stats.communityCounts || {}).sort(([,a],[,b])=>b-a).map(([c, cnt]) => (
                         <tr key={c}><DTd>{c}</DTd><DTd right><strong>{cnt}</strong></DTd></tr>
                       ))}</tbody>
                     </DenseTable>
@@ -439,7 +447,7 @@ export default function HubUpAdminPage() {
             </BusGrid>
             <TableWrap>
               <Table>
-                <thead><tr><Th>이름</Th><Th>그룹</Th><Th>출발</Th><Th>복귀</Th><Th>입금</Th></tr></thead>
+                <thead><tr><Th>이름</Th><Th>그룹</Th><Th>출발</Th><Th>복귀</Th></tr></thead>
                 <tbody>
                   {(busStats?.registrations || []).map(r => (
                     <tr key={r.id}>
@@ -447,10 +455,9 @@ export default function HubUpAdminPage() {
                       <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
                       <Td><SlotChip>{sl(r.departure_slot)}</SlotChip></Td>
                       <Td>{sl(r.return_slot)}</Td>
-                      <Td><DepBadge ok={r.admin_deposit_confirm}>{r.admin_deposit_confirm ? '입금완료' : '미확인'}</DepBadge></Td>
                     </tr>
                   ))}
-                  {!busStats?.registrations?.length && <tr><td colSpan={5} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
+                  {!busStats?.registrations?.length && <tr><td colSpan={4} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
                 </tbody>
               </Table>
             </TableWrap>

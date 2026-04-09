@@ -67,6 +67,16 @@ const nextConfig = {
           },
         ],
       },
+      // 티셔츠 이미지 — 변경 없으므로 장기 캐싱
+      {
+        source: '/images/tshirt/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
       // 아이콘 전체 장기 캐시 (Edge 요청 절감)
       {
         source: '/icons/:path*',

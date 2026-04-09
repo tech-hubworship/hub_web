@@ -1,15 +1,35 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import styled from '@emotion/styled';
+import { keyframes } from '@emotion/react';
+import Image from 'next/image';
 
-const SIZES = ['S', 'M', 'L', 'XL', '2XL'];
-const COLORS = [
-  { value: 'white', label: 'WHITE', bg: '#fff', text: '#111' },
-  { value: 'black', label: 'BLACK', bg: '#111', text: '#fff' },
+const SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+
+const SIZE_GUIDE = [
+  { size: 'S',   sub: '(85)',  chest: '47', length: '62' },
+  { size: 'M',   sub: '(90)',  chest: '49', length: '65' },
+  { size: 'L',   sub: '(95)',  chest: '52', length: '68' },
+  { size: 'XL',  sub: '(100)', chest: '54', length: '71' },
+  { size: '2XL', sub: '(105)', chest: '56', length: '74' },
+  { size: '3XL', sub: '(110)', chest: '59', length: '77' },
 ];
+
+// 색상별 이미지 배열 (스와이프 슬라이더용)
+// white → white 이미지, black → black 이미지
+const COLOR_IMAGES: Record<string, string[]> = {
+  white: [
+    '/images/tshirt/tshirt_white.png',
+    '/images/tshirt/tshirt_white2.png',
+  ],
+  black: [
+    '/images/tshirt/tshirt_black.png',
+    '/images/tshirt/tshirt_black2.png',
+  ],
+};
 
 interface OrderItem { color: string; size: string; quantity: number; }
 
@@ -23,16 +43,29 @@ export default function TshirtPage() {
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeColor, setActiveColor] = useState<'white' | 'black'>('white');
+  const [imgIndex, setImgIndex] = useState(0);
+  const touchStartX = useRef(0);
+  const autoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 5초마다 자동 슬라이드
+  useEffect(() => {
+    autoTimer.current = setInterval(() => {
+      setImgIndex((i) => {
+        const imgs = COLOR_IMAGES[activeColor];
+        return (i + 1) % imgs.length;
+      });
+    }, 5000);
+    return () => { if (autoTimer.current) clearInterval(autoTimer.current); };
+  }, [activeColor]);
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login?redirect=/hub_up/tshirt'); return; }
     if (status !== 'authenticated') return;
-    // config는 캐싱된 공개 API, 주문은 인증 API - 병렬 fetch
     Promise.all([
       fetch('/api/hub-up/config').then((r) => r.json()),
       fetch('/api/hub-up/tshirt').then((r) => r.json()),
-    ]).then(([config, tshirt]) => {
-      setConfig({ ...config, ...(tshirt.config || {}) });
+    ]).then(([cfg, tshirt]) => {
+      setConfig({ ...cfg, ...(tshirt.config || {}) });
       if (tshirt.order) {
         setExistingOrder(tshirt.order);
         setItems(tshirt.order.items || []);
@@ -53,12 +86,12 @@ export default function TshirtPage() {
 
   const totalCount = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((sum, item) => {
-    const price = Number(config[`tshirt_price_${item.color}`] || 0);
+    const price = Number(config[`tshirt_price_${item.color}`] || 20000);
     return sum + (price * item.quantity);
   }, 0);
 
   const handleSubmit = async () => {
-    if (!totalCount) { alert('수량을 선택해주세요.'); return; }
+    if (!totalCount) return;
     setSubmitting(true);
     const res = await fetch('/api/hub-up/tshirt', {
       method: 'POST',
@@ -71,388 +104,298 @@ export default function TshirtPage() {
     setDone(true);
   };
 
-  if (status === 'loading' || loading) return <LoadingWrap>불러오는 중...</LoadingWrap>;
+  const currentPrice = Number(config[`tshirt_price_${activeColor}`] || 20000);
 
-  // 테스트를 위해 판매 기간 체크 주석 처리
-  // if (config.tshirt_sale_open !== 'true') {
-  //   return (
-  //     <Wrap>
-  //       <TopNav><BackBtn onClick={() => router.back()}>←</BackBtn></TopNav>
-  //       <ClosedBox>
-  //         <ClosedIcon>👕</ClosedIcon>
-  //         <ClosedTitle>티셔츠 판매 준비 중</ClosedTitle>
-  //         <ClosedDesc>판매 기간이 되면 이 페이지에서 신청할 수 있어요.</ClosedDesc>
-  //       </ClosedBox>
-  //     </Wrap>
-  //   );
-  // }
+  if (status === 'loading' || loading) {
+    return <LoadingWrap><Spinner /></LoadingWrap>;
+  }
 
   if (done) {
     return (
       <Wrap>
-        <TopNav><BackBtn onClick={() => router.push('/hub_up/myinfo')}>←</BackBtn></TopNav>
+        <TopNav>
+          <BackBtn onClick={() => router.push('/hub_up/myinfo')}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M15 19L8 12L15 5" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </BackBtn>
+        </TopNav>
         <DoneBox>
-          <DoneIcon>✅</DoneIcon>
-          <DoneTitle>{existingOrder ? '변경이 완료되었습니다' : '신청이 완료되었습니다'}</DoneTitle>
-          <AccountBox>
-            <AccountLabel>입금 계좌</AccountLabel>
-            <AccountValue>{config.tshirt_bank_name} {config.tshirt_bank_account}</AccountValue>
-            <AccountHolder>예금주: {config.tshirt_bank_holder}</AccountHolder>
-            <AccountNote>입금 시 이름+연락처 끝 네자리 기입 필수</AccountNote>
-          </AccountBox>
-          <GoBtn onClick={() => router.push('/hub_up/myinfo')}>내 정보 확인하기</GoBtn>
+          <SuccessIcon>✓</SuccessIcon>
+          <DoneTitle>{existingOrder ? '변경 완료!' : '신청 완료!'}</DoneTitle>
+          <DoneSub>입금 후 최종 완료 처리됩니다</DoneSub>
+          <AccountCard>
+            <AccountRow><ALabel>금액</ALabel><AValue>{totalPrice.toLocaleString()}원</AValue></AccountRow>
+            <AccountRow><ALabel>은행</ALabel><AValue>{config.tshirt_bank_name || '하나은행'}</AValue></AccountRow>
+            <AccountRow><ALabel>계좌</ALabel><AValue>{config.tshirt_bank_account || '573-910022-19605'}</AValue></AccountRow>
+            <AccountRow><ALabel>예금주</ALabel><AValue>{config.tshirt_bank_holder || '온누리교회'}</AValue></AccountRow>
+          </AccountCard>
+          <ActionBtn onClick={() => router.push('/hub_up/myinfo')}>확인</ActionBtn>
         </DoneBox>
       </Wrap>
     );
   }
-
-  const currentColor = COLORS.find(c => c.value === activeColor)!;
-  const price = Number(config[`tshirt_price_${activeColor}`] || 10000);
 
   return (
     <Wrap>
       <TopNav>
         <BackBtn onClick={() => router.back()}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M15 19L8 12L15 5" stroke="#111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M15 19L8 12L15 5" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </BackBtn>
+        <NavTitle>신청하기</NavTitle>
       </TopNav>
 
-      {/* Hero Banner */}
-      <HeroBanner bg={currentColor.bg}>
-        <BannerTop>
-          <EssenceLogo color={currentColor.text}>2026 Be Holy</EssenceLogo>
-          <ColorBadge color={currentColor.text}>{currentColor.label}</ColorBadge>
-        </BannerTop>
-        <TshirtTitle color={currentColor.text}>T-SHIRTS</TshirtTitle>
-        <BannerDots color={currentColor.text}>• • •</BannerDots>
-      </HeroBanner>
+      <SliderWrap
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          const diff = touchStartX.current - e.changedTouches[0].clientX;
+          const imgs = COLOR_IMAGES[activeColor];
+          if (diff > 40) setImgIndex((i) => Math.min(i + 1, imgs.length - 1));
+          if (diff < -40) setImgIndex((i) => Math.max(i - 1, 0));
+        }}
+      >
+        <SliderTrack style={{ transform: `translateX(-${imgIndex * 100}%)` }}>
+          {COLOR_IMAGES[activeColor].map((src, i) => (
+            <SliderSlide key={i}>
+              <Image src={src} alt="ESSENCE 티셔츠" fill style={{ objectFit: 'cover', objectPosition: 'center' }} priority={i === 0} />
+            </SliderSlide>
+          ))}
+        </SliderTrack>
+        <DotRow>
+          {COLOR_IMAGES[activeColor].map((_, i) => (
+            <Dot key={i} active={imgIndex === i} onClick={() => setImgIndex(i)} />
+          ))}
+        </DotRow>
+      </SliderWrap>
 
-      <Content>
-        {/* 제품 정보 */}
-        <ProductInfo>
-          <ProductTitle>ESSENCE TSHIR</ProductTitle>
-          <ProductSubtitle>2025 HUBUP ESSENCE</ProductSubtitle>
-          <ProductPrice>{price.toLocaleString()}원</ProductPrice>
-        </ProductInfo>
+      <Body>
+        <ProductName>ESSENCE 티셔츠</ProductName>
+        <DeadlineRow>
+          <DeadlineDot />
+          <DeadlineText>{config.tshirt_deadline_text || '예약 종료 14일 남음'}</DeadlineText>
+        </DeadlineRow>
+        <ProductPrice>{currentPrice.toLocaleString()}원</ProductPrice>
 
-        {/* 색상 탭 */}
-        <ColorTabs>
-          <ColorTab 
-            active={activeColor === 'white'} 
-            onClick={() => setActiveColor('white')}
-          >
-            WHITE
-          </ColorTab>
-          <ColorTab 
-            active={activeColor === 'black'} 
-            onClick={() => setActiveColor('black')}
-          >
-            BLACK
-          </ColorTab>
-        </ColorTabs>
+        <HRule />
 
-        {/* 사이즈 선택 테이블 */}
-        <SizeSection>
-          <SizeLabel>사이즈 [SIZE]</SizeLabel>
-          <SizeTable>
-            <SizeTableHeader>
-              <SizeHeaderCell></SizeHeaderCell>
-              {SIZES.map(size => (
-                <SizeHeaderCell key={size}>{size}</SizeHeaderCell>
-              ))}
-            </SizeTableHeader>
-            <SizeTableRow>
-              <SizeRowLabel>수량</SizeRowLabel>
-              {SIZES.map(size => {
-                const qty = getQty(activeColor, size);
-                return (
-                  <SizeCell key={size}>
-                    <QtyControl>
-                      <QtyBtn onClick={() => setQty(activeColor, size, Math.max(0, qty - 1))}>
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path d="M2 6H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                        </svg>
-                      </QtyBtn>
-                      <QtyDisplay>{qty}</QtyDisplay>
-                      <QtyBtn onClick={() => setQty(activeColor, size, qty + 1)}>
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path d="M6 2V10M2 6H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                        </svg>
-                      </QtyBtn>
-                    </QtyControl>
-                  </SizeCell>
-                );
-              })}
-            </SizeTableRow>
-          </SizeTable>
-        </SizeSection>
+        <SectionTitle>사이즈 가이드</SectionTitle>
+        <SizeGuideWrap>
+          <SizeGuideTable>
+            <thead>
+              <tr>
+                <SGTh isLabel />
+                {SIZE_GUIDE.map((row) => (
+                  <SGTh key={row.size}>{row.size}<br /><SizeSubText>{row.sub}</SizeSubText></SGTh>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <SGTd isLabel>가슴단면</SGTd>
+                {SIZE_GUIDE.map((row) => <SGTd key={row.size}>{row.chest}</SGTd>)}
+              </tr>
+              <tr>
+                <SGTd isLabel>총 길이</SGTd>
+                {SIZE_GUIDE.map((row) => <SGTd key={row.size}>{row.length}</SGTd>)}
+              </tr>
+            </tbody>
+          </SizeGuideTable>
+        </SizeGuideWrap>
 
-        {/* 안내사항 */}
-        <NoticeBox>
-          <NoticeTitle>안내사항</NoticeTitle>
-          <NoticeText>
-            • 티셔츠는 허브업 현장에서 수령 가능합니다.<br/>
-            • 입금 후 신청이 완료됩니다.<br/>
-            • 변경 가능 기간: {config.tshirt_change_deadline || '추후 공지'}
-          </NoticeText>
-        </NoticeBox>
+        <HRule />
 
-        <BottomSpacer />
-      </Content>
+        <SectionTitle>색상 선택</SectionTitle>
+        <ColorRow>
+          {(['white', 'black'] as const).map((c) => (
+            <ColorBtn key={c} active={activeColor === c} onClick={() => { setActiveColor(c); setImgIndex(0); }}>
+              <ColorDot isWhite={c === 'white'} active={activeColor === c} />
+              {c === 'white' ? 'White' : 'Black'}
+            </ColorBtn>
+          ))}
+        </ColorRow>
 
-      {/* 하단 고정 버튼 */}
+        <SectionTitle style={{ marginTop: 24 }}>사이즈 / 수량</SectionTitle>
+        <SizeList>
+          {SIZES.map((size) => {
+            const qty = getQty(activeColor, size);
+            return (
+              <SizeItem key={size} selected={qty > 0}>
+                <SizeName selected={qty > 0}>{size}</SizeName>
+                <QtyWrap>
+                  <QtyBtn selected={qty > 0} onClick={() => setQty(activeColor, size, Math.max(0, qty - 1))} disabled={qty === 0}>−</QtyBtn>
+                  <QtyVal selected={qty > 0}>{qty}</QtyVal>
+                  <QtyBtn selected={qty > 0} onClick={() => setQty(activeColor, size, qty + 1)}>+</QtyBtn>
+                </QtyWrap>
+              </SizeItem>
+            );
+          })}
+        </SizeList>
+
+        <HRule style={{ marginTop: 24 }} />
+
+        <SectionTitle>유의사항</SectionTitle>
+        <NoticeText>옵션 선택 후, 가이드를 따라 입금을 진행해 주세요.</NoticeText>
+        <NoticeText>입금은 기한 내에 진행해 주셔야 완료 처리됩니다.</NoticeText>
+      </Body>
+
       <BottomBar>
-        <PriceInfo>
-          <PriceLabel>총 {totalCount}개</PriceLabel>
-          <TotalPrice>{totalPrice.toLocaleString()}원</TotalPrice>
-        </PriceInfo>
-        <SubmitBtn disabled={!totalCount || submitting} onClick={handleSubmit}>
-          {submitting ? '처리 중...' : existingOrder ? '변경하기 →' : '신청하기 →'}
-        </SubmitBtn>
+        <ReserveBtn disabled={!totalCount || submitting} onClick={handleSubmit}>
+          {submitting ? '처리중...' : existingOrder ? '변경하기 →' : '예약하기 →'}
+        </ReserveBtn>
       </BottomBar>
     </Wrap>
   );
 }
 
-const PRIMARY = '#2D478C';
-const Wrap = styled.div`width: 100%; min-height: 100vh; background: #FAFAFA; font-family: -apple-system, sans-serif; padding-bottom: 100px;`;
-const LoadingWrap = styled.div`display: flex; align-items: center; justify-content: center; min-height: 100vh; color: #888;`;
-const TopNav = styled.div`height: 56px; display: flex; align-items: center; padding: 0 16px; background: #fff; position: sticky; top: 0; z-index: 10;`;
-const BackBtn = styled.button`background: none; border: none; cursor: pointer; padding: 8px; display: flex; align-items: center;`;
+const spin = keyframes`to { transform: rotate(360deg); }`;
 
-const HeroBanner = styled.div<{ bg: string }>`
-  background: ${p => p.bg};
-  padding: 24px 24px 28px;
-  border-bottom: 1px solid #E5E5EA;
+const Wrap = styled.div`
+  width: 100%; min-height: 100vh; background: #fff; color: #000;
+  padding-bottom: calc(67px + env(safe-area-inset-bottom));
 `;
-const BannerTop = styled.div`display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;`;
-const EssenceLogo = styled.div<{ color: string }>`
-  font-size: 16px;
-  font-weight: 700;
-  color: ${p => p.color};
-  letter-spacing: 0.05em;
+const LoadingWrap = styled.div`
+  display: flex; align-items: center; justify-content: center; min-height: 100vh;
 `;
-const ColorBadge = styled.div<{ color: string }>`
-  font-size: 11px;
-  font-weight: 700;
-  color: ${p => p.color};
-  border: 1.5px solid ${p => p.color};
-  padding: 4px 12px;
-  border-radius: 4px;
-  letter-spacing: 0.1em;
+const Spinner = styled.div`
+  width: 28px; height: 28px; border: 3px solid #eee; border-top-color: #000;
+  border-radius: 50%; animation: ${spin} 0.8s linear infinite;
 `;
-const TshirtTitle = styled.h1<{ color: string }>`
-  font-size: 36px;
-  font-weight: 900;
-  color: ${p => p.color};
-  margin: 8px 0 0 0;
-  letter-spacing: -0.02em;
-  line-height: 1;
+const TopNav = styled.div`
+  height: 60px; display: flex; align-items: center; padding: 0 20px;
+  position: sticky; top: 0; background: #fff; z-index: 100;
 `;
-const BannerDots = styled.div<{ color: string }>`
-  font-size: 20px;
-  color: ${p => p.color};
-  margin-top: 16px;
-  letter-spacing: 4px;
+const BackBtn = styled.button`
+  background: none; border: none; padding: 0; cursor: pointer;
+  display: flex; align-items: center; margin-right: 8px;
 `;
+const NavTitle = styled.div`font-size: 14px; font-weight: 700; letter-spacing: -0.02em;`;
 
-const Content = styled.div`padding: 0 20px;`;
+const ProductImageWrap = styled.div`
+  position: relative; width: 100%; height: 340px; overflow: hidden; background: #f5f5f5;
+`;
+const SliderWrap = styled.div`
+  position: relative; width: 100%; aspect-ratio: 4 / 5; overflow: hidden; background: #f5f5f5;
+`;
+const SliderTrack = styled.div`
+  display: flex; height: 100%; transition: transform 0.3s ease;
+`;
+const SliderSlide = styled.div`
+  position: relative; min-width: 100%; height: 100%; flex-shrink: 0;
+`;
+const DotRow = styled.div`
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 6px;
+`;
+const Dot = styled.button<{ active: boolean }>`
+  width: ${p => p.active ? '20px' : '6px'}; height: 6px; border-radius: 3px;
+  background: ${p => p.active ? '#fff' : 'rgba(255,255,255,0.5)'};
+  border: none; padding: 0; cursor: pointer; transition: all 0.2s;
+`;
+const Body = styled.div`padding: 0 20px;`;
 
-const ProductInfo = styled.div`
-  background: #fff;
-  padding: 24px 20px;
-  margin: 16px -20px 0;
+const ProductName = styled.div`
+  margin-top: 20px; font-size: 16px; font-weight: 600; letter-spacing: -0.02em;
 `;
-const ProductTitle = styled.h2`
-  font-size: 18px;
-  font-weight: 700;
-  color: #111;
-  margin: 0 0 4px 0;
-  letter-spacing: -0.02em;
-`;
-const ProductSubtitle = styled.p`
-  font-size: 13px;
-  color: #888;
-  margin: 0 0 12px 0;
-`;
+const DeadlineRow = styled.div`display: flex; align-items: center; gap: 6px; margin-top: 4px;`;
+const DeadlineDot = styled.div`width: 8px; height: 8px; border-radius: 50%; background: #777; flex-shrink: 0;`;
+const DeadlineText = styled.div`font-size: 14px; font-weight: 500; color: #777; letter-spacing: -0.02em;`;
 const ProductPrice = styled.div`
-  font-size: 24px;
-  font-weight: 800;
-  color: #111;
-  margin: 0;
+  margin-top: 8px; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
+`;
+const HRule = styled.div`height: 4px; background: #ebebeb; margin: 20px -20px 0;`;
+const SectionTitle = styled.div`
+  font-size: 16px; font-weight: 700; letter-spacing: -0.02em; margin-top: 20px; margin-bottom: 12px;
 `;
 
-const ColorTabs = styled.div`
-  display: flex;
-  gap: 8px;
-  margin: 20px 0;
+const SizeGuideWrap = styled.div`overflow-x: auto; margin: 0 -20px; padding: 0 20px;`;
+const SizeGuideTable = styled.table`
+  width: 100%; border-collapse: collapse; background: #f9f9f9; min-width: 320px;
 `;
-const ColorTab = styled.button<{ active: boolean }>`
-  flex: 1;
-  padding: 12px;
-  background: ${p => p.active ? '#111' : '#fff'};
-  color: ${p => p.active ? '#fff' : '#888'};
-  border: 1.5px solid ${p => p.active ? '#111' : '#E5E5EA'};
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
+const SGTh = styled.th<{ isLabel?: boolean }>`
+  padding: 6px 4px; font-size: 11px; font-weight: 700; letter-spacing: -0.02em;
+  text-align: ${p => p.isLabel ? 'left' : 'center'}; border-bottom: 1px solid #ebebeb;
+`;
+const SizeSubText = styled.span`font-size: 9px; font-weight: 500; color: #888;`;
+const SGTd = styled.td<{ isLabel?: boolean }>`
+  padding: 6px 4px; font-size: 11px;
+  font-weight: ${p => p.isLabel ? 700 : 500};
+  text-align: ${p => p.isLabel ? 'left' : 'center'};
+  border-bottom: 1px solid #ebebeb;
+`;
+
+const ColorRow = styled.div`display: flex; gap: 10px;`;
+const ColorBtn = styled.button<{ active: boolean }>`
+  flex: 1; height: 48px; border-radius: 8px;
+  border: 1.5px solid ${p => p.active ? '#000' : '#e0e0e0'};
+  background: ${p => p.active ? '#000' : '#fff'};
+  color: ${p => p.active ? '#fff' : '#000'};
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 14px; font-weight: 700; letter-spacing: -0.02em; cursor: pointer; transition: all 0.15s;
+`;
+const ColorDot = styled.div<{ isWhite: boolean; active: boolean }>`
+  width: 16px; height: 16px; border-radius: 50%;
+  background: ${p => p.isWhite ? '#fff' : '#000'};
+  border: ${p => p.isWhite ? `1.5px solid ${p.active ? '#fff' : '#ccc'}` : 'none'};
+  flex-shrink: 0;
+`;
+
+const SizeList = styled.div`display: flex; flex-direction: column; gap: 8px;`;
+const SizeItem = styled.div<{ selected: boolean }>`
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-radius: 8px;
+  background: ${p => p.selected ? '#000' : '#f9f9f9'}; transition: background 0.15s;
+`;
+const SizeName = styled.div<{ selected: boolean }>`
+  font-size: 16px; font-weight: 700; color: ${p => p.selected ? '#fff' : '#000'};
+`;
+const QtyWrap = styled.div`display: flex; align-items: center; gap: 16px;`;
+const QtyBtn = styled.button<{ selected: boolean }>`
+  width: 28px; height: 28px; border-radius: 50%; border: none;
+  background: ${p => p.selected ? 'rgba(255,255,255,0.15)' : '#e8e8e8'};
+  color: ${p => p.selected ? '#fff' : '#000'};
+  font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  &:disabled { opacity: 0.25; }
 `;
-
-const SizeSection = styled.div`
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-`;
-const SizeLabel = styled.div`
-  font-size: 14px;
-  font-weight: 700;
-  color: #111;
-  margin-bottom: 16px;
-`;
-const SizeTable = styled.div`
-  width: 100%;
-`;
-const SizeTableHeader = styled.div`
-  display: grid;
-  grid-template-columns: 60px repeat(5, 1fr);
-  gap: 8px;
-  margin-bottom: 8px;
-`;
-const SizeHeaderCell = styled.div`
-  font-size: 12px;
-  font-weight: 700;
-  color: #888;
-  text-align: center;
-  padding: 8px 4px;
-`;
-const SizeTableRow = styled.div`
-  display: grid;
-  grid-template-columns: 60px repeat(5, 1fr);
-  gap: 8px;
-  align-items: center;
-`;
-const SizeRowLabel = styled.div`
-  font-size: 13px;
-  font-weight: 600;
-  color: #111;
-  text-align: center;
-`;
-const SizeCell = styled.div`
-  background: #FAFAFA;
-  border-radius: 8px;
-  padding: 8px 4px;
-`;
-const QtyControl = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-`;
-const QtyBtn = styled.button`
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  border: 1px solid #E5E5EA;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #666;
-  transition: all 0.15s;
-  &:active { transform: scale(0.95); }
-`;
-const QtyDisplay = styled.div`
-  font-size: 14px;
-  font-weight: 700;
-  color: #111;
-  min-width: 20px;
-  text-align: center;
-`;
-
-const NoticeBox = styled.div`
-  background: #FFF9F0;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-`;
-const NoticeTitle = styled.div`
-  font-size: 13px;
-  font-weight: 700;
-  color: #111;
-  margin-bottom: 8px;
+const QtyVal = styled.div<{ selected: boolean }>`
+  font-size: 16px; font-weight: 700; min-width: 20px; text-align: center;
+  color: ${p => p.selected ? '#fff' : '#ccc'};
 `;
 const NoticeText = styled.div`
-  font-size: 12px;
-  color: #666;
-  line-height: 1.6;
+  font-size: 12px; font-weight: 500; color: #5e5d5d; letter-spacing: -0.02em;
+  line-height: 1.5; margin-bottom: 4px;
 `;
-
-const BottomSpacer = styled.div`height: 20px;`;
 
 const BottomBar = styled.div`
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 480px;
-  background: #fff;
-  border-top: 1px solid #E5E5EA;
-  padding: 16px 20px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  z-index: 100;
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  padding: 8px 20px calc(8px + env(safe-area-inset-bottom));
+  background: #fff; z-index: 1000;
 `;
-const PriceInfo = styled.div`
-  flex: 1;
-`;
-const PriceLabel = styled.div`
-  font-size: 12px;
-  color: #888;
-  margin-bottom: 2px;
-`;
-const TotalPrice = styled.div`
-  font-size: 20px;
-  font-weight: 800;
-  color: #111;
-`;
-const SubmitBtn = styled.button`
-  padding: 16px 32px;
-  background: #2D478C;
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s;
-  &:disabled {
-    background: #E6E6E6;
-    cursor: not-allowed;
-  }
-  &:not(:disabled):active {
-    transform: scale(0.98);
-  }
+const ReserveBtn = styled.button`
+  width: 100%; height: 51px; background: #000; color: #fff; border: none; border-radius: 4px;
+  font-size: 18px; font-weight: 700; letter-spacing: -0.02em; cursor: pointer;
+  &:disabled { background: #d1d1d6; cursor: not-allowed; }
 `;
 
-const ClosedBox = styled.div`display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; padding: 40px 20px; text-align: center;`;
-const ClosedIcon = styled.div`font-size: 56px; margin-bottom: 16px;`;
-const ClosedTitle = styled.h2`font-size: 20px; font-weight: 700; color: #111; margin: 0 0 8px 0;`;
-const ClosedDesc = styled.p`font-size: 14px; color: #888; margin: 0;`;
-const DoneBox = styled.div`padding: 40px 20px; display: flex; flex-direction: column; align-items: center;`;
-const DoneIcon = styled.div`font-size: 56px; margin-bottom: 16px;`;
-const DoneTitle = styled.h2`font-size: 20px; font-weight: 700; color: #111; margin: 0 0 24px 0;`;
-const AccountBox = styled.div`background: #fff; border-radius: 12px; padding: 20px; width: 100%; margin-bottom: 24px;`;
-const AccountLabel = styled.div`font-size: 12px; color: #888; margin-bottom: 6px;`;
-const AccountValue = styled.div`font-size: 16px; font-weight: 700; color: #111; margin-bottom: 4px;`;
-const AccountHolder = styled.div`font-size: 14px; color: #444; margin-bottom: 8px;`;
-const AccountNote = styled.div`font-size: 12px; color: ${PRIMARY};`;
-const GoBtn = styled.button`width: 100%; padding: 16px; background: ${PRIMARY}; color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer;`;
+const DoneBox = styled.div`padding: 60px 24px 40px; text-align: center;`;
+const SuccessIcon = styled.div`
+  width: 56px; height: 56px; background: #000; color: #fff; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px; font-size: 24px; font-weight: 700;
+`;
+const DoneTitle = styled.h2`font-size: 24px; font-weight: 700; margin: 0 0 8px;`;
+const DoneSub = styled.p`font-size: 14px; color: #888; margin: 0 0 32px;`;
+const AccountCard = styled.div`
+  background: #f9f9f9; padding: 20px; border-radius: 8px;
+  display: flex; flex-direction: column; gap: 14px; margin-bottom: 32px; text-align: left;
+`;
+const AccountRow = styled.div`display: flex; justify-content: space-between; font-size: 14px;`;
+const ALabel = styled.div`color: #888;`;
+const AValue = styled.div`font-weight: 700; color: #000;`;
+const ActionBtn = styled.button`
+  width: 100%; background: #000; color: #fff; border: none; border-radius: 8px;
+  height: 51px; font-size: 16px; font-weight: 700; cursor: pointer;
+`;
