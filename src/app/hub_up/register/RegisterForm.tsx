@@ -167,6 +167,12 @@ export default function RegisterForm({
     return formData.community && formData.group && formData.leaderName && formData.name && formData.gender && formData.phone && formData.privacyConsent && !phoneError;
   };
 
+  const checkStep3Valid = () => {
+    const opts = electives.length > 0 ? electives.map(e => e.label) : ['삶과 사역의 밸런스', '돈, 재정', '관계 및 소통'];
+    const count = formData.electiveLecture ? opts.filter(opt => formData.electiveLecture.includes(opt)).length : 0;
+    return count === 2;
+  };
+
   // ── 제출 ──────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,7 +237,18 @@ export default function RegisterForm({
       title = '선택 강의';
       options = electives.length > 0 ? electives.map(e => e.label) : ['삶과 사역의 밸런스', '돈, 재정', '관계 및 소통'];
       currentValue = formData.electiveLecture;
-      onSelect = (val) => set('electiveLecture', val);
+      onSelect = (val) => {
+        const current = formData.electiveLecture ? options.filter(opt => formData.electiveLecture.includes(opt)) : [];
+        if (current.includes(val)) {
+          // 이미 선택된 경우 → 제거
+          set('electiveLecture', current.filter(v => v !== val).join(', '));
+        } else if (current.length < 2) {
+          // 2개 미만이면 추가
+          set('electiveLecture', [...current, val].join(', '));
+        }
+        // 2개 이미 선택된 경우 무시 (return 없이 sheet 닫힘 방지)
+        return;
+      };
     } else if (activeSheet === 'volunteer') {      title = '자원봉사팀 섬김 여부';
       options = ['외부 안내팀', '시설팀', '식사팀', '허브런팀', '해당 없음'];
       currentValue = formData.volunteerTeam;
@@ -288,7 +305,14 @@ export default function RegisterForm({
         <BottomSheetContainer onClick={(e) => e.stopPropagation()}>
           <SheetDragHandle />
           <SheetHeader>
-            <SheetTitle>{title}</SheetTitle>
+            <SheetTitle>
+              {title}
+              {activeSheet === 'elective' && (
+                <span style={{fontSize:'13px', fontWeight:400, color:'#949494', marginLeft:'8px'}}>
+                  ({formData.electiveLecture ? options.filter(opt => formData.electiveLecture.includes(opt)).length : 0}/2 선택)
+                </span>
+              )}
+            </SheetTitle>
             <CloseButton onClick={() => setActiveSheet(null)}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M18 6L6 18M6 6L18 18" stroke="#111111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -296,23 +320,41 @@ export default function RegisterForm({
             </CloseButton>
           </SheetHeader>
           <SheetContent>
-            {options.map((opt) => (
-              <SheetOption
-                key={opt}
-                selected={currentValue === opt}
-                onClick={() => {
-                  onSelect(opt);
-                  setActiveSheet(null);
-                }}
-              >
-                <CheckIcon selected={currentValue === opt}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </CheckIcon>
-                <OptionText selected={currentValue === opt}>{opt}</OptionText>
-              </SheetOption>
-            ))}
+            {options.map((opt) => {
+              const isMulti = activeSheet === 'elective';
+              const selectedItems = isMulti && formData.electiveLecture
+                ? options.filter(opt => formData.electiveLecture.includes(opt))
+                : [];
+              const isSelected = isMulti ? selectedItems.includes(opt) : currentValue === opt;
+              const isDisabled = isMulti && !isSelected && selectedItems.length >= 2;
+              return (
+                <SheetOption
+                  key={opt}
+                  selected={isSelected}
+                  onClick={() => {
+                    if (isDisabled) return;
+                    onSelect(opt);
+                    // 다중선택(elective)은 2개 선택 완료 시에만 닫힘, 단일선택은 바로 닫힘
+                    if (!isMulti) {
+                      setActiveSheet(null);
+                    } else {
+                      const after = isSelected
+                        ? selectedItems.filter(v => v !== opt)
+                        : [...selectedItems, opt];
+                      if (after.length >= 2) setActiveSheet(null);
+                    }
+                  }}
+                  style={isDisabled ? { opacity: 0.4 } : undefined}
+                >
+                  <CheckIcon selected={isSelected}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M5 13L9 17L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </CheckIcon>
+                  <OptionText selected={isSelected}>{opt}</OptionText>
+                </SheetOption>
+              );
+            })}
           </SheetContent>
         </BottomSheetContainer>
       </BottomSheetOverlay>
@@ -674,11 +716,11 @@ export default function RegisterForm({
                  <FormHeader>선택강의 수요 조사를 위해<br/>관심 있는 강의를 선택해주세요</FormHeader>
 
                  <LegacySection>
-                   <Label>선택 강의 <span style={{color:'#949494', fontWeight:400, fontSize:'12px'}}>(중복 불가)</span></Label>
+                   <Label>선택 강의 <span style={{color:'#949494', fontWeight:400, fontSize:'12px'}}>(반드시 2개 선택)</span></Label>
                    <SubLabel>허브업 기간 중 진행되는 선택강의입니다.</SubLabel>
                    <SelectField onClick={() => setActiveSheet('elective')}>
                      <span className={formData.electiveLecture ? 'selected' : 'placeholder'}>
-                       {formData.electiveLecture || '선택 강의 선택'}
+                       {formData.electiveLecture || '선택 강의 선택 (반드시 2개)'}
                      </span>
                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                        <path d="M6 9L12 15L18 9" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -774,7 +816,7 @@ export default function RegisterForm({
             </PrevTextButton>
             
             {step < totalSteps ? (
-              <NextStepButton type="submit" disabled={step === 1 && !checkStep1Valid()}>
+              <NextStepButton type="submit" disabled={(step === 1 && !checkStep1Valid()) || (step === 3 && !checkStep3Valid())}>
                 다음
               </NextStepButton>
             ) : (
@@ -795,12 +837,14 @@ export default function RegisterForm({
               5월 15일 소망수양관에서 만나요!
             </p>
           </div>
-          <div style={{flex: 1, position: 'relative', marginTop: '30px', marginBottom: '30px', minHeight: 0}}>
+          <div style={{width: '100%', marginTop: '30px', marginBottom: '30px'}}>
             <Image
               src="/images/HubUpImage2.jpg"
               alt="완료 이미지"
-              fill
-              style={{ objectFit: 'contain' }}
+              width={480}
+              height={480}
+              style={{ width: '100%', height: 'auto', display: 'block' }}
+              unoptimized
             />
           </div>
           <div style={{ flexShrink: 0, width: '100%', padding: '0 24px 32px' }}>
