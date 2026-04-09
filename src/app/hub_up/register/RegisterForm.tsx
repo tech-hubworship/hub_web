@@ -249,10 +249,12 @@ export default function RegisterForm({
         // 2개 이미 선택된 경우 무시 (return 없이 sheet 닫힘 방지)
         return;
       };
-    } else if (activeSheet === 'volunteer') {      title = '자원봉사팀 섬김 여부';
+    } else if (activeSheet === 'volunteer') {
+      title = '자원봉사팀 섬김 여부';
       options = ['외부 안내팀', '시설팀', '식사팀', '허브런팀', '해당 없음'];
       currentValue = formData.volunteerTeam;
       onSelect = (val) => set('volunteerTeam', val);
+
     } else if (activeSheet === 'departureBus') {
       title = '[5/15] 출발 차량 탑승 시각';
       options = departureSlots

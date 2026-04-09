@@ -280,7 +280,6 @@ export default function HubUpAdminPage() {
                     <CardTitle>팀 섬김</CardTitle>
                     <TeamRow>
                       <TeamStat><TeamNum>{stats.volunteerCount}</TeamNum><TeamLabel>자원봉사팀</TeamLabel></TeamStat>
-                      <TeamStat><TeamNum>{stats.intercessorCount}</TeamNum><TeamLabel>중보기도팀</TeamLabel></TeamStat>
                     </TeamRow>
                   </Card>
                   <Card>
