@@ -19,7 +19,7 @@ interface FormData {
 // DB 없을 때 fallback (로컬 개발용)
 const FALLBACK: FormData = {
   departureSlots: [
-    { value: 'bus-선발대', label: '선발대', max_count: 43, is_active: true },
+    { value: 'bus-선발대', label: '선발대 (2:00)', max_count: 43, is_active: true },
     { value: 'bus-18:00', label: '18:00', max_count: 86, is_active: true },
     { value: 'bus-18:30', label: '18:30', max_count: 86, is_active: true },
     { value: 'bus-19:00', label: '19:00', max_count: 258, is_active: true },

@@ -155,7 +155,7 @@ export default function HubUpMainPage() {
         <TimelineRow>
           <DateBadge gray={isPast(earlyBirdEnd)}>04.12 - 18</DateBadge>
           <TimelineConnector />
-          <TimelineText gray={isPast(earlyBirdEnd)}>얼리버드 신청 기간</TimelineText>
+          <TimelineText gray={isPast(earlyBirdEnd)}>얼리버드<br />신청 기간</TimelineText>
           <TimelineRight>{daysLeft(earlyBirdEnd)}</TimelineRight>
         </TimelineRow>
 

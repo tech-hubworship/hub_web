@@ -450,7 +450,10 @@ export default function RegisterForm({
                     <p>4월 19일 - 4월 26일</p>
                   </div>
                 </FeeGrid>
-                <p className="account">하나은행 573-910022-19605 / 온누리교회(허브행사비)</p>
+                <p className="account">
+                  하나은행 573-910022-19605<br />
+                  / 온누리교회(허브행사비)
+                </p>
               </InfoData>
             </InfoGrid>
           </InfoSection>
@@ -461,8 +464,8 @@ export default function RegisterForm({
               <GuideList>
                 <li>회비를 입금 하셔야 접수 완료 입니다.</li>
                 <li>입금자명 이름+연락처 끝 네자리 기입 요망 (ex. 홍길동8572)</li>
-                <li>입금 후 확인 문자가 발송되오니, 연락처를 정확히 기재 바랍니다.</li>
-                <li>신청자와 입금자명이 다를 경우 {config.contact_name}에게 연락 주셔야 확인됩니다.</li>
+                <li>입금 후 확인 문자가 발송되오니<br />연락처를 정확히 기재 바랍니다.</li>
+                <li>신청자와 입금자명이 다를 경우<br />{config.contact_name}에게 연락주셔야 확인됩니다.</li>
                 <li>부분참석도 회비는 동일합니다.</li>
               </GuideList>
             </GuideBlock>
@@ -491,7 +494,11 @@ export default function RegisterForm({
             <GuideBlock>
               <GuideTitle>문의</GuideTitle>
               <GuideList>
-                <li>{config.contact_name} ({config.contact_phone})</li>
+                <li>
+                  <a href="https://open.kakao.com/o/sWl6bnpi" target="_blank" rel="noopener noreferrer" style={{ color: '#2D478C', textDecoration: 'underline' }}>
+                    https://open.kakao.com/o/sWl6bnpi
+                  </a>
+                </li>
               </GuideList>
             </GuideBlock>
           </GuideSection>
@@ -594,7 +601,6 @@ export default function RegisterForm({
                   <Label>연락처 <span style={{fontWeight: 400, color: '#888', fontSize: '12px'}}>(ex. 010-1234-5678)</span></Label>
                   <UnderlineInput 
                     type="text"
-                    inputMode="numeric"
                     placeholder="010-1234-5678" 
                     value={formData.phone}
                     onChange={handlePhoneChange}
