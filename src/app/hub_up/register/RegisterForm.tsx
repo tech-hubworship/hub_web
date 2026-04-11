@@ -812,6 +812,15 @@ export default function RegisterForm({
                   <DepositNote>
                     ※ 입금자명: 이름 + 연락처 끝 네자리 기입 요망<br />(ex. 김허브 8572)
                   </DepositNote>
+                  <CopyAccountBtn
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText('573-910022-19605');
+                      alert('계좌번호가 복사되었습니다.');
+                    }}
+                  >
+                    계좌번호 복사
+                  </CopyAccountBtn>
                 </DepositInfoBox>
 
                 <ConsentWrapper onClick={() => set('depositConfirm', !formData.depositConfirm)}>
@@ -866,29 +875,20 @@ export default function RegisterForm({
 
       {/* ── STEP 6: 제출 완료 ── */}
       {step === 5 && (
-        <CompleteWrapper style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
-          <div style={{ flexShrink: 0, paddingTop: '40px' }}>
+        <CompleteWrapper>
+          <div style={{ paddingTop: '80px', textAlign: 'center' }}>
+            <div style={{ fontSize: '48px', marginBottom: '24px' }}>✓</div>
             <FormHeader style={{textAlign: 'center', marginBottom: '16px'}}>허브업 신청서<br/>제출을 완료했어요</FormHeader>
-            <p style={{textAlign: 'center', color: '#757575', lineHeight: 1.6, fontSize: '14px', margin: 0}}>
+            <p style={{textAlign: 'center', color: '#757575', lineHeight: 1.6, fontSize: '14px', margin: '0 0 48px 0'}}>
               5월 15일 소망수양관에서 만나요!
             </p>
           </div>
-          <div style={{width: '100%', marginTop: '30px', marginBottom: '30px'}}>
-            <Image
-              src="/images/HubUpImage2.jpg"
-              alt="완료 이미지"
-              width={480}
-              height={480}
-              style={{ width: '100%', height: 'auto', display: 'block' }}
-              unoptimized
-            />
-          </div>
-          <div style={{ flexShrink: 0, width: '100%', padding: '0 24px 32px' }}>
+          <div style={{ width: '100%', padding: '0 24px 32px' }}>
             <button
               onClick={() => router.push('/hub_up')}
               style={{width: '100%', padding: '14px', background: '#2D478C', color: '#fff', border: 'none', borderRadius: 16, fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'}}
             >
-              홈으로
+              메인 화면으로
             </button>
           </div>
         </CompleteWrapper>
@@ -1245,6 +1245,12 @@ const DepositNote = styled.div`
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid #E5E5EA;
+`;
+
+const CopyAccountBtn = styled.button`
+  width: 100%; margin-top: 12px; padding: 10px;
+  background: #f1f3f4; color: #111; border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
 `;
 
 // ── 기타 공통 컴포넌트 ──

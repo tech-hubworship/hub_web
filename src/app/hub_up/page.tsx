@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import styled from '@emotion/styled';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -15,7 +14,7 @@ export default function HubUpMainPage() {
   const [openFaq, setOpenFaq] = useState<string | null>(null);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 460);
+    const onScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -69,14 +68,11 @@ export default function HubUpMainPage() {
 
   return (
     <Wrap>
-      {/* 네비게이션 */}
+      {/* 네비게이션 - 이미지 위 오버레이 */}
       <Nav scrolled={scrolled}>
-        <NavLogo>
-          <HamburgerBtn onClick={() => setMenuOpen(!menuOpen)} scrolled={scrolled}>
-            <span /><span /><span />
-          </HamburgerBtn>
-        </NavLogo>
-        {/* 처음엔 흰색, 스크롤 내리면 파란색 */}
+        <HamburgerBtn onClick={() => setMenuOpen(!menuOpen)} scrolled={scrolled}>
+          <span /><span /><span />
+        </HamburgerBtn>
         <NavCta scrolled={scrolled} onClick={() => router.push('/hub_up/register')}>신청하기</NavCta>
       </Nav>
 
@@ -92,12 +88,11 @@ export default function HubUpMainPage() {
 
       {/* 히어로 이미지 - 새 메인이미지 */}
       <HeroImgWrap>
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="/images/hubup/hero_main_new.png"
           alt="2026 HUBUP Be Holy"
-          fill
-          style={{ objectFit: 'cover' }}
-          priority
+          style={{ width: '100%', height: '100%', display: 'block' }}
         />
       </HeroImgWrap>
 
@@ -194,7 +189,6 @@ export default function HubUpMainPage() {
         <FaqPreviewRow onClick={() => window.open('https://link.inpock.co.kr/hubup26')}>
           <FaqPreviewQ>ⓘ 접수 및 차량 관련 문의가 있어요.</FaqPreviewQ>
         </FaqPreviewRow>
-        <FaqPreviewDivider />
         <FaqPreviewRow onClick={() => router.push('/hub_up/myinfo')}>
           <FaqPreviewQ>ⓘ 차량 시간을 변경하고 싶어요.</FaqPreviewQ>
         </FaqPreviewRow>
@@ -349,8 +343,15 @@ const DropItem = styled.div`
 /* 히어로 이미지 - aspect ratio 유지 */
 const HeroImgWrap = styled.div`
   width: 100%;
-  aspect-ratio: 360 / 509;
-  position: relative;
+  max-height: 100svh;
+  overflow: hidden;
+  img {
+    width: 100%;
+    height: 100svh;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+  }
 `;
 
 const MainCopy = styled.h1`
