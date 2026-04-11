@@ -34,8 +34,7 @@ const FAQ_SECTIONS = [
         q: '입금 계좌는 어디인가요?',
         a: '하나은행 573-910022-19605\n(예금주 : 허브행사)\n\n입금자명은 반드시 이름 + 전화번호 뒷자리\n(ex. 김허브1285)로 기재해주세요.',
         copyAccount: true,
-      },
-      {
+      },      {
         q: '부분 참여도 가능한가요?',
         a: '가능합니다. 다만, 회비는 동일하게 적용됩니다.',
       },
@@ -127,16 +126,28 @@ const FAQ_SECTIONS = [
   },
 ];
 
+function fallbackCopy(text: string) {
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.style.position = 'fixed';
+  el.style.opacity = '0';
+  document.body.appendChild(el);
+  el.focus();
+  el.select();
+  try { document.execCommand('copy'); } catch {}
+  document.body.removeChild(el);
+}
+
 export default function FaqPage() {
   const router = useRouter();
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copyToast, setCopyToast] = useState(false);
 
-  const copyAccount = () => {
-    navigator.clipboard.writeText('573-910022-19605').then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+  const doCopy = (text: string) => {
+    const done = () => { setCopyToast(true); setTimeout(() => setCopyToast(false), 2000); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done).catch(() => { fallbackCopy(text); done(); });
+    } else { fallbackCopy(text); done(); }
   };
 
   return (
@@ -178,9 +189,16 @@ export default function FaqPage() {
                         <div style={{ flex: 1 }}>
                           <AText>{faq.a}</AText>
                           {hasCopy && (
-                            <CopyBtn onClick={(e) => { e.stopPropagation(); copyAccount(); }}>
-                              {copied ? '복사됨 ✓' : '계좌번호 복사'}
-                            </CopyBtn>
+                            <AccountCopyRow onClick={(e) => { e.stopPropagation(); doCopy('573-910022-19605'); }}>
+                              <span style={{ color: '#2D478C', fontWeight: 700 }}>573-910022-19605</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#2D478C', fontSize: 12 }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                                  <rect x="9" y="9" width="13" height="13" rx="2" stroke="#2D478C" strokeWidth="2"/>
+                                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="#2D478C" strokeWidth="2"/>
+                                </svg>
+                                복사
+                              </span>
+                            </AccountCopyRow>
                           )}
                           {hasTshirtLink && (
                             <a
@@ -207,6 +225,15 @@ export default function FaqPage() {
           </Section>
         ))}
       </Content>
+      {copyToast && (
+        <div style={{
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.75)', color: '#fff', padding: '10px 20px',
+          borderRadius: 20, fontSize: 13, fontWeight: 500, zIndex: 9999, whiteSpace: 'nowrap',
+        }}>
+          계좌번호가 복사되었습니다 ✓
+        </div>
+      )}
     </Wrap>
   );
 }
@@ -231,15 +258,9 @@ const Arrow = styled.div<{ open: boolean }>`
 const FaqAnswer = styled.div`display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #F2F2F2;`;
 const AMark = styled.span`font-size: 14px; font-weight: 700; color: #949494; flex-shrink: 0; margin-top: 1px;`;
 const AText = styled.div`font-size: 14px; color: #757575; line-height: 1.6; white-space: pre-line;`;
-const CopyBtn = styled.button`
-  margin-top: 12px;
-  padding: 8px 16px;
-  background: #D9D9D9;
-  border: none;
-  border-radius: 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #000;
-  cursor: pointer;
-  font-family: inherit;
+const AccountCopyRow = styled.div`
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 10px; padding: 10px 12px; background: #f0f4ff;
+  border-radius: 8px; cursor: pointer;
+  &:active { opacity: 0.7; }
 `;

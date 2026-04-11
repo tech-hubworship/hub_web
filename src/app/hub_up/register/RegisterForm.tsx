@@ -24,6 +24,23 @@ const DEPART_TIME_OPTIONS = [
 const PHONE_REGEX = /^01[0-9]-\d{3,4}-\d{4}$/;
 const PRIMARY_COLOR = '#2D478C';
 
+function fallbackCopy(text: string) {
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.style.position = 'fixed';
+  el.style.opacity = '0';
+  document.body.appendChild(el);
+  el.focus();
+  el.select();
+  try {
+    document.execCommand('copy');
+    alert('계좌번호가 복사되었습니다.');
+  } catch {
+    alert(`계좌번호: ${text}\n직접 복사해주세요.`);
+  }
+  document.body.removeChild(el);
+}
+
 const VOLUNTEER_DESC: Record<string, string> = {
   '외부 안내팀': '행사장 외부 입구 안내 및 주차 유도',
   '시설팀': '행사장 내부 세팅, 음향·조명 보조',
@@ -60,6 +77,7 @@ export default function RegisterForm({
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [phoneError, setPhoneError] = useState('');
   const [submitError, setSubmitError] = useState('');
+  const [copyToast, setCopyToast] = useState(false);
   const [groupOptions, setGroupOptions] = useState<string[]>([]);
   const [isProfileLoaded, setIsProfileLoaded] = useState(false);
   const [slotCounts, setSlotCounts] = useState<Record<string, number>>(initialSlotCounts);
@@ -172,6 +190,23 @@ export default function RegisterForm({
 
   const checkStep1Valid = () => {
     return formData.community && formData.group && formData.leaderName && formData.name && formData.gender && formData.phone && formData.privacyConsent && !phoneError;
+  };
+
+  const checkStep2Valid = () => {
+    // 출발/복귀 버스 둘 다 선택 필수
+    if (!formData.departureBusTime || !formData.returnBusTime) return false;
+    // 자차/대중교통 선택한 경우 추가 필드 검증
+    const isCarMode = formData.departureBusTime === 'car' || formData.returnBusTime === 'car';
+    if (isCarMode) {
+      if (!formData.carRole) return false;
+      if (!formData.carArrivalTime) return false;
+      if (!formData.carDepartureTime) return false;
+      if (formData.carRole === '자가운전자') {
+        if (!formData.carPassengerCount) return false;
+        if (!formData.carPlateNumber) return false;
+      }
+    }
+    return true;
   };
 
   const checkStep3Valid = () => {
@@ -629,6 +664,9 @@ export default function RegisterForm({
             {step === 2 && (
               <>
                 <FormHeader>차량 탑승 정보</FormHeader>
+                <SubLabel style={{padding: '0 24px', marginBottom: 8, color: '#d93025'}}>
+                  출발·복귀 차량 시각을 모두 선택해야 다음으로 넘어갈 수 있습니다.
+                </SubLabel>
                 <LegacySection>
                   <Label>[5/15] 출발 차량 탑승 시각</Label>
                   <SubLabel>선착순 마감됩니다. 마감된 시간대는 선택할 수 없습니다.</SubLabel>
@@ -728,7 +766,7 @@ export default function RegisterForm({
                       </LegacySection>
                     )}
 
-                    {formData.carRole !== '' && formData.carRole !== '택시 및 대중교통' && (
+                    {formData.carRole !== '' && (
                       <LegacySection>
                         <TimePicker
                           label="퇴소 예정 시간"
@@ -783,9 +821,24 @@ export default function RegisterForm({
                 
                 <DepositInfoBox>
                   <DepositInfoTitle>입금 계좌 정보</DepositInfoTitle>
-                  <DepositInfoRow>
+                  <DepositInfoRow
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      const text = '573-910022-19605';
+                      const done = () => { setCopyToast(true); setTimeout(() => setCopyToast(false), 2000); };
+                      if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(text).then(done).catch(() => { fallbackCopy(text); done(); });
+                      } else { fallbackCopy(text); done(); }
+                    }}
+                  >
                     <DepositInfoLabel>계좌번호</DepositInfoLabel>
-                    <DepositInfoValue>하나은행 573-910022-19605</DepositInfoValue>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <DepositInfoValue style={{ color: '#2D478C' }}>하나은행 573-910022-19605</DepositInfoValue>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <rect x="9" y="9" width="13" height="13" rx="2" stroke="#2D478C" strokeWidth="2"/>
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="#2D478C" strokeWidth="2"/>
+                      </svg>
+                    </div>
                   </DepositInfoRow>
                   <DepositInfoRow>
                     <DepositInfoLabel>예금주</DepositInfoLabel>
@@ -812,16 +865,16 @@ export default function RegisterForm({
                   <DepositNote>
                     ※ 입금자명: 이름 + 연락처 끝 네자리 기입 요망<br />(ex. 김허브 8572)
                   </DepositNote>
-                  <CopyAccountBtn
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText('573-910022-19605');
-                      alert('계좌번호가 복사되었습니다.');
-                    }}
-                  >
-                    계좌번호 복사
-                  </CopyAccountBtn>
                 </DepositInfoBox>
+                {copyToast && (
+                  <div style={{
+                    position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+                    background: 'rgba(0,0,0,0.75)', color: '#fff', padding: '10px 20px',
+                    borderRadius: 20, fontSize: 13, fontWeight: 500, zIndex: 9999, whiteSpace: 'nowrap',
+                  }}>
+                    계좌번호가 복사되었습니다 ✓
+                  </div>
+                )}
 
                 <ConsentWrapper onClick={() => set('depositConfirm', !formData.depositConfirm)}>
                   <ConsentText>
@@ -861,7 +914,7 @@ export default function RegisterForm({
             </PrevTextButton>
             
             {step < totalSteps ? (
-              <NextStepButton type="submit" disabled={(step === 1 && !checkStep1Valid()) || (step === 3 && !checkStep3Valid())}>
+              <NextStepButton type="submit" disabled={(step === 1 && !checkStep1Valid()) || (step === 2 && !checkStep2Valid()) || (step === 3 && !checkStep3Valid())}>
                 다음
               </NextStepButton>
             ) : (

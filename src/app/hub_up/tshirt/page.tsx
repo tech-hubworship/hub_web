@@ -104,6 +104,28 @@ export default function TshirtPage() {
   };
 
   const currentPrice = Number(config[`tshirt_price_${activeColor}`] || 20000);
+  const [copyToast, setCopyToast] = useState(false);
+
+  const copyAccount = () => {
+    const text = bankAccount;
+    const copy = () => { setCopyToast(true); setTimeout(() => setCopyToast(false), 2000); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(copy).catch(() => {
+        const el = document.createElement('textarea');
+        el.value = text; el.style.position = 'fixed'; el.style.opacity = '0';
+        document.body.appendChild(el); el.focus(); el.select();
+        try { document.execCommand('copy'); } catch {}
+        document.body.removeChild(el); copy();
+      });
+    } else {
+      const el = document.createElement('textarea');
+      el.value = text; el.style.position = 'fixed'; el.style.opacity = '0';
+      document.body.appendChild(el); el.focus(); el.select();
+      try { document.execCommand('copy'); } catch {}
+      document.body.removeChild(el); copy();
+    }
+  };
+
   const bankName    = config.tshirt_bank_name    || '카카오뱅크';
   const bankAccount = config.tshirt_bank_account || '3333-06-3840721';
   const bankHolder  = config.tshirt_bank_holder  || '이지선';
@@ -130,15 +152,23 @@ export default function TshirtPage() {
           <AccountCard>
             <AccountRow><ALabel>금액</ALabel><AValue>{totalPrice.toLocaleString()}원</AValue></AccountRow>
             <AccountRow><ALabel>은행</ALabel><AValue>{bankName}</AValue></AccountRow>
-            <AccountRow><ALabel>계좌</ALabel><AValue>{bankAccount}</AValue></AccountRow>
+            <AccountRow copyable onClick={copyAccount}>
+              <ALabel>계좌</ALabel>
+              <AValueCopy>
+                {bankAccount}
+                <CopyIcon>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <rect x="9" y="9" width="13" height="13" rx="2" stroke="#2D478C" strokeWidth="2"/>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="#2D478C" strokeWidth="2"/>
+                  </svg>
+                  복사
+                </CopyIcon>
+              </AValueCopy>
+            </AccountRow>
             <AccountRow><ALabel>예금주</ALabel><AValue>{bankHolder}</AValue></AccountRow>
             <AccountRow><ALabel>입금 기한</ALabel><AValue>4월 26일 (일) 23:59까지</AValue></AccountRow>
           </AccountCard>
-          <CopyAccountBtn
-            onClick={() => navigator.clipboard.writeText(bankAccount).then(() => alert('계좌번호가 복사되었습니다.'))}
-          >
-            계좌번호 복사
-          </CopyAccountBtn>
+          {copyToast && <CopyToast>계좌번호가 복사되었습니다 ✓</CopyToast>}
           <ActionBtn onClick={() => router.push('/hub_up/myinfo')}>확인</ActionBtn>
         </DoneBox>
       </Wrap>
@@ -464,9 +494,27 @@ const AccountCard = styled.div`
   background: #f9f9f9; padding: 20px; border-radius: 8px;
   display: flex; flex-direction: column; gap: 14px; margin-bottom: 32px; text-align: left;
 `;
-const AccountRow = styled.div`display: flex; justify-content: space-between; font-size: 14px;`;
+const AccountRow = styled.div<{ copyable?: boolean }>`
+  display: flex; justify-content: space-between; font-size: 14px;
+  cursor: ${p => p.copyable ? 'pointer' : 'default'};
+  &:active { opacity: ${p => p.copyable ? 0.7 : 1}; }
+`;
 const ALabel = styled.div`color: #888;`;
 const AValue = styled.div`font-weight: 700; color: #000;`;
+const AValueCopy = styled.div`
+  display: flex; align-items: center; gap: 6px;
+  font-weight: 700; color: #2D478C;
+`;
+const CopyIcon = styled.span`
+  display: flex; align-items: center; gap: 2px;
+  font-size: 11px; font-weight: 600; color: #2D478C;
+`;
+const CopyToast = styled.div`
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.75); color: #fff; padding: 10px 20px;
+  border-radius: 20px; font-size: 13px; font-weight: 500; z-index: 9999;
+  white-space: nowrap;
+`;
 const ActionBtn = styled.button`
   width: 100%; background: #000; color: #fff; border: none; border-radius: 8px;
   height: 51px; font-size: 16px; font-weight: 700; cursor: pointer;
