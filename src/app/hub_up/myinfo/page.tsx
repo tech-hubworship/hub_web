@@ -190,6 +190,15 @@ export default function MyInfoPage() {
         <FaqLink onClick={() => router.push('/hub_up/faq')}>
           FAQ 보러가기 →
         </FaqLink>
+
+        {/* 접수 취소 */}
+        <CancelSection>
+          <CancelTitle>접수 취소</CancelTitle>
+          <CancelDesc>5월 3일(일) 자정까지 환불 가능합니다.<br/>이후에는 예약금 지불로 인해 환불이 불가합니다.</CancelDesc>
+          <CancelBtn onClick={() => window.open('https://open.kakao.com/o/s9CV4ipi', '_blank')}>
+            접수 취소 문의하기
+          </CancelBtn>
+        </CancelSection>
       </Content>
     </Wrap>
   );
@@ -227,3 +236,7 @@ const EmptyIcon = styled.div`font-size: 48px; margin-bottom: 16px;`;
 const EmptyTitle = styled.h3`font-size: 18px; font-weight: 700; color: #111; margin: 0 0 8px 0;`;
 const EmptyDesc = styled.p`font-size: 14px; color: #888; margin: 0;`;
 const FaqLink = styled.button`width: 100%; padding: 16px; background: none; border: 1px solid #E5E5EA; border-radius: 12px; font-size: 14px; color: #888; cursor: pointer; text-align: center;`;
+const CancelSection = styled.div`background: #fff; border-radius: 16px; padding: 20px; margin-top: 12px;`;
+const CancelTitle = styled.div`font-size: 13px; font-weight: 700; color: #d93025; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;`;
+const CancelDesc = styled.p`font-size: 13px; color: #888; line-height: 1.6; margin: 0 0 14px 0;`;
+const CancelBtn = styled.button`width: 100%; padding: 12px; background: #fff; color: #d93025; border: 1px solid #d93025; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;`;

@@ -55,7 +55,7 @@ function exportTshirtExcel(orders: any[]) {
   const rows = orders.map(o => {
     const itemsStr = (o.items || []).map((i:any) => `${i.color} ${i.size} ${i.quantity}개`).join(', ');
     const totalQty = (o.items || []).reduce((acc:number, i:any) => acc + i.quantity, 0);
-    const totalPrice = totalQty * 20000;
+    const totalPrice = (o.items || []).reduce((acc:number, i:any) => acc + i.quantity * (i.price || 20000), 0);
     return [
       o.name, o.group_name, o.phone, itemsStr, totalQty, totalPrice,
       o.deposit_confirm ? 'O' : 'X',
@@ -185,6 +185,17 @@ export default function HubUpAdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hub-up-tshirts'] });
       setSelectedIds(new Set());
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/hub-up/registrations/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('취소 실패');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hub-up-registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['hub-up-stats'] });
     },
   });
 
@@ -423,7 +434,7 @@ export default function HubUpAdminPage() {
                   <thead>
                     <tr>
                       <Th>#</Th><Th>이름</Th><Th>그룹</Th><Th>공동체</Th><Th>성별</Th><Th>연락처</Th>
-                      <Th>출발</Th><Th>복귀</Th><Th>선택강의</Th><Th>자원봉사</Th><Th>입금</Th><Th>숙소</Th><Th>신청일</Th>
+                      <Th>출발</Th><Th>복귀</Th><Th>선택강의</Th><Th>자원봉사</Th><Th>입금</Th><Th>숙소</Th><Th>신청일</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -442,9 +453,21 @@ export default function HubUpAdminPage() {
                         <Td><DepBadge ok={r.admin_deposit_confirm}>{r.admin_deposit_confirm ? '입금완료' : '미확인'}</DepBadge></Td>
                         <Td><RoomBadge ok={!!r.room_number}>{r.room_number || '미배정'}</RoomBadge></Td>
                         <Td style={{fontSize:'12px',color:'#9aa0a6'}}>{new Date(r.created_at).toLocaleDateString('ko-KR')}</Td>
+                        <Td>
+                          <CancelBtn
+                            onClick={() => {
+                              if (confirm(`${r.name}님의 접수를 취소하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+                                cancelMutation.mutate(r.id);
+                              }
+                            }}
+                            disabled={cancelMutation.isPending}
+                          >
+                            접수취소
+                          </CancelBtn>
+                        </Td>
                       </tr>
                     ))}
-                    {registrations.length === 0 && <tr><td colSpan={13} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
+                    {registrations.length === 0 && <tr><td colSpan={14} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
@@ -626,7 +649,7 @@ export default function HubUpAdminPage() {
                         <Td>
                           <strong>{t.items?.reduce((sum:number, item:any)=>sum+item.quantity, 0)}장</strong>
                           <div style={{fontSize:'11px', color:'#5f6368'}}>
-                            ({(t.items?.reduce((sum:number, item:any)=>sum+item.quantity, 0) * 20000).toLocaleString()}원)
+                            ({(t.items?.reduce((sum:number, item:any) => sum + item.quantity * (item.price || 20000), 0) || 0).toLocaleString()}원)
                           </div>
                         </Td>
                         <Td><DepBadge ok={t.deposit_confirm}>{t.deposit_confirm ? '입금했다고 함' : '미신고'}</DepBadge></Td>

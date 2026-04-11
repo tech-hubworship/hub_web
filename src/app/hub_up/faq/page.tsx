@@ -14,23 +14,24 @@ const FAQ_SECTIONS = [
     items: [
       {
         q: '신청은 어떻게 하나요?',
-        a: '허브 웹사이트를 통해 신청하시면 됩니다. 신청 후 안내에 따라 입금까지 완료하셔야 접수됩니다.',
+        a: '허브 웹사이트 상단 신청하기버튼을 누르시면 됩니다.\n신청 후 안내에따라 입금까지 완료하셔야 접수됩니다.',
       },
       {
         q: '접수 완료는 어떻게 확인하나요?',
-        a: '신청 + 입금 확인이 모두 완료되면 접수가 확정됩니다. 접수 확인 문자는 순차적으로 정해진 시간에 전송됩니다.\n\n1차 4월 15일 (수) 9시\n2차 4월 20일 (월) 9시\n3차 4월 27일 (월) 9시',
+        a: '신청 + 입금 확인이 모두 완료되면 접수가 확정됩니다.\n접수 확인 문자는 아래 일정에따라 순차 발송됩니다.\n\n📩 문자 발송 일정\n•1차:4월 15일(수) 오전9시\n•2차:4월 20일(월) 오전9시\n•3차:4월 27일(월) 오전9시',
       },
       {
         q: '입금자명이 다르게 들어가면 어떻게 하나요?',
-        a: '서기MC에게 입금자명과 신청자명을 알려주시면 확인 후 처리해드립니다.',
+        a: 'https://open.kakao.com/o/s9CV4ipi\n위 링크로 입금자명과 신청자명을 알려주시면\n확인 후 처리해드리겠습니다.',
       },
       {
         q: '환불은 가능한가요?',
-        a: '5월 3일 (일) 자정까지 환불 가능합니다. 이후에는 숙소 및 식사 예약금 지불로 인해 환불이 불가합니다.',
+        a: '5월 3일(일) 자정까지 환불 가능합니다.\n이후에는 예약금 지불로 인해 환불이 불가합니다.\n\n환불 문의 : https://open.kakao.com/o/s9CV4ipi',
       },
       {
         q: '입금 계좌는 어디인가요?',
-        a: '하나은행 573-910022-19605 (예금주 : 허브행사)\n입금자명은 반드시 이름 + 전화번호 뒷자리 (ex. 김허브1285)로 기재해주세요.',
+        a: '하나은행 573-910022-19605\n(예금주 : 허브행사)\n\n입금자명은 반드시 이름 + 전화번호 뒷자리\n(ex. 김허브1285)로 기재해주세요.',
+        copyAccount: true,
       },
       {
         q: '부분 참여도 가능한가요?',
@@ -38,22 +39,17 @@ const FAQ_SECTIONS = [
       },
       {
         q: '온누리교회 / 허브대학부를 안 다녀도 허브업에 갈 수 있나요?',
-        a: '가능합니다. 접수 신청하실 때 타공동체 또는 타교회로 신청해주세요.',
-      },
-      {
+        a: '가능합니다.\n접수 신청하실 때 타교회 / 타공동체로 신청해주세요.',
+      },      {
         q: '할인이나 이벤트는 어떻게 참여하나요?',
         a: '얼리버드 이벤트 : 4월 12일 - 4월 18일에 신청+입금까지 완료한 사람에 한하여 회비 8만원\n\n아차차 이벤트 : 4월 19일 (하루) 1시 30분 ~ 1시 50분까지 성경책 지참 후 기쁨홀 앞 데스크에서 인증 받은 사람에 한하여 회비 8만원',
         achachaOnly: true,
       },
       {
         q: '기타 접수 / 회비 문의는 어디로 하면 되나요?',
-        a: '회비 문의 : 회계 MC 010-8542-7808',
-      },
-      {
-        q: '허브업 당일 신청도 가능한가요?',
-        a: '당일 신청은 어렵습니다.',
-      },
-    ],
+        a: '접수 문의 카카오 오픈채팅으로 연락해주세요.',
+        tshirtLink: 'https://open.kakao.com/o/sWl6bnpi',
+      },    ],
   },
   {
     category: '숙소 관련',
@@ -64,7 +60,21 @@ const FAQ_SECTIONS = [
       },
       {
         q: '숙소 변경 요청이 가능한가요?',
-        a: '최대한 다락방 별로 배정하지만 원하는대로 배정이 되지 않을 수 있습니다. 숙소는 임의로 변경이 불가한 점 양해 부탁드립니다.',
+        a: '최대한 다락방 별로 배정하지만 원하는대로 배정이 되지 않을 수 있습니다.\n숙소는 임의로 변경이 불가한 점 양해 부탁드립니다.',
+      },
+    ],
+  },
+  {
+    category: '티셔츠 관련',
+    items: [
+      {
+        q: '티셔츠 사이즈를 변경하고 싶어요!',
+        a: '예약 수량 만큼 제작하여 4/27(월)까지만 변경이 가능하며,\n티셔츠 오픈채팅으로 문의해주세요.',
+        tshirtLink: 'https://open.kakao.com/o/scWel1ph',
+      },
+      {
+        q: '티셔츠는 언제, 어디서 받을 수 있나요?',
+        a: '5/9(토) OD 후, 5/10(일) 허브 2시예배 전후로\n기쁨홀 앞에서 배부합니다.',
       },
     ],
   },
@@ -73,11 +83,11 @@ const FAQ_SECTIONS = [
     items: [
       {
         q: '몇 시까지 도착하면 되나요?',
-        a: '선탑자는 탑승 시간 20분 전까지, 그 외 모든 인원은 탑승 시간 15분 전까지 집합해 주세요.',
+        a: '선탑자는 탑승 시간 20분 전까지,\n그 외 모든 인원은 탑승 시간 15분 전까지 집합해 주세요.',
       },
       {
         q: '늦으면 어떻게 되나요?',
-        a: '기존에 배정된 차량에 탑승이 어려울 경우, 다음 시간대 차량으로 순차적으로 배정됩니다. 다만, 이후 차량도 모두 만석일 경우 탑승이 어려울 수 있으며, 이 경우 대중교통 이용을 안내드릴 수 있습니다.',
+        a: '기존에 배정된 차량에 탑승이 어려울 경우, 다음 시간대 차량으로 순차적으로 배정됩니다.\n다만, 이후 차량도 모두 만석일 경우 탑승이 어려울 수 있으며, 이 경우 대중교통 이용을 안내드릴 수 있습니다.',
       },
       {
         q: '버스 좌석은 지정되어 있나요?',
@@ -118,6 +128,14 @@ const FAQ_SECTIONS = [
 export default function FaqPage() {
   const router = useRouter();
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const copyAccount = () => {
+    navigator.clipboard.writeText('573-910022-19605').then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <Wrap>
@@ -139,6 +157,8 @@ export default function FaqPage() {
               .map((faq, i) => {
                 const key = `${section.category}-${i}`;
                 const isOpen = openKey === key;
+                const hasCopy = 'copyAccount' in faq && faq.copyAccount;
+                const hasTshirtLink = 'tshirtLink' in faq && faq.tshirtLink;
                 return (
                   <FaqItem key={key} onClick={() => setOpenKey(isOpen ? null : key)}>
                     <FaqQuestion>
@@ -153,7 +173,30 @@ export default function FaqPage() {
                     {isOpen && (
                       <FaqAnswer>
                         <AMark>A.</AMark>
-                        <AText>{faq.a}</AText>
+                        <div style={{ flex: 1 }}>
+                          <AText>{faq.a}</AText>
+                          {hasCopy && (
+                            <CopyBtn onClick={(e) => { e.stopPropagation(); copyAccount(); }}>
+                              {copied ? '복사됨 ✓' : '계좌번호 복사'}
+                            </CopyBtn>
+                          )}
+                          {hasTshirtLink && (
+                            <a
+                              href={(faq as any).tshirtLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                display: 'inline-block', marginTop: '12px',
+                                padding: '8px 16px', background: '#D9D9D9',
+                                borderRadius: '16px', fontSize: '14px', fontWeight: 500,
+                                color: '#000', textDecoration: 'none',
+                              }}
+                            >
+                              오픈채팅 문의하기 →
+                            </a>
+                          )}
+                        </div>
                       </FaqAnswer>
                     )}
                   </FaqItem>
@@ -186,3 +229,15 @@ const Arrow = styled.div<{ open: boolean }>`
 const FaqAnswer = styled.div`display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #F2F2F2;`;
 const AMark = styled.span`font-size: 14px; font-weight: 700; color: #949494; flex-shrink: 0; margin-top: 1px;`;
 const AText = styled.div`font-size: 14px; color: #757575; line-height: 1.6; white-space: pre-line;`;
+const CopyBtn = styled.button`
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: #D9D9D9;
+  border: none;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #000;
+  cursor: pointer;
+  font-family: inherit;
+`;

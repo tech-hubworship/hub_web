@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import styled from '@emotion/styled';
 import { useRouter } from 'next/navigation';
@@ -61,8 +61,8 @@ export default function HubUpMainPage() {
   const isAchachaVisible = now >= new Date('2026-04-19T00:00:00+09:00');
 
   const FAQS = [
-    { cat: '접수', q: '허브업 신청을 취소하고 싶어요.', a: '5월 3일 (일) 자정까지 환불 가능합니다. 이후에는 숙소 및 식사 예약금 지불로 인해 환불이 불가합니다.' },
-    { cat: '차량', q: '차량 시간을 변경하고 싶어요.', a: '차량 변경은 5월 13일까지 가능합니다. 선탑자에게 문의해 주세요.' },
+    { cat: '접수', q: '허브업 신청을 취소하고 싶어요.', a: '5월 3일(일) 자정까지 환불 가능합니다.\n이후에는 예약금 지불로 인해 환불이 불가합니다.\n\n환불 문의 : https://open.kakao.com/o/s9CV4ipi', link: 'https://open.kakao.com/o/s9CV4ipi' },
+    { cat: '차량', q: '차량 시간을 변경하고 싶어요.', a: '\'내 정보\' 메뉴에서 차량 변경 요청이 가능합니다.\n변경 기한은 5월 13일까지입니다.', link: '/hub_up/myinfo' },
     { cat: '접수', q: '부분 참석시 회비 할인이 되나요?', a: '부분 참석도 회비는 동일하게 적용됩니다.' },
     ...(isAchachaVisible ? [{ cat: '이벤트', q: '아차차 이벤트가 뭔가요?', a: '4월 19일 (하루) 1시 30분 ~ 1시 50분까지 성경책 지참 후 기쁨홀 앞 데스크에서 인증 받은 사람에 한하여 회비 8만원이 적용됩니다.' }] : []),
   ];
@@ -72,12 +72,11 @@ export default function HubUpMainPage() {
       {/* 네비게이션 */}
       <Nav scrolled={scrolled}>
         <NavLogo>
-          {/* 피그마: Group 2 (햄버거 아이콘) x:228 y:23 */}
           <HamburgerBtn onClick={() => setMenuOpen(!menuOpen)} scrolled={scrolled}>
             <span /><span /><span />
           </HamburgerBtn>
         </NavLogo>
-        {/* 피그마: Group 37 - 신청하기 버튼 x:266 y:12 w:74 h:37 */}
+        {/* 처음엔 흰색, 스크롤 내리면 파란색 */}
         <NavCta scrolled={scrolled} onClick={() => router.push('/hub_up/register')}>신청하기</NavCta>
       </Nav>
 
@@ -91,34 +90,41 @@ export default function HubUpMainPage() {
         </DropMenu>
       )}
 
-      {/* 피그마: image 1 - 히어로 이미지 x:0 y:0 w:360 h:509 */}
+      {/* 히어로 이미지 - 새 메인이미지 */}
       <HeroImgWrap>
         <Image
-          src="/images/hubup/hero_main.png"
+          src="/images/hubup/hero_main_new.png"
           alt="2026 HUBUP Be Holy"
-          width={360}
-          height={509}
-          style={{ width: '100%', height: 'auto', display: 'block' }}
+          fill
+          style={{ objectFit: 'cover' }}
           priority
         />
       </HeroImgWrap>
 
-      {/* 피그마: 돌아온 2026 허브업! 텍스트 x:62 y:592 w:235 h:111
-          fontFamily: Wanted Sans, fontWeight: 700, fontSize: 28, center */}
       <MainCopy>
         돌아온 2026 허브업!<br />
         거룩하신 하나님과<br />
         동행할 준비되셨나요?
       </MainCopy>
 
-      {/* 피그마: Group 10 - 소망수양관 + 날짜 x:75 y:557 */}
+      {/* 달력·위치 아이콘 포함 */}
       <VenueRow>
+        <VenueIcon>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#2D478C"/>
+          </svg>
+        </VenueIcon>
         <VenueText>소망수양관</VenueText>
         <VenueSep />
+        <VenueIcon>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" fill="#2D478C"/>
+          </svg>
+        </VenueIcon>
         <VenueText>2026.5.15-17</VenueText>
       </VenueRow>
 
-      {/* Day 1/2/3 - 클릭 시 세션 펼침 */}
+      {/* Day 1/2/3 */}
       <DaySection>
         {DAYS.map((day, idx) => (
           <div key={day.label}>
@@ -144,78 +150,80 @@ export default function HubUpMainPage() {
         ))}
       </DaySection>
 
-      {/* 피그마: Rectangle 10 (F8F8F8 배경) y:1003 h:654 */}
+      {/* Schedule 섹션 */}
       <ScheduleSection>
-        {/* 피그마: Group 9 - Schedule 텍스트 x:145 y:1051 */}
         <ScheduleLabel>Schedule</ScheduleLabel>
-        {/* 피그마: 주요 일정을 놓치지 마세요. x:101 y:1088 */}
         <ScheduleTitle>주요 일정을<br />놓치지 마세요.</ScheduleTitle>
 
-        {/* 피그마: Frame 2 (CDCDCD) + 얼리버드 신청 기간 y:1202~1246 */}
-        <TimelineRow>
-          <DateBadge gray={isPast(earlyBirdEnd)}>04.12 - 18</DateBadge>
-          <TimelineConnector />
-          <TimelineText gray={isPast(earlyBirdEnd)}>얼리버드<br />신청 기간</TimelineText>
-          <TimelineRight>{daysLeft(earlyBirdEnd)}</TimelineRight>
-        </TimelineRow>
+        <TimelineItem>
+          <DateBadge past={isPast(earlyBirdEnd)}>04.12 - 18</DateBadge>
+          <TimelineBottom>
+            <TimelineText past={isPast(earlyBirdEnd)}>얼리버드 신청 기간</TimelineText>
+            <TimelineRight past={isPast(earlyBirdEnd)}>
+              {!isPast(earlyBirdEnd) && <ClockIcon />}
+              {isPast(earlyBirdEnd) ? '마감' : daysLeft(earlyBirdEnd)}
+            </TimelineRight>
+          </TimelineBottom>
+          <TimelineDivider />
+        </TimelineItem>
 
-        {/* 피그마: Line 5 y:1292 */}
-        <TimelineDivider />
+        <TimelineItem>
+          <DateBadge past={isPast(regDeadline)}>04.26</DateBadge>
+          <TimelineBottom>
+            <TimelineText past={isPast(regDeadline)}>참가 신청 마감</TimelineText>
+            <TimelineRight past={isPast(regDeadline)}>
+              {!isPast(regDeadline) && <ClockIcon />}
+              {isPast(regDeadline) ? '마감' : daysLeft(regDeadline)}
+            </TimelineRight>
+          </TimelineBottom>
+          <TimelineDivider />
+        </TimelineItem>
 
-        {/* 피그마: Frame 4 (2D478C) + 참가 신청 마감 y:1312~1356 */}
-        <TimelineRow>
-          <DateBadge gray={isPast(regDeadline)}>04.26</DateBadge>
-          <TimelineConnector />
-          <TimelineText gray={isPast(regDeadline)}>참가 신청 마감</TimelineText>
-          <TimelineRight>{daysLeft(regDeadline)}</TimelineRight>
-        </TimelineRow>
+        <TimelineItem>
+          <DateBadge past={isPast(busChangeEnd)}>05.13</DateBadge>
+          <TimelineBottom>
+            <TimelineText past={isPast(busChangeEnd)}>차량 변경 마감</TimelineText>
+            <TimelineRight past={isPast(busChangeEnd)}>
+              {!isPast(busChangeEnd) && <ClockIcon />}
+              {isPast(busChangeEnd) ? '마감' : daysLeft(busChangeEnd)}
+            </TimelineRight>
+          </TimelineBottom>
+          <TimelineDivider />
+        </TimelineItem>
 
-        <TimelineDivider />
-
-        {/* 피그마: Frame 5 (2D478C) + 차량 변경 마감 y:1422~1466 */}
-        <TimelineRow>
-          <DateBadge gray={isPast(busChangeEnd)}>05.13</DateBadge>
-          <TimelineConnector />
-          <TimelineText gray={isPast(busChangeEnd)}>차량 변경 마감</TimelineText>
-          <TimelineRight>{daysLeft(busChangeEnd)}</TimelineRight>
-        </TimelineRow>
-
-        <TimelineDivider />
-
-        {/* 피그마: FAQ 미리보기 y:1560~1609 */}
-        <FaqPreviewRow>
-          <FaqPreviewQ>기한 내 참가 신청을 하지 못하면 어떻게 되나요?</FaqPreviewQ>
+        <FaqPreviewRow onClick={() => window.open('https://link.inpock.co.kr/hubup26')}>
+          <FaqPreviewQ>ⓘ 접수 및 차량 관련 문의가 있어요.</FaqPreviewQ>
         </FaqPreviewRow>
         <FaqPreviewDivider />
-        <FaqPreviewRow>
-          <FaqPreviewQ>차량 시간을 변경하고 싶어요.</FaqPreviewQ>
+        <FaqPreviewRow onClick={() => router.push('/hub_up/myinfo')}>
+          <FaqPreviewQ>ⓘ 차량 시간을 변경하고 싶어요.</FaqPreviewQ>
         </FaqPreviewRow>
       </ScheduleSection>
 
-      {/* 피그마: Group 36 - T-SHIRTS 배너 y:1657 h:228 */}
+      {/* T-SHIRTS 배너 - BG 화이트 */}
       <TshirtBanner onClick={() => router.push('/hub_up/tshirt')}>
         <TshirtLabel>T-SHIRTS</TshirtLabel>
+        <TshirtSubLabel>티셔츠 구매하기 →</TshirtSubLabel>
       </TshirtBanner>
 
-      {/* 피그마: Group 35 - 티셔츠 구매하기 → y:1885 h:52 */}
-      <TshirtCta onClick={() => router.push('/hub_up/tshirt')}>
-        티셔츠 구매하기 →
-      </TshirtCta>
-
-      {/* 피그마: Rectangle 11 (흰색) + 5월 15일 카피 + 콘텐츠 버튼 */}
-      <WhiteSection>
+      {/* 콘텐츠 섹션 - 배경 블랙 */}
+      <BlackSection>
         <ClosingText>
           5월 15일,<br />
           소망수양관에서<br />
           만나요!
         </ClosingText>
-        <ContentBtnWhite onClick={() => {}}>홍보영상 보러가기 →</ContentBtnWhite>
-        <ContentBtnNavy onClick={() => {}}>허브업 콘텐츠 보러가기 →</ContentBtnNavy>
+        <ContentBtnWhite onClick={() => window.open('https://www.youtube.com/@hub_worship/videos', '_blank')}>
+          홍보영상 보러가기 →
+        </ContentBtnWhite>
+        <ContentBtnNavy onClick={() => window.open('https://www.instagram.com/hub_worship/', '_blank')}>
+          허브업 콘텐츠 보러가기 →
+        </ContentBtnNavy>
         <ClosingDesc>
           출발 직전까지 볼 수 있는<br />
           유익한 콘텐츠도 만나보세요.
         </ClosingDesc>
-      </WhiteSection>
+      </BlackSection>
 
       {/* FAQ */}
       <FaqSection>
@@ -227,7 +235,21 @@ export default function HubUpMainPage() {
               <FaqQ>{faq.q}</FaqQ>
               <FaqToggle>{openFaq === String(i) ? '×' : '+'}</FaqToggle>
             </FaqItem>
-            {openFaq === String(i) && <FaqAnswer>{faq.a}</FaqAnswer>}
+            {openFaq === String(i) && (
+              <FaqAnswer>
+                {faq.a}
+                {faq.link && (
+                  <FaqLink
+                    href={faq.link}
+                    target={faq.link.startsWith('http') ? '_blank' : undefined}
+                    rel={faq.link.startsWith('http') ? 'noopener noreferrer' : undefined}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {faq.cat === '차량' ? '차량 변경하기 →' : '문의하기 →'}
+                  </FaqLink>
+                )}
+              </FaqAnswer>
+            )}
             <FaqDivider />
           </div>
         ))}
@@ -236,7 +258,6 @@ export default function HubUpMainPage() {
         </FaqMoreBtn>
       </FaqSection>
 
-      {/* 피그마: 푸터 Rectangle 12 (C5C5C5) y:2700 h:84 */}
       <Footer>
         <FooterText>개인정보 처리 방침</FooterText>
         <FooterText>@온누리교회 허브대학부</FooterText>
@@ -245,15 +266,14 @@ export default function HubUpMainPage() {
   );
 }
 
-// ─── Styled Components (피그마 스펙 기반) ───────────────────
+// ─── Styled Components ───────────────────
 
 const Wrap = styled.div`
   width: 100%;
   background: #fff;
-  font-family: 'Wanted Sans', 'Pretendard', -apple-system, sans-serif;
+  font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
 `;
 
-/* 네비게이션 - 피그마: Rectangle 1 y:0 h:60 */
 const Nav = styled.div<{ scrolled: boolean }>`
   position: fixed;
   top: 0;
@@ -290,17 +310,18 @@ const HamburgerBtn = styled.button<{ scrolled: boolean }>`
   }
 `;
 
-/* 피그마: Group 37 - 신청하기 버튼 w:74 h:37 */
+/* 처음엔 흰색(투명 배경 위), 스크롤 내리면 파란색 */
 const NavCta = styled.button<{ scrolled: boolean }>`
-  background: ${p => p.scrolled ? '#000' : '#2D478C'};
+  background: ${p => p.scrolled ? '#2D478C' : 'transparent'};
   color: #fff;
-  border: none;
+  border: 1px solid ${p => p.scrolled ? '#2D478C' : '#fff'};
   padding: 8px 14px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
   line-height: 1;
+  transition: background 0.3s, border-color 0.3s;
 `;
 
 const DropMenu = styled.div`
@@ -325,12 +346,13 @@ const DropItem = styled.div`
   &:last-child { border-bottom: none; }
 `;
 
-/* 피그마: image 1 - w:360 h:509, 최상단부터 시작 */
+/* 히어로 이미지 - aspect ratio 유지 */
 const HeroImgWrap = styled.div`
   width: 100%;
+  aspect-ratio: 360 / 509;
+  position: relative;
 `;
 
-/* 피그마: 메인 카피 fontFamily: Wanted Sans, 700, 28px, center, color:#000 */
 const MainCopy = styled.h1`
   font-size: 28px;
   font-weight: 700;
@@ -342,32 +364,36 @@ const MainCopy = styled.h1`
   padding: 40px 20px 20px;
 `;
 
-/* 피그마: Group 10 - 소망수양관 + 날짜, fontWeight:600, fontSize:16, color:#2D478C */
 const VenueRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 8px;
   padding: 0 20px 40px;
+`;
+
+const VenueIcon = styled.span`
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 `;
 
 const VenueText = styled.span`
   font-size: 16px;
   font-weight: 600;
   color: #2D478C;
-  line-height: 2.3;
+  line-height: 1;
 `;
 
 const VenueSep = styled.span`
   width: 1px;
-  height: 16px;
+  height: 14px;
   background: #2D478C;
   opacity: 0.4;
 `;
 
-/* Day 섹션 - 클릭형 */
 const DaySection = styled.div`
-  padding: 0 20px;
+  padding: 0 20px 40px;
   background: #fff;
 `;
 
@@ -426,120 +452,132 @@ const SessionSpeaker = styled.div`
   color: #838383;
 `;
 
-/* 피그마: Rectangle 10 (F8F8F8) y:1003 h:654 */
 const ScheduleSection = styled.div`
   background: #F8F8F8;
   padding: 40px 20px;
 `;
 
-/* 피그마: Schedule - fontWeight:600, fontSize:16, color:#2D478C, center */
 const ScheduleLabel = styled.div`
   font-size: 16px;
   font-weight: 600;
   color: #2D478C;
   text-align: center;
-  line-height: 2.3;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 `;
 
-/* 피그마: 주요 일정을 놓치지 마세요. - 700, 28px, color:#2D478C, center */
 const ScheduleTitle = styled.h2`
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 800;
   color: #2D478C;
   text-align: center;
-  line-height: 1.32;
-  margin: 0 0 32px 0;
+  line-height: 1.3;
+  margin: 0 0 40px 0;
+  letter-spacing: -0.02em;
 `;
 
-const TimelineRow = styled.div`
+/* 각 타임라인 항목 - 배지 위, 텍스트 아래 2줄 구조 */
+const TimelineItem = styled.div`
+  padding: 16px 0 0;
+`;
+
+const DateBadge = styled.div<{ past?: boolean }>`
+  display: inline-block;
+  background: ${p => p.past ? '#C8C8C8' : '#2D478C'};
+  color: ${p => p.past ? '#E8E8E8' : '#fff'};
+  font-size: 14px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 2px;
+  margin-bottom: 8px;
+`;
+
+const TimelineBottom = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 0;
+  justify-content: space-between;
+  padding-bottom: 16px;
 `;
 
-/* 피그마: Frame 2 (CDCDCD gray) / Frame 4,5 (2D478C navy) - w:92/64 h:32 */
-const DateBadge = styled.div<{ gray?: boolean; navy?: boolean }>`
-  padding: 6px 10px;
-  background: ${p => p.gray ? '#CDCDCD' : '#2D478C'};
-  color: ${p => p.gray ? '#E6E6E6' : '#fff'};
-  font-size: 16px;
+const TimelineText = styled.div<{ past?: boolean }>`
+  font-size: 24px;
   font-weight: 700;
-  min-width: 64px;
-  text-align: center;
-  line-height: 1.19;
+  color: ${p => p.past ? '#C0C0C0' : '#2D478C'};
+  line-height: 1.2;
 `;
 
-const TimelineConnector = styled.div`
-  flex: 1;
-  height: 1px;
-  background: #B5B5B5;
-`;
-
-const TimelineText = styled.div<{ gray?: boolean }>`
-  font-size: 16px;
-  font-weight: 700;
-  color: ${p => p.gray ? '#CDCDCD' : '#2D478C'};
-  line-height: 1.19;
-  flex: 1;
-`;
-
-const TimelineRight = styled.div<{ gray?: boolean }>`
-  font-size: 14px;
+const TimelineRight = styled.div<{ past?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
   font-weight: 500;
-  color: #A1A1A1;
-  min-width: 54px;
-  text-align: right;
+  color: ${p => p.past ? '#C0C0C0' : '#A1A1A1'};
+  flex-shrink: 0;
 `;
 
+const ClockIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+    <circle cx="12" cy="12" r="9" stroke="#A1A1A1" strokeWidth="2"/>
+    <path d="M12 7v5l3 3" stroke="#A1A1A1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
 const TimelineDivider = styled.div`
   height: 1px;
-  background: #B5B5B5;
-  margin: 4px 0;
+  background: #D8D8D8;
 `;
 
 const FaqPreviewRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 12px 0;
+  justify-content: center;
+  padding: 14px 0;
   cursor: pointer;
 `;
 
 const FaqPreviewQ = styled.div`
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: #2D478C;
-  flex: 1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-align: center;
 `;
 
 const FaqPreviewDivider = styled.div`
   height: 1px;
-  background: #2D478C;
+  background: #D8D8D8;
 `;
 
-/* 피그마: Group 36 - T-SHIRTS 배너 y:1657 h:228, 배경은 티셔츠 이미지 */
+/* T-SHIRTS 배너 - BG 화이트 */
 const TshirtBanner = styled.div`
-  background: #000;
+  background: #fff;
   height: 228px;
   display: flex;
-  align-items: flex-end;
-  padding: 8px 20px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 8px 20px 16px;
   cursor: pointer;
   overflow: hidden;
   position: relative;
+  border-bottom: 1px solid #eee;
 `;
 
 const TshirtLabel = styled.div`
   font-size: 72px;
   font-weight: 700;
-  color: #fff;
+  color: #000;
   line-height: 1.19;
   letter-spacing: -0.02em;
 `;
 
-/* 피그마: Group 35 - 티셔츠 구매하기 → y:1885 h:52, 배경:#000 */
+const TshirtSubLabel = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: -0.02em;
+`;
+
 const TshirtCta = styled.div`
   background: #000;
   height: 52px;
@@ -553,9 +591,9 @@ const TshirtCta = styled.div`
   letter-spacing: -0.02em;
 `;
 
-/* 피그마: Rectangle 11 (흰색) y:2287 h:413 */
-const WhiteSection = styled.div`
-  background: #fff;
+/* 콘텐츠 섹션 - 배경 블랙 */
+const BlackSection = styled.div`
+  background: #000;
   padding: 40px 20px;
   display: flex;
   flex-direction: column;
@@ -565,7 +603,7 @@ const WhiteSection = styled.div`
 const ClosingText = styled.h2`
   font-size: 28px;
   font-weight: 700;
-  color: #000;
+  color: #fff;
   text-align: center;
   line-height: 1.32;
   margin: 0 0 24px 0;
@@ -574,13 +612,12 @@ const ClosingText = styled.h2`
 const ClosingDesc = styled.p`
   font-size: 14px;
   font-weight: 700;
-  color: #000;
+  color: #fff;
   text-align: center;
   line-height: 1.43;
   margin: 8px 0 0 0;
 `;
 
-/* 피그마: FAQ 섹션 */
 const FaqSection = styled.div`
   background: #fff;
   padding: 40px 20px;
@@ -634,6 +671,15 @@ const FaqAnswer = styled.div`
   white-space: pre-line;
 `;
 
+const FaqLink = styled.a`
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2D478C;
+  text-decoration: none;
+`;
+
 const FaqDivider = styled.div`
   height: 1px;
   background: rgba(0,0,0,0.5);
@@ -653,7 +699,6 @@ const FaqMoreBtn = styled.button`
   font-family: inherit;
 `;
 
-/* 피그마: 푸터 Rectangle 12 (C5C5C5) y:2700 h:84 */
 const Footer = styled.div`
   background: #C5C5C5;
   padding: 20px;
@@ -667,7 +712,7 @@ const FooterText = styled.p`
   line-height: 1.67;
 `;
 
-/* 피그마: Frame 7 - 홍보영상 보러가기 → h:51, 배경:#fff, 테두리:#000 */
+/* 홍보영상 버튼 - 흰 배경, 검정 테두리 */
 const ContentBtnWhite = styled.div`
   height: 51px;
   display: flex;
@@ -676,11 +721,11 @@ const ContentBtnWhite = styled.div`
   font-size: 18px;
   font-weight: 700;
   color: #000;
+  background: #fff;
   cursor: pointer;
-  border: 1px solid #000;
 `;
 
-/* 피그마: Frame 6 - 허브업 콘텐츠 보러가기 → h:51, 배경:#2D478C */
+/* 허브업 콘텐츠 버튼 - 네이비 배경 */
 const ContentBtnNavy = styled.div`
   height: 51px;
   display: flex;

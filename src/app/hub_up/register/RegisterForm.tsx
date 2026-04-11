@@ -94,11 +94,10 @@ export default function RegisterForm({
             setFormData((prev) => ({
               ...prev,
               name: result.name || '',
-              gender: mappedGender, // 매핑된 성별 할당
+              gender: mappedGender,
               birthdate: result.birth_date || '',
               community: result.community || '',
-              group: result.group_name && result.cell_name
-                ? `${result.group_name}그룹 ${result.cell_name}다락방` : '',
+              group: '', // 미리 선택되지 않도록 빈값 유지
             }));
           }
           const [cellsRes, groupsRes] = await Promise.all([
@@ -124,6 +123,7 @@ export default function RegisterForm({
                 if (!groupName?.trim() || !cellName?.trim()) return false;
                 if (groupName.includes('해당없음') || cellName.includes('해당없음')) return false;
                 if (groupName.includes('실타') || cellName.includes('실타')) return false;
+                if (groupName.toUpperCase() === 'MC' || cellName.toUpperCase().includes('MC')) return false;
                 return true;
               })
               .map(({ label }) => label)
@@ -410,7 +410,7 @@ export default function RegisterForm({
         <LandingWrapper>
           <HeroImageFull>
             <Image
-              src="/images/HubUpMainPage.jpg"
+              src="/images/hubup/hero_main_new.png"
               alt="BE HOLY"
               width={480}
               height={680}
@@ -452,7 +452,7 @@ export default function RegisterForm({
                 </FeeGrid>
                 <p className="account">
                   하나은행 573-910022-19605<br />
-                  / 온누리교회(허브행사비)
+                  예금주 : 온누리교회(허브행사비)
                 </p>
               </InfoData>
             </InfoGrid>
@@ -463,7 +463,7 @@ export default function RegisterForm({
               <GuideTitle>입금 주의사항</GuideTitle>
               <GuideList>
                 <li>회비를 입금 하셔야 접수 완료 입니다.</li>
-                <li>입금자명 이름+연락처 끝 네자리 기입 요망 (ex. 홍길동8572)</li>
+                <li>입금자명 이름 + 연락처 끝 네자리 기입 요망<br />(ex. 김허브 8572)</li>
                 <li>입금 후 확인 문자가 발송되오니<br />연락처를 정확히 기재 바랍니다.</li>
                 <li>신청자와 입금자명이 다를 경우<br />{config.contact_name}에게 연락주셔야 확인됩니다.</li>
                 <li>부분참석도 회비는 동일합니다.</li>
@@ -492,14 +492,16 @@ export default function RegisterForm({
             </GuideBlock>
 
             <GuideBlock>
-              <GuideTitle>문의</GuideTitle>
-              <GuideList>
-                <li>
-                  <a href="https://open.kakao.com/o/sWl6bnpi" target="_blank" rel="noopener noreferrer" style={{ color: '#2D478C', textDecoration: 'underline' }}>
-                    https://open.kakao.com/o/sWl6bnpi
-                  </a>
-                </li>
-              </GuideList>
+              <GuideTitle>
+                <a
+                  href="https://link.inpock.co.kr/hubup26"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#2D478C', textDecoration: 'underline' }}
+                >
+                  문의하기 →
+                </a>
+              </GuideTitle>
             </GuideBlock>
           </GuideSection>
 
@@ -791,10 +793,12 @@ export default function RegisterForm({
                   </DepositInfoRow>
                   <DepositDivider />
                   <DepositFeeTitle>회비 안내</DepositFeeTitle>
-                  <DepositFeeRow>
-                    <span>얼리버드 8만원</span>
-                    <span>4월 12일 - 4월 18일</span>
-                  </DepositFeeRow>
+                  {!isAchachaActive && (
+                    <DepositFeeRow>
+                      <span>얼리버드 8만원</span>
+                      <span>4월 12일 - 4월 18일</span>
+                    </DepositFeeRow>
+                  )}
                   <DepositFeeRow>
                     <span>일반 8만 5천원</span>
                     <span>4월 19일 - 4월 26일</span>
@@ -802,11 +806,11 @@ export default function RegisterForm({
                   {isAchachaActive && (
                     <DepositFeeRow highlight>
                       <span>아차차 이벤트 8만원</span>
-                      <span>이벤트 해당자만</span>
+                      <span>4월 19일 (이벤트 해당자만)</span>
                     </DepositFeeRow>
                   )}
                   <DepositNote>
-                    ※ 입금자명: 이름+연락처 끝 네자리 (ex. 홍길동8572)
+                    ※ 입금자명: 이름 + 연락처 끝 네자리 기입 요망<br />(ex. 김허브 8572)
                   </DepositNote>
                 </DepositInfoBox>
 
@@ -1053,8 +1057,9 @@ const Label = styled.label`
 const SelectField = styled.div`
   display: flex; justify-content: space-between; align-items: center;
   padding: 8px 0; border-bottom: 1px solid #E5E5EA; cursor: pointer;
-  span.selected { color: #111; font-size: 16px; }
-  span.placeholder { color: #AFAFAF; font-size: 16px; }
+  span.selected { color: #111; font-size: 16px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  span.placeholder { color: #AFAFAF; font-size: 16px; flex: 1; min-width: 0; }
+  svg { flex-shrink: 0; margin-left: 8px; }
 `;
 
 const UnderlineInput = styled.input`
