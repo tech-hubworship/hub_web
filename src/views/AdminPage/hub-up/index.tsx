@@ -606,6 +606,49 @@ export default function HubUpAdminPage() {
               </RoomStatItem>
             </DepositSummary>
 
+            {/* 색상별 / 사이즈별 통계 */}
+            {(() => {
+              const SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+              const colorTotals: Record<string, number> = { white: 0, black: 0 };
+              const sizeTotals: Record<string, number> = {};
+              SIZES.forEach(s => { sizeTotals[s] = 0; });
+              tshirts.forEach((t: any) => {
+                (t.items || []).forEach((item: any) => {
+                  const c = item.color?.toLowerCase();
+                  if (c === 'white' || c === 'black') colorTotals[c] += item.quantity;
+                  if (sizeTotals[item.size] !== undefined) sizeTotals[item.size] += item.quantity;
+                });
+              });
+              return (
+                <TshirtStatsWrap>
+                  <TshirtStatGroup>
+                    <TshirtStatTitle>색상별</TshirtStatTitle>
+                    <TshirtStatRow>
+                      <TshirtStatItem color="#fff" border>
+                        <TshirtStatLabel>White</TshirtStatLabel>
+                        <TshirtStatNum>{colorTotals.white}장</TshirtStatNum>
+                      </TshirtStatItem>
+                      <TshirtStatItem color="#222">
+                        <TshirtStatLabel style={{color:'#fff'}}>Black</TshirtStatLabel>
+                        <TshirtStatNum style={{color:'#fff'}}>{colorTotals.black}장</TshirtStatNum>
+                      </TshirtStatItem>
+                    </TshirtStatRow>
+                  </TshirtStatGroup>
+                  <TshirtStatGroup>
+                    <TshirtStatTitle>사이즈별</TshirtStatTitle>
+                    <TshirtStatRow>
+                      {SIZES.map(s => (
+                        <TshirtStatItem key={s} color="#f8f9fa" border>
+                          <TshirtStatLabel>{s}</TshirtStatLabel>
+                          <TshirtStatNum>{sizeTotals[s]}장</TshirtStatNum>
+                        </TshirtStatItem>
+                      ))}
+                    </TshirtStatRow>
+                  </TshirtStatGroup>
+                </TshirtStatsWrap>
+              );
+            })()}
+
             <ToolRow>
               <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end'}}>
                 {selectedIds.size > 0 && (
@@ -771,3 +814,16 @@ const BtnGrp = styled.div`display: flex; gap: 3px;`;
 const EditBtn = styled.button`padding: 3px 9px; background: #e8f0fe; color: #1d4ed8; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;`;
 const SaveBtn = styled.button`padding: 3px 9px; background: #278f5a; color: white; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; &:disabled{opacity:0.6;}`;
 const CancelBtn = styled.button`padding: 3px 9px; background: #f1f3f4; color: #5f6368; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;`;
+
+const TshirtStatsWrap = styled.div`display: flex; gap: 16px; margin: 16px 0; flex-wrap: wrap;`;
+const TshirtStatGroup = styled.div`background: #fff; border: 1px solid #e8eaed; border-radius: 8px; padding: 16px; flex: 1; min-width: 200px;`;
+const TshirtStatTitle = styled.div`font-size: 13px; font-weight: 700; color: #5f6368; margin-bottom: 10px;`;
+const TshirtStatRow = styled.div`display: flex; gap: 8px; flex-wrap: wrap;`;
+const TshirtStatItem = styled.div<{ color: string; border?: boolean }>`
+  flex: 1; min-width: 60px; padding: 10px 12px; border-radius: 6px;
+  background: ${p => p.color};
+  border: ${p => p.border ? '1px solid #e8eaed' : 'none'};
+  text-align: center;
+`;
+const TshirtStatLabel = styled.div`font-size: 11px; font-weight: 600; color: #5f6368; margin-bottom: 4px;`;
+const TshirtStatNum = styled.div`font-size: 18px; font-weight: 700; color: #202124;`;

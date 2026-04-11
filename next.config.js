@@ -5,6 +5,14 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  // Next.js 이미지 최적화 설정
+  images: {
+    minimumCacheTTL: 31536000, // 최적화된 이미지 1년 캐싱
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [360, 480, 640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+  },
+
   webpack(config) {
     config.module.rules.push({
       test: /\.svg$/,
@@ -22,72 +30,41 @@ const nextConfig = {
   },
   async headers() {
     return [
+      // ── 정적 에셋 (빌드 해시 포함) - 영구 캐싱 ──
       {
-        source: '/favicon.ico',
+        source: '/_next/static/:path*',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
-          },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
+      // ── Next.js 최적화 이미지 - 장기 캐싱 ──
       {
-        source: '/favicon-:size.png',
+        source: '/_next/image',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
-          },
+          { key: 'Cache-Control', value: 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800' },
         ],
       },
+      // ── 허브업 이미지 전체 ──
       {
-        source: '/android-icon-:size.png',
+        source: '/images/:path*',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
-          },
+          { key: 'Cache-Control', value: 'public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000' },
         ],
       },
-      {
-        source: '/apple-touch-icon.png',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
-          },
-        ],
-      },
-      {
-        source: '/apple-touch-icon-precomposed.png',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
-          },
-        ],
-      },
-      // 티셔츠 이미지 — 변경 없으므로 장기 캐싱
-      {
-        source: '/images/tshirt/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-      // 아이콘 전체 장기 캐시 (Edge 요청 절감)
+      // ── 아이콘 / 파비콘 - 영구 캐싱 ──
       {
         source: '/icons/:path*',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable',
-          },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // hub_up 정적 페이지 - 클라이언트 컴포넌트지만 HTML shell은 CDN 캐싱
+      {
+        source: '/favicon.ico',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      // ── hub_up 페이지 ──
       {
         source: '/hub_up',
         headers: [{ key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=300' }],
@@ -104,7 +81,7 @@ const nextConfig = {
         source: '/hub_up/tshirt',
         headers: [{ key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=300' }],
       },
-      // hub_up 공개 API - CDN 캐싱
+      // ── hub_up 공개 API ──
       {
         source: '/api/hub-up/config',
         headers: [{ key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=600' }],

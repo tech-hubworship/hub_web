@@ -159,7 +159,7 @@ export default function TshirtPage() {
         </TopNav>
         <ClosedBox>
           <ClosedIcon>👕</ClosedIcon>
-          <ClosedTitle>
+          <ClosedTitle style={{ color: '#111' }}>
             {now < SALE_START ? '판매 예정' : '판매 종료'}
           </ClosedTitle>
           <ClosedDesc>
@@ -480,10 +480,11 @@ const CopyAccountBtn = styled.button`
 const ClosedBox = styled.div`
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-height: calc(100vh - 60px); padding: 40px 24px; text-align: center;
+  background: #fff;
 `;
 const ClosedIcon = styled.div`font-size: 48px; margin-bottom: 16px;`;
-const ClosedTitle = styled.h2`font-size: 22px; font-weight: 700; margin: 0 0 12px;`;
-const ClosedDesc = styled.p`font-size: 14px; color: #888; line-height: 1.6; margin: 0 0 32px; white-space: pre-line;`;
+const ClosedTitle = styled.h2`font-size: 22px; font-weight: 700; margin: 0 0 12px; color: #111 !important;`;
+const ClosedDesc = styled.p`font-size: 14px; color: #666; line-height: 1.6; margin: 0 0 32px; white-space: pre-line;`;
 
 const DistributeNotice = styled.div`
   margin-top: 16px; padding: 16px; background: #f0f4ff; border-radius: 8px;
