@@ -199,8 +199,8 @@ export default function RegisterForm({
     const isCarMode = formData.departureBusTime === 'car' || formData.returnBusTime === 'car';
     if (isCarMode) {
       if (!formData.carRole) return false;
-      if (!formData.carArrivalTime) return false;
-      if (!formData.carDepartureTime) return false;
+      if (formData.departureBusTime === 'car' && !formData.carArrivalTime) return false;
+      if (formData.returnBusTime === 'car' && !formData.carDepartureTime) return false;
       if (formData.carRole === '자가운전자') {
         if (!formData.carPassengerCount) return false;
         if (!formData.carPlateNumber) return false;
@@ -753,7 +753,7 @@ export default function RegisterForm({
                       </>
                     )}
 
-                    {(formData.carRole === '자가운전자' || formData.carRole === '동승자' || formData.carRole === '택시 및 대중교통') && (
+                    {(formData.carRole === '자가운전자' || formData.carRole === '동승자' || formData.carRole === '택시 및 대중교통') && formData.departureBusTime === 'car' && (
                       <LegacySection>
                         <TimePicker
                           label="입소 예정 시간"
@@ -766,7 +766,7 @@ export default function RegisterForm({
                       </LegacySection>
                     )}
 
-                    {formData.carRole !== '' && (
+                    {formData.carRole !== '' && formData.returnBusTime === 'car' && (
                       <LegacySection>
                         <TimePicker
                           label="퇴소 예정 시간"
