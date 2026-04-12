@@ -77,6 +77,7 @@ export default function RegisterForm({
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [phoneError, setPhoneError] = useState('');
   const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [copyToast, setCopyToast] = useState(false);
   const [groupOptions, setGroupOptions] = useState<string[]>([]);
   const [isProfileLoaded, setIsProfileLoaded] = useState(false);
@@ -217,6 +218,8 @@ export default function RegisterForm({
   // ── 제출 ──────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setSubmitError('');
     try {
       const res = await fetch('/api/hub-up/register', {
@@ -233,6 +236,8 @@ export default function RegisterForm({
       setStep(5);
     } catch {
       setSubmitError('제출 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -917,8 +922,8 @@ export default function RegisterForm({
                 다음
               </NextStepButton>
             ) : (
-              <NextStepButton type="submit" disabled={!formData.depositConfirm || !formData.finalSubmitConfirm}>
-                제출
+              <NextStepButton type="submit" disabled={!formData.depositConfirm || !formData.finalSubmitConfirm || isSubmitting}>
+                {isSubmitting ? '제출 중...' : '제출'}
               </NextStepButton>
             )}
           </BottomNavInline>
