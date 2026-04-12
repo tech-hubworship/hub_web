@@ -111,7 +111,6 @@ export default function RegisterForm({
 
             setFormData((prev) => ({
               ...prev,
-              name: result.name || '',
               gender: mappedGender,
               birthdate: result.birth_date || '',
               community: result.community || '',
