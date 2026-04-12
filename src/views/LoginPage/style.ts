@@ -214,3 +214,16 @@ export const SubmitButton = styled.button`
     background-color: #0056b3;
   }
 `;
+
+export const KakaoWebViewNotice = styled.div`
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background-color: #fff9e6;
+  border: 1px solid #f5c842;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #7a5c00;
+  text-align: center;
+  line-height: 1.6;
+`;

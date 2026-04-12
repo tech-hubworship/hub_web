@@ -173,7 +173,30 @@ export default function LoginPage() {
     }
   };
 
+  const isKakaoWebView = () => {
+    if (typeof window === 'undefined') return false;
+    const ua = navigator.userAgent.toLowerCase();
+    return ua.includes('kakaotalk') || ua.includes('kakao');
+  };
+
+  const openInExternalBrowser = () => {
+    const currentUrl = window.location.href;
+    // 카카오톡 외부 브라우저로 열기 (intent scheme for Android, 안내 for iOS)
+    const isAndroid = /android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      window.location.href = `intent://${currentUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+    } else {
+      // iOS: kakaotalk://web/openExternal?url= 스킴 사용
+      window.location.href = `kakaotalk://web/openExternal?url=${encodeURIComponent(currentUrl)}`;
+    }
+  };
+
   const handleLogin = () => {
+    if (isKakaoWebView()) {
+      openInExternalBrowser();
+      return;
+    }
+
     if (selectedRole && !ADMIN_ROLES.includes(selectedRole)) {
         sessionStorage.setItem(SIGNUP_ROLE_KEY, selectedRole);
     } else {
@@ -197,6 +220,8 @@ export default function LoginPage() {
   };
 
 
+  const kakaoWebView = typeof window !== 'undefined' && isKakaoWebView();
+
   if (status === "loading" || status === "authenticated") {
     return (
       <PageLayout>
@@ -211,6 +236,12 @@ export default function LoginPage() {
         <S.Card>
           <S.Title onClick={handleTitleClick}>로그인하고 모든 서비스를 이용해보세요</S.Title>
           <S.Subtitle>구글 계정을 통해 간편하게 시작할 수 있습니다.</S.Subtitle>
+          {kakaoWebView && (
+            <S.KakaoWebViewNotice>
+              카카오톡 내부 브라우저에서는 Google 로그인이 제한됩니다.<br />
+              아래 버튼을 눌러 외부 브라우저에서 열어주세요.
+            </S.KakaoWebViewNotice>
+          )}
 
           {specialMode && (
             <S.RoleSelectWrapper>
@@ -231,7 +262,7 @@ export default function LoginPage() {
             onClick={handleLogin}
             disabled={ADMIN_ROLES.includes(selectedRole)}
           >
-            <FaGoogle /> Google 계정으로 로그인
+            <FaGoogle /> {kakaoWebView ? '외부 브라우저로 열기' : 'Google 계정으로 로그인'}
           </S.GoogleLoginButton>
         </S.Card>
       </S.Wrapper>
