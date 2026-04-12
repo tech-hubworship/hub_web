@@ -87,10 +87,63 @@ export default function MyInfoPage() {
     );
   }
 
-  const isTshirtChangeable = tshirtConfig.tshirt_change_deadline
-    ? new Date() <= new Date(tshirtConfig.tshirt_change_deadline) : false;
-  const isDistributing = tshirtConfig.tshirt_distribute_start
-    ? new Date() >= new Date(tshirtConfig.tshirt_distribute_start) : false;
+  const isTshirtChangeable = new Date() <= new Date('2026-04-26T23:59:00+09:00');
+  const isDistributing = new Date() >= new Date('2026-05-10T00:00:00+09:00');
+
+  // 허브업 미신청이지만 티셔츠 주문이 있는 경우
+  if (!registration) {
+    return (
+      <Wrap>
+        <TopNav>
+          <BackBtn onClick={() => router.push('/hub_up')}>←</BackBtn>
+          <NavTitle>내 정보</NavTitle>
+        </TopNav>
+        <Content>
+          {tshirtOrder ? (
+            <Section>
+              <SectionTitle>티셔츠</SectionTitle>
+              {tshirtOrder.items.map((item) => (
+                <InfoRow key={`${item.color}-${item.size}`}>
+                  <InfoLabel>{item.color === 'black' ? 'Black' : item.color === 'navy' ? 'Navy' : 'White'} {item.size}</InfoLabel>
+                  <InfoValue>{item.quantity}개</InfoValue>
+                </InfoRow>
+              ))}
+              <InfoRow>
+                <InfoLabel>입금</InfoLabel>
+                <StatusBadge ok={tshirtOrder.status === 'confirmed'}>
+                  {tshirtOrder.status === 'confirmed' ? '완료' : '미확인'}
+                </StatusBadge>
+              </InfoRow>
+              {isDistributing && (
+                <QRSection>
+                  <QRTitle>티셔츠 수령 QR</QRTitle>
+                  <QRDesc>현장에서 이 QR을 제시해주세요.</QRDesc>
+                  <QRWrap>
+                    <QRCodeSVG
+                      value={tshirtOrder.items.map(item => `${item.color === 'black' ? 'Black' : item.color === 'navy' ? 'Navy' : 'White'} ${item.size}: ${item.quantity}개`).join('\n')}
+                      size={180}
+                    />
+                  </QRWrap>
+                </QRSection>
+              )}
+              {isTshirtChangeable && (
+                <SecondaryBtn onClick={() => router.push('/hub_up/tshirt')}>
+                  티셔츠 옵션 변경하기
+                </SecondaryBtn>
+              )}
+            </Section>
+          ) : (
+            <EmptyBox>
+              <EmptyIcon>📋</EmptyIcon>
+              <EmptyTitle>신청 내역이 없습니다</EmptyTitle>
+              <EmptyDesc>아직 허브업 신청을 하지 않으셨습니다.</EmptyDesc>
+              <PrimaryBtn onClick={() => router.push('/hub_up/register')}>신청하러 가기</PrimaryBtn>
+            </EmptyBox>
+          )}
+        </Content>
+      </Wrap>
+    );
+  }
 
   return (
     <Wrap>

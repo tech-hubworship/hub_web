@@ -1,18 +1,33 @@
 "use client";
 
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styled from '@emotion/styled';
 
+// 4월 12일 오후 4시 KST 활성화
+const OPEN_TIME = new Date('2026-04-12T14:00:00+09:00');
+
 export default function HubUpBanner() {
   const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsOpen(new Date() >= OPEN_TIME);
+    check();
+    const timer = setInterval(check, 10000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <Wrapper>
       <Icon>🕊️</Icon>
       <Title>Be Holy</Title>
       <Sub>HUBUP 2026</Sub>
-      <Btn onClick={() => router.push('/hub_up')}>허브업 신청하기 →</Btn>
+      {isOpen ? (
+        <Btn onClick={() => router.push('/hub_up')}>허브업 신청하기 →</Btn>
+      ) : (
+        <BtnDisabled>신청 준비 중...</BtnDisabled>
+      )}
     </Wrapper>
   );
 }
@@ -69,4 +84,19 @@ const Btn = styled.button`
   cursor: pointer;
   transition: opacity 0.15s;
   &:hover { opacity: 0.85; }
+`;
+
+const BtnDisabled = styled.div`
+  background: #B0B0B0;
+  color: #fff;
+  border-radius: 16px;
+  padding: 0 28px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  font-family: 'Wanted Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  cursor: not-allowed;
 `;
