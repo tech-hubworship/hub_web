@@ -646,43 +646,89 @@ export default function HubUpAdminPage() {
 
             {(() => {
               const SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
-              const colorTotals: Record<string, number> = { white: 0, black: 0 };
+              const COLORS = ['white', 'black', 'navy'] as const;
+              const colorTotals: Record<string, number> = { white: 0, black: 0, navy: 0 };
               const sizeTotals: Record<string, number> = {};
-              SIZES.forEach(s => { sizeTotals[s] = 0; });
+              // 색상×사이즈 교차 집계
+              const colorSizeTotals: Record<string, Record<string, number>> = {
+                white: {}, black: {}, navy: {},
+              };
+              SIZES.forEach(s => {
+                sizeTotals[s] = 0;
+                COLORS.forEach(c => { colorSizeTotals[c][s] = 0; });
+              });
               tshirts.forEach((t: any) => {
                 (t.items || []).forEach((item: any) => {
                   const c = item.color?.toLowerCase();
-                  if (c === 'white' || c === 'black') colorTotals[c] += item.quantity;
+                  if (COLORS.includes(c)) {
+                    colorTotals[c] += item.quantity;
+                    if (colorSizeTotals[c][item.size] !== undefined)
+                      colorSizeTotals[c][item.size] += item.quantity;
+                  }
                   if (sizeTotals[item.size] !== undefined) sizeTotals[item.size] += item.quantity;
                 });
               });
               return (
-                <TshirtStatsWrap>
-                  <TshirtStatGroup>
-                    <TshirtStatTitle>색상별</TshirtStatTitle>
-                    <TshirtStatRow>
-                      <TshirtStatItem color="#fff" border>
-                        <TshirtStatLabel>White</TshirtStatLabel>
-                        <TshirtStatNum>{colorTotals.white}장</TshirtStatNum>
-                      </TshirtStatItem>
-                      <TshirtStatItem color="#222">
-                        <TshirtStatLabel style={{color:'#fff'}}>Black</TshirtStatLabel>
-                        <TshirtStatNum style={{color:'#fff'}}>{colorTotals.black}장</TshirtStatNum>
-                      </TshirtStatItem>
-                    </TshirtStatRow>
-                  </TshirtStatGroup>
-                  <TshirtStatGroup>
-                    <TshirtStatTitle>사이즈별</TshirtStatTitle>
-                    <TshirtStatRow>
-                      {SIZES.map(s => (
-                        <TshirtStatItem key={s} color="#f8f9fa" border>
-                          <TshirtStatLabel>{s}</TshirtStatLabel>
-                          <TshirtStatNum>{sizeTotals[s]}장</TshirtStatNum>
+                <div>
+                  <TshirtStatsWrap>
+                    <TshirtStatGroup>
+                      <TshirtStatTitle>색상별</TshirtStatTitle>
+                      <TshirtStatRow>
+                        <TshirtStatItem color="#fff" border>
+                          <TshirtStatLabel>White</TshirtStatLabel>
+                          <TshirtStatNum>{colorTotals.white}장</TshirtStatNum>
                         </TshirtStatItem>
+                        <TshirtStatItem color="#222">
+                          <TshirtStatLabel style={{color:'#fff'}}>Black</TshirtStatLabel>
+                          <TshirtStatNum style={{color:'#fff'}}>{colorTotals.black}장</TshirtStatNum>
+                        </TshirtStatItem>
+                        <TshirtStatItem color="#1e3a5f">
+                          <TshirtStatLabel style={{color:'#fff'}}>Navy</TshirtStatLabel>
+                          <TshirtStatNum style={{color:'#fff'}}>{colorTotals.navy}장</TshirtStatNum>
+                        </TshirtStatItem>
+                      </TshirtStatRow>
+                    </TshirtStatGroup>
+                    <TshirtStatGroup>
+                      <TshirtStatTitle>사이즈별</TshirtStatTitle>
+                      <TshirtStatRow>
+                        {SIZES.map(s => (
+                          <TshirtStatItem key={s} color="#f8f9fa" border>
+                            <TshirtStatLabel>{s}</TshirtStatLabel>
+                            <TshirtStatNum>{sizeTotals[s]}장</TshirtStatNum>
+                          </TshirtStatItem>
+                        ))}
+                      </TshirtStatRow>
+                    </TshirtStatGroup>
+                  </TshirtStatsWrap>
+                  <TshirtCrossTable>
+                    <thead>
+                      <tr>
+                        <TshirtCrossTh>색상 \ 사이즈</TshirtCrossTh>
+                        {SIZES.map(s => <TshirtCrossTh key={s}>{s}</TshirtCrossTh>)}
+                        <TshirtCrossTh>합계</TshirtCrossTh>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {COLORS.map(c => (
+                        <tr key={c}>
+                          <TshirtCrossTd bold>
+                            <ColorDot color={c === 'white' ? '#e8eaed' : c === 'black' ? '#222' : '#1e3a5f'} />
+                            {c.charAt(0).toUpperCase() + c.slice(1)}
+                          </TshirtCrossTd>
+                          {SIZES.map(s => (
+                            <TshirtCrossTd key={s}>{colorSizeTotals[c][s] || 0}</TshirtCrossTd>
+                          ))}
+                          <TshirtCrossTd bold>{colorTotals[c]}</TshirtCrossTd>
+                        </tr>
                       ))}
-                    </TshirtStatRow>
-                  </TshirtStatGroup>
-                </TshirtStatsWrap>
+                      <tr>
+                        <TshirtCrossTd bold>합계</TshirtCrossTd>
+                        {SIZES.map(s => <TshirtCrossTd key={s} bold>{sizeTotals[s]}</TshirtCrossTd>)}
+                        <TshirtCrossTd bold>{Object.values(colorTotals).reduce((a,b)=>a+b,0)}</TshirtCrossTd>
+                      </tr>
+                    </tbody>
+                  </TshirtCrossTable>
+                </div>
               );
             })()}
 
@@ -844,3 +890,7 @@ const TshirtStatItem = styled.div<{ color: string; border?: boolean }>`
 `;
 const TshirtStatLabel = styled.div`font-size: 11px; font-weight: 600; color: #5f6368; margin-bottom: 4px;`;
 const TshirtStatNum = styled.div`font-size: 18px; font-weight: 700; color: #202124;`;
+const TshirtCrossTable = styled.table`width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e8eaed;`;
+const TshirtCrossTh = styled.th`padding: 8px 12px; background: #f8f9fa; text-align: center; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; border-right: 1px solid #e8eaed; white-space: nowrap; &:first-of-type { text-align: left; }`;
+const TshirtCrossTd = styled.td<{bold?:boolean}>`padding: 8px 12px; text-align: center; border-bottom: 1px solid #f1f3f4; border-right: 1px solid #f1f3f4; font-weight: ${p=>p.bold?'700':'400'}; color: ${p=>p.bold?'#202124':'#3c4043'}; &:first-of-type { text-align: left; display: flex; align-items: center; gap: 6px; }`;
+const ColorDot = styled.span<{color:string}>`display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${p=>p.color}; border: 1px solid #dadce0; flex-shrink: 0;`;
