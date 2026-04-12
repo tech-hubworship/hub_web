@@ -74,6 +74,14 @@ function exportTshirtExcel(orders: any[]) {
   URL.revokeObjectURL(url);
 }
 
+const GROUP_COLORS: Record<string, { bg: string; border: string; text: string; accent: string }> = {
+  '링크': { bg: '#f0fdf4', border: '#86efac', text: '#166534', accent: '#16a34a' },
+  '믿음': { bg: '#eff6ff', border: '#93c5fd', text: '#1e3a8a', accent: '#2563eb' },
+  '사랑': { bg: '#fff1f2', border: '#fca5a5', text: '#991b1b', accent: '#dc2626' },
+  '소망': { bg: '#fefce8', border: '#fde047', text: '#854d0e', accent: '#ca8a04' },
+  '새가족': { bg: '#faf7f2', border: '#d6c9b0', text: '#6b5c3e', accent: '#a08050' },
+};
+
 export default function HubUpAdminPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'stats' | 'deposit' | 'list' | 'room' | 'bus' | 'tshirt'>('stats');
@@ -301,21 +309,18 @@ export default function HubUpAdminPage() {
                 <GroupGenderRow>
                   <Card>
                     <CardTitle>그룹별 신청 현황</CardTitle>
-                    <TopGroupList>
+                    <TopGroupCardGrid>
                       {Object.entries(stats.topGroupCounts || {})
                         .sort(([, a], [, b]) => b.total - a.total)
                         .map(([g, c]) => (
-                          <TopGroupRow key={g}>
-                            <TopGroupName>{g}</TopGroupName>
-                            <TopGroupBarWrap>
-                              <TopGroupFill w={pct(c.total, stats.total)} />
-                            </TopGroupBarWrap>
-                            <TopGroupNum>{c.total}명</TopGroupNum>
+                          <TopGroupCard key={g} color={GROUP_COLORS[g]?.bg ?? '#f8fafc'} border={GROUP_COLORS[g]?.border ?? '#e8eaed'}>
+                            <TopGroupName color={GROUP_COLORS[g]?.text ?? '#374151'}>{g}</TopGroupName>
+                            <TopGroupNum>{c.total}<TopGroupUnit>명</TopGroupUnit></TopGroupNum>
                             <TopGroupSub>남 {c.male} / 여 {c.female}</TopGroupSub>
-                            <TopGroupPct>{pct(c.total, stats.total)}%</TopGroupPct>
-                          </TopGroupRow>
+                            <TopGroupPct color={GROUP_COLORS[g]?.accent ?? '#278f5a'}>{pct(c.total, stats.total)}%</TopGroupPct>
+                          </TopGroupCard>
                         ))}
-                    </TopGroupList>
+                    </TopGroupCardGrid>
                   </Card>
                   <Card>
                     <CardTitle>성별 비율</CardTitle>
@@ -356,17 +361,46 @@ export default function HubUpAdminPage() {
                 </TwoCol>
                 <Card>
                   <CardTitle>그룹별 인원</CardTitle>
-                  <DenseTable><thead><tr><DTh>그룹</DTh><DTh right>남</DTh><DTh right>여</DTh><DTh right>합계</DTh><DTh right>비율</DTh></tr></thead>
+                  <GroupTable>
+                    <thead>
+                      <tr>
+                        <GTh>그룹</GTh>
+                        <GTh right male>남</GTh>
+                        <GTh right female>여</GTh>
+                        <GTh right>합계</GTh>
+                        <GTh right>비율</GTh>
+                        <GTh right>비율 바</GTh>
+                      </tr>
+                    </thead>
                     <tbody>{(() => {
                       const FIXED = ['MC', '그룹장', '타공동체', '타교회', '기타'];
                       const entries = Object.entries(stats.groupCounts || {});
                       const fixed = entries.filter(([g]) => FIXED.includes(g)).sort(([a],[b]) => FIXED.indexOf(a) - FIXED.indexOf(b));
                       const rest = entries.filter(([g]) => !FIXED.includes(g)).sort(([a],[b]) => a.localeCompare(b, 'ko'));
-                      return [...rest, ...fixed].map(([g, c]) => (
-                        <tr key={g}><DTd>{g}</DTd><DTd right>{c.male}</DTd><DTd right>{c.female}</DTd><DTd right><strong>{c.total}</strong></DTd><DTd right>{pct(c.total, stats.total)}%</DTd></tr>
-                      ));
+                      return [...rest, ...fixed].map(([g, c], i) => {
+                        const topKey = g.match(/^(.+?)그룹/)?.[1] ?? g;
+                        const color = GROUP_COLORS[topKey];
+                        return (
+                          <GTr key={g} even={i % 2 === 0}>
+                            <GTd>
+                              <GroupDot color={color?.accent ?? '#9aa0a6'} />
+                              {g}
+                            </GTd>
+                            <GTd right><MaleNum>{c.male}</MaleNum></GTd>
+                            <GTd right><FemaleNum>{c.female}</FemaleNum></GTd>
+                            <GTd right><TotalNum>{c.total}</TotalNum></GTd>
+                            <GTd right><PctNum>{pct(c.total, stats.total)}%</PctNum></GTd>
+                            <GTd right>
+                              <MiniBarWrap>
+                                <MiniBarMale w={pct(c.male, c.total)} />
+                                <MiniBarFemale w={pct(c.female, c.total)} />
+                              </MiniBarWrap>
+                            </GTd>
+                          </GTr>
+                        );
+                      });
                     })()}</tbody>
-                  </DenseTable>
+                  </GroupTable>
                 </Card>
                 <ThreeCol>
                   <Card>
@@ -877,14 +911,13 @@ const KpiRow = styled.div`display: grid; grid-template-columns: repeat(5, 1fr); 
 const KpiCard = styled.div<{accent:string}>`background: white; border-radius: 10px; padding: 16px; text-align: center; border-top: 3px solid ${p=>p.accent}; box-shadow: 0 1px 4px rgba(0,0,0,0.06);`;
 const KpiNum = styled.div`font-size: 28px; font-weight: 800; color: #202124;`;
 const KpiLabel = styled.div`font-size: 12px; color: #9aa0a6; margin-top: 4px;`;
-const TopGroupList = styled.div`display: flex; flex-direction: column; gap: 10px;`;
-const TopGroupRow = styled.div`display: grid; grid-template-columns: 60px 1fr 55px 90px 40px; align-items: center; gap: 10px;`;
-const TopGroupName = styled.div`font-size: 13px; font-weight: 700; color: #202124;`;
-const TopGroupNum = styled.div`font-size: 14px; font-weight: 800; color: #202124; text-align: right;`;
-const TopGroupSub = styled.div`font-size: 11px; color: #9aa0a6; text-align: center;`;
-const TopGroupBarWrap = styled.div`height: 8px; background: #e8eaed; border-radius: 4px; overflow: hidden;`;
-const TopGroupFill = styled.div<{w:number}>`height: 100%; width: ${p=>p.w}%; background: #278f5a; border-radius: 4px; transition: width 0.3s;`;
-const TopGroupPct = styled.div`font-size: 11px; color: #278f5a; font-weight: 700; text-align: right;`;
+const TopGroupCardGrid = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px;`;
+const TopGroupCard = styled.div<{color:string; border:string}>`background: ${p=>p.color}; border-radius: 10px; padding: 14px 10px; text-align: center; border: 1px solid ${p=>p.border}; display: flex; flex-direction: column; align-items: center; gap: 4px;`;
+const TopGroupName = styled.div<{color:string}>`font-size: 13px; font-weight: 700; color: ${p=>p.color};`;
+const TopGroupNum = styled.div`font-size: 26px; font-weight: 800; color: #202124; line-height: 1.1; display: flex; align-items: baseline; gap: 2px;`;
+const TopGroupUnit = styled.span`font-size: 13px; font-weight: 500; color: #9aa0a6;`;
+const TopGroupSub = styled.div`font-size: 11px; color: #9aa0a6;`;
+const TopGroupPct = styled.div<{color:string}>`font-size: 12px; color: ${p=>p.color}; font-weight: 700;`;
 const Card = styled.div`background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);`;
 const CardTitle = styled.div`font-size: 12px; font-weight: 700; color: #9aa0a6; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;`;
 const GroupGenderRow = styled.div`display: grid; grid-template-columns: 1fr 220px; gap: 14px; align-items: start;`;
@@ -902,6 +935,18 @@ const ThreeCol = styled.div`display: grid; grid-template-columns: 1fr 1fr 1fr; g
 const DenseTable = styled.table`width: 100%; border-collapse: collapse; font-size: 13px;`;
 const DTh = styled.th<{right?:boolean}>`padding: 6px 8px; background: #f8f9fa; text-align: ${p=>p.right?'right':'left'}; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; white-space: nowrap;`;
 const DTd = styled.td<{right?:boolean}>`padding: 6px 8px; border-bottom: 1px solid #f1f3f4; text-align: ${p=>p.right?'right':'left'};`;
+const GroupTable = styled.table`width: 100%; border-collapse: collapse; font-size: 13px;`;
+const GTh = styled.th<{right?:boolean; male?:boolean; female?:boolean}>`padding: 8px 12px; background: ${p=>p.male?'#dbeafe':p.female?'#fee2e2':'#f1f3f4'}; text-align: ${p=>p.right?'right':'left'}; font-size: 11px; font-weight: 700; color: ${p=>p.male?'#1d4ed8':p.female?'#b91c1c':'#9aa0a6'}; letter-spacing: 0.05em; text-transform: uppercase; border-bottom: 2px solid #e8eaed; white-space: nowrap;`;
+const GTr = styled.tr<{even:boolean}>`background: ${p=>p.even?'#ffffff':'#f8fafc'}; &:hover { background: #eef2ff; }`;
+const GTd = styled.td<{right?:boolean}>`padding: 9px 12px; border-bottom: 1px solid #f1f3f4; text-align: ${p=>p.right?'right':'left'}; font-size: 13px;`;
+const GroupDot = styled.span<{color:string}>`display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${p=>p.color}; margin-right: 8px; flex-shrink: 0;`;
+const MaleNum = styled.span`color: #2563eb; font-weight: 600;`;
+const FemaleNum = styled.span`color: #d93025; font-weight: 600;`;
+const TotalNum = styled.span`font-size: 14px; font-weight: 800; color: #202124;`;
+const PctNum = styled.span`color: #5f6368; font-size: 12px;`;
+const MiniBarWrap = styled.div`display: flex; height: 8px; border-radius: 4px; overflow: hidden; width: 80px; background: #e8eaed;`;
+const MiniBarMale = styled.div<{w:number}>`height: 100%; width: ${p=>p.w}%; background: #2563eb;`;
+const MiniBarFemale = styled.div<{w:number}>`height: 100%; width: ${p=>p.w}%; background: #d93025;`;
 const TeamNum = styled.div`font-size: 22px; font-weight: 800; color: #202124;`;
 const TeamLabel = styled.div`font-size: 11px; color: #9aa0a6; margin-top: 3px;`;
 const LecRow = styled.div`display: flex; align-items: center; gap: 8px; margin-bottom: 8px;`;
