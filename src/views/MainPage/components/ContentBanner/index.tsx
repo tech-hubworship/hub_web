@@ -26,14 +26,14 @@ export default function ContentBanner({}: BannerProps) {
             <Label />
             <S.ButtonContainer1>
               <S.Button onClick={openYouTube}>
-                <S.ButtonText>
+                <S.ButtonText style={{ color: '#171E39' }}>
                 허브영상 보러가기 →
                 </S.ButtonText>
               </S.Button>
             </S.ButtonContainer1>
             <S.ButtonContainer>
               <S.Button onClick={openInstagram}>
-                <S.ButtonText>
+                <S.ButtonText style={{ color: '#FFFFFF' }}>
                 허브 콘텐츠 보러가기 →
                 </S.ButtonText>
               </S.Button>

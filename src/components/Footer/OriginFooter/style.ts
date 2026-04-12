@@ -3,6 +3,8 @@ import { colors } from '@sopt-makers/colors';
 
 export const Root = styled.footer<{ variant?: "default" | "dark" }>`
   width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
   min-height: 162px;
   background-color: ${({ variant }) => (variant === "dark" ? "#121212" : "#202020")};
   position: relative;

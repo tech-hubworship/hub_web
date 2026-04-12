@@ -21,7 +21,19 @@ const SIZE_GUIDE = [
 const COLOR_IMAGES: Record<string, string[]> = {
   white: ['/images/tshirt/tshirt_white.png', '/images/tshirt/tshirt_white2.png'],
   black: ['/images/tshirt/tshirt_black.png', '/images/tshirt/tshirt_black2.png'],
+  navy:  ['/images/tshirt/tshirt_navy.png',  '/images/tshirt/tshirt_navy2.png'],
 };
+
+const COLOR_LABELS: Record<string, string> = {
+  white: 'White',
+  black: 'Black',
+  navy:  'Navy',
+};
+
+// 수량별 단가 계산
+function calcUnitPrice(totalQty: number, basePrice: number): number {
+  return totalQty >= 3 ? 9000 : basePrice;
+}
 
 // 기간 상수 (KST)
 const SALE_START    = new Date('2026-04-12T00:00:00+09:00');
@@ -40,7 +52,7 @@ export default function TshirtPage() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeColor, setActiveColor] = useState<'white' | 'black'>('white');
+  const [activeColor, setActiveColor] = useState<'white' | 'black' | 'navy'>('white');
   const [imgIndex, setImgIndex] = useState(0);
   const touchStartX = useRef(0);
   const autoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -85,8 +97,9 @@ export default function TshirtPage() {
 
   const totalCount = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((sum, item) => {
-    const price = Number(config[`tshirt_price_${item.color}`] || 20000);
-    return sum + (price * item.quantity);
+    const base = Number(config[`tshirt_price_${item.color}`] || 10000);
+    const unit = totalCount >= 3 ? 9000 : base;
+    return sum + (unit * item.quantity);
   }, 0);
 
   const handleSubmit = async () => {
@@ -103,7 +116,7 @@ export default function TshirtPage() {
     setDone(true);
   };
 
-  const currentPrice = Number(config[`tshirt_price_${activeColor}`] || 20000);
+  const currentPrice = totalCount >= 3 ? 9000 : Number(config[`tshirt_price_${activeColor}`] || 10000);
   const [copyToast, setCopyToast] = useState(false);
 
   const copyAccount = () => {
@@ -238,7 +251,7 @@ export default function TshirtPage() {
       </SliderWrap>
 
       <Body>
-        <ProductName>ESSENCE 티셔츠</ProductName>
+        <ProductName>BeHoly 티셔츠</ProductName>
         <DeadlineRow>
           <DeadlineDot />
           <DeadlineText>
@@ -249,7 +262,10 @@ export default function TshirtPage() {
               : config.tshirt_deadline_text || '예약 종료'}
           </DeadlineText>
         </DeadlineRow>
-        <ProductPrice>{currentPrice.toLocaleString()}원</ProductPrice>
+        <PriceRow>
+          <ProductPrice>{currentPrice.toLocaleString()}원</ProductPrice>
+          <PriceNote>3장 구매 시 장당 9,000원</PriceNote>
+        </PriceRow>
 
         <HRule />
 
@@ -284,13 +300,14 @@ export default function TshirtPage() {
           <>
             <SectionTitle>색상 선택</SectionTitle>
             <ColorRow>
-              {(['white', 'black'] as const).map((c) => (
-                <ColorBtn key={c} active={activeColor === c} onClick={() => { setActiveColor(c); setImgIndex(0); }}>
-                  <ColorDot isWhite={c === 'white'} active={activeColor === c} />
-                  {c === 'white' ? 'White' : 'Black'}
+              {(['white', 'black', 'navy'] as const).map((c) => (
+                <ColorBtn key={c} active={activeColor === c} colorKey={c} onClick={() => { setActiveColor(c); setImgIndex(0); }}>
+                  <ColorDot colorKey={c} active={activeColor === c} />
+                  {COLOR_LABELS[c]}
                 </ColorBtn>
               ))}
             </ColorRow>
+            <SizeNote>통사이즈입니다. 평소 사이즈보다 한 사이즈 크게 입으시길 추천드립니다.</SizeNote>
 
             <SectionTitle style={{ marginTop: 24 }}>사이즈 / 수량</SectionTitle>
             <SizeList>
@@ -406,6 +423,11 @@ const DeadlineText = styled.div`font-size: 14px; font-weight: 500; color: #777; 
 const ProductPrice = styled.div`
   margin-top: 8px; font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
 `;
+const PriceRow = styled.div`display: flex; align-items: baseline; gap: 8px; margin-top: 8px;`;
+const PriceNote = styled.div`font-size: 12px; color: #888; font-weight: 500;`;
+const SizeNote = styled.div`
+  margin-top: 10px; font-size: 12px; color: #888; line-height: 1.5;
+`;
 const HRule = styled.div`height: 4px; background: #ebebeb; margin: 20px -20px 0;`;
 const SectionTitle = styled.div`
   font-size: 16px; font-weight: 700; letter-spacing: -0.02em; margin-top: 20px; margin-bottom: 12px;
@@ -427,19 +449,24 @@ const SGTd = styled.td<{ isLabel?: boolean }>`
   border-bottom: 1px solid #ebebeb;
 `;
 
-const ColorRow = styled.div`display: flex; gap: 10px;`;
-const ColorBtn = styled.button<{ active: boolean }>`
+const ColorRow = styled.div`display: flex; gap: 8px;`;
+const ColorBtn = styled.button<{ active: boolean; colorKey: string }>`
   flex: 1; height: 48px; border-radius: 8px;
   border: 1.5px solid ${p => p.active ? '#000' : '#e0e0e0'};
-  background: ${p => p.active ? '#000' : '#fff'};
-  color: ${p => p.active ? '#fff' : '#000'};
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: 14px; font-weight: 700; letter-spacing: -0.02em; cursor: pointer; transition: all 0.15s;
+  background: ${p => {
+    if (!p.active) return '#fff';
+    if (p.colorKey === 'white') return '#f5f5f5';
+    if (p.colorKey === 'navy') return '#1a2d6b';
+    return '#000';
+  }};
+  color: ${p => p.active && p.colorKey !== 'white' ? '#fff' : '#000'};
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 13px; font-weight: 700; letter-spacing: -0.02em; cursor: pointer; transition: all 0.15s;
 `;
-const ColorDot = styled.div<{ isWhite: boolean; active: boolean }>`
-  width: 16px; height: 16px; border-radius: 50%;
-  background: ${p => p.isWhite ? '#fff' : '#000'};
-  border: ${p => p.isWhite ? `1.5px solid ${p.active ? '#fff' : '#ccc'}` : 'none'};
+const ColorDot = styled.div<{ colorKey: string; active: boolean }>`
+  width: 14px; height: 14px; border-radius: 50%;
+  background: ${p => p.colorKey === 'white' ? '#fff' : p.colorKey === 'navy' ? '#1a2d6b' : '#000'};
+  border: 1.5px solid ${p => p.colorKey === 'white' ? '#ccc' : 'transparent'};
   flex-shrink: 0;
 `;
 

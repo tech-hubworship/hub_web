@@ -1,19 +1,20 @@
 import styled from "@emotion/styled";
 
 export const LabelWrapper = styled.div`
-  width: 300px;
-  height: 111px;
+  width: 100%;
+  max-width: 320px;
   margin-bottom: 20px;
-  background-color: #000000;
-  
+  background-color: #FFFFFF;
 `;
 
 export const LabelText = styled.p`
-  color: #ffffff;
+  color: #000000;
+  font-family: 'Wanted Sans', sans-serif;
   font-size: 28px;
   font-weight: 700;
-  line-height: 37px;
-  letter-spacing: -0.56px;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
   text-align: center;
-  white-space: pre-line; /* 줄바꿈 지원 */
+  white-space: pre-line;
+  margin: 0;
 `;

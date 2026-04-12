@@ -44,7 +44,7 @@ const BibleCardPromotion = dynamic(() => import('./components/BibleCardPromotion
 });
 // ── 허브업 배너 on/off ──────────────────────────────────────
 // true = 배너 표시, false = 숨김 (변경 후 재배포)
-const HUBUP_BANNER_ENABLED = false;
+const HUBUP_BANNER_ENABLED = true;
 
 const HubUpBanner = dynamic(() => import('./components/HubUpBanner'), {
   ssr: false,
@@ -137,8 +137,10 @@ const LazyLoadSection = ({ children, id, priority = false }: LazyLoadSectionProp
 // ==================== Container & Wrapper ====================
 const Container = styled.div`
   min-height: 100vh;
-  background: transparent;
+  background: #fff;
   padding: 80px 0 0;
+  max-width: 1100px;
+  margin: 0 auto;
 
   @media (max-width: 1024px) {
     padding: 70px 0 0;
@@ -190,20 +192,13 @@ const MainPage = memo(function MainPage() {
         {/* 허브업 D-day 배너 - HUBUP_BANNER_ENABLED=true 로 활성화 */}
         {HUBUP_BANNER_ENABLED && (
           <LazyLoadSection id="hubup-banner-section" priority={true}>
-            <ContentWrapper>
-              <HubUpBanner />
-            </ContentWrapper>
+            <HubUpBanner />
           </LazyLoadSection>
         )}
 
         {/* 말씀카드 페이지 광고 섹션 - 두 번째 섹션 (전체 너비) */}
         <LazyLoadSection id="bible-card-promotion-section" priority={true}>
           <BibleCardPromotion />
-        </LazyLoadSection>
-        
-        {/* 영상 이벤트 프로모션 섹션 - 세 번째 섹션 (전체 너비) */}
-        <LazyLoadSection id="video-event-promotion-section" priority={true}>
-          <VideoEventPromotion />
         </LazyLoadSection>
         
         {/* 콘텐츠 배너 섹션 (전체 너비) */}

@@ -1,115 +1,69 @@
 import styled from "@emotion/styled";
 
 export const Container = styled.section`
-  position: relative;
+  width: 100%;
+  background-color: #FFFFFF;
   display: flex;
   flex-direction: column;
-  height: auto;
-  min-height: calc((413 / 360) * 100vw); /* 기본 높이는 유지하되, 더 늘어날 수 있음 */
-  transition: height 0.3s ease;
   align-items: center;
-  background-color: #000000;
-   
-  @media (min-width: 58.75rem) {
-    width: 100%;
-    min-height: 413px;
-  }
+  padding: 60px 20px;
+  box-sizing: border-box;
 `;
 
 export const Content = styled.main`
+  max-width: 480px;
+  width: 100%;
   display: flex;
   align-items: center;
   flex-direction: column;
-
-  @media (min-width: 58.75rem) {
-    width: 100%;
-  }
+  gap: 12px;
 `;
 
 export const ContentWrapper = styled.article`
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100vw;
-  margin-left: calc(-50vw + 50%);
-  margin-right: calc(-50vw + 50%);
-  position: relative;
-  z-index: 2;
-  padding-bottom: 5px;
-  padding-top: 50px;
-  // justify-content: center;
-
-  @media (min-width: 58.75rem) {
-    width: 100vw;
-    margin-left: calc(-50vw + 50%);
-    margin-right: calc(-50vw + 50%);
-    padding-left: 0;
-    padding-right: 0;
-  }
 `;
 
-export const ButtonContainer = styled.section`
-  width: calc((320 / 360) * 100vw);
-  height: calc((52 / 360) * 100vw);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background-color: #ED2725;
-  background-repeat: no-repeat;
-  background-size: contain;
-  position: relative;
-
-  @media (min-width: 58.75rem) {
-    width: 500px;
-    height: 52px;
-  }
-`;
-
+/* 허브영상 보러가기 - #E3E3E3 배경, #171E39 텍스트 */
 export const ButtonContainer1 = styled.section`
-  width: calc((320 / 360) * 100vw);
-  height: calc((52 / 360) * 100vw);
+  width: 100%;
+  max-width: 320px;
+  height: 52px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #FFFFFF;
-  background-repeat: no-repeat;
-  background-size: contain;
-  position: relative;
-  margin-bottom: 12px;
+  background-color: #E3E3E3;
+  border-radius: 16px;
+  margin-bottom: 0;
+`;
 
-  @media (min-width: 58.75rem) {
-    width: 500px;
-    height: 52px;
-  }
+/* 허브 콘텐츠 보러가기 - #2D478C 배경, 흰색 텍스트 */
+export const ButtonContainer = styled.section`
+  width: 100%;
+  max-width: 320px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #2D478C;
+  border-radius: 16px;
 `;
 
 export const Button = styled.button`
   width: 100%;
   height: 100%;
   border: none;
+  background: transparent;
   cursor: pointer;
-  transition: all 0.3s ease;
-
-
-  
-  &:hover {
-    opacity: 0.9;
-    transform: translateY(-2px);
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.8; }
 `;
 
 export const ButtonText = styled.span`
-  color: #000000;
+  font-family: 'Wanted Sans', sans-serif;
   font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.56px;
-  line-height: 37px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
 `;
-
-

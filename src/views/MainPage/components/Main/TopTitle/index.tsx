@@ -1,28 +1,43 @@
 import React from "react";
-import {
-  BoxWrapper,
-  Group,
-  Text,
-  DateWrapper,
-  DateText,
-  GroupWrapper,
-  Location,
-  Date,
-} from "./style";
+import styled from "@emotion/styled";
 
 export const Box = () => {
   return (
-    <BoxWrapper>
-      <Group>
-        <DateWrapper>
-          <Date />
-          <DateText>주일 오후 2시</DateText>
-        </DateWrapper>
-        <GroupWrapper>
-          <Location />
-          <Text>양재온누리교회 기쁨홀</Text>
-        </GroupWrapper>
-      </Group>
-    </BoxWrapper>
+    <Wrapper>
+      <Item>
+        <span>🗓</span>
+        <span>주일 오후 2시</span>
+      </Item>
+      <Divider />
+      <Item>
+        <span>📍</span>
+        <span>양재 온누리교회 기쁨홀</span>
+      </Item>
+    </Wrapper>
   );
 };
+
+const Wrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  height: 80px;
+`;
+
+const Item = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+`;
+
+const Divider = styled.div`
+  width: 1px;
+  height: 16px;
+  background: #ccc;
+`;

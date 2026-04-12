@@ -194,10 +194,14 @@ export default function HubUpMainPage() {
         </FaqPreviewRow>
       </ScheduleSection>
 
-      {/* T-SHIRTS 배너 - BG 화이트 */}
+      {/* T-SHIRTS 배너 */}
       <TshirtBanner onClick={() => router.push('/hub_up/tshirt')}>
-        <TshirtLabel>T-SHIRTS</TshirtLabel>
-        <TshirtSubLabel>티셔츠 구매하기 →</TshirtSubLabel>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/tshirt/tshirt_banner.png"
+          alt="T-SHIRTS"
+          style={{ width: '100%', height: 'auto', display: 'block' }}
+        />
       </TshirtBanner>
 
       {/* 콘텐츠 섹션 - 배경 블랙 */}
@@ -551,17 +555,9 @@ const FaqPreviewDivider = styled.div`
 
 /* T-SHIRTS 배너 - BG 화이트 */
 const TshirtBanner = styled.div`
-  background: #fff;
-  height: 228px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: 8px 20px 16px;
+  width: 100%;
   cursor: pointer;
   overflow: hidden;
-  position: relative;
-  border-bottom: 1px solid #eee;
 `;
 
 const TshirtLabel = styled.div`

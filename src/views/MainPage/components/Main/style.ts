@@ -4,15 +4,11 @@ export const Container = styled.section<{ $anyDayOpen?: boolean }>`
   position: relative;
   display: flex;
   flex-direction: column;
-  height: auto;
-  transition: height 0.3s ease, min-height 0.3s ease;
+  height: 80px;
   align-items: center;
-  background-color: #000000;
-
-  @media (min-width: 58.75rem) {
-    width: 100%;
-    background-color: #000000;
-  }
+  justify-content: center;
+  background-color: #FFFFFF;
+  width: 100%;
 `;
 
 export const Content = styled.main`

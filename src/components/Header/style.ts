@@ -2,6 +2,7 @@ import styled from "@emotion/styled";
 
 export const Wrapper = styled.header<{ opacity: number; isMenuOpen?: boolean; darkMode?: boolean }>`
   width: 100%;
+  max-width: 1100px;
   min-height: 80px;
   display: flex;
   justify-content: space-between;
@@ -9,8 +10,8 @@ export const Wrapper = styled.header<{ opacity: number; isMenuOpen?: boolean; da
   position: fixed;
   z-index: 100;
   top: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 0 20px;
 
   background-color: ${({ opacity, isMenuOpen, darkMode }) =>

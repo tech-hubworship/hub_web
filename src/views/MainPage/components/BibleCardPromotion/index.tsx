@@ -4,44 +4,23 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
 const SectionCard = styled.div`
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  padding: 60px 40px;
-  width: 100vw;
-  margin-left: calc(-50vw + 50%);
-  margin-right: calc(-50vw + 50%);
-  min-height: 400px;
+  background: #171E39;
+  padding: 60px 20px;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
-
-  @media (max-width: 1024px) {
-    padding: 50px 32px;
-    min-height: 350px;
-  }
-
-  @media (max-width: 768px) {
-    padding: 40px 24px;
-    min-height: 300px;
-  }
 `;
 
 const ContentWrapper = styled.div`
-  max-width: 1200px;
+  max-width: 480px;
   width: 100%;
   margin: 0 auto;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
-  z-index: 1;
-  position: relative;
-
-  @media (max-width: 768px) {
-    gap: 20px;
-  }
+  gap: 20px;
 `;
 
 const IconWrapper = styled.div`
@@ -61,19 +40,11 @@ const IconWrapper = styled.div`
 `;
 
 const Title = styled.h2`
-  font-size: 36px;
-  font-weight: 800;
-  color: #FFD700;
+  font-family: 'Wanted Sans', sans-serif;
+  font-weight: 700;
+  font-size: 32px;
+  color: #fff;
   margin: 0;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-
-  @media (max-width: 1024px) {
-    font-size: 32px;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 28px;
-  }
 `;
 
 const Description = styled.p`
@@ -95,32 +66,19 @@ const Description = styled.p`
 `;
 
 const CTAButton = styled.button`
-  background: #FFD700;
-  color: #000000;
+  background: #FFFFFF;
+  color: #171E39;
   border: none;
-  padding: 16px 40px;
+  padding: 0 28px;
+  height: 52px;
+  font-family: 'Wanted Sans', sans-serif;
   font-size: 18px;
   font-weight: 700;
-  border-radius: 12px;
+  border-radius: 16px;
+  letter-spacing: -0.04em;
   cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 8px;
-  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
-
-  &:hover {
-    background: #FFC700;
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(255, 215, 0, 0.4);
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-
-  @media (max-width: 768px) {
-    padding: 14px 32px;
-    font-size: 16px;
-  }
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.85; }
 `;
 
 const CountdownWrapper = styled.div`
