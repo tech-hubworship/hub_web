@@ -85,9 +85,9 @@ export default function HubUpAdminPage() {
 
   // 입금 기간 정의
   const DEPOSIT_PERIODS = [
-    { key: '1', label: '1차', start: new Date('2026-04-12T00:00:00+09:00'), end: new Date('2026-04-15T09:10:00+09:00') },
-    { key: '2', label: '2차', start: new Date('2026-04-15T09:11:00+09:00'), end: new Date('2026-04-20T09:10:00+09:00') },
-    { key: '3', label: '3차', start: new Date('2026-04-20T09:11:00+09:00'), end: new Date('2026-04-27T09:10:00+09:00') },
+    { key: '1', label: '1차', start: new Date('2026-04-12T00:00:00+09:00'), end: new Date('2026-04-15T09:10:59+09:00') },
+    { key: '2', label: '2차', start: new Date('2026-04-15T09:11:00+09:00'), end: new Date('2026-04-20T09:10:59+09:00') },
+    { key: '3', label: '3차', start: new Date('2026-04-20T09:11:00+09:00'), end: new Date('2026-04-27T09:10:59+09:00') },
   ];
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRoom, setEditRoom] = useState('');
