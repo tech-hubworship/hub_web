@@ -4,19 +4,27 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styled from '@emotion/styled';
 
-// 4월 12일 오후 4시 KST 활성화
-const OPEN_TIME = new Date('2026-04-12T14:00:00+09:00');
+const OPEN_TIME = new Date('2026-04-12T13:00:00+09:00');
+
+function getTimeLeft() {
+  const diff = OPEN_TIME.getTime() - Date.now();
+  if (diff <= 0) return null;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  return { h, m, s };
+}
 
 export default function HubUpBanner() {
   const router = useRouter();
-  const [isOpen, setIsOpen] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(getTimeLeft());
 
   useEffect(() => {
-    const check = () => setIsOpen(new Date() >= OPEN_TIME);
-    check();
-    const timer = setInterval(check, 10000);
+    const timer = setInterval(() => setTimeLeft(getTimeLeft()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const isOpen = timeLeft === null;
 
   return (
     <Wrapper>
@@ -26,7 +34,12 @@ export default function HubUpBanner() {
       {isOpen ? (
         <Btn onClick={() => router.push('/hub_up')}>허브업 신청하기 →</Btn>
       ) : (
-        <BtnDisabled>신청 준비 중...</BtnDisabled>
+        <CountdownWrap>
+          <CountdownLabel>허브업 신청까지</CountdownLabel>
+          <CountdownTime>
+            {String(timeLeft.h).padStart(2, '0')}:{String(timeLeft.m).padStart(2, '0')}:{String(timeLeft.s).padStart(2, '0')}
+          </CountdownTime>
+        </CountdownWrap>
       )}
     </Wrapper>
   );
@@ -86,17 +99,26 @@ const Btn = styled.button`
   &:hover { opacity: 0.85; }
 `;
 
-const BtnDisabled = styled.div`
-  background: #B0B0B0;
-  color: #fff;
-  border-radius: 16px;
-  padding: 0 28px;
-  height: 52px;
+const CountdownWrap = styled.div`
   display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+`;
+
+const CountdownLabel = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #2D478C;
+  opacity: 0.7;
+`;
+
+const CountdownTime = styled.div`
   font-family: 'Wanted Sans', sans-serif;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  cursor: not-allowed;
+  font-size: 40px;
+  font-weight: 800;
+  color: #2D478C;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
 `;
