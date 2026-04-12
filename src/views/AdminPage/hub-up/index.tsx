@@ -306,41 +306,54 @@ export default function HubUpAdminPage() {
                   <KpiCard accent="#278f5a"><KpiNum style={{color:'#278f5a'}}>{stats.deposited}</KpiNum><KpiLabel>입금완료</KpiLabel></KpiCard>
                   <KpiCard accent="#f59e0b"><KpiNum style={{color:'#f59e0b'}}>{stats.depositRate}%</KpiNum><KpiLabel>입금률</KpiLabel></KpiCard>
                 </KpiRow>
-                <GroupGenderRow>
-                  <Card>
-                    <CardTitle>그룹별 신청 현황</CardTitle>
-                    <TopGroupCardGrid>
-                      {Object.entries(stats.topGroupCounts || {})
-                        .sort(([, a], [, b]) => b.total - a.total)
-                        .map(([g, c]) => (
-                          <TopGroupCard key={g} color={GROUP_COLORS[g]?.bg ?? '#f8fafc'} border={GROUP_COLORS[g]?.border ?? '#e8eaed'}>
-                            <TopGroupName color={GROUP_COLORS[g]?.text ?? '#374151'}>{g}</TopGroupName>
-                            <TopGroupNum>{c.total}<TopGroupUnit>명</TopGroupUnit></TopGroupNum>
-                            <TopGroupSub>남 {c.male} / 여 {c.female}</TopGroupSub>
-                            <TopGroupPct color={GROUP_COLORS[g]?.accent ?? '#278f5a'}>{pct(c.total, stats.total)}%</TopGroupPct>
-                          </TopGroupCard>
-                        ))}
-                    </TopGroupCardGrid>
-                  </Card>
-                  <Card>
-                    <CardTitle>성별 비율</CardTitle>
-                    <GenderDonut>
-                      <GenderDonutInner>
-                        <GenderDonutNum>{pct(stats.gender?.male ?? 0, stats.total)}%</GenderDonutNum>
-                        <GenderDonutLabel>남</GenderDonutLabel>
-                      </GenderDonutInner>
-                      <GenderArc male={pct(stats.gender?.male ?? 0, stats.total)} />
-                    </GenderDonut>
-                    <GenderBarWrap style={{marginTop: '16px'}}>
-                      <GenderSeg w={pct(stats.gender?.male ?? 0, stats.total)} color="#2563eb" />
-                      <GenderSeg w={pct(stats.gender?.female ?? 0, stats.total)} color="#d93025" />
-                    </GenderBarWrap>
-                    <GenderLegend>
-                      <GenderItem color="#2563eb">남 {stats.gender?.male ?? 0}명<br/><strong>{pct(stats.gender?.male ?? 0, stats.total)}%</strong></GenderItem>
-                      <GenderItem color="#d93025">여 {stats.gender?.female ?? 0}명<br/><strong>{pct(stats.gender?.female ?? 0, stats.total)}%</strong></GenderItem>
-                    </GenderLegend>
-                  </Card>
-                </GroupGenderRow>
+                <Card>
+                  <CardTitle>그룹별 신청 현황</CardTitle>
+                  <TopGroupCardGrid>
+                    {Object.entries(stats.topGroupCounts || {})
+                      .sort(([, a], [, b]) => b.total - a.total)
+                      .map(([g, c]) => (
+                        <TopGroupCard key={g} color={GROUP_COLORS[g]?.bg ?? '#f8fafc'} border={GROUP_COLORS[g]?.border ?? '#e8eaed'}>
+                          <TopGroupAccentBar color={GROUP_COLORS[g]?.accent ?? '#e8eaed'} />
+                          <TopGroupName color={GROUP_COLORS[g]?.text ?? '#374151'}>{g}</TopGroupName>
+                          <TopGroupNum>{c.total}<TopGroupUnit>명</TopGroupUnit></TopGroupNum>
+                          <TopGroupGenderRow>
+                            <TopGroupGenderItem male>남 {c.male}</TopGroupGenderItem>
+                            <TopGroupGenderDivider />
+                            <TopGroupGenderItem>여 {c.female}</TopGroupGenderItem>
+                          </TopGroupGenderRow>
+                          <TopGroupPct color={GROUP_COLORS[g]?.accent ?? '#278f5a'}>{pct(c.total, stats.total)}%</TopGroupPct>
+                        </TopGroupCard>
+                      ))}
+                  </TopGroupCardGrid>
+                </Card>
+                <GenderCard>
+                  <CardTitle>성별 비율</CardTitle>
+                  <GenderDonut>
+                    <GenderArc male={pct(stats.gender?.male ?? 0, stats.total)} />
+                    <GenderDonutInner>
+                      <GenderDonutNum>{pct(stats.gender?.male ?? 0, stats.total)}%</GenderDonutNum>
+                      <GenderDonutLabel>남성</GenderDonutLabel>
+                    </GenderDonutInner>
+                  </GenderDonut>
+                  <GenderStatRow>
+                    <GenderStatItem>
+                      <GenderStatDot color="#2563eb" />
+                      <GenderStatLabel>남</GenderStatLabel>
+                      <GenderStatNum color="#2563eb">{stats.gender?.male ?? 0}명</GenderStatNum>
+                      <GenderStatPct>{pct(stats.gender?.male ?? 0, stats.total)}%</GenderStatPct>
+                    </GenderStatItem>
+                    <GenderStatItem>
+                      <GenderStatDot color="#d93025" />
+                      <GenderStatLabel>여</GenderStatLabel>
+                      <GenderStatNum color="#d93025">{stats.gender?.female ?? 0}명</GenderStatNum>
+                      <GenderStatPct>{pct(stats.gender?.female ?? 0, stats.total)}%</GenderStatPct>
+                    </GenderStatItem>
+                  </GenderStatRow>
+                  <GenderBarWrap>
+                    <GenderSeg w={pct(stats.gender?.male ?? 0, stats.total)} color="#2563eb" />
+                    <GenderSeg w={pct(stats.gender?.female ?? 0, stats.total)} color="#d93025" />
+                  </GenderBarWrap>
+                </GenderCard>
                 <TwoCol>
                   <Card>
                     <CardTitle>[출발] 차량 현황</CardTitle>
@@ -911,22 +924,32 @@ const KpiRow = styled.div`display: grid; grid-template-columns: repeat(5, 1fr); 
 const KpiCard = styled.div<{accent:string}>`background: white; border-radius: 10px; padding: 16px; text-align: center; border-top: 3px solid ${p=>p.accent}; box-shadow: 0 1px 4px rgba(0,0,0,0.06);`;
 const KpiNum = styled.div`font-size: 28px; font-weight: 800; color: #202124;`;
 const KpiLabel = styled.div`font-size: 12px; color: #9aa0a6; margin-top: 4px;`;
-const TopGroupCardGrid = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px;`;
-const TopGroupCard = styled.div<{color:string; border:string}>`background: ${p=>p.color}; border-radius: 10px; padding: 14px 10px; text-align: center; border: 1px solid ${p=>p.border}; display: flex; flex-direction: column; align-items: center; gap: 4px;`;
-const TopGroupName = styled.div<{color:string}>`font-size: 13px; font-weight: 700; color: ${p=>p.color};`;
-const TopGroupNum = styled.div`font-size: 26px; font-weight: 800; color: #202124; line-height: 1.1; display: flex; align-items: baseline; gap: 2px;`;
-const TopGroupUnit = styled.span`font-size: 13px; font-weight: 500; color: #9aa0a6;`;
+const TopGroupCardGrid = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px;`;
+const TopGroupCard = styled.div<{color:string; border:string}>`background: ${p=>p.color}; border-radius: 12px; padding: 0; text-align: center; border: 1px solid ${p=>p.border}; display: flex; flex-direction: column; align-items: center; overflow: hidden; gap: 0;`;
+const TopGroupAccentBar = styled.div<{color:string}>`width: 100%; height: 5px; background: ${p=>p.color}; flex-shrink: 0;`;
+const TopGroupName = styled.div<{color:string}>`font-size: 14px; font-weight: 700; color: ${p=>p.color}; margin-top: 14px;`;
+const TopGroupNum = styled.div`font-size: 36px; font-weight: 800; color: #202124; line-height: 1.1; display: flex; align-items: baseline; gap: 3px; margin-top: 6px;`;
+const TopGroupUnit = styled.span`font-size: 14px; font-weight: 500; color: #9aa0a6;`;
+const TopGroupGenderRow = styled.div`display: flex; align-items: center; gap: 6px; margin-top: 6px;`;
+const TopGroupGenderItem = styled.span<{male?:boolean}>`font-size: 12px; font-weight: 600; color: ${p=>p.male?'#2563eb':'#d93025'};`;
+const TopGroupGenderDivider = styled.span`width: 1px; height: 10px; background: #d1d5db;`;
 const TopGroupSub = styled.div`font-size: 11px; color: #9aa0a6;`;
-const TopGroupPct = styled.div<{color:string}>`font-size: 12px; color: ${p=>p.color}; font-weight: 700;`;
+const TopGroupPct = styled.div<{color:string}>`font-size: 13px; color: ${p=>p.color}; font-weight: 700; margin: 8px 0 14px;`;
 const Card = styled.div`background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);`;
-const CardTitle = styled.div`font-size: 12px; font-weight: 700; color: #9aa0a6; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;`;
-const GroupGenderRow = styled.div`display: grid; grid-template-columns: 1fr 220px; gap: 14px; align-items: start;`;
-const GenderBarWrap = styled.div`height: 10px; border-radius: 5px; overflow: hidden; display: flex; background: #f1f3f4; margin-bottom: 8px;`;
-const GenderDonut = styled.div`position: relative; width: 120px; height: 120px; margin: 0 auto 8px;`;
+const GenderCard = styled.div`background: white; border-radius: 10px; padding: 24px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); display: flex; flex-direction: column; align-items: center;`;
+const CardTitle = styled.div`font-size: 12px; font-weight: 700; color: #9aa0a6; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; width: 100%;`;
+const GenderBarWrap = styled.div`height: 10px; border-radius: 5px; overflow: hidden; display: flex; background: #f1f3f4; width: 100%; margin-top: 16px;`;
+const GenderDonut = styled.div`position: relative; width: 160px; height: 160px; margin: 0 auto 16px;`;
 const GenderArc = styled.div<{male:number}>`width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(#2563eb ${p=>p.male * 3.6}deg, #d93025 0deg);`;
-const GenderDonutInner = styled.div`position: absolute; inset: 20px; background: white; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;`;
-const GenderDonutNum = styled.div`font-size: 18px; font-weight: 800; color: #2563eb; line-height: 1;`;
-const GenderDonutLabel = styled.div`font-size: 11px; color: #9aa0a6; margin-top: 2px;`;
+const GenderDonutInner = styled.div`position: absolute; inset: 28px; background: white; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;`;
+const GenderDonutNum = styled.div`font-size: 22px; font-weight: 800; color: #2563eb; line-height: 1;`;
+const GenderDonutLabel = styled.div`font-size: 12px; color: #9aa0a6; margin-top: 3px;`;
+const GenderStatRow = styled.div`display: flex; gap: 20px; justify-content: center; width: 100%;`;
+const GenderStatItem = styled.div`display: flex; flex-direction: column; align-items: center; gap: 3px;`;
+const GenderStatDot = styled.div<{color:string}>`width: 10px; height: 10px; border-radius: 50%; background: ${p=>p.color};`;
+const GenderStatLabel = styled.div`font-size: 12px; color: #9aa0a6;`;
+const GenderStatNum = styled.div<{color:string}>`font-size: 20px; font-weight: 800; color: ${p=>p.color};`;
+const GenderStatPct = styled.div`font-size: 12px; color: #9aa0a6; font-weight: 600;`;
 const GenderSeg = styled.div<{w:number;color:string}>`height: 100%; width: ${p=>p.w}%; background: ${p=>p.color};`;
 const GenderLegend = styled.div`display: flex; gap: 16px; justify-content: center;`;
 const GenderItem = styled.span<{color:string}>`font-size: 13px; font-weight: 600; color: ${p=>p.color};`;
