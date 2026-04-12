@@ -21,6 +21,7 @@ interface Stats {
   returnCounts: Record<string, number>;
   carRoleCounts: Record<string, number>;
   groupCounts: Record<string, { male: number; female: number; total: number }>;
+  topGroupCounts: Record<string, { male: number; female: number; total: number }>;
   volunteerCount: number; volunteerCounts: Record<string, number>;
   electiveCounts: Record<string, number>;
   communityCounts: Record<string, number>;
@@ -239,17 +240,18 @@ export default function HubUpAdminPage() {
     const matchDeposit = depositFilter === 'all' || (depositFilter === 'confirmed' && r.admin_deposit_confirm) || (depositFilter === 'pending' && !r.admin_deposit_confirm);
     const matchPeriod = (() => {
       if (periodFilter === 'all') return true;
+      const now = new Date();
       const createdAt = new Date(r.created_at);
       const currentPeriodIdx = DEPOSIT_PERIODS.findIndex(p => p.key === periodFilter);
-      // 현재 기간까지의 모든 기간을 순회
       for (let i = 0; i <= currentPeriodIdx; i++) {
         const p = DEPOSIT_PERIODS[i];
         const inThisPeriod = createdAt >= p.start && createdAt <= p.end;
         if (inThisPeriod) {
           // 현재 선택한 기간이면 무조건 포함
           if (i === currentPeriodIdx) return true;
-          // 이전 기간이면 미확인자만 포함 (누적)
-          if (!r.admin_deposit_confirm) return true;
+          // 이전 기간이면: 해당 기간이 실제로 지났고 미확인인 경우만 누적
+          const periodHasPassed = now > p.end;
+          if (periodHasPassed && !r.admin_deposit_confirm) return true;
         }
       }
       return false;
@@ -296,6 +298,24 @@ export default function HubUpAdminPage() {
                   <KpiCard accent="#278f5a"><KpiNum style={{color:'#278f5a'}}>{stats.deposited}</KpiNum><KpiLabel>입금완료</KpiLabel></KpiCard>
                   <KpiCard accent="#f59e0b"><KpiNum style={{color:'#f59e0b'}}>{stats.depositRate}%</KpiNum><KpiLabel>입금률</KpiLabel></KpiCard>
                 </KpiRow>
+                <Card>
+                  <CardTitle>그룹별 신청 현황</CardTitle>
+                  <TopGroupRow>
+                    {Object.entries(stats.topGroupCounts || {})
+                      .sort(([a], [b]) => a.localeCompare(b, 'ko'))
+                      .map(([g, c]) => (
+                        <TopGroupCard key={g}>
+                          <TopGroupName>{g}</TopGroupName>
+                          <TopGroupNum>{c.total}</TopGroupNum>
+                          <TopGroupSub>남 {c.male} / 여 {c.female}</TopGroupSub>
+                          <TopGroupBar>
+                            <TopGroupFill w={pct(c.total, stats.total)} />
+                          </TopGroupBar>
+                          <TopGroupPct>{pct(c.total, stats.total)}%</TopGroupPct>
+                        </TopGroupCard>
+                      ))}
+                  </TopGroupRow>
+                </Card>
                 <Card>
                   <CardTitle>성별 비율</CardTitle>
                   <GenderBarWrap>
@@ -848,6 +868,14 @@ const KpiRow = styled.div`display: grid; grid-template-columns: repeat(5, 1fr); 
 const KpiCard = styled.div<{accent:string}>`background: white; border-radius: 10px; padding: 16px; text-align: center; border-top: 3px solid ${p=>p.accent}; box-shadow: 0 1px 4px rgba(0,0,0,0.06);`;
 const KpiNum = styled.div`font-size: 28px; font-weight: 800; color: #202124;`;
 const KpiLabel = styled.div`font-size: 12px; color: #9aa0a6; margin-top: 4px;`;
+const TopGroupRow = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;`;
+const TopGroupCard = styled.div`background: #f8fafc; border-radius: 10px; padding: 14px 12px; text-align: center; border: 1px solid #e8eaed;`;
+const TopGroupName = styled.div`font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 6px;`;
+const TopGroupNum = styled.div`font-size: 28px; font-weight: 800; color: #202124; line-height: 1;`;
+const TopGroupSub = styled.div`font-size: 11px; color: #9aa0a6; margin-top: 4px;`;
+const TopGroupBar = styled.div`height: 4px; background: #e8eaed; border-radius: 2px; margin-top: 8px; overflow: hidden;`;
+const TopGroupFill = styled.div<{w:number}>`height: 100%; width: ${p=>p.w}%; background: #278f5a; border-radius: 2px;`;
+const TopGroupPct = styled.div`font-size: 11px; color: #278f5a; font-weight: 600; margin-top: 4px;`;
 const Card = styled.div`background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);`;
 const CardTitle = styled.div`font-size: 12px; font-weight: 700; color: #9aa0a6; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;`;
 const GenderBarWrap = styled.div`height: 10px; border-radius: 5px; overflow: hidden; display: flex; background: #f1f3f4; margin-bottom: 8px;`;

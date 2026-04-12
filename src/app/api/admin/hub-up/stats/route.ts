@@ -50,6 +50,18 @@ export async function GET() {
     else if (r.gender === '여' || r.gender === '여자') groupCounts[groupKey].female++;
   });
 
+  // 상위 그룹별 (링크, 새가족, 소망, 사랑, 믿음 등 "그룹" 앞 단어 기준)
+  const topGroupCounts: Record<string, { male: number; female: number; total: number }> = {};
+  rows.forEach((r) => {
+    const name = r.group_name || '';
+    const match = name.match(/^(.+?)그룹/);
+    const key = match ? match[1] : (name || '기타');
+    if (!topGroupCounts[key]) topGroupCounts[key] = { male: 0, female: 0, total: 0 };
+    topGroupCounts[key].total++;
+    if (r.gender === '남' || r.gender === '남자') topGroupCounts[key].male++;
+    else if (r.gender === '여' || r.gender === '여자') topGroupCounts[key].female++;
+  });
+
   // 팀 섬김
   const volunteerCounts: Record<string, number> = {};
   rows.forEach((r) => {
@@ -91,6 +103,7 @@ export async function GET() {
     returnCounts,
     carRoleCounts,
     groupCounts,
+    topGroupCounts,
     volunteerCount,
     volunteerCounts,
     electiveCounts,
