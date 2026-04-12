@@ -1,6 +1,5 @@
 ﻿import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
 import styled from '@emotion/styled';
 
 // ── Types ──────────────────────────────────────────────────
@@ -75,16 +74,20 @@ function exportTshirtExcel(orders: any[]) {
 }
 
 export default function HubUpAdminPage() {
-  const { data: session } = useSession();
-  const userRoles: string[] = (session?.user as any)?.roles ?? [];
-  const isGroupLeader = userRoles.includes('그룹장') && !userRoles.some(r => ['마스터','MC','목회자'].includes(r));
-
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'stats' | 'deposit' | 'list' | 'room' | 'bus' | 'tshirt'>('stats');
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [roomFilter, setRoomFilter] = useState('');
   const [depositFilter, setDepositFilter] = useState<'all' | 'confirmed' | 'pending'>('all');
+  const [periodFilter, setPeriodFilter] = useState<'all' | '1' | '2' | '3'>('all');
+
+  // 입금 기간 정의
+  const DEPOSIT_PERIODS = [
+    { key: '1', label: '1차', start: new Date('2026-04-12T00:00:00+09:00'), end: new Date('2026-04-15T09:00:00+09:00') },
+    { key: '2', label: '2차', start: new Date('2026-04-15T09:01:00+09:00'), end: new Date('2026-04-20T09:00:00+09:00') },
+    { key: '3', label: '3차', start: new Date('2026-04-20T09:01:00+09:00'), end: new Date('2026-04-27T09:00:00+09:00') },
+  ];
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRoom, setEditRoom] = useState('');
   const [editNote, setEditNote] = useState('');
@@ -99,9 +102,6 @@ export default function HubUpAdminPage() {
     else { setSortKey(key); setSortDir('asc'); }
   };
   const sortIcon = (key: keyof Registration) => sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ' ↕';
-
-  // 그룹장이 stats 외 탭에 있으면 강제로 stats로 이동
-  const effectiveTab = isGroupLeader ? 'stats' : activeTab;
 
   const { data: stats, error: statsError, isLoading: isStatsLoading } = useQuery<Stats>({
     queryKey: ['hub-up-stats'],
@@ -237,7 +237,24 @@ export default function HubUpAdminPage() {
   const filteredDeposit = registrations.filter(r => {
     const matchSearch = !appliedSearch || r.name.includes(appliedSearch) || r.group_name.includes(appliedSearch) || r.phone.includes(appliedSearch);
     const matchDeposit = depositFilter === 'all' || (depositFilter === 'confirmed' && r.admin_deposit_confirm) || (depositFilter === 'pending' && !r.admin_deposit_confirm);
-    return matchSearch && matchDeposit;
+    const matchPeriod = (() => {
+      if (periodFilter === 'all') return true;
+      const createdAt = new Date(r.created_at);
+      const currentPeriodIdx = DEPOSIT_PERIODS.findIndex(p => p.key === periodFilter);
+      // 현재 기간까지의 모든 기간을 순회
+      for (let i = 0; i <= currentPeriodIdx; i++) {
+        const p = DEPOSIT_PERIODS[i];
+        const inThisPeriod = createdAt >= p.start && createdAt <= p.end;
+        if (inThisPeriod) {
+          // 현재 선택한 기간이면 무조건 포함
+          if (i === currentPeriodIdx) return true;
+          // 이전 기간이면 미확인자만 포함 (누적)
+          if (!r.admin_deposit_confirm) return true;
+        }
+      }
+      return false;
+    })();
+    return matchSearch && matchDeposit && matchPeriod;
   });
 
   const pct = (n: number, d: number) => d > 0 ? Math.round((n / d) * 100) : 0;
@@ -251,26 +268,24 @@ export default function HubUpAdminPage() {
           <Badge color="#278f5a">입금 {stats?.deposited ?? 0}명</Badge>
           <Badge color="#d93025">미입금 {(stats?.total ?? 0) - (stats?.deposited ?? 0)}명</Badge>
         </HeaderBadges>
-        {!isGroupLeader && (
-          <ExportBtn onClick={() => exportToExcel(registrations, '허브업_신청자_전체')}>
-            📥 전체 엑셀 다운로드
-          </ExportBtn>
-        )}
+        <ExportBtn onClick={() => exportToExcel(registrations, '허브업_신청자_전체')}>
+          📥 전체 엑셀 다운로드
+        </ExportBtn>
       </PageHeader>
 
       <TabBar>
-        <Tab active={effectiveTab === 'stats'} onClick={() => setActiveTab('stats')}>📊 통계</Tab>
-        {!isGroupLeader && <Tab active={effectiveTab === 'deposit'} onClick={() => setActiveTab('deposit')}>💰 입금 확인</Tab>}
-        {!isGroupLeader && <Tab active={effectiveTab === 'list'} onClick={() => setActiveTab('list')}>📋 전체 명단</Tab>}
-        {!isGroupLeader && <Tab active={effectiveTab === 'room'} onClick={() => setActiveTab('room')}>🏠 숙소 배정</Tab>}
-        {!isGroupLeader && <Tab active={effectiveTab === 'bus'} onClick={() => setActiveTab('bus')}>🚌 버스 현황</Tab>}
-        {!isGroupLeader && <Tab active={effectiveTab === 'tshirt'} onClick={() => setActiveTab('tshirt')}>👕 단체티 주문</Tab>}
+        <Tab active={activeTab === 'stats'} onClick={() => setActiveTab('stats')}>📊 통계</Tab>
+        <Tab active={activeTab === 'deposit'} onClick={() => setActiveTab('deposit')}>💰 입금 확인</Tab>
+        <Tab active={activeTab === 'list'} onClick={() => setActiveTab('list')}>📋 전체 명단</Tab>
+        <Tab active={activeTab === 'room'} onClick={() => setActiveTab('room')}>🏠 숙소 배정</Tab>
+        <Tab active={activeTab === 'bus'} onClick={() => setActiveTab('bus')}>🚌 버스 현황</Tab>
+        <Tab active={activeTab === 'tshirt'} onClick={() => setActiveTab('tshirt')}>👕 단체티 주문</Tab>
       </TabBar>
 
       <TabContent>
 
         {/* ── 통계 탭 ── */}
-        {effectiveTab === 'stats' && (
+        {activeTab === 'stats' && (
           <StatsWrap>
             {isStatsLoading ? <Loading>불러오는 중...</Loading> : statsError ? <Loading style={{color:'#d93025'}}>데이터를 불러올 수 없습니다.</Loading> : !stats ? <Loading>데이터가 없습니다.</Loading> : (
               <>
@@ -313,9 +328,15 @@ export default function HubUpAdminPage() {
                 <Card>
                   <CardTitle>그룹별 인원</CardTitle>
                   <DenseTable><thead><tr><DTh>그룹</DTh><DTh right>남</DTh><DTh right>여</DTh><DTh right>합계</DTh><DTh right>비율</DTh></tr></thead>
-                    <tbody>{Object.entries(stats.groupCounts || {}).sort(([,a],[,b])=>b.total-a.total).map(([g, c]) => (
-                      <tr key={g}><DTd>{g}</DTd><DTd right>{c.male}</DTd><DTd right>{c.female}</DTd><DTd right><strong>{c.total}</strong></DTd><DTd right>{pct(c.total, stats.total)}%</DTd></tr>
-                    ))}</tbody>
+                    <tbody>{(() => {
+                      const FIXED = ['MC', '그룹장', '타공동체', '타교회', '기타'];
+                      const entries = Object.entries(stats.groupCounts || {});
+                      const fixed = entries.filter(([g]) => FIXED.includes(g)).sort(([a],[b]) => FIXED.indexOf(a) - FIXED.indexOf(b));
+                      const rest = entries.filter(([g]) => !FIXED.includes(g)).sort(([a],[b]) => a.localeCompare(b, 'ko'));
+                      return [...rest, ...fixed].map(([g, c]) => (
+                        <tr key={g}><DTd>{g}</DTd><DTd right>{c.male}</DTd><DTd right>{c.female}</DTd><DTd right><strong>{c.total}</strong></DTd><DTd right>{pct(c.total, stats.total)}%</DTd></tr>
+                      ));
+                    })()}</tbody>
                   </DenseTable>
                 </Card>
                 <ThreeCol>
@@ -372,12 +393,21 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 입금 확인 탭 ── */}
-        {effectiveTab === 'deposit' && (
+        {activeTab === 'deposit' && (
           <div>
+            <PeriodBar>
+              <PeriodBtn active={periodFilter === 'all'} onClick={() => setPeriodFilter('all')}>전체</PeriodBtn>
+              {DEPOSIT_PERIODS.map(p => (
+                <PeriodBtn key={p.key} active={periodFilter === p.key} onClick={() => setPeriodFilter(p.key as '1'|'2'|'3')}>
+                  {p.label}
+                  <PeriodDate>{p.start.toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'})} ~ {p.end.toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'})}</PeriodDate>
+                </PeriodBtn>
+              ))}
+            </PeriodBar>
             <DepositSummary>
-              <RoomStatItem><RoomStatNum>{registrations.length}</RoomStatNum><RoomStatLabel>전체 신청</RoomStatLabel></RoomStatItem>
-              <RoomStatItem><RoomStatNum style={{color:'#278f5a'}}>{registrations.filter(r => r.admin_deposit_confirm).length}</RoomStatNum><RoomStatLabel>입금완료</RoomStatLabel></RoomStatItem>
-              <RoomStatItem><RoomStatNum style={{color:'#d93025'}}>{registrations.filter(r => !r.admin_deposit_confirm).length}</RoomStatNum><RoomStatLabel>미확인</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum>{filteredDeposit.length}</RoomStatNum><RoomStatLabel>조회된 신청</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#278f5a'}}>{filteredDeposit.filter(r => r.admin_deposit_confirm).length}</RoomStatNum><RoomStatLabel>입금완료</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#d93025'}}>{filteredDeposit.filter(r => !r.admin_deposit_confirm).length}</RoomStatNum><RoomStatLabel>미확인</RoomStatLabel></RoomStatItem>
             </DepositSummary>
 
             <ToolRow>
@@ -443,7 +473,7 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 전체 명단 탭 ── */}
-        {effectiveTab === 'list' && (
+        {activeTab === 'list' && (
           <div>
             <ToolRow>
               <SearchBox>
@@ -514,7 +544,7 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 버스 현황 탭 ── */}
-        {effectiveTab === 'bus' && (
+        {activeTab === 'bus' && (
           <div>
             <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'8px'}}>
               <ExportBtn onClick={() => exportToExcel(busStats?.registrations || [], '허브업_버스명단')}>📥 엑셀 다운로드</ExportBtn>
@@ -549,7 +579,7 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 숙소 배정 탭 ── */}
-        {effectiveTab === 'room' && (
+        {activeTab === 'room' && (
           <div>
             <RoomStats>
               <RoomStatItem><RoomStatNum>{total}</RoomStatNum><RoomStatLabel>전체</RoomStatLabel></RoomStatItem>
@@ -630,7 +660,7 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 티셔츠 주문 탭 ── */}
-        {effectiveTab === 'tshirt' && (
+        {activeTab === 'tshirt' && (
           <div>
             <DepositSummary>
               <RoomStatItem><RoomStatNum>{tshirts.length}</RoomStatNum><RoomStatLabel>전체 주문자</RoomStatLabel></RoomStatItem>
@@ -842,6 +872,9 @@ const LecBar = styled.div`flex: 1; height: 6px; background: #f1f3f4; border-radi
 const LecFill = styled.div<{w:number}>`height: 100%; width: ${p=>p.w}%; background: #278f5a;`;
 const DepositSummary = styled.div`display: flex; gap: 12px; margin-bottom: 14px;`;
 const FilterBtn = styled.button<{active:boolean}>`padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid ${p=>p.active?'#278f5a':'#dadce0'}; background: ${p=>p.active?'#e6f4ea':'white'}; color: ${p=>p.active?'#278f5a':'#5f6368'};`;
+const PeriodBar = styled.div`display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;`;
+const PeriodBtn = styled.button<{active:boolean}>`display: flex; flex-direction: column; align-items: center; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; border: 2px solid ${p=>p.active?'#1d4ed8':'#dadce0'}; background: ${p=>p.active?'#eff6ff':'white'}; color: ${p=>p.active?'#1d4ed8':'#5f6368'}; transition: all 0.15s;`;
+const PeriodDate = styled.span`font-size: 10px; font-weight: 400; color: inherit; opacity: 0.75; margin-top: 2px;`;
 const BusGrid = styled.div`display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px;`;
 const BusCard = styled.div<{full:boolean}>`background: white; border-radius: 10px; padding: 14px; text-align: center; border: 2px solid ${p=>p.full?'#d93025':'#e8eaed'}; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.05);`;
 const BusCardLabel = styled.div`font-size: 12px; font-weight: 600; color: #5f6368; margin-bottom: 6px;`;
