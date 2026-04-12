@@ -219,7 +219,7 @@ export default function TshirtPage() {
   return (
     <Wrap>
       <TopNav>
-        <BackBtn onClick={() => router.back()}>
+        <BackBtn onClick={() => router.push('/hub_up')}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path d="M15 19L8 12L15 5" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -384,12 +384,16 @@ const Spinner = styled.div`
 const TopNav = styled.div`
   height: 60px; display: flex; align-items: center; padding: 0 20px;
   position: sticky; top: 0; background: #fff; z-index: 100;
+  justify-content: space-between; position: relative;
 `;
 const BackBtn = styled.button`
   background: none; border: none; padding: 0; cursor: pointer;
-  display: flex; align-items: center; margin-right: 8px;
+  display: flex; align-items: center;
 `;
-const NavTitle = styled.div`font-size: 14px; font-weight: 700; letter-spacing: -0.02em;`;
+const NavTitle = styled.div`
+  font-size: 14px; font-weight: 700; letter-spacing: -0.02em;
+  position: absolute; left: 50%; transform: translateX(-50%);
+`;
 
 const ProductImageWrap = styled.div`
   position: relative; width: 100%; height: 340px; overflow: hidden; background: #f5f5f5;

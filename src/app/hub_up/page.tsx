@@ -68,7 +68,6 @@ export default function HubUpMainPage() {
 
   return (
     <Wrap>
-      {/* 네비게이션 - 이미지 위 오버레이 */}
       <Nav scrolled={scrolled}>
         <HamburgerBtn onClick={() => setMenuOpen(!menuOpen)} scrolled={scrolled}>
           <span /><span /><span />
@@ -83,6 +82,7 @@ export default function HubUpMainPage() {
           )}
           <DropItem onClick={() => { router.push('/hub_up/tshirt'); setMenuOpen(false); }}>티셔츠 예약</DropItem>
           <DropItem onClick={() => { router.push('/hub_up/faq'); setMenuOpen(false); }}>FAQ</DropItem>
+          <DropItem onClick={() => { router.push('/'); setMenuOpen(false); }} style={{ color: '#888' }}>홈으로 돌아가기</DropItem>
         </DropMenu>
       )}
 

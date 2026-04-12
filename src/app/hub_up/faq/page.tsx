@@ -239,9 +239,9 @@ export default function FaqPage() {
 }
 
 const Wrap = styled.div`width: 100%; min-height: 100vh; background: #F2F2F2; font-family: 'Pretendard', -apple-system, sans-serif;`;
-const TopNav = styled.div`height: 56px; display: flex; align-items: center; padding: 0 16px; background: #fff; border-bottom: 1px solid #E6E6E6; gap: 8px;`;
+const TopNav = styled.div`height: 56px; display: flex; align-items: center; padding: 0 16px; background: #fff; border-bottom: 1px solid #E6E6E6; position: relative;`;
 const BackBtn = styled.button`background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center;`;
-const NavTitle = styled.div`font-size: 17px; font-weight: 600; color: #1A1A1A;`;
+const NavTitle = styled.div`font-size: 17px; font-weight: 600; color: #1A1A1A; position: absolute; left: 50%; transform: translateX(-50%);`;
 const Content = styled.div`padding: 16px 20px 40px;`;
 const Section = styled.div`margin-bottom: 24px;`;
 const SectionTitle = styled.div`font-size: 14px; font-weight: 600; color: #949494; margin-bottom: 8px; padding: 0 4px; text-transform: uppercase; letter-spacing: 0.05em;`;

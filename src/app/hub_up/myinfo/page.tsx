@@ -36,6 +36,12 @@ const slotLabel = (slot: string) => {
   return slot.replace('bus-', '');
 };
 
+const colorLabel = (color: string) => {
+  if (color === 'black') return 'Black';
+  if (color === 'navy') return 'Navy';
+  return 'White';
+};
+
 export default function MyInfoPage() {
   const router = useRouter();
   const { status } = useSession();
@@ -60,7 +66,6 @@ export default function MyInfoPage() {
         setRegistration(myinfo.registration);
         setContactPhone(myinfo.contactPhone || '');
         setTshirtOrder(tshirt.order || null);
-        // config는 공개 API에서 가져온 것 우선, tshirt 응답 config로 fallback
         setTshirtConfig({ ...(tshirt.config || {}), ...config });
       })
       .catch(() => setError('정보를 불러오는 중 오류가 발생했습니다.'))
@@ -73,24 +78,54 @@ export default function MyInfoPage() {
 
   if (error) return <LoadingWrap style={{ color: '#d93025' }}>{error}</LoadingWrap>;
 
-  if (!registration) {
-    return (
-      <Wrap>
-        <TopNav><BackBtn onClick={() => router.push('/hub_up')}>←</BackBtn></TopNav>
-        <EmptyBox>
-          <EmptyIcon>📋</EmptyIcon>
-          <EmptyTitle>신청 내역이 없습니다</EmptyTitle>
-          <EmptyDesc>아직 허브업 신청을 하지 않으셨습니다.</EmptyDesc>
-          <PrimaryBtn onClick={() => router.push('/hub_up/register')}>신청하러 가기</PrimaryBtn>
-        </EmptyBox>
-      </Wrap>
-    );
-  }
-
   const isTshirtChangeable = new Date() <= new Date('2026-04-26T23:59:00+09:00');
   const isDistributing = new Date() >= new Date('2026-05-10T00:00:00+09:00');
 
-  // 허브업 미신청이지만 티셔츠 주문이 있는 경우
+  const TshirtSection = () => (
+    <Section>
+      <SectionTitle>티셔츠</SectionTitle>
+      {tshirtOrder ? (
+        <>
+          {tshirtOrder.items.map((item) => (
+            <InfoRow key={`${item.color}-${item.size}`}>
+              <InfoLabel>{colorLabel(item.color)} {item.size}</InfoLabel>
+              <InfoValue>{item.quantity}개</InfoValue>
+            </InfoRow>
+          ))}
+          <InfoRow>
+            <InfoLabel>입금</InfoLabel>
+            <StatusBadge ok={tshirtOrder.status === 'confirmed'}>
+              {tshirtOrder.status === 'confirmed' ? '완료' : '미확인'}
+            </StatusBadge>
+          </InfoRow>
+          {isDistributing && (
+            <QRSection>
+              <QRTitle>티셔츠 수령 QR</QRTitle>
+              <QRDesc>현장에서 이 QR을 제시해주세요.</QRDesc>
+              <QRWrap>
+                <QRCodeSVG
+                  value={tshirtOrder.items.map(item => `${colorLabel(item.color)} ${item.size}: ${item.quantity}개`).join('\n')}
+                  size={180}
+                />
+              </QRWrap>
+            </QRSection>
+          )}
+          {isTshirtChangeable && (
+            <SecondaryBtn onClick={() => router.push('/hub_up/tshirt')}>
+              티셔츠 옵션 변경하기
+            </SecondaryBtn>
+          )}
+        </>
+      ) : (
+        <>
+          <EmptyDesc style={{ marginBottom: '16px' }}>아직 티셔츠를 신청하지 않으셨습니다.</EmptyDesc>
+          <PrimaryBtn onClick={() => router.push('/hub_up/tshirt')}>티셔츠 신청하러 가기</PrimaryBtn>
+        </>
+      )}
+    </Section>
+  );
+
+  // 허브업 미신청 - 티셔츠 주문 여부와 관계없이 표시
   if (!registration) {
     return (
       <Wrap>
@@ -99,45 +134,21 @@ export default function MyInfoPage() {
           <NavTitle>내 정보</NavTitle>
         </TopNav>
         <Content>
-          {tshirtOrder ? (
-            <Section>
-              <SectionTitle>티셔츠</SectionTitle>
-              {tshirtOrder.items.map((item) => (
-                <InfoRow key={`${item.color}-${item.size}`}>
-                  <InfoLabel>{item.color === 'black' ? 'Black' : item.color === 'navy' ? 'Navy' : 'White'} {item.size}</InfoLabel>
-                  <InfoValue>{item.quantity}개</InfoValue>
-                </InfoRow>
-              ))}
-              <InfoRow>
-                <InfoLabel>입금</InfoLabel>
-                <StatusBadge ok={tshirtOrder.status === 'confirmed'}>
-                  {tshirtOrder.status === 'confirmed' ? '완료' : '미확인'}
-                </StatusBadge>
-              </InfoRow>
-              {isDistributing && (
-                <QRSection>
-                  <QRTitle>티셔츠 수령 QR</QRTitle>
-                  <QRDesc>현장에서 이 QR을 제시해주세요.</QRDesc>
-                  <QRWrap>
-                    <QRCodeSVG
-                      value={tshirtOrder.items.map(item => `${item.color === 'black' ? 'Black' : item.color === 'navy' ? 'Navy' : 'White'} ${item.size}: ${item.quantity}개`).join('\n')}
-                      size={180}
-                    />
-                  </QRWrap>
-                </QRSection>
-              )}
-              {isTshirtChangeable && (
-                <SecondaryBtn onClick={() => router.push('/hub_up/tshirt')}>
-                  티셔츠 옵션 변경하기
-                </SecondaryBtn>
-              )}
-            </Section>
-          ) : (
+          {tshirtOrder && <TshirtSection />}
+
+          <HubUpNudge>
+            <NudgeTitle>허브업 신청을 아직 안 하셨나요?</NudgeTitle>
+            <NudgeDesc>티셔츠와 함께 허브업도 신청해보세요!</NudgeDesc>
+            <PrimaryBtn onClick={() => router.push('/hub_up/register')}>
+              허브업 신청하러 가기
+            </PrimaryBtn>
+          </HubUpNudge>
+
+          {!tshirtOrder && (
             <EmptyBox>
               <EmptyIcon>📋</EmptyIcon>
               <EmptyTitle>신청 내역이 없습니다</EmptyTitle>
               <EmptyDesc>아직 허브업 신청을 하지 않으셨습니다.</EmptyDesc>
-              <PrimaryBtn onClick={() => router.push('/hub_up/register')}>신청하러 가기</PrimaryBtn>
             </EmptyBox>
           )}
         </Content>
@@ -151,7 +162,6 @@ export default function MyInfoPage() {
         <BackBtn onClick={() => router.push('/hub_up')}>←</BackBtn>
         <NavTitle>내 정보</NavTitle>
       </TopNav>
-
       <Content>
         {/* 기본 정보 */}
         <Section>
@@ -188,56 +198,10 @@ export default function MyInfoPage() {
           <SecondaryBtn onClick={() => window.location.href = '/api/hub-up/bus-change-token'}>
             버스 시간 변경 문의하기
           </SecondaryBtn>
-          {tshirtConfig.tshirt_change_deadline && (
-            <DeadlineNote>변경 신청 가능 기간: ~{tshirtConfig.tshirt_change_deadline?.replace(/-/g, '/')}</DeadlineNote>
-          )}
         </Section>
 
         {/* 티셔츠 */}
-        <Section>
-          <SectionTitle>티셔츠</SectionTitle>
-          {tshirtOrder ? (
-            <>
-              {tshirtOrder.items.map((item) => (
-                <InfoRow key={`${item.color}-${item.size}`}>
-                  <InfoLabel>{item.color === 'black' ? 'Black' : 'White'} {item.size}</InfoLabel>
-                  <InfoValue>{item.quantity}개</InfoValue>
-                </InfoRow>
-              ))}
-              <InfoRow>
-                <InfoLabel>입금</InfoLabel>
-                <StatusBadge ok={tshirtOrder.deposit_confirm}>
-                  {tshirtOrder.deposit_confirm ? '완료' : '미확인'}
-                </StatusBadge>
-              </InfoRow>
-
-              {/* QR 코드 - 배부 기간에만 표시 */}
-              {isDistributing && (
-                <QRSection>
-                  <QRTitle>티셔츠 수령 QR</QRTitle>
-                  <QRDesc>현장에서 이 QR을 제시해주세요.</QRDesc>
-                  <QRWrap>
-                    <QRCodeSVG 
-                      value={`${registration.name}\n` + tshirtOrder.items.map(item => `${item.color === 'black' ? 'Black' : 'White'} ${item.size}: ${item.quantity}개`).join('\n')} 
-                      size={180} 
-                    />
-                  </QRWrap>
-                </QRSection>
-              )}
-
-              {isTshirtChangeable && (
-                <SecondaryBtn onClick={() => router.push('/hub_up/tshirt')}>
-                  티셔츠 옵션 변경하기
-                </SecondaryBtn>
-              )}
-            </>
-          ) : (
-            <>
-              <EmptyDesc style={{ marginBottom: '16px' }}>아직 티셔츠를 신청하지 않으셨습니다.</EmptyDesc>
-              <PrimaryBtn onClick={() => router.push('/hub_up/tshirt')}>티셔츠 신청하러 가기</PrimaryBtn>
-            </>
-          )}
-        </Section>
+        <TshirtSection />
 
         {/* FAQ */}
         <FaqLink onClick={() => router.push('/hub_up/faq')}>
@@ -259,9 +223,9 @@ export default function MyInfoPage() {
 
 const Wrap = styled.div`width: 100%; min-height: 100vh; background: #FAFAFA; font-family: -apple-system, sans-serif;`;
 const LoadingWrap = styled.div`display: flex; align-items: center; justify-content: center; min-height: 100vh; color: #888; font-size: 15px;`;
-const TopNav = styled.div`height: 56px; display: flex; align-items: center; padding: 0 16px; background: #fff; gap: 12px;`;
+const TopNav = styled.div`height: 56px; display: flex; align-items: center; padding: 0 16px; background: #fff; gap: 12px; justify-content: space-between; position: relative;`;
 const BackBtn = styled.button`background: none; border: none; font-size: 20px; cursor: pointer; padding: 8px;`;
-const NavTitle = styled.div`font-size: 17px; font-weight: 700; color: #111;`;
+const NavTitle = styled.div`font-size: 17px; font-weight: 700; color: #111; position: absolute; left: 50%; transform: translateX(-50%);`;
 const Content = styled.div`padding: 16px 20px 80px;`;
 const Section = styled.div`background: #fff; border-radius: 16px; padding: 20px; margin-bottom: 12px;`;
 const SectionTitle = styled.div`font-size: 13px; font-weight: 700; color: ${PRIMARY}; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.05em;`;
@@ -284,11 +248,14 @@ const QRSection = styled.div`margin-top: 16px; text-align: center;`;
 const QRTitle = styled.div`font-size: 15px; font-weight: 700; color: #111; margin-bottom: 4px;`;
 const QRDesc = styled.div`font-size: 12px; color: #888; margin-bottom: 16px;`;
 const QRWrap = styled.div`display: inline-block; padding: 16px; background: #fff; border-radius: 12px; border: 1px solid #E5E5EA;`;
-const EmptyBox = styled.div`display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; padding: 40px 20px; text-align: center;`;
+const EmptyBox = styled.div`display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center;`;
 const EmptyIcon = styled.div`font-size: 48px; margin-bottom: 16px;`;
 const EmptyTitle = styled.h3`font-size: 18px; font-weight: 700; color: #111; margin: 0 0 8px 0;`;
 const EmptyDesc = styled.p`font-size: 14px; color: #888; margin: 0;`;
 const FaqLink = styled.button`width: 100%; padding: 16px; background: none; border: 1px solid #E5E5EA; border-radius: 12px; font-size: 14px; color: #888; cursor: pointer; text-align: center;`;
+const HubUpNudge = styled.div`background: #EEF2FF; border-radius: 16px; padding: 20px; margin-top: 12px; text-align: center;`;
+const NudgeTitle = styled.div`font-size: 15px; font-weight: 700; color: #2D478C; margin-bottom: 6px;`;
+const NudgeDesc = styled.p`font-size: 13px; color: #5a6a8a; margin: 0 0 14px 0;`;
 const CancelSection = styled.div`background: #fff; border-radius: 16px; padding: 20px; margin-top: 12px;`;
 const CancelTitle = styled.div`font-size: 13px; font-weight: 700; color: #d93025; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;`;
 const CancelDesc = styled.p`font-size: 13px; color: #888; line-height: 1.6; margin: 0 0 14px 0;`;

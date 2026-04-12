@@ -4,7 +4,7 @@ import { authOptions } from '@src/lib/auth';
 import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.NEXTAUTH_SECRET!;
-const BUS_APP_URL = "https://hubupinquery.vercel.app"
+const BUS_APP_URL = "https://hubup-quest.vercel.app/"
 
 
 /**
