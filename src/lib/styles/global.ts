@@ -20,6 +20,7 @@ export const global = css`
   }
 
   html {
+    color-scheme: light only;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
     font-size: 6.25%;

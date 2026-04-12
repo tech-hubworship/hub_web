@@ -181,12 +181,12 @@ export default function LoginPage() {
 
   const openInExternalBrowser = () => {
     const currentUrl = window.location.href;
-    // 카카오톡 외부 브라우저로 열기 (intent scheme for Android, 안내 for iOS)
     const isAndroid = /android/i.test(navigator.userAgent);
     if (isAndroid) {
-      window.location.href = `intent://${currentUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+      // Android: 기본 브라우저로 열기 (패키지 지정 없이 fallback=browser)
+      window.location.href = `intent://${currentUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end`;
     } else {
-      // iOS: kakaotalk://web/openExternal?url= 스킴 사용
+      // iOS: 카카오톡 공식 스킴으로 Safari에서 열기
       window.location.href = `kakaotalk://web/openExternal?url=${encodeURIComponent(currentUrl)}`;
     }
   };
