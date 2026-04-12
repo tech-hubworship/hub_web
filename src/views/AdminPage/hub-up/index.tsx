@@ -1,5 +1,6 @@
-import { useState } from 'react';
+﻿import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import styled from '@emotion/styled';
 
 // ── Types ──────────────────────────────────────────────────
@@ -73,8 +74,11 @@ function exportTshirtExcel(orders: any[]) {
   URL.revokeObjectURL(url);
 }
 
-
 export default function HubUpAdminPage() {
+  const { data: session } = useSession();
+  const userRoles: string[] = (session?.user as any)?.roles ?? [];
+  const isGroupLeader = userRoles.includes('그룹장') && !userRoles.some(r => ['마스터','MC','목회자'].includes(r));
+
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'stats' | 'deposit' | 'list' | 'room' | 'bus' | 'tshirt'>('stats');
   const [search, setSearch] = useState('');
@@ -87,6 +91,17 @@ export default function HubUpAdminPage() {
   const [bulkRoom, setBulkRoom] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<keyof Registration | ''>('');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (key: keyof Registration) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+  const sortIcon = (key: keyof Registration) => sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ' ↕';
+
+  // 그룹장이 stats 외 탭에 있으면 강제로 stats로 이동
+  const effectiveTab = isGroupLeader ? 'stats' : activeTab;
 
   const { data: stats, error: statsError, isLoading: isStatsLoading } = useQuery<Stats>({
     queryKey: ['hub-up-stats'],
@@ -203,6 +218,16 @@ export default function HubUpAdminPage() {
   const toggleAll = (list: Registration[]) => setSelectedIds(selectedIds.size === list.length ? new Set() : new Set(list.map(r => r.id)));
   const startEdit = (r: Registration) => { setEditingId(r.id); setEditRoom(r.room_number || ''); setEditNote(r.room_note || ''); };
 
+  const sortedRegistrations = useMemo(() => {
+    if (!sortKey) return registrations;
+    return [...registrations].sort((a, b) => {
+      const av = a[sortKey] ?? '';
+      const bv = b[sortKey] ?? '';
+      const cmp = String(av).localeCompare(String(bv), 'ko');
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [registrations, sortKey, sortDir]);
+
   const total = registrations.length;
   const assigned = registrations.filter(r => r.room_number).length;
   const roomGroups = registrations.reduce<Record<string, number>>((acc, r) => {
@@ -226,24 +251,26 @@ export default function HubUpAdminPage() {
           <Badge color="#278f5a">입금 {stats?.deposited ?? 0}명</Badge>
           <Badge color="#d93025">미입금 {(stats?.total ?? 0) - (stats?.deposited ?? 0)}명</Badge>
         </HeaderBadges>
-        <ExportBtn onClick={() => exportToExcel(registrations, '허브업_신청자_전체')}>
-          📥 전체 엑셀 다운로드
-        </ExportBtn>
+        {!isGroupLeader && (
+          <ExportBtn onClick={() => exportToExcel(registrations, '허브업_신청자_전체')}>
+            📥 전체 엑셀 다운로드
+          </ExportBtn>
+        )}
       </PageHeader>
 
       <TabBar>
-        <Tab active={activeTab === 'stats'} onClick={() => setActiveTab('stats')}>📊 통계</Tab>
-        <Tab active={activeTab === 'deposit'} onClick={() => setActiveTab('deposit')}>💰 입금 확인</Tab>
-        <Tab active={activeTab === 'list'} onClick={() => setActiveTab('list')}>📋 전체 명단</Tab>
-        <Tab active={activeTab === 'room'} onClick={() => setActiveTab('room')}>🏠 숙소 배정</Tab>
-        <Tab active={activeTab === 'bus'} onClick={() => setActiveTab('bus')}>🚌 버스 현황</Tab>
-        <Tab active={activeTab === 'tshirt'} onClick={() => setActiveTab('tshirt')}>👕 단체티 주문</Tab>
+        <Tab active={effectiveTab === 'stats'} onClick={() => setActiveTab('stats')}>📊 통계</Tab>
+        {!isGroupLeader && <Tab active={effectiveTab === 'deposit'} onClick={() => setActiveTab('deposit')}>💰 입금 확인</Tab>}
+        {!isGroupLeader && <Tab active={effectiveTab === 'list'} onClick={() => setActiveTab('list')}>📋 전체 명단</Tab>}
+        {!isGroupLeader && <Tab active={effectiveTab === 'room'} onClick={() => setActiveTab('room')}>🏠 숙소 배정</Tab>}
+        {!isGroupLeader && <Tab active={effectiveTab === 'bus'} onClick={() => setActiveTab('bus')}>🚌 버스 현황</Tab>}
+        {!isGroupLeader && <Tab active={effectiveTab === 'tshirt'} onClick={() => setActiveTab('tshirt')}>👕 단체티 주문</Tab>}
       </TabBar>
 
       <TabContent>
 
         {/* ── 통계 탭 ── */}
-        {activeTab === 'stats' && (
+        {effectiveTab === 'stats' && (
           <StatsWrap>
             {isStatsLoading ? <Loading>불러오는 중...</Loading> : statsError ? <Loading style={{color:'#d93025'}}>데이터를 불러올 수 없습니다.</Loading> : !stats ? <Loading>데이터가 없습니다.</Loading> : (
               <>
@@ -345,7 +372,7 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 입금 확인 탭 ── */}
-        {activeTab === 'deposit' && (
+        {effectiveTab === 'deposit' && (
           <div>
             <DepositSummary>
               <RoomStatItem><RoomStatNum>{registrations.length}</RoomStatNum><RoomStatLabel>전체 신청</RoomStatLabel></RoomStatItem>
@@ -416,7 +443,7 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 전체 명단 탭 ── */}
-        {activeTab === 'list' && (
+        {effectiveTab === 'list' && (
           <div>
             <ToolRow>
               <SearchBox>
@@ -433,12 +460,23 @@ export default function HubUpAdminPage() {
                 <Table>
                   <thead>
                     <tr>
-                      <Th>#</Th><Th>이름</Th><Th>그룹</Th><Th>공동체</Th><Th>성별</Th><Th>연락처</Th>
-                      <Th>출발</Th><Th>복귀</Th><Th>선택강의</Th><Th>자원봉사</Th><Th>입금</Th><Th>숙소</Th><Th>신청일</Th><Th>관리</Th>
+                      <Th>#</Th>
+                      <SortTh onClick={() => handleSort('name')}>이름{sortIcon('name')}</SortTh>
+                      <SortTh onClick={() => handleSort('group_name')}>그룹{sortIcon('group_name')}</SortTh>
+                      <SortTh onClick={() => handleSort('community')}>공동체{sortIcon('community')}</SortTh>
+                      <SortTh onClick={() => handleSort('gender')}>성별{sortIcon('gender')}</SortTh>
+                      <Th>연락처</Th>
+                      <SortTh onClick={() => handleSort('departure_slot')}>출발{sortIcon('departure_slot')}</SortTh>
+                      <SortTh onClick={() => handleSort('return_slot')}>복귀{sortIcon('return_slot')}</SortTh>
+                      <Th>선택강의</Th><Th>자원봉사</Th>
+                      <SortTh onClick={() => handleSort('admin_deposit_confirm')}>입금{sortIcon('admin_deposit_confirm')}</SortTh>
+                      <SortTh onClick={() => handleSort('room_number')}>숙소{sortIcon('room_number')}</SortTh>
+                      <SortTh onClick={() => handleSort('created_at')}>신청일{sortIcon('created_at')}</SortTh>
+                      <Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
-                    {registrations.map((r, i) => (
+                    {sortedRegistrations.map((r, i) => (
                       <tr key={r.id}>
                         <Td style={{color:'#9aa0a6',fontSize:'12px'}}>{i+1}</Td>
                         <Td><strong>{r.name}</strong></Td>
@@ -476,7 +514,7 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 버스 현황 탭 ── */}
-        {activeTab === 'bus' && (
+        {effectiveTab === 'bus' && (
           <div>
             <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'8px'}}>
               <ExportBtn onClick={() => exportToExcel(busStats?.registrations || [], '허브업_버스명단')}>📥 엑셀 다운로드</ExportBtn>
@@ -511,7 +549,7 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 숙소 배정 탭 ── */}
-        {activeTab === 'room' && (
+        {effectiveTab === 'room' && (
           <div>
             <RoomStats>
               <RoomStatItem><RoomStatNum>{total}</RoomStatNum><RoomStatLabel>전체</RoomStatLabel></RoomStatItem>
@@ -592,7 +630,7 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 티셔츠 주문 탭 ── */}
-        {activeTab === 'tshirt' && (
+        {effectiveTab === 'tshirt' && (
           <div>
             <DepositSummary>
               <RoomStatItem><RoomStatNum>{tshirts.length}</RoomStatNum><RoomStatLabel>전체 주문자</RoomStatLabel></RoomStatItem>
@@ -606,7 +644,6 @@ export default function HubUpAdminPage() {
               </RoomStatItem>
             </DepositSummary>
 
-            {/* 색상별 / 사이즈별 통계 */}
             {(() => {
               const SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
               const colorTotals: Record<string, number> = { white: 0, black: 0 };
@@ -699,7 +736,7 @@ export default function HubUpAdminPage() {
                         <Td><DepBadge ok={t.status === 'confirmed'}>{t.status === 'confirmed' ? '입금완료' : '확인중'}</DepBadge></Td>
                         <Td>
                           <BtnGrp>
-                            {t.status === 'confirmed' 
+                            {t.status === 'confirmed'
                               ? <CancelBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'pending'})}>취소</CancelBtn>
                               : <SaveBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'confirmed'})}>입금완료</SaveBtn>
                             }
@@ -746,32 +783,12 @@ const ThreeCol = styled.div`display: grid; grid-template-columns: 1fr 1fr 1fr; g
 const DenseTable = styled.table`width: 100%; border-collapse: collapse; font-size: 13px;`;
 const DTh = styled.th<{right?:boolean}>`padding: 6px 8px; background: #f8f9fa; text-align: ${p=>p.right?'right':'left'}; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; white-space: nowrap;`;
 const DTd = styled.td<{right?:boolean}>`padding: 6px 8px; border-bottom: 1px solid #f1f3f4; text-align: ${p=>p.right?'right':'left'};`;
-const TeamRow = styled.div`display: flex; gap: 12px;`;
-const TeamStat = styled.div`flex: 1; text-align: center; background: #f8f9fa; border-radius: 8px; padding: 12px;`;
 const TeamNum = styled.div`font-size: 22px; font-weight: 800; color: #202124;`;
 const TeamLabel = styled.div`font-size: 11px; color: #9aa0a6; margin-top: 3px;`;
 const LecRow = styled.div`display: flex; align-items: center; gap: 8px; margin-bottom: 8px;`;
-
-const TeamMemberList = styled.div`
-  background: #f8f9fa; border-radius: 8px; padding: 8px 12px;
-  margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px;
-`;
-const TeamMemberRow = styled.div`
-  display: flex; align-items: center; gap: 8px; font-size: 13px;
-`;
-
-const VolunteerTable = styled.table`
-  width: 100%; border-collapse: collapse; font-size: 13px;
-`;
-const VolTh = styled.th`
-  text-align: center; padding: 5px 8px; color: #9aa0a6;
-  font-weight: 600; font-size: 11px; border-bottom: 1px solid #e8eaed;
-`;
-const VolTd = styled.td`
-  text-align: center; padding: 6px 8px; color: #3c4043;
-  border-bottom: 1px solid #f1f3f4;
-  &:first-of-type { text-align: left; }
-`;
+const VolunteerTable = styled.table`width: 100%; border-collapse: collapse; font-size: 13px;`;
+const VolTh = styled.th`text-align: center; padding: 5px 8px; color: #9aa0a6; font-weight: 600; font-size: 11px; border-bottom: 1px solid #e8eaed;`;
+const VolTd = styled.td`text-align: center; padding: 6px 8px; color: #3c4043; border-bottom: 1px solid #f1f3f4; &:first-of-type { text-align: left; }`;
 const VolTdBold = styled(VolTd)`font-weight: 700; color: #202124;`;
 const LecName = styled.div`font-size: 13px; color: #3c4043; width: 80px; flex-shrink: 0;`;
 const LecCnt = styled.div`font-size: 13px; font-weight: 700; width: 36px; flex-shrink: 0;`;
@@ -806,6 +823,7 @@ const BulkBtn = styled.button`padding: 6px 12px; background: #278f5a; color: whi
 const TableWrap = styled.div`overflow-x: auto; border-radius: 10px; border: 1px solid #e8eaed; background: white;`;
 const Table = styled.table`width: 100%; border-collapse: collapse; font-size: 13px;`;
 const Th = styled.th`padding: 9px 10px; background: #f8f9fa; text-align: left; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; white-space: nowrap;`;
+const SortTh = styled.th`padding: 9px 10px; background: #f8f9fa; text-align: left; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; white-space: nowrap; cursor: pointer; user-select: none; &:hover { background: #e8eaed; color: #202124; }`;
 const Td = styled.td`padding: 9px 10px; border-bottom: 1px solid #f1f3f4; vertical-align: middle;`;
 const DepBadge = styled.span<{ok:boolean}>`padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; background: ${p=>p.ok?'#e6f4ea':'#fce8e6'}; color: ${p=>p.ok?'#278f5a':'#d93025'};`;
 const RoomBadge = styled.span<{ok:boolean}>`padding: 2px 7px; border-radius: 4px; font-size: 12px; font-weight: 600; background: ${p=>p.ok?'#e8f0fe':'#f1f3f4'}; color: ${p=>p.ok?'#1d4ed8':'#9aa0a6'};`;
@@ -814,7 +832,6 @@ const BtnGrp = styled.div`display: flex; gap: 3px;`;
 const EditBtn = styled.button`padding: 3px 9px; background: #e8f0fe; color: #1d4ed8; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;`;
 const SaveBtn = styled.button`padding: 3px 9px; background: #278f5a; color: white; border: none; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; &:disabled{opacity:0.6;}`;
 const CancelBtn = styled.button`padding: 3px 9px; background: #f1f3f4; color: #5f6368; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;`;
-
 const TshirtStatsWrap = styled.div`display: flex; gap: 16px; margin: 16px 0; flex-wrap: wrap;`;
 const TshirtStatGroup = styled.div`background: #fff; border: 1px solid #e8eaed; border-radius: 8px; padding: 16px; flex: 1; min-width: 200px;`;
 const TshirtStatTitle = styled.div`font-size: 13px; font-weight: 700; color: #5f6368; margin-bottom: 10px;`;
