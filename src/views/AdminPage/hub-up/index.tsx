@@ -1,4 +1,5 @@
 ﻿import { useState, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
 
@@ -13,6 +14,18 @@ interface Registration {
   leader_name: string;
 }
 interface SlotStat { value: string; label: string; max_count: number; current_count: number; is_full: boolean; }
+
+interface UnpaidEntry {
+  id: string;
+  name: string;
+  phone: string;
+  sms_sent: boolean;
+  registered: boolean; // API에서 registrations.phone과 자동 비교
+  created_at: string;
+}
+
+// 미입금자 추적 접근 허용 이메일
+const UNPAID_ALLOWED_EMAILS = ['jhp6413@gmail.com', 'dlwldnjs7138@gmail.com',"skj45691234@gmail.com"];
 interface Stats {
   total: number;
   gender: { male: number; female: number; other: number };
@@ -83,8 +96,19 @@ const GROUP_COLORS: Record<string, { bg: string; border: string; text: string; a
 };
 
 export default function HubUpAdminPage() {
+  const { data: session } = useSession();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'stats' | 'deposit' | 'list' | 'room' | 'bus' | 'tshirt'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'deposit' | 'list' | 'room' | 'bus' | 'tshirt' | 'unpaid'>('stats');
+
+  // 미입금자 추적 접근 권한
+  const userEmail = (session?.user as any)?.email ?? '';
+  const isAdmin = (session?.user as any)?.isAdmin ?? false;
+  const canAccessUnpaid = isAdmin && UNPAID_ALLOWED_EMAILS.includes(userEmail);
+
+  // 미입금자 추적 상태
+  const [unpaidName, setUnpaidName] = useState('');
+  const [unpaidPhone, setUnpaidPhone] = useState('');
+  const [unpaidAddError, setUnpaidAddError] = useState('');
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [roomFilter, setRoomFilter] = useState('');
@@ -143,6 +167,52 @@ export default function HubUpAdminPage() {
   const { data: tshirts = [], isLoading: isTshirtsLoading } = useQuery<any[]>({
     queryKey: ['hub-up-tshirts'],
     queryFn: () => fetch('/api/admin/hub-up/tshirts').then(r => r.json()),
+  });
+
+  const { data: unpaidEntries = [], isLoading: isUnpaidLoading } = useQuery<UnpaidEntry[]>({
+    queryKey: ['hub-up-unpaid-tracker'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/hub-up/unpaid-tracker');
+      if (!res.ok) throw new Error('조회 실패');
+      return res.json();
+    },
+    enabled: canAccessUnpaid,
+    refetchInterval: 30000,
+  });
+
+  const unpaidAddMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/admin/hub-up/unpaid-tracker', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: unpaidName, phone: unpaidPhone }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? '추가 실패'); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hub-up-unpaid-tracker'] });
+      setUnpaidName(''); setUnpaidPhone(''); setUnpaidAddError('');
+    },
+    onError: (e: any) => setUnpaidAddError(e.message),
+  });
+
+  const unpaidSmsMutation = useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
+      const res = await fetch(`/api/admin/hub-up/unpaid-tracker/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sms_sent: value }),
+      });
+      if (!res.ok) throw new Error('업데이트 실패');
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hub-up-unpaid-tracker'] }),
+  });
+
+  const unpaidDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/hub-up/unpaid-tracker/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('삭제 실패');
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hub-up-unpaid-tracker'] }),
   });
 
   const depositMutation = useMutation({
@@ -290,6 +360,7 @@ export default function HubUpAdminPage() {
         <Tab active={activeTab === 'room'} onClick={() => setActiveTab('room')}>🏠 숙소 배정</Tab>
         <Tab active={activeTab === 'bus'} onClick={() => setActiveTab('bus')}>🚌 버스 현황</Tab>
         <Tab active={activeTab === 'tshirt'} onClick={() => setActiveTab('tshirt')}>👕 단체티 주문</Tab>
+        {canAccessUnpaid && <Tab active={activeTab === 'unpaid'} onClick={() => setActiveTab('unpaid')}>📋 미입금 추적</Tab>}
       </TabBar>
 
       <TabContent>
@@ -903,6 +974,61 @@ export default function HubUpAdminPage() {
             )}
           </div>
         )}
+
+        {/* ── 미입금 추적 탭 ── */}
+        {activeTab === 'unpaid' && canAccessUnpaid && (
+          <div>
+            <UnpaidSubTitle>입금은 됐으나 신청서를 작성하지 않은 인원을 관리합니다. 연락처가 입금확인 탭에 존재하면 신청완료로 자동 표시됩니다.</UnpaidSubTitle>
+            <DepositSummary>
+              <RoomStatItem><RoomStatNum>{unpaidEntries.length}</RoomStatNum><RoomStatLabel>전체</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#f59e0b'}}>{unpaidEntries.filter(e=>e.sms_sent).length}</RoomStatNum><RoomStatLabel>문자 발송</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#278f5a'}}>{unpaidEntries.filter(e=>e.registered).length}</RoomStatNum><RoomStatLabel>신청 완료</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#d93025'}}>{unpaidEntries.filter(e=>!e.registered).length}</RoomStatNum><RoomStatLabel>미신청</RoomStatLabel></RoomStatItem>
+            </DepositSummary>
+
+            <UnpaidAddCard>
+              <SearchBox>
+                <SearchIn placeholder="이름" value={unpaidName} onChange={e => setUnpaidName(e.target.value)} onKeyDown={e => e.key === 'Enter' && unpaidAddMutation.mutate()} style={{maxWidth:'160px'}} />
+                <SearchIn placeholder="연락처 (예: 010-0000-0000)" value={unpaidPhone} onChange={e => setUnpaidPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && unpaidAddMutation.mutate()} />
+                <BulkBtn onClick={() => unpaidAddMutation.mutate()} disabled={!unpaidName.trim() || unpaidAddMutation.isPending}>+ 추가</BulkBtn>
+              </SearchBox>
+              {unpaidAddError && <div style={{color:'#d93025',fontSize:'13px',marginTop:'8px'}}>{unpaidAddError}</div>}
+            </UnpaidAddCard>
+
+            {isUnpaidLoading ? <Loading>불러오는 중...</Loading> : (
+              <TableWrap>
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>#</Th><Th>이름</Th><Th>연락처</Th><Th style={{textAlign:'center'}}>독려 문자</Th><Th style={{textAlign:'center'}}>신청서 작성</Th><Th style={{textAlign:'center'}}>삭제</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unpaidEntries.map((entry, i) => (
+                      <tr key={entry.id} style={{background: entry.registered ? '#f0fdf4' : undefined}}>
+                        <Td>{i + 1}</Td>
+                        <Td><strong>{entry.name}</strong></Td>
+                        <Td>{entry.phone || '-'}</Td>
+                        <Td style={{textAlign:'center'}}>
+                          <FilterBtn active={entry.sms_sent} onClick={() => unpaidSmsMutation.mutate({id: entry.id, value: !entry.sms_sent})}>
+                            {entry.sms_sent ? '✅ 발송완료' : '📱 미발송'}
+                          </FilterBtn>
+                        </Td>
+                        <Td style={{textAlign:'center'}}>
+                          <DepBadge ok={entry.registered}>{entry.registered ? '✅ 신청완료' : '⏳ 미신청'}</DepBadge>
+                        </Td>
+                        <Td style={{textAlign:'center'}}>
+                          <CancelBtn onClick={() => { if (confirm(`${entry.name}을(를) 삭제할까요?`)) unpaidDeleteMutation.mutate(entry.id); }}>삭제</CancelBtn>
+                        </Td>
+                      </tr>
+                    ))}
+                    {unpaidEntries.length === 0 && <tr><td colSpan={6} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>등록된 미입금자가 없습니다.</td></tr>}
+                  </tbody>
+                </Table>
+              </TableWrap>
+            )}
+          </div>
+        )}
       </TabContent>
     </Wrap>
   );
@@ -1016,6 +1142,8 @@ const Th = styled.th`padding: 9px 10px; background: #f8f9fa; text-align: left; f
 const SortTh = styled.th`padding: 9px 10px; background: #f8f9fa; text-align: left; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; white-space: nowrap; cursor: pointer; user-select: none; &:hover { background: #e8eaed; color: #202124; }`;
 const Td = styled.td`padding: 9px 10px; border-bottom: 1px solid #f1f3f4; vertical-align: middle;`;
 const DepBadge = styled.span<{ok:boolean}>`padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; background: ${p=>p.ok?'#e6f4ea':'#fce8e6'}; color: ${p=>p.ok?'#278f5a':'#d93025'};`;
+const UnpaidSubTitle = styled.p`font-size: 13px; color: #9aa0a6; margin-bottom: 14px; line-height: 1.6;`;
+const UnpaidAddCard = styled.div`background: white; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 16px;`;
 const RoomBadge = styled.span<{ok:boolean}>`padding: 2px 7px; border-radius: 4px; font-size: 12px; font-weight: 600; background: ${p=>p.ok?'#e8f0fe':'#f1f3f4'}; color: ${p=>p.ok?'#1d4ed8':'#9aa0a6'};`;
 const RoomIn = styled.input`width: 70px; padding: 3px 7px; border: 1px solid #2563eb; border-radius: 4px; font-size: 12px; outline: none;`;
 const BtnGrp = styled.div`display: flex; gap: 3px;`;

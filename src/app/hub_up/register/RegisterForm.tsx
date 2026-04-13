@@ -212,7 +212,9 @@ export default function RegisterForm({
   const checkStep3Valid = () => {
     const opts = electives.length > 0 ? electives.map(e => e.label) : ['삶과 사역의 밸런스', '돈, 재정', '관계 및 소통'];
     const count = formData.electiveLecture ? opts.filter(opt => formData.electiveLecture.includes(opt)).length : 0;
-    return count === 2;
+    if (count !== 2) return false;
+    if (!formData.volunteerTeam) return false;
+    return true;
   };
 
   // ── 제출 ──────────────────────────────────────────────────
@@ -806,7 +808,7 @@ export default function RegisterForm({
 
                  <LegacySection>
                    <Label>자원봉사팀 섬김 여부</Label>
-                   <SubLabel>해당하는 팀을 선택해주세요. 해당 없으면 선택하지 않아도 됩니다.</SubLabel>
+                   <SubLabel>해당하는 팀을 선택해주세요. 참여하지 않을 경우 <strong>해당 없음</strong>을 선택해주세요.</SubLabel>
                    <SelectField onClick={() => setActiveSheet('volunteer')}>
                      <span className={formData.volunteerTeam ? 'selected' : 'placeholder'}>
                        {formData.volunteerTeam || '선택해주세요'}
