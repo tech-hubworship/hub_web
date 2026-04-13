@@ -3,8 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@src/lib/auth';
 import { supabaseAdmin } from '@src/lib/supabase';
 
-// 접근 허용 이메일 목록 (환경변수로 관리)
-const ALLOWED_EMAILS = (process.env.UNPAID_TRACKER_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean);
+// 접근 허용 이메일 목록
+const ALLOWED_EMAILS = ['skj45691234@gmail.com', 'jhp6413@gmail.com', 'dlwldnjs7138@gmail.com'];
 
 function hasAccess(session: any) {
   const email = session?.user?.email ?? '';
@@ -24,17 +24,30 @@ export async function GET() {
       .order('created_at', { ascending: true }),
     supabaseAdmin
       .from('hub_up_registrations')
-      .select('phone'),
+      .select('phone, admin_deposit_confirm'),
   ]);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // 신청서 작성 여부: registrations에 같은 연락처가 있으면 true
-  const registeredPhones = new Set((regsData ?? []).map((r: any) => r.phone?.replace(/\D/g, '')));
-  const result = (trackerData ?? []).map((entry: any) => ({
-    ...entry,
-    registered: registeredPhones.has(entry.phone?.replace(/\D/g, '')),
-  }));
+  // 연락처 기준으로 신청 여부 + 입금확인 여부 자동 매칭
+  const regMap = new Map<string, { registered: boolean; deposit_confirmed: boolean }>();
+  (regsData ?? []).forEach((r: any) => {
+    const normalized = r.phone?.replace(/\D/g, '');
+    if (normalized) regMap.set(normalized, {
+      registered: true,
+      deposit_confirmed: r.admin_deposit_confirm ?? false,
+    });
+  });
+
+  const result = (trackerData ?? []).map((entry: any) => {
+    const normalized = entry.phone?.replace(/\D/g, '');
+    const match = regMap.get(normalized ?? '');
+    return {
+      ...entry,
+      registered: match?.registered ?? false,
+      deposit_confirmed: match?.deposit_confirmed ?? false,
+    };
+  });
 
   return NextResponse.json(result);
 }

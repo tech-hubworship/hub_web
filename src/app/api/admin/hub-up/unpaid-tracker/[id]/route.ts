@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@src/lib/auth';
 import { supabaseAdmin } from '@src/lib/supabase';
 
-const ALLOWED_EMAILS = (process.env.UNPAID_TRACKER_EMAILS ?? '').split(',').map(e => e.trim()).filter(Boolean);
+const ALLOWED_EMAILS = ['skj45691234@gmail.com', 'jhp6413@gmail.com', 'dlwldnjs7138@gmail.com'];
 
 function hasAccess(session: any) {
   const email = session?.user?.email ?? '';
@@ -26,6 +26,7 @@ export async function PATCH(
   if ('sms_sent' in body) updateData.sms_sent = body.sms_sent;
   if ('name' in body) updateData.name = body.name;
   if ('phone' in body) updateData.phone = body.phone;
+  if ('memo' in body) updateData.memo = body.memo;
 
   const { error } = await supabaseAdmin
     .from('hub_up_unpaid_tracker')

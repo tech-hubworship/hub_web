@@ -20,12 +20,14 @@ interface UnpaidEntry {
   name: string;
   phone: string;
   sms_sent: boolean;
-  registered: boolean; // API에서 registrations.phone과 자동 비교
+  registered: boolean;
+  deposit_confirmed: boolean; // registrations.admin_deposit_confirm 자동 매칭
+  memo: string;
   created_at: string;
 }
 
 // 미입금자 추적 접근 허용 이메일
-const UNPAID_ALLOWED_EMAILS = ['jhp6413@gmail.com', 'dlwldnjs7138@gmail.com',"skj45691234@gmail.com"];
+const UNPAID_ALLOWED_EMAILS = ['skj45691234@gmail.com', 'jhp6413@gmail.com', 'dlwldnjs7138@gmail.com'];
 interface Stats {
   total: number;
   gender: { male: number; female: number; other: number };
@@ -143,13 +145,11 @@ export default function HubUpAdminPage() {
       if (!res.ok) throw new Error('데이터 로드 실패');
       return res.json();
     },
-    refetchInterval: 30000,
-  });
-
-  const { data: busStats } = useQuery<{ slotStats: SlotStat[]; registrations: Registration[] }>({
+    refetchOnWindowFocus: true,
+  });  const { data: busStats } = useQuery<{ slotStats: SlotStat[]; registrations: Registration[] }>({
     queryKey: ['hub-up-bus-stats'],
     queryFn: () => fetch('/api/admin/hub-up/bus-stats').then(r => r.json()),
-    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: registrations = [], isLoading } = useQuery<Registration[]>({
@@ -177,7 +177,7 @@ export default function HubUpAdminPage() {
       return res.json();
     },
     enabled: canAccessUnpaid,
-    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   });
 
   const unpaidAddMutation = useMutation({
@@ -203,6 +203,17 @@ export default function HubUpAdminPage() {
         body: JSON.stringify({ sms_sent: value }),
       });
       if (!res.ok) throw new Error('업데이트 실패');
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hub-up-unpaid-tracker'] }),
+  });
+
+  const unpaidMemoMutation = useMutation({
+    mutationFn: async ({ id, memo }: { id: string; memo: string }) => {
+      const res = await fetch(`/api/admin/hub-up/unpaid-tracker/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memo }),
+      });
+      if (!res.ok) throw new Error('메모 저장 실패');
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hub-up-unpaid-tracker'] }),
   });
@@ -351,6 +362,9 @@ export default function HubUpAdminPage() {
         <ExportBtn onClick={() => exportToExcel(registrations, '허브업_신청자_전체')}>
           📥 전체 엑셀 다운로드
         </ExportBtn>
+        <RefreshBtn onClick={() => queryClient.invalidateQueries({ queryKey: ['hub-up'] })}>
+          🔄 새로고침
+        </RefreshBtn>
       </PageHeader>
 
       <TabBar>
@@ -1000,12 +1014,12 @@ export default function HubUpAdminPage() {
                 <Table>
                   <thead>
                     <tr>
-                      <Th>#</Th><Th>이름</Th><Th>연락처</Th><Th style={{textAlign:'center'}}>독려 문자</Th><Th style={{textAlign:'center'}}>신청서 작성</Th><Th style={{textAlign:'center'}}>삭제</Th>
+                      <Th>#</Th><Th>이름</Th><Th>연락처</Th><Th style={{textAlign:'center'}}>독려 문자</Th><Th style={{textAlign:'center'}}>신청서 작성</Th><Th style={{textAlign:'center'}}>입금확인</Th><Th>메모</Th><Th style={{textAlign:'center'}}>삭제</Th>
                     </tr>
                   </thead>
                   <tbody>
                     {unpaidEntries.map((entry, i) => (
-                      <tr key={entry.id} style={{background: entry.registered ? '#f0fdf4' : undefined}}>
+                      <tr key={entry.id} style={{background: entry.registered && entry.deposit_confirmed ? '#f0fdf4' : entry.registered ? '#fefce8' : undefined}}>
                         <Td>{i + 1}</Td>
                         <Td><strong>{entry.name}</strong></Td>
                         <Td>{entry.phone || '-'}</Td>
@@ -1018,11 +1032,29 @@ export default function HubUpAdminPage() {
                           <DepBadge ok={entry.registered}>{entry.registered ? '✅ 신청완료' : '⏳ 미신청'}</DepBadge>
                         </Td>
                         <Td style={{textAlign:'center'}}>
+                          <DepBadge ok={entry.deposit_confirmed}>
+                            {!entry.registered ? '-' : entry.deposit_confirmed ? '✅ 입금완료' : '❌ 미입금'}
+                          </DepBadge>
+                        </Td>
+                        <Td>
+                          <UnpaidMemoInput
+                            defaultValue={entry.memo || ''}
+                            placeholder="메모 입력 후 Enter"
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                unpaidMemoMutation.mutate({ id: entry.id, memo: (e.target as HTMLInputElement).value });
+                                (e.target as HTMLInputElement).blur();
+                              }
+                            }}
+                            onBlur={e => unpaidMemoMutation.mutate({ id: entry.id, memo: e.target.value })}
+                          />
+                        </Td>
+                        <Td style={{textAlign:'center'}}>
                           <CancelBtn onClick={() => { if (confirm(`${entry.name}을(를) 삭제할까요?`)) unpaidDeleteMutation.mutate(entry.id); }}>삭제</CancelBtn>
                         </Td>
                       </tr>
                     ))}
-                    {unpaidEntries.length === 0 && <tr><td colSpan={6} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>등록된 미입금자가 없습니다.</td></tr>}
+                    {unpaidEntries.length === 0 && <tr><td colSpan={8} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>등록된 미입금자가 없습니다.</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
@@ -1041,6 +1073,7 @@ const PageTitle = styled.h2`font-size: 18px; font-weight: 700; color: #202124; m
 const HeaderBadges = styled.div`display: flex; gap: 6px;`;
 const Badge = styled.span<{color:string}>`padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; background: ${p=>p.color}18; color: ${p=>p.color}; border: 1px solid ${p=>p.color}30;`;
 const ExportBtn = styled.button`padding: 7px 14px; background: #1d4ed8; color: white; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; margin-left: auto; &:hover{background:#1e40af;}`;
+const RefreshBtn = styled.button`padding: 7px 14px; background: white; color: #5f6368; border: 1px solid #dadce0; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; &:hover{background:#f1f3f4;}`;
 const TabBar = styled.div`display: flex; border-bottom: 2px solid #e8eaed; margin-bottom: 20px; gap: 2px;`;
 const Tab = styled.button<{active:boolean}>`padding: 10px 16px; background: none; border: none; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid ${p=>p.active?'#278f5a':'transparent'}; margin-bottom: -2px; color: ${p=>p.active?'#278f5a':'#9aa0a6'};`;
 const TabContent = styled.div``;
@@ -1144,6 +1177,7 @@ const Td = styled.td`padding: 9px 10px; border-bottom: 1px solid #f1f3f4; vertic
 const DepBadge = styled.span<{ok:boolean}>`padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; background: ${p=>p.ok?'#e6f4ea':'#fce8e6'}; color: ${p=>p.ok?'#278f5a':'#d93025'};`;
 const UnpaidSubTitle = styled.p`font-size: 13px; color: #9aa0a6; margin-bottom: 14px; line-height: 1.6;`;
 const UnpaidAddCard = styled.div`background: white; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 16px;`;
+const UnpaidMemoInput = styled.input`width: 100%; min-width: 120px; padding: 4px 8px; border: 1px solid #e8eaed; border-radius: 6px; font-size: 12px; color: #202124; background: white; &:focus { outline: none; border-color: #1d4ed8; }`;
 const RoomBadge = styled.span<{ok:boolean}>`padding: 2px 7px; border-radius: 4px; font-size: 12px; font-weight: 600; background: ${p=>p.ok?'#e8f0fe':'#f1f3f4'}; color: ${p=>p.ok?'#1d4ed8':'#9aa0a6'};`;
 const RoomIn = styled.input`width: 70px; padding: 3px 7px; border: 1px solid #2563eb; border-radius: 4px; font-size: 12px; outline: none;`;
 const BtnGrp = styled.div`display: flex; gap: 3px;`;
