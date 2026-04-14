@@ -768,6 +768,7 @@ export default function RegisterForm({
                           minHour={14}
                           maxHour={23}
                           dates={['5/15', '5/16']}
+                          dateMinHours={{'5/15': 14, '5/16': 7}}
                         />
                       </LegacySection>
                     )}

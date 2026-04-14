@@ -71,10 +71,11 @@ interface TimePickerProps {
   onChange: (val: string) => void;
   minHour?: number;
   maxHour?: number;
-  dates?: string[]; // e.g. ['5/15', '5/16']
+  dates?: string[];
+  dateMinHours?: Record<string, number>; // 날짜별 minHour override e.g. {'5/16': 7}
 }
 
-export default function TimePicker({ label, value, onChange, minHour = 0, maxHour = 23, dates }: TimePickerProps) {
+export default function TimePicker({ label, value, onChange, minHour = 0, maxHour = 23, dates, dateMinHours }: TimePickerProps) {
   // value format: "5/15 18:00" if dates, else "18:00"
   let dateVal = dates?.[0] || '';
   let h = String(minHour).padStart(2, '0');
@@ -88,10 +89,23 @@ export default function TimePicker({ label, value, onChange, minHour = 0, maxHou
     [h, m] = value.split(':');
   }
 
-  const hours = Array.from({ length: maxHour - minHour + 1 }, (_, i) =>
-    String(minHour + i).padStart(2, '0')
+  // 현재 선택된 날짜의 minHour 결정
+  const effectiveMinHour = (dateMinHours && dateVal && dateMinHours[dateVal] !== undefined)
+    ? dateMinHours[dateVal]
+    : minHour;
+
+  const hours = Array.from({ length: maxHour - effectiveMinHour + 1 }, (_, i) =>
+    String(effectiveMinHour + i).padStart(2, '0')
   );
   const minutes = ['00', '10', '20', '30', '40', '50'];
+
+  // 날짜 변경 시 시간이 새 minHour보다 작으면 보정
+  const handleDateChange = (newD: string) => {
+    const newMin = (dateMinHours && dateMinHours[newD] !== undefined) ? dateMinHours[newD] : minHour;
+    const currentH = parseInt(h, 10);
+    const correctedH = currentH < newMin ? String(newMin).padStart(2, '0') : h.padStart(2, '0');
+    onChange(buildValue(newD, correctedH, m.padStart(2, '0')));
+  };
 
   const buildValue = (d: string, hh: string, mm: string) =>
     dates ? `${d} ${hh}:${mm}` : `${hh}:${mm}`;
@@ -106,7 +120,7 @@ export default function TimePicker({ label, value, onChange, minHour = 0, maxHou
             <DialColumn
               items={dates}
               value={dateVal}
-              onChange={(newD) => onChange(buildValue(newD, h.padStart(2, '0'), m.padStart(2, '0')))}
+              onChange={handleDateChange}
             />
             <Separator />
           </>
