@@ -318,7 +318,9 @@ export default function HubUpAdminPage() {
       filtered = filtered.filter(r => r.name.includes(appliedSearch) || r.group_name.includes(appliedSearch) || r.phone.includes(appliedSearch));
     }
     if (listGroupFilter) {
+      const FIXED = ['MC', '타공동체', '타교회'];
       filtered = filtered.filter(r => {
+        if (FIXED.includes(listGroupFilter)) return r.group_name === listGroupFilter;
         const match = r.group_name?.match(/^(.+?)그룹/);
         return match ? match[1] === listGroupFilter : false;
       });
@@ -666,9 +668,18 @@ export default function HubUpAdminPage() {
                 <FilterLabel>그룹</FilterLabel>
                 <FilterSelect value={listGroupFilter} onChange={e => { setListGroupFilter(e.target.value); setListCellFilter(''); }}>
                   <option value="">전체</option>
-                  {Array.from(new Set(registrations.map(r => r.group_name?.match(/^(.+?)그룹/)?.[1]).filter(Boolean))).sort((a,b) => a!.localeCompare(b!, 'ko')).map(g => (
-                    <option key={g} value={g!}>{g}</option>
-                  ))}
+                  {(() => {
+                    const FIXED = ['MC', '타공동체', '타교회'];
+                    const groups = Array.from(new Set(registrations.map(r => {
+                      const match = r.group_name?.match(/^(.+?)그룹/);
+                      if (match) return match[1];
+                      if (FIXED.includes(r.group_name ?? '')) return r.group_name;
+                      return null;
+                    }).filter(Boolean) as string[]));
+                    const normal = groups.filter(g => !FIXED.includes(g)).sort((a,b) => a.localeCompare(b, 'ko'));
+                    const fixed = FIXED.filter(f => groups.includes(f));
+                    return [...normal, ...fixed].map(g => <option key={g} value={g}>{g}</option>);
+                  })()}
                 </FilterSelect>
                 <FilterLabel>다락방</FilterLabel>
                 <FilterSelect value={listCellFilter} onChange={e => setListCellFilter(e.target.value)}>
