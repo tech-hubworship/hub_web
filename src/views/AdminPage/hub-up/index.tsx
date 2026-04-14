@@ -44,6 +44,13 @@ interface Stats {
 
 const sl = (slot: string) => slot === 'car' ? '자차' : slot.replace('bus-', '');
 
+// 티셔츠 가격 계산: 1~2장 = 10,000원/장, 3장 이상 = 9,000원/장
+function calcTshirtPrice(items: any[]): number {
+  const totalQty = (items || []).reduce((acc: number, i: any) => acc + i.quantity, 0);
+  const unitPrice = totalQty >= 3 ? 9000 : 10000;
+  return totalQty * unitPrice;
+}
+
 // ── Excel Export ──────────────────────────────────────────
 function exportToExcel(registrations: Registration[], filename: string) {
   const headers = ['이름','그룹','공동체','성별','연락처','순장','출발','복귀','선택강의','자원봉사','자기입금','입금확인','숙소','메모','신청일시'];
@@ -71,7 +78,7 @@ function exportTshirtExcel(orders: any[]) {
   const rows = orders.map(o => {
     const itemsStr = (o.items || []).map((i:any) => `${i.color} ${i.size} ${i.quantity}개`).join(', ');
     const totalQty = (o.items || []).reduce((acc:number, i:any) => acc + i.quantity, 0);
-    const totalPrice = (o.items || []).reduce((acc:number, i:any) => acc + i.quantity * (i.price || 20000), 0);
+    const totalPrice = calcTshirtPrice(o.items || []);
     return [
       o.name, o.group_name, o.phone, itemsStr, totalQty, totalPrice,
       o.deposit_confirm ? 'O' : 'X',
@@ -119,6 +126,8 @@ export default function HubUpAdminPage() {
   const [listGroupFilter, setListGroupFilter] = useState('');
   const [listCellFilter, setListCellFilter] = useState('');
   const [listVolunteerFilter, setListVolunteerFilter] = useState('');
+  const [busSlotFilter, setBusSlotFilter] = useState('');
+  const [busReturnFilter, setBusReturnFilter] = useState('');
 
   // 입금 기간 정의
   const DEPOSIT_PERIODS = [
@@ -775,39 +784,82 @@ export default function HubUpAdminPage() {
         )}
 
         {/* ── 버스 현황 탭 ── */}
-        {activeTab === 'bus' && (
-          <div>
-            <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'8px'}}>
-              <ExportBtn onClick={() => exportToExcel(busStats?.registrations || [], '허브업_버스명단')}>📥 엑셀 다운로드</ExportBtn>
-            </div>
-            <BusGrid>
-              {(busStats?.slotStats || []).map(s => (
-                <BusCard key={s.value} full={s.is_full}>
-                  <BusCardLabel>{s.label}</BusCardLabel>
-                  <BusCardCount><BusNum>{s.current_count}</BusNum><BusMax>/ {s.max_count > 0 ? s.max_count : '∞'}</BusMax></BusCardCount>
-                  {s.max_count > 0 && <BusBarWrap><BusFill pct={Math.min((s.current_count/s.max_count)*100,100)} full={s.is_full} /></BusBarWrap>}
-                  {s.is_full && <FullTag>마감</FullTag>}
-                </BusCard>
-              ))}
-            </BusGrid>
-            <TableWrap>
-              <Table>
-                <thead><tr><Th>이름</Th><Th>그룹</Th><Th>출발</Th><Th>복귀</Th></tr></thead>
-                <tbody>
-                  {(busStats?.registrations || []).map(r => (
-                    <tr key={r.id}>
-                      <Td><strong>{r.name}</strong></Td>
-                      <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
-                      <Td><SlotChip>{sl(r.departure_slot)}</SlotChip></Td>
-                      <Td>{sl(r.return_slot)}</Td>
-                    </tr>
+        {activeTab === 'bus' && (() => {
+          const BUS_SLOTS = [
+            { label: '선발대', value: 'bus-선발대' },
+            { label: '18:00', value: 'bus-18:00' },
+            { label: '18:30', value: 'bus-18:30' },
+            { label: '19:00', value: 'bus-19:00' },
+            { label: '20:00', value: 'bus-20:00' },
+            { label: '자차/대중교통', value: 'car' },
+          ];
+          const allRegs = busStats?.registrations || [];
+          const filteredBus = allRegs
+            .filter(r => !busSlotFilter || r.departure_slot === busSlotFilter)
+            .filter(r => !busReturnFilter || r.return_slot === busReturnFilter);
+
+          // 실제 데이터에서 복귀 슬롯 추출
+          const returnSlots = Array.from(new Set(allRegs.map(r => r.return_slot).filter(Boolean)))
+            .sort((a, b) => a.localeCompare(b));
+          return (
+            <div>
+              <ToolRow>
+                <SearchBox>
+                  <FilterLabel>출발</FilterLabel>
+                  {BUS_SLOTS.map(s => (
+                    <FilterBtn key={s.value} active={busSlotFilter === s.value} onClick={() => setBusSlotFilter(busSlotFilter === s.value ? '' : s.value)}>
+                      {s.label}
+                    </FilterBtn>
                   ))}
-                  {!busStats?.registrations?.length && <tr><td colSpan={4} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
-                </tbody>
-              </Table>
-            </TableWrap>
-          </div>
-        )}
+                  {busSlotFilter && <SearchBtn onClick={() => setBusSlotFilter('')} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>}
+                </SearchBox>
+                <SearchBox>
+                  <FilterLabel>복귀</FilterLabel>
+                  {returnSlots.map(v => (
+                    <FilterBtn key={v} active={busReturnFilter === v} onClick={() => setBusReturnFilter(busReturnFilter === v ? '' : v)}>
+                      {sl(v)}
+                    </FilterBtn>
+                  ))}
+                  {busReturnFilter && <SearchBtn onClick={() => setBusReturnFilter('')} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>}
+                </SearchBox>
+                <ExportBtn onClick={() => {
+                  const dep = BUS_SLOTS.find(s => s.value === busSlotFilter);
+                  const parts = ['허브업_버스'];
+                  if (dep) parts.push(`출발_${dep.label}`);
+                  if (busReturnFilter) parts.push(`복귀_${sl(busReturnFilter)}`);
+                  exportToExcel(filteredBus, parts.join('_'));
+                }}>📥 엑셀 다운로드</ExportBtn>
+              </ToolRow>
+              <BusGrid>
+                {(busStats?.slotStats || []).map(s => (
+                  <BusCard key={s.value} full={s.is_full}>
+                    <BusCardLabel>{s.label}</BusCardLabel>
+                    <BusCardCount><BusNum>{s.current_count}</BusNum><BusMax>/ {s.max_count > 0 ? s.max_count : '∞'}</BusMax></BusCardCount>
+                    {s.max_count > 0 && <BusBarWrap><BusFill pct={Math.min((s.current_count/s.max_count)*100,100)} full={s.is_full} /></BusBarWrap>}
+                    {s.is_full && <FullTag>마감</FullTag>}
+                  </BusCard>
+                ))}
+              </BusGrid>
+              <TableWrap>
+                <Table>
+                  <thead><tr><Th>#</Th><Th>이름</Th><Th>그룹</Th><Th>출발</Th><Th>복귀</Th></tr></thead>
+                  <tbody>
+                    {filteredBus.map((r, i) => (
+                      <tr key={r.id}>
+                        <Td style={{color:'#9aa0a6',fontSize:'12px'}}>{i+1}</Td>
+                        <Td><strong>{r.name}</strong></Td>
+                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
+                        <Td><SlotChip>{sl(r.departure_slot)}</SlotChip></Td>
+                        <Td>{sl(r.return_slot)}</Td>
+                      </tr>
+                    ))}
+                    {filteredBus.length === 0 && <tr><td colSpan={5} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
+                  </tbody>
+                </Table>
+              </TableWrap>
+            </div>
+          );
+        })()}
 
         {/* ── 숙소 배정 탭 ── */}
         {activeTab === 'room' && (
@@ -903,6 +955,24 @@ export default function HubUpAdminPage() {
                   {tshirts.reduce((acc: number, t: any) => acc + (t.items || []).reduce((sum: number, item: any) => sum + item.quantity, 0), 0)}장
                 </RoomStatNum>
                 <RoomStatLabel>총 판매 티셔츠</RoomStatLabel>
+              </RoomStatItem>
+              <RoomStatItem>
+                <RoomStatNum style={{color:'#1d4ed8'}}>
+                  {tshirts.reduce((acc: number, t: any) => acc + calcTshirtPrice(t.items || []), 0).toLocaleString()}원
+                </RoomStatNum>
+                <RoomStatLabel>전체 총액</RoomStatLabel>
+              </RoomStatItem>
+              <RoomStatItem>
+                <RoomStatNum style={{color:'#278f5a'}}>
+                  {tshirts.filter((t:any) => t.status === 'confirmed').reduce((acc: number, t: any) => acc + calcTshirtPrice(t.items || []), 0).toLocaleString()}원
+                </RoomStatNum>
+                <RoomStatLabel>입금완료 총액</RoomStatLabel>
+              </RoomStatItem>
+              <RoomStatItem>
+                <RoomStatNum style={{color:'#d93025'}}>
+                  {tshirts.filter((t:any) => t.status !== 'confirmed').reduce((acc: number, t: any) => acc + calcTshirtPrice(t.items || []), 0).toLocaleString()}원
+                </RoomStatNum>
+                <RoomStatLabel>미수금</RoomStatLabel>
               </RoomStatItem>
             </DepositSummary>
 
@@ -1037,7 +1107,7 @@ export default function HubUpAdminPage() {
                         <Td>
                           <strong>{t.items?.reduce((sum:number, item:any)=>sum+item.quantity, 0)}장</strong>
                           <div style={{fontSize:'11px', color:'#5f6368'}}>
-                            ({(t.items?.reduce((sum:number, item:any) => sum + item.quantity * (item.price || 20000), 0) || 0).toLocaleString()}원)
+                            ({calcTshirtPrice(t.items || []).toLocaleString()}원)
                           </div>
                         </Td>
                         <Td><DepBadge ok={t.deposit_confirm}>{t.deposit_confirm ? '입금했다고 함' : '미신고'}</DepBadge></Td>
