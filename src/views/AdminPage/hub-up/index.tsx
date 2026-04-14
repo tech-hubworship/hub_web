@@ -46,11 +46,11 @@ const sl = (slot: string) => slot === 'car' ? '자차' : slot.replace('bus-', ''
 
 // ── Excel Export ──────────────────────────────────────────
 function exportToExcel(registrations: Registration[], filename: string) {
-  const headers = ['이름','그룹','공동체','성별','생년월일','연락처','순장','출발','복귀','선택강의','자원봉사','중보','자기입금','입금확인','숙소','메모','신청일시'];
+  const headers = ['이름','그룹','공동체','성별','연락처','순장','출발','복귀','선택강의','자원봉사','자기입금','입금확인','숙소','메모','신청일시'];
   const rows = registrations.map(r => [
-    r.name, r.group_name, r.community, r.gender, r.birthdate, r.phone, r.leader_name,
+    r.name, r.group_name, r.community, r.gender, r.phone, r.leader_name,
     sl(r.departure_slot), sl(r.return_slot), r.elective_lecture,
-    r.volunteer_team, r.intercessor_team,
+    r.volunteer_team,
     r.deposit_confirm ? 'O' : 'X',
     r.admin_deposit_confirm ? 'O' : 'X',
     r.room_number || '', r.room_note || '',
@@ -116,6 +116,9 @@ export default function HubUpAdminPage() {
   const [roomFilter, setRoomFilter] = useState('');
   const [depositFilter, setDepositFilter] = useState<'all' | 'confirmed' | 'pending'>('all');
   const [periodFilter, setPeriodFilter] = useState<'all' | '1' | '2' | '3'>('all');
+  const [listGroupFilter, setListGroupFilter] = useState('');
+  const [listCellFilter, setListCellFilter] = useState('');
+  const [listVolunteerFilter, setListVolunteerFilter] = useState('');
 
   // 입금 기간 정의
   const DEPOSIT_PERIODS = [
@@ -309,14 +312,31 @@ export default function HubUpAdminPage() {
   const startEdit = (r: Registration) => { setEditingId(r.id); setEditRoom(r.room_number || ''); setEditNote(r.room_note || ''); };
 
   const sortedRegistrations = useMemo(() => {
-    if (!sortKey) return registrations;
-    return [...registrations].sort((a, b) => {
+    // 그룹/다락방/자원봉사 필터 적용
+    let filtered = registrations;
+    if (appliedSearch) {
+      filtered = filtered.filter(r => r.name.includes(appliedSearch) || r.group_name.includes(appliedSearch) || r.phone.includes(appliedSearch));
+    }
+    if (listGroupFilter) {
+      filtered = filtered.filter(r => {
+        const match = r.group_name?.match(/^(.+?)그룹/);
+        return match ? match[1] === listGroupFilter : false;
+      });
+    }
+    if (listCellFilter) {
+      filtered = filtered.filter(r => r.group_name?.includes(listCellFilter));
+    }
+    if (listVolunteerFilter) {
+      filtered = filtered.filter(r => r.volunteer_team === listVolunteerFilter);
+    }
+    if (!sortKey) return filtered;
+    return [...filtered].sort((a, b) => {
       const av = a[sortKey] ?? '';
       const bv = b[sortKey] ?? '';
       const cmp = String(av).localeCompare(String(bv), 'ko');
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [registrations, sortKey, sortDir]);
+  }, [registrations, sortKey, sortDir, listGroupFilter, listCellFilter, listVolunteerFilter]);
 
   const total = registrations.length;
   const assigned = registrations.filter(r => r.room_number).length;
@@ -638,13 +658,50 @@ export default function HubUpAdminPage() {
           <div>
             <ToolRow>
               <SearchBox>
-                <SearchIn placeholder="이름 / 그룹 / 연락처" value={search}
+                <FilterLabel>필터</FilterLabel>
+                <SearchIn placeholder="이름 검색" value={search}
                   onChange={e => setSearch(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && setAppliedSearch(search)} />
-                <SearchBtn onClick={() => setAppliedSearch(search)}>검색</SearchBtn>
-                {appliedSearch && <SearchBtn onClick={() => { setSearch(''); setAppliedSearch(''); }} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>}
-                <ExportBtn onClick={() => exportToExcel(registrations, '허브업_전체명단')}>📥 엑셀 다운로드</ExportBtn>
+                  onKeyDown={e => e.key === 'Enter' && setAppliedSearch(search)}
+                  style={{maxWidth: '140px'}} />
+                <FilterLabel>그룹</FilterLabel>
+                <FilterSelect value={listGroupFilter} onChange={e => { setListGroupFilter(e.target.value); setListCellFilter(''); }}>
+                  <option value="">전체</option>
+                  {Array.from(new Set(registrations.map(r => r.group_name?.match(/^(.+?)그룹/)?.[1]).filter(Boolean))).sort((a,b) => a!.localeCompare(b!, 'ko')).map(g => (
+                    <option key={g} value={g!}>{g}</option>
+                  ))}
+                </FilterSelect>
+                <FilterLabel>다락방</FilterLabel>
+                <FilterSelect value={listCellFilter} onChange={e => setListCellFilter(e.target.value)}>
+                  <option value="">전체</option>
+                  {Array.from(new Set(
+                    registrations
+                      .filter(r => !listGroupFilter || r.group_name?.match(/^(.+?)그룹/)?.[1] === listGroupFilter)
+                      .map(r => { const m = r.group_name?.match(/그룹\s*(.+다락방)/); return m?.[1]; })
+                      .filter(Boolean)
+                  )).sort((a,b) => a!.localeCompare(b!, 'ko')).map(c => (
+                    <option key={c} value={c!}>{c}</option>
+                  ))}
+                </FilterSelect>
+                <FilterLabel>자원봉사</FilterLabel>
+                <FilterSelect value={listVolunteerFilter} onChange={e => setListVolunteerFilter(e.target.value)}>
+                  <option value="">전체</option>
+                  {Array.from(new Set(registrations.map(r => r.volunteer_team).filter(Boolean))).sort().map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </FilterSelect>
+                {(listGroupFilter || listCellFilter || listVolunteerFilter || appliedSearch) && (
+                  <SearchBtn onClick={() => { setListGroupFilter(''); setListCellFilter(''); setListVolunteerFilter(''); setSearch(''); setAppliedSearch(''); }} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>
+                )}
               </SearchBox>
+              <ExportBtn onClick={() => {
+                  const parts = ['허브업'];
+                  if (listGroupFilter) parts.push(listGroupFilter + '그룹');
+                  if (listCellFilter) parts.push(listCellFilter);
+                  if (listVolunteerFilter) parts.push(listVolunteerFilter);
+                  if (appliedSearch) parts.push(appliedSearch);
+                  if (parts.length === 1) parts.push('전체명단');
+                  exportToExcel(sortedRegistrations, parts.join('_'));
+                }}>📥 엑셀 다운로드</ExportBtn>
             </ToolRow>
             {isLoading ? <Loading>불러오는 중...</Loading> : (
               <TableWrap>
@@ -654,6 +711,7 @@ export default function HubUpAdminPage() {
                       <Th>#</Th>
                       <SortTh onClick={() => handleSort('name')}>이름{sortIcon('name')}</SortTh>
                       <SortTh onClick={() => handleSort('group_name')}>그룹{sortIcon('group_name')}</SortTh>
+                      <Th>순장</Th>
                       <SortTh onClick={() => handleSort('community')}>공동체{sortIcon('community')}</SortTh>
                       <SortTh onClick={() => handleSort('gender')}>성별{sortIcon('gender')}</SortTh>
                       <Th>연락처</Th>
@@ -672,6 +730,7 @@ export default function HubUpAdminPage() {
                         <Td style={{color:'#9aa0a6',fontSize:'12px'}}>{i+1}</Td>
                         <Td><strong>{r.name}</strong></Td>
                         <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
+                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.leader_name || '-'}</Td>
                         <Td style={{fontSize:'13px'}}>{r.community}</Td>
                         <Td>{r.gender}</Td>
                         <Td style={{fontSize:'13px'}}>{r.phone}</Td>
@@ -696,7 +755,7 @@ export default function HubUpAdminPage() {
                         </Td>
                       </tr>
                     ))}
-                    {registrations.length === 0 && <tr><td colSpan={14} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
+                    {registrations.length === 0 && <tr><td colSpan={15} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
@@ -778,7 +837,7 @@ export default function HubUpAdminPage() {
                   <thead>
                     <tr>
                       <Th style={{width:36}}><input type="checkbox" checked={selectedIds.size===registrations.length&&registrations.length>0} onChange={() => toggleAll(registrations)}/></Th>
-                      <Th>이름</Th><Th>그룹</Th><Th>성별</Th><Th>출발</Th><Th>복귀</Th><Th>강의</Th><Th>입금</Th><Th>숙소</Th><Th>메모</Th><Th>관리</Th>
+                      <Th>이름</Th><Th>그룹</Th><Th>순장</Th><Th>성별</Th><Th>출발</Th><Th>복귀</Th><Th>강의</Th><Th>입금</Th><Th>숙소</Th><Th>메모</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -787,6 +846,7 @@ export default function HubUpAdminPage() {
                         <Td><input type="checkbox" checked={selectedIds.has(r.id)} onChange={()=>toggleSelect(r.id)}/></Td>
                         <Td><strong>{r.name}</strong></Td>
                         <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
+                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.leader_name || '-'}</Td>
                         <Td>{r.gender}</Td>
                         <Td>{sl(r.departure_slot)}</Td>
                         <Td>{sl(r.return_slot)}</Td>
@@ -812,7 +872,7 @@ export default function HubUpAdminPage() {
                         </Td>
                       </tr>
                     ))}
-                    {registrations.length===0 && <tr><td colSpan={11} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
+                    {registrations.length===0 && <tr><td colSpan={12} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
@@ -1164,8 +1224,10 @@ const RoomChip = styled.button<{active:boolean}>`padding: 4px 12px; border-radiu
 const ClearChip = styled.button`padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 1px solid #dadce0; background: #f8f9fa; color: #d93025;`;
 const ToolRow = styled.div`display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;`;
 const SearchBox = styled.div`display: flex; gap: 6px; flex-wrap: wrap; align-items: center;`;
-const SearchIn = styled.input`flex: 1; max-width: 280px; padding: 7px 12px; border: 1px solid #dadce0; border-radius: 7px; font-size: 13px; outline: none; &:focus{border-color:#2563eb;}`;
+const SearchIn = styled.input`flex: 1; max-width: 280px; padding: 7px 12px; border: 1px solid #dadce0; border-radius: 7px; font-size: 13px; outline: none; color: #202124; background: white; &:focus{border-color:#2563eb;}`;
 const SearchBtn = styled.button`padding: 7px 14px; background: #2563eb; color: white; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; &:hover{background:#1d4ed8;}`;
+const FilterLabel = styled.span`font-size: 12px; font-weight: 600; color: #5f6368; white-space: nowrap;`;
+const FilterSelect = styled.select`padding: 7px 10px; border: 1px solid #dadce0; border-radius: 7px; font-size: 13px; color: #202124; background: white; outline: none; cursor: pointer; &:focus{border-color:#2563eb;}`;
 const BulkBox = styled.div`display: flex; align-items: center; gap: 8px; flex-wrap: wrap;`;
 const BulkIn = styled.input`padding: 6px 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 13px; width: 100px; outline: none;`;
 const BulkBtn = styled.button`padding: 6px 12px; background: #278f5a; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; &:disabled{background:#dadce0;cursor:not-allowed;} &:not(:disabled):hover{background:#1e7046;}`;
