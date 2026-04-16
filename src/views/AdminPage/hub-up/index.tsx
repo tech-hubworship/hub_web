@@ -10,6 +10,7 @@ interface Registration {
   departure_slot: string; return_slot: string; elective_lecture: string;
   intercessor_team: string; volunteer_team: string;
   deposit_confirm: boolean; admin_deposit_confirm: boolean;
+  admin_deposit_confirmed_at: string | null;
   room_number: string | null; room_note: string | null;
   leader_name: string;
 }
@@ -43,6 +44,13 @@ interface Stats {
 }
 
 const sl = (slot: string) => slot === 'car' ? '자차' : slot.replace('bus-', '');
+
+// 날짜+시간 포맷 (M/D H:mm)
+const fmtDateTime = (iso: string | null) => {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}시${String(d.getMinutes()).padStart(2,'0')}분`;
+};
 
 // 티셔츠 가격 계산: 1~2장 = 10,000원/장, 3장 이상 = 9,000원/장
 function calcTshirtPrice(items: any[]): number {
@@ -375,7 +383,25 @@ export default function HubUpAdminPage() {
 
   const filteredDeposit = registrations.filter(r => {
     const matchSearch = !appliedSearch || r.name.includes(appliedSearch) || r.group_name.includes(appliedSearch) || r.phone.includes(appliedSearch);
-    const matchDeposit = depositFilter === 'all' || (depositFilter === 'confirmed' && r.admin_deposit_confirm) || (depositFilter === 'pending' && !r.admin_deposit_confirm);
+
+    // 기간 기준 입금확인 여부 계산
+    const isConfirmedInPeriod = (periodKey: string) => {
+      if (!r.admin_deposit_confirm) return false;
+      // confirmed_at이 없으면(구 데이터) 모든 기간에서 입금완료로 표시
+      if (!r.admin_deposit_confirmed_at) return true;
+      const confirmedAt = new Date(r.admin_deposit_confirmed_at);
+      const period = DEPOSIT_PERIODS.find(p => p.key === periodKey);
+      return period ? confirmedAt >= period.start && confirmedAt <= period.end : false;
+    };
+
+    const effectiveConfirmed = periodFilter === 'all'
+      ? r.admin_deposit_confirm
+      : isConfirmedInPeriod(periodFilter);
+
+    const matchDeposit = depositFilter === 'all'
+      || (depositFilter === 'confirmed' && effectiveConfirmed)
+      || (depositFilter === 'pending' && !effectiveConfirmed);
+
     const matchPeriod = (() => {
       if (periodFilter === 'all') return true;
       const now = new Date();
@@ -387,9 +413,9 @@ export default function HubUpAdminPage() {
         if (inThisPeriod) {
           // 현재 선택한 기간이면 무조건 포함
           if (i === currentPeriodIdx) return true;
-          // 이전 기간이면: 해당 기간이 실제로 지났고 미확인인 경우만 누적
+          // 이전 기간이면: 해당 기간이 실제로 지났고, 그 기간 내에 입금확인이 안 된 경우만 누적
           const periodHasPassed = now > p.end;
-          if (periodHasPassed && !r.admin_deposit_confirm) return true;
+          if (periodHasPassed && !isConfirmedInPeriod(p.key)) return true;
         }
       }
       return false;
@@ -398,6 +424,24 @@ export default function HubUpAdminPage() {
   });
 
   const pct = (n: number, d: number) => d > 0 ? Math.round((n / d) * 100) : 0;
+
+  // 현재 선택된 기간이 현재 시각 기준 활성 기간인지 확인
+  const isActivePeriod = (() => {
+    if (periodFilter === 'all') return true;
+    const now = new Date();
+    const period = DEPOSIT_PERIODS.find(p => p.key === periodFilter);
+    if (!period) return true;
+    return now >= period.start && now <= period.end;
+  })();
+
+  // 현재 선택된 기간이 아직 시작 안 됐는지
+  const isFuturePeriod = (() => {
+    if (periodFilter === 'all') return false;
+    const now = new Date();
+    const period = DEPOSIT_PERIODS.find(p => p.key === periodFilter);
+    if (!period) return false;
+    return now < period.start;
+  })();
 
   return (
     <Wrap>
@@ -614,10 +658,35 @@ export default function HubUpAdminPage() {
                 </PeriodBtn>
               ))}
             </PeriodBar>
+            {isFuturePeriod && (
+              <div style={{padding:'40px', textAlign:'center', color:'#9aa0a6', fontSize:'14px'}}>
+                아직 시작되지 않은 기간입니다.
+              </div>
+            )}
+            {!isActivePeriod && !isFuturePeriod && periodFilter !== 'all' && (
+              <div style={{marginBottom:'12px', padding:'8px 12px', background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:'8px', fontSize:'13px', color:'#c2410c'}}>
+                ⚠️ 해당 기간이 종료되어 입금확인 버튼이 비활성화됩니다. 조회만 가능합니다.
+              </div>
+            )}
+            {!isFuturePeriod && (<>
             <DepositSummary>
               <RoomStatItem><RoomStatNum>{filteredDeposit.length}</RoomStatNum><RoomStatLabel>조회된 신청</RoomStatLabel></RoomStatItem>
-              <RoomStatItem><RoomStatNum style={{color:'#278f5a'}}>{filteredDeposit.filter(r => r.admin_deposit_confirm).length}</RoomStatNum><RoomStatLabel>입금완료</RoomStatLabel></RoomStatItem>
-              <RoomStatItem><RoomStatNum style={{color:'#d93025'}}>{filteredDeposit.filter(r => !r.admin_deposit_confirm).length}</RoomStatNum><RoomStatLabel>미확인</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#278f5a'}}>{filteredDeposit.filter(r => {
+                if (periodFilter === 'all') return r.admin_deposit_confirm;
+                if (!r.admin_deposit_confirm) return false;
+                if (!r.admin_deposit_confirmed_at) return true;
+                const confirmedAt = new Date(r.admin_deposit_confirmed_at);
+                const period = DEPOSIT_PERIODS.find(p => p.key === periodFilter);
+                return period ? confirmedAt >= period.start && confirmedAt <= period.end : r.admin_deposit_confirm;
+              }).length}</RoomStatNum><RoomStatLabel>입금완료</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#d93025'}}>{filteredDeposit.filter(r => {
+                if (periodFilter === 'all') return !r.admin_deposit_confirm;
+                if (!r.admin_deposit_confirm) return true;
+                if (!r.admin_deposit_confirmed_at) return false;
+                const confirmedAt = new Date(r.admin_deposit_confirmed_at);
+                const period = DEPOSIT_PERIODS.find(p => p.key === periodFilter);
+                return period ? !(confirmedAt >= period.start && confirmedAt <= period.end) : !r.admin_deposit_confirm;
+              }).length}</RoomStatNum><RoomStatLabel>미확인</RoomStatLabel></RoomStatItem>
             </DepositSummary>
 
             <ToolRow>
@@ -635,10 +704,10 @@ export default function HubUpAdminPage() {
                 {selectedIds.size > 0 && (
                   <>
                     <span style={{fontSize:'13px',color:'#5f6368'}}>{selectedIds.size}명 선택</span>
-                    <BulkBtn onClick={() => bulkDepositMutation.mutate(true)} disabled={bulkDepositMutation.isPending}>
+                    <BulkBtn onClick={() => bulkDepositMutation.mutate(true)} disabled={bulkDepositMutation.isPending || !isActivePeriod}>
                       ✅ 일괄 입금완료
                     </BulkBtn>
-                    <CancelBtn onClick={() => bulkDepositMutation.mutate(false)}>
+                    <CancelBtn onClick={() => bulkDepositMutation.mutate(false)} disabled={!isActivePeriod}>
                       일괄 취소
                     </CancelBtn>
                   </>
@@ -655,30 +724,44 @@ export default function HubUpAdminPage() {
                   <thead>
                     <tr>
                       <Th><input type="checkbox" checked={selectedIds.size===filteredDeposit.length&&filteredDeposit.length>0} onChange={() => toggleAll(filteredDeposit)}/></Th>
-                      <Th>이름</Th><Th>그룹</Th><Th>연락처</Th><Th>자기신고</Th><Th>입금확인</Th><Th>관리</Th>
+                      <Th>이름</Th><Th>그룹</Th><Th>연락처</Th><Th>자기신고</Th><Th>입금확인</Th><Th>확인시간</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredDeposit.map(r => (
-                      <tr key={r.id} style={{background: r.admin_deposit_confirm ? '#f0fdf4' : undefined}}>
+                    {filteredDeposit.map(r => {
+                      // 기간 필터가 있을 때: 해당 기간 내에 입금확인된 경우만 입금완료로 표시
+                      const depositConfirmedInPeriod = (() => {
+                        if (periodFilter === 'all') return r.admin_deposit_confirm;
+                        if (!r.admin_deposit_confirm) return false;
+                        // confirmed_at이 없으면(구 데이터) 모든 기간에서 입금완료로 표시
+                        if (!r.admin_deposit_confirmed_at) return true;
+                        const confirmedAt = new Date(r.admin_deposit_confirmed_at);
+                        const period = DEPOSIT_PERIODS.find(p => p.key === periodFilter);
+                        if (!period) return r.admin_deposit_confirm;
+                        return confirmedAt >= period.start && confirmedAt <= period.end;
+                      })();                      return (
+                      <tr key={r.id} style={{background: depositConfirmedInPeriod ? '#f0fdf4' : undefined}}>
                         <Td><input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)}/></Td>
                         <Td><strong>{r.name}</strong></Td>
                         <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
                         <Td style={{fontSize:'13px'}}>{r.phone}</Td>
                         <Td><DepBadge ok={r.deposit_confirm}>{r.deposit_confirm ? '입금했다고 함' : '미신고'}</DepBadge></Td>
-                        <Td><DepBadge ok={r.admin_deposit_confirm}>{r.admin_deposit_confirm ? '입금완료' : '확인중'}</DepBadge></Td>
+                        <Td><DepBadge ok={depositConfirmedInPeriod}>{depositConfirmedInPeriod ? '입금완료' : '확인중'}</DepBadge></Td>
+                        <Td style={{fontSize:'12px',color:'#9aa0a6'}}>{r.admin_deposit_confirmed_at ? fmtDateTime(r.admin_deposit_confirmed_at) : '-'}</Td>
                         <Td>
                           {r.admin_deposit_confirm
-                            ? <CancelBtn onClick={() => depositMutation.mutate({ id: r.id, confirmed: false })}>취소</CancelBtn>
-                            : <SaveBtn onClick={() => depositMutation.mutate({ id: r.id, confirmed: true })} disabled={depositMutation.isPending}>입금완료</SaveBtn>}
+                            ? <CancelBtn onClick={() => depositMutation.mutate({ id: r.id, confirmed: false })} disabled={!isActivePeriod}>취소</CancelBtn>
+                            : <SaveBtn onClick={() => depositMutation.mutate({ id: r.id, confirmed: true })} disabled={depositMutation.isPending || !isActivePeriod}>입금완료</SaveBtn>}
                         </Td>
                       </tr>
-                    ))}
+                      );
+                    })}
                     {filteredDeposit.length === 0 && <tr><td colSpan={7} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
             )}
+            </>)}
           </div>
         )}
 
@@ -797,7 +880,7 @@ export default function HubUpAdminPage() {
                         <Td style={{fontSize:'13px'}}>{r.volunteer_team || '-'}</Td>
                         <Td><DepBadge ok={r.admin_deposit_confirm}>{r.admin_deposit_confirm ? '입금완료' : '미확인'}</DepBadge></Td>
                         <Td><RoomBadge ok={!!r.room_number}>{r.room_number || '미배정'}</RoomBadge></Td>
-                        <Td style={{fontSize:'12px',color:'#9aa0a6'}}>{new Date(r.created_at).toLocaleDateString('ko-KR')}</Td>
+                        <Td style={{fontSize:'12px',color:'#9aa0a6'}}>{fmtDateTime(r.created_at)}</Td>
                         <Td>
                           <CancelBtn
                             onClick={() => {

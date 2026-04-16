@@ -19,7 +19,11 @@ export async function PATCH(
   const updateData: Record<string, any> = {};
   if ('room_number' in body) updateData.room_number = room_number ?? null;
   if ('room_note' in body) updateData.room_note = room_note ?? null;
-  if ('admin_deposit_confirm' in body) updateData.admin_deposit_confirm = admin_deposit_confirm;
+  if ('admin_deposit_confirm' in body) {
+    updateData.admin_deposit_confirm = admin_deposit_confirm;
+    // 입금확인 시 시간 기록, 취소 시 null
+    updateData.admin_deposit_confirmed_at = admin_deposit_confirm ? new Date().toISOString() : null;
+  }
 
   const { error } = await supabaseAdmin
     .from('hub_up_registrations')
