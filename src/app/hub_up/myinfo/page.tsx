@@ -51,6 +51,27 @@ export default function MyInfoPage() {
   const [contactPhone, setContactPhone] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [copyToast, setCopyToast] = useState(false);
+
+  const copyAccount = () => {
+    const text = '573-910022-19605';
+    const done = () => { setCopyToast(true); setTimeout(() => setCopyToast(false), 2000); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done).catch(() => {
+        const el = document.createElement('textarea');
+        el.value = text; el.style.position = 'fixed'; el.style.opacity = '0';
+        document.body.appendChild(el); el.focus(); el.select();
+        try { document.execCommand('copy'); } catch {}
+        document.body.removeChild(el); done();
+      });
+    } else {
+      const el = document.createElement('textarea');
+      el.value = text; el.style.position = 'fixed'; el.style.opacity = '0';
+      document.body.appendChild(el); el.focus(); el.select();
+      try { document.execCommand('copy'); } catch {}
+      document.body.removeChild(el); done();
+    }
+  };
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login?redirect=/hub_up/myinfo'); return; }
@@ -176,6 +197,37 @@ export default function MyInfoPage() {
               {registration.admin_deposit_confirm ? '확인완료' : '입금확인중'}
             </StatusBadge>
           </InfoRow>
+          {!registration.admin_deposit_confirm && (
+            <DepositInfoBox>
+              <DepositInfoSection>
+                <DepositInfoTitle>입금 계좌 정보</DepositInfoTitle>
+                <DepositInfoRow>
+                  <DepositInfoLabel>계좌번호</DepositInfoLabel>
+                  <DepositAccountValue onClick={copyAccount}>
+                    573-910022-19605
+                    <CopyBadge>복사</CopyBadge>
+                  </DepositAccountValue>
+                </DepositInfoRow>
+                <DepositInfoRow>
+                  <DepositInfoLabel>예금주</DepositInfoLabel>
+                  <DepositInfoValue>온누리교회(허브행사비)/하나은행</DepositInfoValue>
+                </DepositInfoRow>
+              </DepositInfoSection>
+              <DepositDivider />
+              <DepositInfoSection>
+                <DepositInfoTitle>회비 안내</DepositInfoTitle>
+                <DepositInfoRow>
+                  <DepositInfoLabel>얼리버드 8만원</DepositInfoLabel>
+                  <DepositInfoValue>4월 12일 - 4월 18일</DepositInfoValue>
+                </DepositInfoRow>
+                <DepositInfoRow>
+                  <DepositInfoLabel>일반 8만 5천원</DepositInfoLabel>
+                  <DepositInfoValue>4월 19일 - 4월 26일</DepositInfoValue>
+                </DepositInfoRow>
+              </DepositInfoSection>
+              <DepositNote>※ 입금자명: 이름 + 연락처 끝 네자리 기입 요망{'\n'}(ex. 김허브 8572)</DepositNote>
+            </DepositInfoBox>
+          )}
         </Section>
 
         {/* 숙소 */}
@@ -207,7 +259,6 @@ export default function MyInfoPage() {
         <FaqLink onClick={() => router.push('/hub_up/faq')}>
           FAQ 보러가기 →
         </FaqLink>
-
         {/* 접수 취소 */}
         <CancelSection>
           <CancelTitle>접수 취소</CancelTitle>
@@ -217,6 +268,15 @@ export default function MyInfoPage() {
           </CancelBtn>
         </CancelSection>
       </Content>
+      {copyToast && (
+        <div style={{
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.75)', color: '#fff', padding: '10px 20px',
+          borderRadius: 20, fontSize: 13, fontWeight: 500, zIndex: 9999, whiteSpace: 'nowrap',
+        }}>
+          계좌번호가 복사되었습니다 ✓
+        </div>
+      )}
     </Wrap>
   );
 }
@@ -260,3 +320,13 @@ const CancelSection = styled.div`background: #fff; border-radius: 16px; padding:
 const CancelTitle = styled.div`font-size: 13px; font-weight: 700; color: #d93025; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;`;
 const CancelDesc = styled.p`font-size: 13px; color: #888; line-height: 1.6; margin: 0 0 14px 0;`;
 const CancelBtn = styled.button`width: 100%; padding: 12px; background: #fff; color: #d93025; border: 1px solid #d93025; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;`;
+const DepositInfoBox = styled.div`background: #fefdf5; border-radius: 16px; padding: 20px; margin-top: 10px;`;
+const DepositInfoSection = styled.div`margin-bottom: 4px;`;
+const DepositInfoTitle = styled.div`font-size: 15px; font-weight: 700; color: #111; margin-bottom: 12px;`;
+const DepositInfoRow = styled.div`display: flex; justify-content: space-between; align-items: center; padding: 6px 0;`;
+const DepositInfoLabel = styled.div`font-size: 14px; color: #999;`;
+const DepositInfoValue = styled.div`font-size: 14px; font-weight: 600; color: #111; text-align: right;`;
+const DepositAccountValue = styled.div`display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: #2D478C; cursor: pointer; &:active { opacity: 0.7; }`;
+const CopyBadge = styled.span`font-size: 11px; font-weight: 600; color: #2D478C; background: #dce8ff; padding: 2px 7px; border-radius: 10px;`;
+const DepositDivider = styled.div`height: 1px; background: #e8e8e0; margin: 12px 0;`;
+const DepositNote = styled.div`font-size: 12px; color: #999; line-height: 1.6; margin-top: 12px; white-space: pre-line;`;

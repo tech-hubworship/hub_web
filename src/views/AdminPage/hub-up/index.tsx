@@ -126,6 +126,9 @@ export default function HubUpAdminPage() {
   const [listGroupFilter, setListGroupFilter] = useState('');
   const [listCellFilter, setListCellFilter] = useState('');
   const [listVolunteerFilter, setListVolunteerFilter] = useState('');
+  const [listElectiveFilter, setListElectiveFilter] = useState('');
+  const [listElective1Filter, setListElective1Filter] = useState('');
+  const [listElective2Filter, setListElective2Filter] = useState('');
   const [busSlotFilter, setBusSlotFilter] = useState('');
   const [busReturnFilter, setBusReturnFilter] = useState('');
 
@@ -340,6 +343,21 @@ export default function HubUpAdminPage() {
     if (listVolunteerFilter) {
       filtered = filtered.filter(r => r.volunteer_team === listVolunteerFilter);
     }
+    if (listElectiveFilter) {
+      filtered = filtered.filter(r => r.elective_lecture?.includes(listElectiveFilter));
+    }
+    if (listElective1Filter) {
+      filtered = filtered.filter(r => {
+        const first = r.elective_lecture?.split(',')[0]?.trim();
+        return first === listElective1Filter;
+      });
+    }
+    if (listElective2Filter) {
+      filtered = filtered.filter(r => {
+        const second = r.elective_lecture?.split(',')[1]?.trim();
+        return second === listElective2Filter;
+      });
+    }
     if (!sortKey) return filtered;
     return [...filtered].sort((a, b) => {
       const av = a[sortKey] ?? '';
@@ -347,7 +365,7 @@ export default function HubUpAdminPage() {
       const cmp = String(av).localeCompare(String(bv), 'ko');
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [registrations, sortKey, sortDir, listGroupFilter, listCellFilter, listVolunteerFilter]);
+  }, [registrations, sortKey, sortDir, listGroupFilter, listCellFilter, listVolunteerFilter, listElectiveFilter, listElective1Filter, listElective2Filter]);
 
   const total = registrations.length;
   const assigned = registrations.filter(r => r.room_number).length;
@@ -709,8 +727,25 @@ export default function HubUpAdminPage() {
                     <option key={v} value={v}>{v}</option>
                   ))}
                 </FilterSelect>
-                {(listGroupFilter || listCellFilter || listVolunteerFilter || appliedSearch) && (
-                  <SearchBtn onClick={() => { setListGroupFilter(''); setListCellFilter(''); setListVolunteerFilter(''); setSearch(''); setAppliedSearch(''); }} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>
+                <FilterLabel>선택강의</FilterLabel>
+                <FilterSelect value={listElective1Filter} onChange={e => setListElective1Filter(e.target.value)}>
+                  <option value="">1순위 전체</option>
+                  {Array.from(new Set(
+                    registrations.map(r => r.elective_lecture?.split(',')[0]?.trim()).filter(Boolean)
+                  )).sort((a, b) => a!.localeCompare(b!, 'ko')).map(e => (
+                    <option key={e} value={e!}>{e}</option>
+                  ))}
+                </FilterSelect>
+                <FilterSelect value={listElective2Filter} onChange={e => setListElective2Filter(e.target.value)}>
+                  <option value="">2순위 전체</option>
+                  {Array.from(new Set(
+                    registrations.map(r => r.elective_lecture?.split(',')[1]?.trim()).filter(Boolean)
+                  )).sort((a, b) => a!.localeCompare(b!, 'ko')).map(e => (
+                    <option key={e} value={e!}>{e}</option>
+                  ))}
+                </FilterSelect>
+                {(listGroupFilter || listCellFilter || listVolunteerFilter || listElective1Filter || listElective2Filter || appliedSearch) && (
+                  <SearchBtn onClick={() => { setListGroupFilter(''); setListCellFilter(''); setListVolunteerFilter(''); setListElectiveFilter(''); setListElective1Filter(''); setListElective2Filter(''); setSearch(''); setAppliedSearch(''); }} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>
                 )}
               </SearchBox>
               <ExportBtn onClick={() => {
@@ -718,6 +753,8 @@ export default function HubUpAdminPage() {
                   if (listGroupFilter) parts.push(listGroupFilter + '그룹');
                   if (listCellFilter) parts.push(listCellFilter);
                   if (listVolunteerFilter) parts.push(listVolunteerFilter);
+                  if (listElective1Filter) parts.push(`1순위_${listElective1Filter}`);
+                  if (listElective2Filter) parts.push(`2순위_${listElective2Filter}`);
                   if (appliedSearch) parts.push(appliedSearch);
                   if (parts.length === 1) parts.push('전체명단');
                   exportToExcel(sortedRegistrations, parts.join('_'));

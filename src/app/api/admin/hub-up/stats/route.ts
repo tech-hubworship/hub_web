@@ -51,11 +51,18 @@ export async function GET() {
   });
 
   // 상위 그룹별 (링크, 새가족, 소망, 사랑, 믿음 등 "그룹" 앞 단어 기준)
+  // MC, 타공동체, 타교회 등 고정 값은 group_name 그대로 사용
+  const FIXED_GROUP_NAMES = ['MC', '타공동체', '타교회', '그룹장'];
   const topGroupCounts: Record<string, { male: number; female: number; total: number }> = {};
   rows.forEach((r) => {
     const name = r.group_name || '';
-    const match = name.match(/^(.+?)그룹/);
-    const key = match ? match[1] : (name || '기타');
+    let key: string;
+    if (FIXED_GROUP_NAMES.includes(name)) {
+      key = name;
+    } else {
+      const match = name.match(/^(.+?)그룹/);
+      key = match ? match[1] : (name || '기타');
+    }
     if (!topGroupCounts[key]) topGroupCounts[key] = { male: 0, female: 0, total: 0 };
     topGroupCounts[key].total++;
     if (r.gender === '남' || r.gender === '남자') topGroupCounts[key].male++;

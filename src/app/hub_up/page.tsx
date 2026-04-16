@@ -165,7 +165,7 @@ export default function HubUpMainPage() {
         <TimelineItem>
           <DateBadge past={isPast(regDeadline)}>04.26</DateBadge>
           <TimelineBottom>
-            <TimelineText past={isPast(regDeadline)}>참가 신청 마감</TimelineText>
+            <TimelineText past={isPast(regDeadline)}>참가 신청 및 티셔츠 예약 마감</TimelineText>
             <TimelineRight past={isPast(regDeadline)}>
               {!isPast(regDeadline) && <ClockIcon />}
               {isPast(regDeadline) ? '마감' : daysLeft(regDeadline)}

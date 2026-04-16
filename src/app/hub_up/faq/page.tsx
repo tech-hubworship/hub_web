@@ -74,6 +74,11 @@ const FAQ_SECTIONS = [
         tshirtLink: 'https://open.kakao.com/o/scWel1ph',
       },
       {
+        q: '티셔츠 구매를 취소하고 환불 받고 싶어요.',
+        a: '취소 및 환불은 4/26(일)까지만 가능합니다.\n티셔츠 오픈채팅으로 문의해주세요.',
+        tshirtLink: 'https://open.kakao.com/o/scWel1ph',
+      },
+      {
         q: '티셔츠는 언제, 어디서 받을 수 있나요?',
         a: '5/9(토) OD 후, 5/10(일) 허브 2시예배 전후로\n기쁨홀 앞에서 배부합니다.',
       },

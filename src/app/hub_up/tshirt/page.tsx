@@ -264,7 +264,7 @@ export default function TshirtPage() {
         </DeadlineRow>
         <PriceRow>
           <ProductPrice>{currentPrice.toLocaleString()}원</ProductPrice>
-          <PriceNote>3장 구매 시 장당 9,000원</PriceNote>
+          <PriceNote>3장 이상 구매 시 장당 9,000원</PriceNote>
         </PriceRow>
 
         <HRule />
@@ -307,7 +307,7 @@ export default function TshirtPage() {
                 </ColorBtn>
               ))}
             </ColorRow>
-            <SizeNote>통사이즈입니다. 평소 사이즈보다 한 사이즈 크게 입으시길 추천드립니다.</SizeNote>
+            <SizeNote>정사이즈입니다.</SizeNote>
 
             <SectionTitle style={{ marginTop: 24 }}>사이즈 / 수량</SectionTitle>
             <SizeList>
