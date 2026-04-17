@@ -52,7 +52,7 @@ export default function HubUpMainPage() {
       label: 'Day 3',
       sessions: [
         { title: 'Be Holy 6', name: '전도', speaker: '이은호 목사 얼바인샤이닝헬로쉽교회 담임목사' },
-        { title: 'Be Holy 7', name: '거룩', speaker: '오현교 목사 허브 대학부' },
+        { title: 'Be Holy 7', name: '거룩', speaker: '연사 추후 공개' },
       ],
     },
   ];
