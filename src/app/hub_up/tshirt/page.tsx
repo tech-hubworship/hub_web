@@ -19,7 +19,7 @@ const SIZE_GUIDE = [
 ];
 
 const COLOR_IMAGES: Record<string, string[]> = {
-  white: ['/images/tshirt/tshirt_white.png', '/images/tshirt/tshirt_white2.png'],
+  white: ['/images/tshirt/tshirt_whitev2.png', '/images/tshirt/tshirt_whitev22.png'],
   black: ['/images/tshirt/tshirt_black.png', '/images/tshirt/tshirt_black2.png'],
   navy:  ['/images/tshirt/tshirt_navy.png',  '/images/tshirt/tshirt_navy2.png'],
 };
