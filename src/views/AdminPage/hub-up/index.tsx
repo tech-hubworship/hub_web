@@ -139,6 +139,8 @@ export default function HubUpAdminPage() {
   const [listElective2Filter, setListElective2Filter] = useState('');
   const [busSlotFilter, setBusSlotFilter] = useState('');
   const [busReturnFilter, setBusReturnFilter] = useState('');
+  const [busGroupFilter, setBusGroupFilter] = useState('');
+  const [busCarRoleFilter, setBusCarRoleFilter] = useState('');
 
   // 입금 기간 정의
   const DEPOSIT_PERIODS = [
@@ -916,7 +918,15 @@ export default function HubUpAdminPage() {
           const allRegs = busStats?.registrations || [];
           const filteredBus = allRegs
             .filter(r => !busSlotFilter || r.departure_slot === busSlotFilter)
-            .filter(r => !busReturnFilter || r.return_slot === busReturnFilter);
+            .filter(r => !busReturnFilter || r.return_slot === busReturnFilter)
+            .filter((r: any) => {
+              if (!busGroupFilter) return true;
+              const FIXED = ['MC', '타공동체', '타교회'];
+              if (FIXED.includes(busGroupFilter)) return r.group_name === busGroupFilter;
+              const match = r.group_name?.match(/^(.+?)그룹/);
+              return match ? match[1] === busGroupFilter : false;
+            })
+            .filter((r: any) => !busCarRoleFilter || r.car_role === busCarRoleFilter);
 
           // 실제 데이터에서 복귀 슬롯 추출
           const returnSlots = Array.from(new Set(allRegs.map(r => r.return_slot).filter(Boolean)))
@@ -941,6 +951,33 @@ export default function HubUpAdminPage() {
                     </FilterBtn>
                   ))}
                   {busReturnFilter && <SearchBtn onClick={() => setBusReturnFilter('')} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>}
+                </SearchBox>
+                <SearchBox>
+                  <FilterLabel>그룹</FilterLabel>
+                  <FilterSelect value={busGroupFilter} onChange={e => setBusGroupFilter(e.target.value)}>
+                    <option value="">전체</option>
+                    {(() => {
+                      const FIXED = ['MC', '타공동체', '타교회'];
+                      const groups = Array.from(new Set((allRegs as any[]).map((r: any) => {
+                        const match = r.group_name?.match(/^(.+?)그룹/);
+                        if (match) return match[1];
+                        if (FIXED.includes(r.group_name ?? '')) return r.group_name;
+                        return null;
+                      }).filter(Boolean) as string[]));
+                      const normal = groups.filter(g => !FIXED.includes(g)).sort((a,b) => a.localeCompare(b, 'ko'));
+                      const fixed = FIXED.filter(f => groups.includes(f));
+                      return [...normal, ...fixed].map(g => <option key={g} value={g}>{g}</option>);
+                    })()}
+                  </FilterSelect>
+                  {(busSlotFilter === 'car' || busReturnFilter === 'car') && <>
+                    <FilterLabel>역할</FilterLabel>
+                    <FilterSelect value={busCarRoleFilter} onChange={e => setBusCarRoleFilter(e.target.value)}>
+                      <option value="">전체</option>
+                      {Array.from(new Set((allRegs as any[]).map((r: any) => r.car_role).filter(Boolean))).sort().map(role => (
+                        <option key={role as string} value={role as string}>{role as string}</option>
+                      ))}
+                    </FilterSelect>
+                  </>}
                 </SearchBox>
                 <ExportBtn onClick={() => {
                   const dep = BUS_SLOTS.find(s => s.value === busSlotFilter);
