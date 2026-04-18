@@ -140,6 +140,7 @@ export default function HubUpAdminPage() {
   const [busSlotFilter, setBusSlotFilter] = useState('');
   const [busReturnFilter, setBusReturnFilter] = useState('');
   const [busGroupFilter, setBusGroupFilter] = useState('');
+  const [busCellFilter, setBusCellFilter] = useState('');
   const [busCarRoleFilter, setBusCarRoleFilter] = useState('');
 
   // 입금 기간 정의
@@ -926,6 +927,7 @@ export default function HubUpAdminPage() {
               const match = r.group_name?.match(/^(.+?)그룹/);
               return match ? match[1] === busGroupFilter : false;
             })
+            .filter((r: any) => !busCellFilter || r.group_name?.includes(busCellFilter))
             .filter((r: any) => !busCarRoleFilter || r.car_role === busCarRoleFilter);
 
           // 실제 데이터에서 복귀 슬롯 추출
@@ -954,7 +956,7 @@ export default function HubUpAdminPage() {
                 </SearchBox>
                 <SearchBox>
                   <FilterLabel>그룹</FilterLabel>
-                  <FilterSelect value={busGroupFilter} onChange={e => setBusGroupFilter(e.target.value)}>
+                  <FilterSelect value={busGroupFilter} onChange={e => { setBusGroupFilter(e.target.value); setBusCellFilter(''); }}>
                     <option value="">전체</option>
                     {(() => {
                       const FIXED = ['MC', '타공동체', '타교회'];
@@ -968,6 +970,24 @@ export default function HubUpAdminPage() {
                       const fixed = FIXED.filter(f => groups.includes(f));
                       return [...normal, ...fixed].map(g => <option key={g} value={g}>{g}</option>);
                     })()}
+                  </FilterSelect>
+                  <FilterLabel>다락방</FilterLabel>
+                  <FilterSelect value={busCellFilter} onChange={e => setBusCellFilter(e.target.value)}>
+                    <option value="">전체</option>
+                    {Array.from(new Set(
+                      (allRegs as any[])
+                        .filter((r: any) => {
+                          if (!busGroupFilter) return true;
+                          const FIXED = ['MC', '타공동체', '타교회'];
+                          if (FIXED.includes(busGroupFilter)) return r.group_name === busGroupFilter;
+                          const match = r.group_name?.match(/^(.+?)그룹/);
+                          return match ? match[1] === busGroupFilter : false;
+                        })
+                        .map((r: any) => r.group_name?.match(/그룹\s*(.+다락방)/)?.[1])
+                        .filter(Boolean)
+                    )).sort((a, b) => (a as string).localeCompare(b as string, 'ko')).map(c => (
+                      <option key={c as string} value={c as string}>{c as string}</option>
+                    ))}
                   </FilterSelect>
                   {(busSlotFilter === 'car' || busReturnFilter === 'car') && <>
                     <FilterLabel>역할</FilterLabel>
