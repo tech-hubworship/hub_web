@@ -962,18 +962,34 @@ export default function HubUpAdminPage() {
               </BusGrid>
               <TableWrap>
                 <Table>
-                  <thead><tr><Th>#</Th><Th>이름</Th><Th>그룹</Th><Th>출발</Th><Th>복귀</Th></tr></thead>
+                  <thead>
+                    <tr>
+                      <Th>#</Th><Th>이름</Th><Th>그룹</Th><Th>연락처</Th><Th>출발</Th><Th>복귀</Th>
+                      {(busSlotFilter === 'car' || busReturnFilter === 'car') && <>
+                        <Th>역할</Th><Th>탑승인원</Th><Th>동승자</Th><Th>차량번호</Th><Th>입소시간</Th><Th>복귀시간</Th>
+                      </>}
+                    </tr>
+                  </thead>
                   <tbody>
-                    {filteredBus.map((r, i) => (
+                    {filteredBus.map((r: any, i: number) => (
                       <tr key={r.id}>
                         <Td style={{color:'#9aa0a6',fontSize:'12px'}}>{i+1}</Td>
                         <Td><strong>{r.name}</strong></Td>
                         <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
+                        <Td style={{fontSize:'13px'}}>{r.phone}</Td>
                         <Td><SlotChip>{sl(r.departure_slot)}</SlotChip></Td>
                         <Td>{sl(r.return_slot)}</Td>
+                        {(busSlotFilter === 'car' || busReturnFilter === 'car') && <>
+                          <Td style={{fontSize:'13px'}}>{r.car_role || '-'}</Td>
+                          <Td style={{fontSize:'13px'}}>{r.car_passenger_count ? `${r.car_passenger_count}명` : '-'}</Td>
+                          <Td style={{fontSize:'13px'}}>{r.car_passenger_names || '-'}</Td>
+                          <Td style={{fontSize:'13px'}}>{r.car_plate_number || '-'}</Td>
+                          <Td style={{fontSize:'13px'}}>{r.car_arrival_time || '-'}</Td>
+                          <Td style={{fontSize:'13px'}}>{r.car_departure_time || '-'}</Td>
+                        </>}
                       </tr>
                     ))}
-                    {filteredBus.length === 0 && <tr><td colSpan={5} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
+                    {filteredBus.length === 0 && <tr><td colSpan={(busSlotFilter === 'car' || busReturnFilter === 'car') ? 12 : 6} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>

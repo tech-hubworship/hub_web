@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   // 신청자 조회
   let query = supabaseAdmin
     .from('hub_up_registrations')
-    .select('id, name, group_name, phone, departure_slot, return_slot, deposit_confirm')
+    .select('id, name, group_name, phone, departure_slot, return_slot, deposit_confirm, car_role, car_passenger_count, car_passenger_names, car_plate_number, car_arrival_time, car_departure_time')
     .order('created_at', { ascending: true });
 
   if (slot) query = query.eq('departure_slot', slot);
