@@ -414,11 +414,11 @@ export default function HubUpAdminPage() {
         const p = DEPOSIT_PERIODS[i];
         const inThisPeriod = createdAt >= p.start && createdAt <= p.end;
         if (inThisPeriod) {
-          // 현재 선택한 기간이면 무조건 포함
-          if (i === currentPeriodIdx) return true;
-          // 이전 기간이면: 해당 기간이 실제로 지났고, 그 기간 내에 입금확인이 안 된 경우만 누적
+          // 현재 선택한 기간이면 포함 (단, 이미 입금확인된 사람은 제외)
+          if (i === currentPeriodIdx) return !r.admin_deposit_confirm;
+          // 이전 기간이면: 해당 기간이 실제로 지났고, 현재까지도 입금확인이 안 된 경우만 누적
           const periodHasPassed = now > p.end;
-          if (periodHasPassed && !isConfirmedInPeriod(p.key)) return true;
+          if (periodHasPassed && !r.admin_deposit_confirm) return true;
         }
       }
       return false;
