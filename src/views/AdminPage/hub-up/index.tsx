@@ -393,6 +393,8 @@ export default function HubUpAdminPage() {
       // confirmed_at이 없으면(구 데이터) 모든 기간에서 입금완료로 표시
       if (!r.admin_deposit_confirmed_at) return true;
       const confirmedAt = new Date(r.admin_deposit_confirmed_at);
+      // confirmed_at이 created_at보다 이전이면 데이터 오염 → 미확인으로 처리
+      if (confirmedAt < new Date(r.created_at)) return false;
       const period = DEPOSIT_PERIODS.find(p => p.key === periodKey);
       return period ? confirmedAt >= period.start && confirmedAt <= period.end : false;
     };
@@ -414,9 +416,10 @@ export default function HubUpAdminPage() {
         const p = DEPOSIT_PERIODS[i];
         const inThisPeriod = createdAt >= p.start && createdAt <= p.end;
         if (inThisPeriod) {
-          // 현재 선택한 기간이면 포함 (단, 이미 입금확인된 사람은 제외)
-          if (i === currentPeriodIdx) return !r.admin_deposit_confirm;
-          // 이전 기간이면: 해당 기간이 실제로 지났고, 현재까지도 입금확인이 안 된 경우만 누적
+          // 현재 선택한 기간이면 무조건 포함
+          if (i === currentPeriodIdx) return true;
+          // 이전 기간이면: 해당 기간이 실제로 지났고, 아직 입금확인이 안 된 경우만 누적
+          // (어느 기간에 확인됐든 이미 입금완료면 이전 기간 누적에서 제외)
           const periodHasPassed = now > p.end;
           if (periodHasPassed && !r.admin_deposit_confirm) return true;
         }
