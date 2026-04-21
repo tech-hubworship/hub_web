@@ -57,13 +57,10 @@ export default function HubUpMainPage() {
     },
   ];
 
-  const isAchachaVisible = now >= new Date('2026-04-19T00:00:00+09:00');
-
   const FAQS = [
     { cat: '접수', q: '허브업 신청을 취소하고 싶어요.', a: '5월 3일(일) 자정까지 환불 가능합니다.\n이후에는 예약금 지불로 인해 환불이 불가합니다.\n\n환불 문의 : https://open.kakao.com/o/s9CV4ipi', link: 'https://open.kakao.com/o/s9CV4ipi' },
     { cat: '차량', q: '차량 시간을 변경하고 싶어요.', a: '\'내 정보\' 메뉴에서 차량 변경 요청이 가능합니다.\n변경 기한은 5월 13일까지입니다.', link: '/hub_up/myinfo' },
     { cat: '접수', q: '부분 참석시 회비 할인이 되나요?', a: '부분 참석도 회비는 동일하게 적용됩니다.' },
-    ...(isAchachaVisible ? [{ cat: '이벤트', q: '아차차 이벤트가 뭔가요?', a: '4월 19일 (하루) 1시 30분 ~ 1시 50분까지 성경책 지참 후 기쁨홀 앞 데스크에서 인증 받은 사람에 한하여 회비 8만원이 적용됩니다.' }] : []),
   ];
 
   return (
