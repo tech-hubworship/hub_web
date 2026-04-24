@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import * as S from "../users/style";
@@ -11,6 +11,11 @@ export default function LateFeeManage() {
   const [settleAmount, setSettleAmount] = useState("");
   const [settleNote, setSettleNote] = useState("");
   const [settleSubmitting, setSettleSubmitting] = useState(false);
+
+  // ── 필터 상태 ──
+  const [searchName, setSearchName] = useState("");
+  const [filterGroup, setFilterGroup] = useState("");
+  const [filterCell, setFilterCell] = useState("");
 
   const { data: listData, isLoading } = useQuery({
     queryKey: ["admin-late-fees"],
@@ -31,6 +36,7 @@ export default function LateFeeManage() {
     },
     enabled: !!detailUserId,
   });
+
   useEffect(() => {
     if (detailUserId && detailData?.totalLateFee != null && settleModalOpen) {
       setSettleAmount(String(detailData.totalLateFee));
@@ -77,7 +83,7 @@ export default function LateFeeManage() {
     }
   };
 
-  const list = listData?.data || [];
+  const list: any[] = listData?.data || [];
   const stats = listData?.stats || {};
   const detailLogs = detailData?.logs || [];
   const detailSettlements = detailData?.settlements || [];
@@ -85,6 +91,56 @@ export default function LateFeeManage() {
   const totalLateFee = detailData?.totalLateFee ?? 0;
   const totalSettled = detailData?.totalSettled ?? 0;
   const remaining = (detailData?.remaining ?? Math.max(0, totalLateFee - totalSettled)) as number;
+
+  // ── 그룹/다락방 목록 추출 ──
+  const groupOptions = useMemo(() => {
+    const set = new Set<string>();
+    list.forEach((item) => { if (item.group_name && item.group_name !== "-") set.add(item.group_name); });
+    return Array.from(set).sort();
+  }, [list]);
+
+  const cellOptions = useMemo(() => {
+    const set = new Set<string>();
+    list.forEach((item) => {
+      if (item.cell_name && item.cell_name !== "-") {
+        if (!filterGroup || item.group_name === filterGroup) set.add(item.cell_name);
+      }
+    });
+    return Array.from(set).sort();
+  }, [list, filterGroup]);
+
+  // ── 필터링된 목록 ──
+  const filteredList = useMemo(() => {
+    return list.filter((item) => {
+      if (searchName && !item.name?.includes(searchName)) return false;
+      if (filterGroup && item.group_name !== filterGroup) return false;
+      if (filterCell && item.cell_name !== filterCell) return false;
+      return true;
+    });
+  }, [list, searchName, filterGroup, filterCell]);
+
+  // ── 엑셀(CSV) 다운로드 ──
+  const exportCsv = () => {
+    const rows = [
+      ["이름", "그룹", "다락방", "지각비", "정산된 지각비", "잔여 지각비"],
+      ...filteredList.map((item) => [
+        item.name,
+        item.group_name,
+        item.cell_name,
+        item.total_late_fee,
+        item.total_settled ?? 0,
+        item.remaining ?? item.total_late_fee,
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `지각비_${dayjs().format("YYYYMMDD")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <>
@@ -96,69 +152,84 @@ export default function LateFeeManage() {
       </S.Header>
 
       <S.Container>
+        {/* 요약 통계 */}
         {stats.totalMembers !== undefined && (
-          <div
-            style={{
-              marginBottom: "20px",
-              padding: "20px",
-              background: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: "12px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: "16px",
-            }}
-          >
-            <h3 style={{ fontSize: "16px", fontWeight: "bold", color: "#1e293b", margin: 0 }}>
-              📊 지각비 요약
-            </h3>
+          <div style={{ marginBottom: "20px", padding: "20px", background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
+            <h3 style={{ fontSize: "16px", fontWeight: "bold", color: "#1e293b", margin: 0 }}>📊 지각비 요약</h3>
             <div style={{ display: "flex", gap: "24px", alignItems: "center", flexWrap: "wrap" }}>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: "14px", color: "#64748b" }}>지각비 발생 인원</div>
-                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#2563eb" }}>
-                  {stats.membersWithLateFee || 0}명
-                </div>
+                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#2563eb" }}>{stats.membersWithLateFee || 0}명</div>
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: "14px", color: "#64748b" }}>총 지각비</div>
-                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#dc2626" }}>
-                  {(stats.totalLateFee || 0).toLocaleString()}원
-                </div>
+                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#dc2626" }}>{(stats.totalLateFee || 0).toLocaleString()}원</div>
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: "14px", color: "#64748b" }}>정산된 지각비</div>
-                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#16a34a" }}>
-                  {(stats.totalSettled ?? 0).toLocaleString()}원
-                </div>
+                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#16a34a" }}>{(stats.totalSettled ?? 0).toLocaleString()}원</div>
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: "14px", color: "#64748b" }}>미정산 지각비</div>
-                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#ea580c" }}>
-                  {(stats.totalUnsettled ?? 0).toLocaleString()}원
-                </div>
+                <div style={{ fontSize: "22px", fontWeight: "bold", color: "#ea580c" }}>{(stats.totalUnsettled ?? 0).toLocaleString()}원</div>
               </div>
             </div>
           </div>
         )}
 
-        {isLoading ? (
-          <div style={{ padding: "60px", textAlign: "center", color: "#64748b" }}>
-            데이터를 불러오는 중...
-          </div>
-        ) : list.length === 0 ? (
-          <div
-            style={{
-              padding: "60px",
-              textAlign: "center",
-              color: "#94a3b8",
-              background: "#f8fafc",
-              borderRadius: "12px",
-              border: "1px dashed #e2e8f0",
-            }}
+        {/* ── 검색 / 필터 / 엑셀 ── */}
+        <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder="이름 검색"
+            value={searchName}
+            onChange={(e) => setSearchName(e.target.value)}
+            style={{ padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", minWidth: "140px", flex: "1" }}
+          />
+          <select
+            value={filterGroup}
+            onChange={(e) => { setFilterGroup(e.target.value); setFilterCell(""); }}
+            style={{ padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", minWidth: "130px" }}
           >
-            지각비가 발생한 회원이 없습니다.
+            <option value="">전체 그룹</option>
+            {groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+          <select
+            value={filterCell}
+            onChange={(e) => setFilterCell(e.target.value)}
+            style={{ padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", minWidth: "130px" }}
+          >
+            <option value="">전체 다락방</option>
+            {cellOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          {(searchName || filterGroup || filterCell) && (
+            <button
+              onClick={() => { setSearchName(""); setFilterGroup(""); setFilterCell(""); }}
+              style={{ padding: "8px 12px", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", cursor: "pointer", color: "#64748b" }}
+            >
+              초기화
+            </button>
+          )}
+          <button
+            onClick={exportCsv}
+            style={{ padding: "8px 16px", background: "#1d4ed8", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer", marginLeft: "auto" }}
+          >
+            📥 엑셀 다운로드
+          </button>
+        </div>
+
+        {/* 필터 결과 카운트 */}
+        {(searchName || filterGroup || filterCell) && (
+          <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "10px" }}>
+            검색 결과: <strong>{filteredList.length}</strong>명 / 전체 {list.length}명
+          </div>
+        )}
+
+        {isLoading ? (
+          <div style={{ padding: "60px", textAlign: "center", color: "#64748b" }}>데이터를 불러오는 중...</div>
+        ) : filteredList.length === 0 ? (
+          <div style={{ padding: "60px", textAlign: "center", color: "#94a3b8", background: "#f8fafc", borderRadius: "12px", border: "1px dashed #e2e8f0" }}>
+            {list.length === 0 ? "지각비가 발생한 회원이 없습니다." : "검색 결과가 없습니다."}
           </div>
         ) : (
           <S.TableContainer>
@@ -174,23 +245,15 @@ export default function LateFeeManage() {
                 </S.TableRow>
               </S.TableHeader>
               <tbody>
-                {list.map((item: any) => (
+                {filteredList.map((item: any) => (
                   <S.TableRow key={item.user_id}>
+                    <S.TableData><span style={{ fontWeight: "600" }}>{item.name}</span></S.TableData>
+                    <S.TableData>{item.group_name || "-"} / {item.cell_name || "-"}</S.TableData>
                     <S.TableData>
-                      <span style={{ fontWeight: "600" }}>{item.name}</span>
+                      <span style={{ color: "#dc2626", fontWeight: "bold" }}>{item.total_late_fee.toLocaleString()}원</span>
                     </S.TableData>
                     <S.TableData>
-                      {item.group_name || "-"} / {item.cell_name || "-"}
-                    </S.TableData>
-                    <S.TableData>
-                      <span style={{ color: "#dc2626", fontWeight: "bold" }}>
-                        {item.total_late_fee.toLocaleString()}원
-                      </span>
-                    </S.TableData>
-                    <S.TableData>
-                      <span style={{ color: "#15803d", fontWeight: "600" }}>
-                        {(item.total_settled ?? 0).toLocaleString()}원
-                      </span>
+                      <span style={{ color: "#15803d", fontWeight: "600" }}>{(item.total_settled ?? 0).toLocaleString()}원</span>
                     </S.TableData>
                     <S.TableData>
                       <span style={{ color: (item.remaining ?? item.total_late_fee) > 0 ? "#dc2626" : "#16a34a", fontWeight: "bold" }}>
@@ -201,16 +264,7 @@ export default function LateFeeManage() {
                       <button
                         type="button"
                         onClick={() => setDetailUserId(item.user_id)}
-                        style={{
-                          padding: "6px 14px",
-                          background: "#3b82f6",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                          fontWeight: "600",
-                          cursor: "pointer",
-                        }}
+                        style={{ padding: "6px 14px", background: "#3b82f6", color: "white", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}
                       >
                         상세보기
                       </button>
