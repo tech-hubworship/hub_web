@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import styled from "@emotion/styled";
@@ -58,8 +58,10 @@ export default function ChallengeClientPage() {
   const [editingShare, setEditingShare] = useState<{ share_id: string; content: string } | null>(null);
   const [editContent, setEditContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  // 인증 완료 팝업
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  // 프로그레스 바 ref (인증 후 스크롤 타겟)
+  const progressRef = useRef<HTMLDivElement>(null);
+  // 일러스트 애니메이션 강조
+  const [progressAnimating, setProgressAnimating] = useState(false);
 
   const todayStr = getKSTDateStr();
   const todayChallenge = getTodayChallengeDay(todayStr);
@@ -153,7 +155,7 @@ export default function ChallengeClientPage() {
       const data = await res.json();
       if (res.ok) {
         setShareContent("");
-        setShowSuccessPopup(true);
+        // 프로그레스 바로 스크롤 + 애니메이션
         const [progressRes, sharesRes] = await Promise.all([
           fetch("/api/hub-challenge/my-progress"),
           fetch(`/api/hub-challenge/shares?day=${dayData.day}&page=1&limit=5`),
@@ -166,6 +168,12 @@ export default function ChallengeClientPage() {
           setTotalShares(sharesData.total || 0);
           setPage(1);
         }
+        // 프로그레스 바로 스크롤 후 애니메이션
+        setTimeout(() => {
+          progressRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          setProgressAnimating(true);
+          setTimeout(() => setProgressAnimating(false), 1800);
+        }, 100);
       } else {
         alert(data.error || "나눔 작성에 실패했습니다.");
       }
@@ -202,13 +210,26 @@ export default function ChallengeClientPage() {
         {/* 소개 텍스트 — 처음엔 4줄, 누르면 전체 펼침 */}
         <IntroBox>
           <IntroText $expanded={introExpanded}>
-            {'\'나 너희 하나님 여호와가 거룩하니 너희도 거룩해야 한다.\''}
-            {'\n'}하나님께서 주신 이 말씀을 허브가 함께 지켜 행하려 합니다.
-            {'\n\n'}이 말씀은 단순한 명령이 아니라,{'\n'}우리와 동행하여 함께 기쁨을 누리고 싶으신 하나님께서{'\n'}우리를 부르시는 거룩한 초대입니다.
-            {'\n\n'}우리는 본래 거룩하신 하나님 앞에{'\n'}나아갈 수 없는 존재이지만{'\n'}우리의 죄를 대속해 주신 예수님의 사랑과 은혜로 인해{'\n'}\'의롭다 함을\' 얻어 어느 때, 어느 곳에서든지{'\n'}말씀을 통해, 기도를 통해{'\n'}하나님께 가까이 나아갈 수 있게 되었습니다.
-            {'\n\n'}이제 우리는 그 사랑과 은혜에 반응하여{'\n'}레위기 19장에 나타난{'\n'}하나님 사랑, 이웃 사랑과 관련된 구체적인 말씀들을{'\n'}하나 하나 함께 실천해보고자 합니다.
-            {'\n\n'}성공과 실패에 집중하기보다{'\n'}하나님의 임재를 사모하며 그 안에서 참된 기쁨을 누려봅시다.
-            {'\n\n'}이번 여정을 통해,{'\n'}거룩하신 하나님과 더욱 긴밀히 동행하여{'\n'}하나님 나라를 이 땅에 이루는 허브 공동체가 되길 소망합니다.
+            {'\'나 너희 하나님 여호와가 거룩하니 너희도 거룩해야 한다.\''}{'\n\n'}
+            {'하나님께서 주신 이 말씀을\n허브가 함께 지켜 행하려 합니다.'}{'\n\n'}
+            {'이 말씀은 단순한 명령이 아니라,'}{'\n'}
+            {'우리와 동행하여 함께 기쁨을 누리고 싶으신'}{'\n'}
+            {'하나님께서 우리를 부르시는 거룩한 초대입니다.'}{'\n\n'}
+            {'우리는 본래 거룩하신 하나님 앞에'}{'\n'}
+            {'나아갈 수 없는 존재이지만'}{'\n\n'}
+            {'우리의 죄를 대속해 주신\n예수님의 사랑과 은혜로 인해'}{'\n'}
+            {'\'의롭다 함을\' 얻어\n\n어느 때, 어느 곳에서든지'}{'\n'}
+            {'말씀을 통해, 기도를 통해'}{'\n'}
+            {'하나님께 가까이 나아갈 수 있게 되었습니다.'}{'\n\n'}
+            {'이제 우리는 그 사랑과 은혜에 반응하여'}{'\n'}
+            {'레위기 19장에 나타난'}{'\n'}
+            {'하나님 사랑, 이웃 사랑과 관련된'}{'\n'}
+            {'구체적인 말씀들을 하나 하나 함께\n실천해보고자 합니다.'}{'\n\n'}
+            {'성공과 실패에 집중하기보다'}{'\n'}
+            {'하나님의 임재를 사모하며\n그 안에서 참된 기쁨을 누려봅시다.'}{'\n\n'}
+            {'이번 여정을 통해,'}{'\n'}
+            {'거룩하신 하나님과 더욱 긴밀히 동행하여'}{'\n'}
+            {'하나님 나라를 이 땅에 이루는\n허브 공동체가 되길 소망합니다.'}
           </IntroText>
           <IntroToggleBtn onClick={() => setIntroExpanded((v) => !v)}>
             {introExpanded ? "접기 ↑" : "전체 보기 ↓"}
@@ -222,10 +243,11 @@ export default function ChallengeClientPage() {
         <SectionTitle>오늘의 실천</SectionTitle>
 
         {/* 일러스트 + 로고 원 + 프로그레스 바 */}
-        <IllustProgressWrap>
+        <IllustProgressWrap ref={progressRef}>
           {/* 일러스트 — progressPercent 위치에 따라 프로그레스 바 위에서 이동 */}
           <IllustImg
             style={{ left: `clamp(0px, calc(${progressPercent}% - 26px), calc(100% - 52px))` }}
+            $animating={progressAnimating}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/images/challenge/challenge_illust.png" alt="" />
@@ -237,7 +259,7 @@ export default function ChallengeClientPage() {
           </LogoCircle>
           {/* 프로그레스 바 */}
           <ProgressBg>
-            <ProgressFill style={{ width: `${progressPercent}%` }} />
+            <ProgressFill style={{ width: `${progressPercent}%` }} $animating={progressAnimating} />
             <ProgressDot style={{ left: `${progressPercent}%` }} />
           </ProgressBg>
         </IllustProgressWrap>
@@ -391,31 +413,6 @@ export default function ChallengeClientPage() {
             로그인
           </LoginBarBtn>
         </LoginBar>
-      )}
-
-      {/* 인증 완료 팝업 */}
-      {showSuccessPopup && (
-        <PopupOverlay onClick={() => setShowSuccessPopup(false)}>
-          <PopupCard onClick={(e) => e.stopPropagation()}>
-            <PopupEmoji>🎉</PopupEmoji>
-            <PopupTitle>오늘의 실천 완료!</PopupTitle>
-            <PopupDesc>
-              Day {dayData.day} 나눔이 등록됐어요.{"\n"}
-              매일 꾸준히 함께해요 💙
-            </PopupDesc>
-            <PopupProgress>
-              <PopupProgressLabel>
-                {myProgress?.completedDays.length ?? 0} / {HUB_CHALLENGE.TOTAL_DAYS}일 완료
-              </PopupProgressLabel>
-              <PopupProgressBg>
-                <PopupProgressFill style={{ width: `${progressPercent}%` }} />
-              </PopupProgressBg>
-            </PopupProgress>
-            <PopupCloseBtn onClick={() => setShowSuccessPopup(false)}>
-              확인
-            </PopupCloseBtn>
-          </PopupCard>
-        </PopupOverlay>
       )}
     </Wrap>
   );
@@ -579,11 +576,14 @@ const IllustProgressWrap = styled.div`
 `;
 
 /* 일러스트 — progressPercent 위치에 따라 프로그레스 바 위에서 수평 이동 */
-const IllustImg = styled.div`
+const IllustImg = styled.div<{ $animating?: boolean }>`
   position: absolute;
   bottom: 12px;
   width: 52px;
-  transition: left 0.4s ease;
+  transition: left 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  ${(p) => p.$animating && `
+    filter: drop-shadow(0 0 8px rgba(141, 173, 255, 0.9));
+  `}
 
   img {
     width: 100%;
@@ -612,14 +612,17 @@ const ProgressBg = styled.div`
   border-radius: 99px;
 `;
 
-const ProgressFill = styled.div`
+const ProgressFill = styled.div<{ $animating?: boolean }>`
   position: absolute;
   left: 0;
   top: 0;
   height: 100%;
   background: ${LIGHT_BLUE};
   border-radius: 99px;
-  transition: width 0.4s ease;
+  transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  ${(p) => p.$animating && `
+    box-shadow: 0 0 12px rgba(141, 173, 255, 0.8);
+  `}
 `;
 
 const ProgressDot = styled.div`
@@ -964,96 +967,6 @@ const TestResetBtn = styled.button`
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-`;
-
-/* ── 인증 완료 팝업 ── */
-const PopupOverlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-  padding: 24px;
-`;
-
-const PopupCard = styled.div`
-  width: 100%;
-  max-width: 320px;
-  background: ${WHITE};
-  border-radius: 20px;
-  padding: 32px 24px 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-`;
-
-const PopupEmoji = styled.div`
-  font-size: 48px;
-  line-height: 1;
-  margin-bottom: 4px;
-`;
-
-const PopupTitle = styled.div`
-  font-size: 20px;
-  font-weight: 700;
-  color: ${PRIMARY};
-  letter-spacing: -0.02em;
-`;
-
-const PopupDesc = styled.div`
-  font-size: 14px;
-  font-weight: 500;
-  color: #555;
-  text-align: center;
-  line-height: 1.6;
-  white-space: pre-line;
-  margin-bottom: 8px;
-`;
-
-const PopupProgress = styled.div`
-  width: 100%;
-  margin: 8px 0 16px;
-`;
-
-const PopupProgressLabel = styled.div`
-  font-size: 12px;
-  font-weight: 700;
-  color: ${PRIMARY};
-  text-align: right;
-  margin-bottom: 6px;
-`;
-
-const PopupProgressBg = styled.div`
-  width: 100%;
-  height: 6px;
-  background: #e8ecf8;
-  border-radius: 99px;
-  overflow: hidden;
-`;
-
-const PopupProgressFill = styled.div`
-  height: 100%;
-  background: linear-gradient(90deg, ${LIGHT_BLUE}, ${PRIMARY});
-  border-radius: 99px;
-  transition: width 0.6s ease;
-`;
-
-const PopupCloseBtn = styled.button`
-  width: 100%;
-  height: 48px;
-  background: ${PRIMARY};
-  color: ${WHITE};
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  letter-spacing: -0.01em;
 `;
 
 /* 로그인 유도 바 */

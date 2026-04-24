@@ -5,6 +5,91 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import PageLayout from "@src/components/common/PageLayout";
 
+function LateFeeAccountCard() {
+  const [copied, setCopied] = useState(false);
+
+  const copyAccount = () => {
+    const text = "3333-18-2424686";
+    const done = () => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else {
+      fallbackCopy(text, done);
+    }
+  };
+
+  const fallbackCopy = (text: string, done: () => void) => {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.position = "fixed";
+    el.style.opacity = "0";
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    try { document.execCommand("copy"); } catch {}
+    document.body.removeChild(el);
+    done();
+  };
+
+  return (
+    <div
+      style={{
+        background: "#f8fafc",
+        border: "1px solid #e2e8f0",
+        borderRadius: "8px",
+        padding: "8px 12px",
+        marginBottom: "28px",
+        fontSize: "12px",
+        color: "#475569",
+        display: "flex",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: "0 8px",
+      }}
+    >
+      <span style={{ fontWeight: "700" }}>💸 지각비</span>
+      <span style={{ color: "#cbd5e1" }}>|</span>
+      <span>카카오뱅크</span>
+      <button
+        onClick={copyAccount}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          background: "none",
+          border: "none",
+          padding: 0,
+          fontSize: "12px",
+          fontWeight: "700",
+          color: "#2563eb",
+          cursor: "pointer",
+        }}
+      >
+        3333-18-2424686
+        <span
+          style={{
+            fontSize: "10px",
+            fontWeight: "600",
+            color: copied ? "#16a34a" : "#2563eb",
+            background: copied ? "#f0fdf4" : "#eff6ff",
+            padding: "1px 5px",
+            borderRadius: "6px",
+          }}
+        >
+          {copied ? "✓" : "복사"}
+        </span>
+      </button>
+      <span style={{ color: "#cbd5e1" }}>|</span>
+      <span>이지원</span>
+      <span style={{ color: "#cbd5e1" }}>|</span>
+      <span style={{ color: "#94a3b8" }}>메모: 다락방/이름</span>
+    </div>
+  );
+}
+
 type AttendanceRow = {
   id: number;
   week_date: string;
@@ -247,6 +332,9 @@ export default function MyAttendancePage() {
                 </div>
               </div>
             </div>
+
+            {/* 지각비 계좌 안내 */}
+            <LateFeeAccountCard />
 
             {/* 출석 내역 */}
             <div style={{ marginBottom: "28px" }}>
