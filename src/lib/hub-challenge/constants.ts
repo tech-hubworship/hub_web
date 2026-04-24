@@ -1,7 +1,7 @@
 /**
  * 허브업 챌린지 상수
  * 레위기 19장 19일 실천 챌린지
- * 2026.04.26(일) ~ 2026.05.14(목)
+ * 2026.04.27(월) ~ 2026.05.15(목)
  */
 
 export const HUB_CHALLENGE = {
@@ -11,11 +11,11 @@ export const HUB_CHALLENGE = {
   /** 챌린지 식별자 */
   SLUG: "hubup2026",
 
-  /** 챌린지 시작일 (YYYYMMDD) — D-19 = 4/26 일요일 */
-  START_DATE: "20260426",
+  /** 챌린지 시작일 (YYYYMMDD) — Day1 = 4/27 월요일 */
+  START_DATE: "20260427",
 
-  /** 챌린지 종료일 (YYYYMMDD) — D-1 = 5/14 목요일 */
-  END_DATE: "20260514",
+  /** 챌린지 종료일 (YYYYMMDD) — Day19 = 5/15 목요일 */
+  END_DATE: "20260515",
 
   /** 총 일수 */
   TOTAL_DAYS: 19,
@@ -37,9 +37,9 @@ export interface ChallengeDayData {
 export const CHALLENGE_DAYS: ChallengeDayData[] = [
   {
     day: 1,
-    dDay: "D-19",
-    date: "4/26 일",
-    dateStr: "20260426",
+    dDay: "Day 1",
+    date: "4/27 월",
+    dateStr: "20260427",
     verse: "레위기 19:2",
     practices: [
       '오늘 3번 "하나님이라면 어떤 선택을 하셨을까?" 질문하기',
@@ -48,9 +48,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 2,
-    dDay: "D-18",
-    date: "4/27 월",
-    dateStr: "20260427",
+    dDay: "Day 2",
+    date: "4/28 화",
+    dateStr: "20260428",
     verse: "레위기 19:3",
     practices: [
       "부모/권위자에게 감사 표현하기",
@@ -59,9 +59,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 3,
-    dDay: "D-17",
-    date: "4/28 화",
-    dateStr: "20260428",
+    dDay: "Day 3",
+    date: "4/29 수",
+    dateStr: "20260429",
     verse: "레위기 19:4",
     practices: [
       "내 삶의 우상 3가지 적고 기도하기",
@@ -70,9 +70,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 4,
-    dDay: "D-16",
-    date: "4/29 수",
-    dateStr: "20260429",
+    dDay: "Day 4",
+    date: "4/30 목",
+    dateStr: "20260430",
     verse: "레위기 19:5-6",
     practices: [
       "감사 3가지 고백하기",
@@ -81,9 +81,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 5,
-    dDay: "D-15",
-    date: "4/30 목",
-    dateStr: "20260430",
+    dDay: "Day 5",
+    date: "5/1 금",
+    dateStr: "20260501",
     verse: "레위기 19:9",
     practices: [
       "오늘 일부러 포기할 것 1가지 정하기",
@@ -92,9 +92,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 6,
-    dDay: "D-14",
-    date: "5/1 금",
-    dateStr: "20260501",
+    dDay: "Day 6",
+    date: "5/2 토",
+    dateStr: "20260502",
     verse: "레위기 19:10",
     practices: [
       "오늘 주변에서 도움이 필요한 사람 한 번 더 유심히 살펴보기",
@@ -103,9 +103,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 7,
-    dDay: "D-13",
-    date: "5/2 토",
-    dateStr: "20260502",
+    dDay: "Day 7",
+    date: "5/3 일",
+    dateStr: "20260503",
     verse: "레위기 19:11",
     practices: [
       "과장하거나 핑계 대지 않고 정직하게 말하기",
@@ -113,9 +113,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 8,
-    dDay: "D-12",
-    date: "5/3 일",
-    dateStr: "20260503",
+    dDay: "Day 8",
+    date: "5/4 월",
+    dateStr: "20260504",
     verse: "레위기 19:12",
     practices: [
       "가볍게 말했던 표현 점검하기",
@@ -124,9 +124,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 9,
-    dDay: "D-11",
-    date: "5/4 월",
-    dateStr: "20260504",
+    dDay: "Day 9",
+    date: "5/5 화",
+    dateStr: "20260505",
     verse: "레위기 19:15",
     practices: [
       "오늘 한 사람을 선택해 하나님 시선으로 바라보기",
@@ -135,9 +135,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 10,
-    dDay: "D-10",
-    date: "5/5 화",
-    dateStr: "20260505",
+    dDay: "Day 10",
+    date: "5/6 수",
+    dateStr: "20260506",
     verse: "레위기 19:16",
     practices: [
       "오늘 하루 험담/뒷말 완전 금지",
@@ -146,9 +146,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 11,
-    dDay: "D-9",
-    date: "5/6 수",
-    dateStr: "20260506",
+    dDay: "Day 11",
+    date: "5/7 목",
+    dateStr: "20260507",
     verse: "레위기 19:17-18",
     practices: [
       "마음에 걸렸던 사람 한 명 떠올리고 짧게라도 연락 or 표현 하나 하기 (사과, 감사 등)",
@@ -157,9 +157,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 12,
-    dDay: "D-8",
-    date: "5/7 목",
-    dateStr: "20260507",
+    dDay: "Day 12",
+    date: "5/8 금",
+    dateStr: "20260508",
     verse: "레위기 19:19",
     practices: [
       "내가 타협하고 있는 영역 1가지 적기",
@@ -168,9 +168,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 13,
-    dDay: "D-7",
-    date: "5/8 금",
-    dateStr: "20260508",
+    dDay: "Day 13",
+    date: "5/9 토",
+    dateStr: "20260509",
     verse: "레위기 19:26",
     practices: [
       "반복되는 습관 1가지 선택 (예: 미디어, 말투, 소비 등)",
@@ -179,9 +179,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 14,
-    dDay: "D-6",
-    date: "5/9 토",
-    dateStr: "20260509",
+    dDay: "Day 14",
+    date: "5/10 일",
+    dateStr: "20260510",
     verse: "레위기 19:30",
     practices: [
       "예배 전 10분 미리 준비하기",
@@ -190,9 +190,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 15,
-    dDay: "D-5",
-    date: "5/10 일",
-    dateStr: "20260510",
+    dDay: "Day 15",
+    date: "5/11 월",
+    dateStr: "20260511",
     verse: "레위기 19:31",
     practices: [
       "하나님보다 더 의지하는 것 1가지 적어보기",
@@ -201,9 +201,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 16,
-    dDay: "D-4",
-    date: "5/11 월",
-    dateStr: "20260511",
+    dDay: "Day 16",
+    date: "5/12 화",
+    dateStr: "20260512",
     verse: "레위기 19:32-34",
     practices: [
       "어른/선배에게 존중 표현하기",
@@ -212,9 +212,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 17,
-    dDay: "D-3",
-    date: "5/12 화",
-    dateStr: "20260512",
+    dDay: "Day 17",
+    date: "5/13 수",
+    dateStr: "20260513",
     verse: "레위기 19:35-36",
     practices: [
       "작은 부분에서도 정직하게 행동하기",
@@ -223,9 +223,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 18,
-    dDay: "D-2",
-    date: "5/13 수",
-    dateStr: "20260513",
+    dDay: "Day 18",
+    date: "5/14 목",
+    dateStr: "20260514",
     verse: "레위기 19:37",
     practices: [
       "오늘 말씀/묵상 중 떠오른 행동 1가지 정하기",
@@ -234,9 +234,9 @@ export const CHALLENGE_DAYS: ChallengeDayData[] = [
   },
   {
     day: 19,
-    dDay: "D-1",
-    date: "5/14 목",
-    dateStr: "20260514",
+    dDay: "Day 19",
+    date: "5/15 목",
+    dateStr: "20260515",
     verse: "레위기 19:2",
     practices: [
       "19일 동안 변화 3가지 기록",

@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
@@ -115,7 +115,7 @@ const GROUP_COLORS: Record<string, { bg: string; border: string; text: string; a
 export default function HubUpAdminPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'stats' | 'deposit' | 'list' | 'room' | 'bus' | 'tshirt' | 'unpaid'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'deposit' | 'list' | 'room' | 'bus' | 'tshirt' | 'unpaid' | 'challenge'>('stats');
 
   // 미입금자 추적 접근 권한
   const userEmail = (session?.user as any)?.email ?? '';
@@ -474,6 +474,7 @@ export default function HubUpAdminPage() {
         <Tab active={activeTab === 'bus'} onClick={() => setActiveTab('bus')}>🚌 버스 현황</Tab>
         <Tab active={activeTab === 'tshirt'} onClick={() => setActiveTab('tshirt')}>👕 단체티 주문</Tab>
         {canAccessUnpaid && <Tab active={activeTab === 'unpaid'} onClick={() => setActiveTab('unpaid')}>📋 미입금 추적</Tab>}
+        <Tab active={activeTab === 'challenge'} onClick={() => setActiveTab('challenge')}>🏆 챌린지</Tab>
       </TabBar>
 
       <TabContent>
@@ -1398,8 +1399,296 @@ export default function HubUpAdminPage() {
             )}
           </div>
         )}
+
+        {/* ── 챌린지 탭 ── */}
+        {activeTab === 'challenge' && (
+          <ChallengeTabContent />
+        )}
       </TabContent>
     </Wrap>
+  );
+}
+
+// ── 챌린지 탭 컴포넌트 ──────────────────────────────────────
+function ChallengeTabContent() {
+  const [data, setData] = useState<{
+    participants: {
+      user_id: string;
+      name: string;
+      affiliation: string;
+      completed_days: number[];
+      completed_count: number;
+      total_shares: number;
+      last_share_dt: string;
+    }[];
+    totalShares: number;
+    totalParticipants: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
+
+  // Day별 나눔 조회
+  const [view, setView] = useState<'participants' | 'day'>('participants');
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [dayShares, setDayShares] = useState<{
+    share_id: string; seq: number; name: string; affiliation: string; content: string; reg_dt: string;
+  }[]>([]);
+  const [daySharesLoading, setDaySharesLoading] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/admin/hub-challenge/participants')
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setData(d); })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (view !== 'day') return;
+    setDaySharesLoading(true);
+    fetch(`/api/admin/hub-challenge/day-shares?day=${selectedDay}`)
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setDayShares(d.shares || []); })
+      .catch(console.error)
+      .finally(() => setDaySharesLoading(false));
+  }, [view, selectedDay]);
+
+  const filtered = (data?.participants || []).filter((p) =>
+    p.name.includes(search) || p.affiliation.includes(search)
+  );
+
+  const exportCsv = () => {
+    if (!data) return;
+    const rows = [
+      ['이름', '소속', '참여일수', '총나눔수', '완료일', '마지막나눔'],
+      ...data.participants.map((p) => [
+        p.name,
+        p.affiliation,
+        String(p.completed_count),
+        String(p.total_shares),
+        p.completed_days.join(', '),
+        p.last_share_dt ? new Date(p.last_share_dt).toLocaleDateString('ko-KR') : '',
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `챌린지_참여현황_${new Date().toLocaleDateString('ko-KR')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (loading) return <Loading>불러오는 중...</Loading>;
+  if (!data) return <Loading style={{ color: '#d93025' }}>데이터를 불러올 수 없습니다.</Loading>;
+
+  return (
+    <ChallengeWrap>
+      {/* KPI */}
+      <ChallengeKpiRow>
+        <ChallengeKpiCard accent="#2D478C">
+          <ChallengeKpiNum>{data.totalParticipants}</ChallengeKpiNum>
+          <ChallengeKpiLabel>참여자 수</ChallengeKpiLabel>
+        </ChallengeKpiCard>
+        <ChallengeKpiCard accent="#8DADFF">
+          <ChallengeKpiNum style={{ color: '#2D478C' }}>{data.totalShares}</ChallengeKpiNum>
+          <ChallengeKpiLabel>총 나눔 수</ChallengeKpiLabel>
+        </ChallengeKpiCard>
+        <ChallengeKpiCard accent="#278f5a">
+          <ChallengeKpiNum style={{ color: '#278f5a' }}>
+            {data.participants.filter((p) => p.completed_count >= 19).length}
+          </ChallengeKpiNum>
+          <ChallengeKpiLabel>19일 완주</ChallengeKpiLabel>
+        </ChallengeKpiCard>
+        <ChallengeKpiCard accent="#f59e0b">
+          <ChallengeKpiNum style={{ color: '#f59e0b' }}>
+            {data.participants.length > 0
+              ? Math.round(
+                  (data.participants.reduce((s, p) => s + p.completed_count, 0) /
+                    data.participants.length) *
+                    10
+                ) / 10
+              : 0}
+          </ChallengeKpiNum>
+          <ChallengeKpiLabel>평균 참여일</ChallengeKpiLabel>
+        </ChallengeKpiCard>
+      </ChallengeKpiRow>
+
+      {/* 뷰 전환 탭 */}
+      <ChallengeViewTabs>
+        <ChallengeViewTab $active={view === 'participants'} onClick={() => setView('participants')}>
+          👥 참여자별 현황
+        </ChallengeViewTab>
+        <ChallengeViewTab $active={view === 'day'} onClick={() => setView('day')}>
+          📅 Day별 나눔 조회
+        </ChallengeViewTab>
+      </ChallengeViewTabs>
+
+      {/* ── 참여자별 현황 ── */}
+      {view === 'participants' && (
+        <>
+          <ChallengeToolbar>
+            <ChallengeSearch
+              placeholder="이름 또는 소속 검색"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <ExportBtn onClick={exportCsv}>CSV 내보내기</ExportBtn>
+          </ChallengeToolbar>
+
+          <ChallengeTableWrap>
+            <ChallengeTable>
+              <thead>
+                <tr>
+                  <CTh style={{ width: 40 }}>#</CTh>
+                  <CTh>이름</CTh>
+                  <CTh>소속</CTh>
+                  <CTh style={{ width: 90, textAlign: 'center' }}>참여일수</CTh>
+                  <CTh style={{ width: 70, textAlign: 'center' }}>나눔수</CTh>
+                  <CTh>완료일 현황 (Day 1→19)</CTh>
+                  <CTh style={{ width: 90 }}>마지막 나눔</CTh>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p, i) => (
+                  <React.Fragment key={p.user_id}>
+                    <tr
+                      style={{ cursor: 'pointer', background: expandedUser === p.user_id ? '#f8f9ff' : undefined }}
+                      onClick={() => setExpandedUser(expandedUser === p.user_id ? null : p.user_id)}
+                    >
+                      <CTd style={{ color: '#9aa0a6', textAlign: 'center' }}>{i + 1}</CTd>
+                      <CTd><strong>{p.name}</strong></CTd>
+                      <CTd style={{ color: '#5f6368', fontSize: 12 }}>{p.affiliation}</CTd>
+                      <CTd style={{ textAlign: 'center' }}>
+                        <ChallengeDayBadge $count={p.completed_count}>
+                          {p.completed_count} / 19
+                        </ChallengeDayBadge>
+                      </CTd>
+                      <CTd style={{ textAlign: 'center', color: '#5f6368' }}>{p.total_shares}</CTd>
+                      <CTd>
+                        <ChallengeDayDots>
+                          {Array.from({ length: 19 }, (_, idx) => idx + 1).map((day) => (
+                            <ChallengeDayDot
+                              key={day}
+                              $done={p.completed_days.includes(day)}
+                              title={`Day ${day}`}
+                            />
+                          ))}
+                        </ChallengeDayDots>
+                      </CTd>
+                      <CTd style={{ fontSize: 12, color: '#9aa0a6' }}>
+                        {p.last_share_dt
+                          ? new Date(p.last_share_dt).toLocaleDateString('ko-KR', {
+                              month: 'numeric',
+                              day: 'numeric',
+                            })
+                          : '-'}
+                      </CTd>
+                    </tr>
+                    {expandedUser === p.user_id && (
+                      <tr>
+                        <CTd colSpan={7} style={{ background: '#f0f4ff', padding: '12px 16px' }}>
+                          <ChallengeExpandLabel>완료한 Day:</ChallengeExpandLabel>
+                          <ChallengeExpandDays>
+                            {p.completed_days.map((d) => (
+                              <ChallengeExpandDay key={d}>Day {d}</ChallengeExpandDay>
+                            ))}
+                            {p.completed_days.length === 0 && (
+                              <span style={{ color: '#9aa0a6' }}>없음</span>
+                            )}
+                          </ChallengeExpandDays>
+                          <div style={{ marginTop: 6, fontSize: 12, color: '#9aa0a6' }}>
+                            미완료: Day{' '}
+                            {Array.from({ length: 19 }, (_, i) => i + 1)
+                              .filter((d) => !p.completed_days.includes(d))
+                              .join(', ') || '없음'}
+                          </div>
+                        </CTd>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <CTd colSpan={7} style={{ textAlign: 'center', color: '#9aa0a6', padding: '32px' }}>
+                      참여자가 없습니다.
+                    </CTd>
+                  </tr>
+                )}
+              </tbody>
+            </ChallengeTable>
+          </ChallengeTableWrap>
+        </>
+      )}
+
+      {/* ── Day별 나눔 조회 ── */}
+      {view === 'day' && (
+        <>
+          <ChallengeDaySelector>
+            {Array.from({ length: 19 }, (_, i) => i + 1).map((d) => {
+              const count = data.participants.filter((p) => p.completed_days.includes(d)).length;
+              return (
+                <ChallengeDaySelectorBtn
+                  key={d}
+                  $active={selectedDay === d}
+                  onClick={() => setSelectedDay(d)}
+                >
+                  <span>Day {d}</span>
+                  <small>{count}명</small>
+                </ChallengeDaySelectorBtn>
+              );
+            })}
+          </ChallengeDaySelector>
+
+          {daySharesLoading ? (
+            <Loading>불러오는 중...</Loading>
+          ) : (
+            <ChallengeTableWrap>
+              <div style={{ padding: '12px 16px', background: '#f8f9fa', borderBottom: '1px solid #e8eaed', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <strong style={{ fontSize: 14, color: '#202124' }}>Day {selectedDay} 나눔 목록</strong>
+                <span style={{ fontSize: 13, color: '#9aa0a6' }}>총 {dayShares.length}개</span>
+              </div>
+              <ChallengeTable>
+                <thead>
+                  <tr>
+                    <CTh style={{ width: 40 }}>#</CTh>
+                    <CTh style={{ width: 80 }}>이름</CTh>
+                    <CTh style={{ width: 120 }}>소속</CTh>
+                    <CTh>나눔 내용</CTh>
+                    <CTh style={{ width: 90 }}>작성일시</CTh>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dayShares.map((s) => (
+                    <tr key={s.share_id}>
+                      <CTd style={{ color: '#9aa0a6', textAlign: 'center' }}>{s.seq}</CTd>
+                      <CTd><strong>{s.name}</strong></CTd>
+                      <CTd style={{ fontSize: 12, color: '#5f6368' }}>{s.affiliation}</CTd>
+                      <CTd style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: 13 }}>{s.content}</CTd>
+                      <CTd style={{ fontSize: 11, color: '#9aa0a6', whiteSpace: 'nowrap' }}>
+                        {new Date(s.reg_dt).toLocaleString('ko-KR', {
+                          month: 'numeric', day: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </CTd>
+                    </tr>
+                  ))}
+                  {dayShares.length === 0 && (
+                    <tr>
+                      <CTd colSpan={5} style={{ textAlign: 'center', color: '#9aa0a6', padding: '32px' }}>
+                        아직 나눔이 없습니다.
+                      </CTd>
+                    </tr>
+                  )}
+                </tbody>
+              </ChallengeTable>
+            </ChallengeTableWrap>
+          )}
+        </>
+      )}
+    </ChallengeWrap>
   );
 }
 
@@ -1539,3 +1828,42 @@ const TshirtCrossTable = styled.table`width: 100%; border-collapse: collapse; fo
 const TshirtCrossTh = styled.th`padding: 8px 12px; background: #f8f9fa; text-align: center; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; border-right: 1px solid #e8eaed; white-space: nowrap; &:first-of-type { text-align: left; }`;
 const TshirtCrossTd = styled.td<{bold?:boolean}>`padding: 8px 12px; text-align: center; border-bottom: 1px solid #f1f3f4; border-right: 1px solid #f1f3f4; font-weight: ${p=>p.bold?'700':'400'}; color: ${p=>p.bold?'#202124':'#3c4043'}; &:first-of-type { text-align: left; display: flex; align-items: center; gap: 6px; }`;
 const ColorDot = styled.span<{color:string}>`display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${p=>p.color}; border: 1px solid #dadce0; flex-shrink: 0;`;
+
+// ── 챌린지 탭 Styles ────────────────────────────────────────
+const ChallengeWrap = styled.div`display: flex; flex-direction: column; gap: 16px;`;
+const ChallengeKpiRow = styled.div`display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;`;
+const ChallengeKpiCard = styled.div<{accent:string}>`background: white; border-radius: 10px; padding: 16px; text-align: center; border-top: 3px solid ${p=>p.accent}; box-shadow: 0 1px 4px rgba(0,0,0,0.06);`;
+const ChallengeKpiNum = styled.div`font-size: 28px; font-weight: 800; color: #2D478C;`;
+const ChallengeKpiLabel = styled.div`font-size: 12px; color: #9aa0a6; margin-top: 4px;`;
+const ChallengeToolbar = styled.div`display: flex; gap: 10px; align-items: center;`;
+const ChallengeSearch = styled.input`flex: 1; padding: 8px 14px; border: 1px solid #e8eaed; border-radius: 8px; font-size: 14px; color: #202124; background: white; &:focus { outline: none; border-color: #2D478C; }`;
+const ChallengeTableWrap = styled.div`background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06);`;
+const ChallengeTable = styled.table`width: 100%; border-collapse: collapse; font-size: 13px;`;
+const CTh = styled.th`padding: 10px 12px; background: #f8f9fa; text-align: left; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; white-space: nowrap;`;
+const CTd = styled.td`padding: 10px 12px; border-bottom: 1px solid #f1f3f4; vertical-align: middle;`;
+const ChallengeDayBadge = styled.span<{$count:number}>`
+  display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 700;
+  background: ${p => p.$count >= 19 ? '#e6f4ea' : p.$count >= 10 ? '#e8f0fe' : '#f1f3f4'};
+  color: ${p => p.$count >= 19 ? '#278f5a' : p.$count >= 10 ? '#1d4ed8' : '#5f6368'};
+`;
+const ChallengeDayDots = styled.div`display: flex; gap: 3px; flex-wrap: wrap;`;
+const ChallengeDayDot = styled.div<{$done:boolean}>`
+  width: 10px; height: 10px; border-radius: 50%;
+  background: ${p => p.$done ? '#2D478C' : '#e8eaed'};
+  flex-shrink: 0;
+`;
+const ChallengeExpandLabel = styled.span`font-size: 12px; font-weight: 700; color: #5f6368; margin-right: 8px;`;
+const ChallengeExpandDays = styled.div`display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;`;
+const ChallengeExpandDay = styled.span`padding: 2px 8px; background: #e8f0fe; color: #1d4ed8; border-radius: 4px; font-size: 12px; font-weight: 600;`;
+
+const ChallengeViewTabs = styled.div`display: flex; gap: 4px; border-bottom: 2px solid #e8eaed; margin-bottom: 4px;`;
+const ChallengeViewTab = styled.button<{$active:boolean}>`padding: 8px 16px; background: none; border: none; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid ${p=>p.$active?'#2D478C':'transparent'}; margin-bottom: -2px; color: ${p=>p.$active?'#2D478C':'#9aa0a6'};`;
+const ChallengeDaySelector = styled.div`display: flex; flex-wrap: wrap; gap: 6px;`;
+const ChallengeDaySelectorBtn = styled.button<{$active:boolean}>`
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 12px; border-radius: 8px; cursor: pointer; font-family: inherit;
+  background: ${p=>p.$active?'#2D478C':'white'};
+  border: 1px solid ${p=>p.$active?'#2D478C':'#e8eaed'};
+  span { font-size: 13px; font-weight: 700; color: ${p=>p.$active?'white':'#202124'}; }
+  small { font-size: 11px; color: ${p=>p.$active?'rgba(255,255,255,0.7)':'#9aa0a6'}; }
+`;

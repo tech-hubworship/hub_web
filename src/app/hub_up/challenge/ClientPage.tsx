@@ -58,6 +58,8 @@ export default function ChallengeClientPage() {
   const [editingShare, setEditingShare] = useState<{ share_id: string; content: string } | null>(null);
   const [editContent, setEditContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  // 인증 완료 팝업
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const todayStr = getKSTDateStr();
   const todayChallenge = getTodayChallengeDay(todayStr);
@@ -151,6 +153,7 @@ export default function ChallengeClientPage() {
       const data = await res.json();
       if (res.ok) {
         setShareContent("");
+        setShowSuccessPopup(true);
         const [progressRes, sharesRes] = await Promise.all([
           fetch("/api/hub-challenge/my-progress"),
           fetch(`/api/hub-challenge/shares?day=${dayData.day}&page=1&limit=5`),
@@ -199,7 +202,13 @@ export default function ChallengeClientPage() {
         {/* 소개 텍스트 — 처음엔 4줄, 누르면 전체 펼침 */}
         <IntroBox>
           <IntroText $expanded={introExpanded}>
-            거룩은 {"\n"}내가 만들어내는 결과가 아니라{"\n"}예수 그리스도와 성령 안에서{"\n"}하나님과의 관계 속에서 누리는 상태입니다.{"\n\n"}"너희는 거룩하라"는 말씀은 {"\n"}부담이나 의무가 아니라 {"\n"}하나님의 거룩하심을 닮아가며 {"\n"}그 마음을 알아가라는 초대입니다.{"\n\n"}그래서 레위기 19장의 말씀을 실천한다는 것은 {"\n"}단순히 규칙을 지키는 것이 아니라, {"\n"}하나님의 마음을 배우고 알아가는 과정입니다.{"\n\n"}거룩은 규칙이 아니라 관계이고,{"\n"}순종은 부담이 아니라 {"\n"}사랑의 반응이기 때문입니다.{"\n\n"}예수님께서 단번에 그분을 드리심으로{"\n"}이미 우리를 거룩하게 하셨고, {"\n"}성령님께서 우리를 도우셔서{"\n"}우리는 하나님과 동행하는 삶으로 초대받았습니다.{"\n\n"}이처럼 말씀과 기도로 거룩해진다는 것은{"\n"}우리가 하나님께 속하고, 예수님으로 깨끗해지며,{"\n"}성령님과 동행하는 삶으로 살아가는 것입니다.{"\n\n"}우리의 연약함으로 인해 매일의 실천을 {"\n"}실패할 수도 있겠지만{"\n"}그 순종의 과정을 통해 {"\n"}하나님의 사랑을 알아가며{"\n"}예수님과 성령님을 의지하게 될 것입니다.{"\n\n"}실천의 성공과 실패는 중요하지 않습니다.{"\n"}그러니 실패를 하더라도 말씀에 순종하기 위해{"\n"}하나님, 예수님, 성령님과 함께 고군분투했던 {"\n"}하루의 은혜를 나눠주세요.{"\n\n"}레위기 19장을 실천하는 과정 속에서 {"\n"}예수 그리스도가 주신 소망을 붙들고{"\n"}성령님의 도우심을 구하며{"\n"}하나님의 마음을 더 깊이 알아{"\n"}그분의 사랑 안에서 {"\n"}거룩을 누리는 시간이 되기를 축복합니다.
+            {'\'나 너희 하나님 여호와가 거룩하니 너희도 거룩해야 한다.\''}
+            {'\n'}하나님께서 주신 이 말씀을 허브가 함께 지켜 행하려 합니다.
+            {'\n\n'}이 말씀은 단순한 명령이 아니라,{'\n'}우리와 동행하여 함께 기쁨을 누리고 싶으신 하나님께서{'\n'}우리를 부르시는 거룩한 초대입니다.
+            {'\n\n'}우리는 본래 거룩하신 하나님 앞에{'\n'}나아갈 수 없는 존재이지만{'\n'}우리의 죄를 대속해 주신 예수님의 사랑과 은혜로 인해{'\n'}\'의롭다 함을\' 얻어 어느 때, 어느 곳에서든지{'\n'}말씀을 통해, 기도를 통해{'\n'}하나님께 가까이 나아갈 수 있게 되었습니다.
+            {'\n\n'}이제 우리는 그 사랑과 은혜에 반응하여{'\n'}레위기 19장에 나타난{'\n'}하나님 사랑, 이웃 사랑과 관련된 구체적인 말씀들을{'\n'}하나 하나 함께 실천해보고자 합니다.
+            {'\n\n'}성공과 실패에 집중하기보다{'\n'}하나님의 임재를 사모하며 그 안에서 참된 기쁨을 누려봅시다.
+            {'\n\n'}이번 여정을 통해,{'\n'}거룩하신 하나님과 더욱 긴밀히 동행하여{'\n'}하나님 나라를 이 땅에 이루는 허브 공동체가 되길 소망합니다.
           </IntroText>
           <IntroToggleBtn onClick={() => setIntroExpanded((v) => !v)}>
             {introExpanded ? "접기 ↑" : "전체 보기 ↓"}
@@ -215,7 +224,9 @@ export default function ChallengeClientPage() {
         {/* 일러스트 + 로고 원 + 프로그레스 바 */}
         <IllustProgressWrap>
           {/* 일러스트 — progressPercent 위치에 따라 프로그레스 바 위에서 이동 */}
-          <IllustImg style={{ left: `calc(${progressPercent}% - 26px)` }}>
+          <IllustImg
+            style={{ left: `clamp(0px, calc(${progressPercent}% - 26px), calc(100% - 52px))` }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/images/challenge/challenge_illust.png" alt="" />
           </IllustImg>
@@ -250,7 +261,7 @@ export default function ChallengeClientPage() {
         {/* 입력창 */}
         <TextareaWrap>
           <Textarea
-            placeholder={`오늘의 실천 제목을 실천한 이야기를 공유해주세요.\n실패한 이야기도 괜찮아요.`}
+            placeholder={`오늘의 실천 결과를 나눠주세요.\n실패한 이야기도 괜찮아요.`}
             value={shareContent}
             onChange={(e) => setShareContent(e.target.value)}
             maxLength={300}
@@ -381,6 +392,31 @@ export default function ChallengeClientPage() {
           </LoginBarBtn>
         </LoginBar>
       )}
+
+      {/* 인증 완료 팝업 */}
+      {showSuccessPopup && (
+        <PopupOverlay onClick={() => setShowSuccessPopup(false)}>
+          <PopupCard onClick={(e) => e.stopPropagation()}>
+            <PopupEmoji>🎉</PopupEmoji>
+            <PopupTitle>오늘의 실천 완료!</PopupTitle>
+            <PopupDesc>
+              Day {dayData.day} 나눔이 등록됐어요.{"\n"}
+              매일 꾸준히 함께해요 💙
+            </PopupDesc>
+            <PopupProgress>
+              <PopupProgressLabel>
+                {myProgress?.completedDays.length ?? 0} / {HUB_CHALLENGE.TOTAL_DAYS}일 완료
+              </PopupProgressLabel>
+              <PopupProgressBg>
+                <PopupProgressFill style={{ width: `${progressPercent}%` }} />
+              </PopupProgressBg>
+            </PopupProgress>
+            <PopupCloseBtn onClick={() => setShowSuccessPopup(false)}>
+              확인
+            </PopupCloseBtn>
+          </PopupCard>
+        </PopupOverlay>
+      )}
     </Wrap>
   );
 }
@@ -459,19 +495,19 @@ const PageTitle = styled.h1`
 const IntroBox = styled.div`
   margin: 20px 0 28px;
   background: rgba(255, 255, 255, 0.08);
-  border-left: 3px solid ${LIGHT_BLUE};
-  border-radius: 0 8px 8px 0;
+  border-radius: 8px;
   overflow: hidden;
 `;
 
 const IntroText = styled.div<{ $expanded: boolean }>`
   font-size: 14px;
   font-weight: 400;
-  line-height: 1.8;
-  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.7;
+  color: ${WHITE};
   white-space: pre-line;
   padding: 16px 16px 0 16px;
   overflow: hidden;
+  text-align: center;
   max-height: ${(p) => (p.$expanded ? "3000px" : "96px")};
   transition: max-height 0.45s ease;
   -webkit-mask-image: ${(p) =>
@@ -599,16 +635,19 @@ const ProgressDot = styled.div`
 
 const DayCard = styled.div`
   margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 `;
 
 const DayCardBadge = styled.div`
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
   gap: 10px;
-  padding: 10px;
+  padding: 8px 20px;
   background: ${WHITE};
-  margin-bottom: 20px;
+  margin: 0 auto 20px;
 `;
 
 const DayCardText = styled.span`
@@ -628,15 +667,21 @@ const PracticeDetailList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
+  align-items: center;
+  width: 100%;
 `;
 
 const PracticeDetailItem = styled.p`
   margin: 0;
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 600;
   line-height: 23px;
   letter-spacing: -0.02em;
-  color: ${WHITE};
+  color: #FFFFFF;
+  text-align: center;
+  width: 299px;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 `;
 
 const TextareaWrap = styled.div`
@@ -919,6 +964,96 @@ const TestResetBtn = styled.button`
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
+`;
+
+/* ── 인증 완료 팝업 ── */
+const PopupOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+`;
+
+const PopupCard = styled.div`
+  width: 100%;
+  max-width: 320px;
+  background: ${WHITE};
+  border-radius: 20px;
+  padding: 32px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+`;
+
+const PopupEmoji = styled.div`
+  font-size: 48px;
+  line-height: 1;
+  margin-bottom: 4px;
+`;
+
+const PopupTitle = styled.div`
+  font-size: 20px;
+  font-weight: 700;
+  color: ${PRIMARY};
+  letter-spacing: -0.02em;
+`;
+
+const PopupDesc = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  color: #555;
+  text-align: center;
+  line-height: 1.6;
+  white-space: pre-line;
+  margin-bottom: 8px;
+`;
+
+const PopupProgress = styled.div`
+  width: 100%;
+  margin: 8px 0 16px;
+`;
+
+const PopupProgressLabel = styled.div`
+  font-size: 12px;
+  font-weight: 700;
+  color: ${PRIMARY};
+  text-align: right;
+  margin-bottom: 6px;
+`;
+
+const PopupProgressBg = styled.div`
+  width: 100%;
+  height: 6px;
+  background: #e8ecf8;
+  border-radius: 99px;
+  overflow: hidden;
+`;
+
+const PopupProgressFill = styled.div`
+  height: 100%;
+  background: linear-gradient(90deg, ${LIGHT_BLUE}, ${PRIMARY});
+  border-radius: 99px;
+  transition: width 0.6s ease;
+`;
+
+const PopupCloseBtn = styled.button`
+  width: 100%;
+  height: 48px;
+  background: ${PRIMARY};
+  color: ${WHITE};
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: -0.01em;
 `;
 
 /* 로그인 유도 바 */
