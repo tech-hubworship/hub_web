@@ -1,5 +1,4 @@
-// 서버 컴포넌트 — 정적 FAQ 데이터를 서버에서 렌더링
-// 아코디언 인터랙션만 FaqClient(클라이언트)에서 처리
+"use client";
 import FaqClient from "./FaqClient";
 
 const FAQ_SECTIONS = [

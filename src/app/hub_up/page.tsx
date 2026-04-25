@@ -1,5 +1,4 @@
-// 서버 컴포넌트 — 날짜 계산과 정적 데이터를 서버에서 처리
-// 인터랙션(스크롤, 아코디언, 세션)은 HubUpClient에서 처리
+"use client";
 import HubUpClient from "./HubUpClient";
 
 const DAYS = [
