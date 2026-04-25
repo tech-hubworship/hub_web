@@ -35,7 +35,8 @@ const FAQS = [
 // 날짜 계산 — 서버에서 한 번만 실행
 function buildSchedule() {
   const now = new Date();
-  const toKST = (d: string) => new Date(d + 'T00:00:00+09:00');
+  const toKST = (d: string, endOfDay = false) =>
+    new Date(d + (endOfDay ? 'T23:59:59+09:00' : 'T00:00:00+09:00'));
   const isPast = (t: Date) => now > t;
   const daysLeft = (t: Date) => {
     const diff = Math.ceil((t.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -46,7 +47,7 @@ function buildSchedule() {
 
   const items = [
     { date: '04.12 - 18', label: '얼리버드 신청 기간',          target: toKST('2026-04-18') },
-    { date: '04.26',      label: '참가 신청 및 티셔츠 예약 마감', target: toKST('2026-04-26') },
+    { date: '04.26',      label: '참가 신청 및 티셔츠 예약 마감', target: toKST('2026-04-26', true) },
     { date: '05.13',      label: '차량 변경 마감',               target: toKST('2026-05-13') },
   ];
 
