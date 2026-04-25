@@ -17,7 +17,7 @@ const LIGHT_BG = "#D0DDFF";
 const WHITE = "#FFFFFF";
 
 // ── 테스트 모드: true면 하단에 Day 선택 버튼 표시 ──
-const TEST_MODE = true;
+const TEST_MODE = false;
 
 interface Share {
   share_id: string;
