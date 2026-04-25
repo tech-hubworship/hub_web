@@ -1,12 +1,6 @@
-"use client";
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import styled from '@emotion/styled';
-
-const PRIMARY = '#2D478C';
-
-const isAchachaVisible = new Date() >= new Date('2026-04-19T00:00:00+09:00');
+// 서버 컴포넌트 — 정적 FAQ 데이터를 서버에서 렌더링
+// 아코디언 인터랙션만 FaqClient(클라이언트)에서 처리
+import FaqClient from "./FaqClient";
 
 const FAQ_SECTIONS = [
   {
@@ -34,14 +28,16 @@ const FAQ_SECTIONS = [
         q: '입금 계좌는 어디인가요?',
         a: '하나은행 573-910022-19605\n(예금주 : 허브행사)\n\n입금자명은 반드시 이름 + 전화번호 뒷자리\n(ex. 김허브1285)로 기재해주세요.',
         copyAccount: true,
-      },      {
+      },
+      {
         q: '부분 참여도 가능한가요?',
         a: '가능합니다. 다만, 회비는 동일하게 적용됩니다.',
       },
       {
         q: '온누리교회 / 허브대학부를 안 다녀도 허브업에 갈 수 있나요?',
         a: '가능합니다.\n접수 신청하실 때 타교회 / 타공동체로 신청해주세요.',
-      },      {
+      },
+      {
         q: '할인이나 이벤트는 어떻게 참여하나요?',
         a: '얼리버드 이벤트 : 4월 12일 - 4월 18일에 신청+입금까지 완료한 사람에 한하여 회비 8만원\n\n아차차 이벤트 : 4월 19일 (하루) 1시 30분 ~ 1시 50분까지 성경책 지참 후 기쁨홀 앞 데스크에서 인증 받은 사람에 한하여 회비 8만원',
         achachaOnly: true,
@@ -50,7 +46,8 @@ const FAQ_SECTIONS = [
         q: '기타 접수 문의는 어디로 하면 되나요?',
         a: '접수 문의 전용 카카오 오픈채팅으로 연락해주세요.',
         tshirtLink: 'https://open.kakao.com/o/sWl6bnpi',
-      },    ],
+      },
+    ],
   },
   {
     category: '숙소 관련',
@@ -130,141 +127,9 @@ const FAQ_SECTIONS = [
   },
 ];
 
-function fallbackCopy(text: string) {
-  const el = document.createElement('textarea');
-  el.value = text;
-  el.style.position = 'fixed';
-  el.style.opacity = '0';
-  document.body.appendChild(el);
-  el.focus();
-  el.select();
-  try { document.execCommand('copy'); } catch {}
-  document.body.removeChild(el);
-}
+// 아차차 이벤트 표시 여부 — 서버에서 계산
+const showAchacha = new Date() >= new Date('2026-04-19T00:00:00+09:00');
 
 export default function FaqPage() {
-  const router = useRouter();
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  const [copyToast, setCopyToast] = useState(false);
-
-  const doCopy = (text: string) => {
-    const done = () => { setCopyToast(true); setTimeout(() => setCopyToast(false), 2000); };
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(done).catch(() => { fallbackCopy(text); done(); });
-    } else { fallbackCopy(text); done(); }
-  };
-
-  return (
-    <Wrap>
-      <TopNav>
-        <BackBtn onClick={() => router.back()}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M15 19L8 12L15 5" stroke="#1A1A1A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </BackBtn>
-        <NavTitle>자주 묻는 질문</NavTitle>
-      </TopNav>
-
-      <Content>
-        {FAQ_SECTIONS.map((section) => (
-          <Section key={section.category}>
-            <SectionTitle>{section.category}</SectionTitle>
-            {section.items
-              .filter(faq => !('achachaOnly' in faq && faq.achachaOnly && !isAchachaVisible))
-              .map((faq, i) => {
-                const key = `${section.category}-${i}`;
-                const isOpen = openKey === key;
-                const hasCopy = 'copyAccount' in faq && faq.copyAccount;
-                const hasTshirtLink = 'tshirtLink' in faq && faq.tshirtLink;
-                return (
-                  <FaqItem key={key} onClick={() => setOpenKey(isOpen ? null : key)}>
-                    <FaqQuestion>
-                      <QMark>Q.</QMark>
-                      <QText>{faq.q}</QText>
-                      <Arrow open={isOpen}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                          <path d="M6 9L12 15L18 9" stroke="#949494" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </Arrow>
-                    </FaqQuestion>
-                    {isOpen && (
-                      <FaqAnswer>
-                        <AMark>A.</AMark>
-                        <div style={{ flex: 1 }}>
-                          <AText>{faq.a}</AText>
-                          {hasCopy && (
-                            <AccountCopyRow onClick={(e) => { e.stopPropagation(); doCopy('573-910022-19605'); }}>
-                              <span style={{ color: '#2D478C', fontWeight: 700 }}>573-910022-19605</span>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#2D478C', fontSize: 12 }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                                  <rect x="9" y="9" width="13" height="13" rx="2" stroke="#2D478C" strokeWidth="2"/>
-                                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="#2D478C" strokeWidth="2"/>
-                                </svg>
-                                복사
-                              </span>
-                            </AccountCopyRow>
-                          )}
-                          {hasTshirtLink && (
-                            <a
-                              href={(faq as any).tshirtLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                display: 'inline-block', marginTop: '12px',
-                                padding: '8px 16px', background: '#D9D9D9',
-                                borderRadius: '16px', fontSize: '14px', fontWeight: 500,
-                                color: '#000', textDecoration: 'none',
-                              }}
-                            >
-                              오픈채팅 문의하기 →
-                            </a>
-                          )}
-                        </div>
-                      </FaqAnswer>
-                    )}
-                  </FaqItem>
-                );
-              })}
-          </Section>
-        ))}
-      </Content>
-      {copyToast && (
-        <div style={{
-          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(0,0,0,0.75)', color: '#fff', padding: '10px 20px',
-          borderRadius: 20, fontSize: 13, fontWeight: 500, zIndex: 9999, whiteSpace: 'nowrap',
-        }}>
-          계좌번호가 복사되었습니다 ✓
-        </div>
-      )}
-    </Wrap>
-  );
+  return <FaqClient sections={FAQ_SECTIONS} showAchacha={showAchacha} />;
 }
-
-const Wrap = styled.div`width: 100%; min-height: 100vh; background: #F2F2F2; font-family: 'Pretendard', -apple-system, sans-serif;`;
-const TopNav = styled.div`height: 56px; display: flex; align-items: center; padding: 0 16px; background: #fff; border-bottom: 1px solid #E6E6E6; position: relative;`;
-const BackBtn = styled.button`background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center;`;
-const NavTitle = styled.div`font-size: 17px; font-weight: 600; color: #1A1A1A; position: absolute; left: 50%; transform: translateX(-50%);`;
-const Content = styled.div`padding: 16px 20px 40px;`;
-const Section = styled.div`margin-bottom: 24px;`;
-const SectionTitle = styled.div`font-size: 14px; font-weight: 600; color: #949494; margin-bottom: 8px; padding: 0 4px; text-transform: uppercase; letter-spacing: 0.05em;`;
-const FaqItem = styled.div`background: #fff; border-radius: 12px; margin-bottom: 6px; padding: 16px 18px; cursor: pointer;`;
-const FaqQuestion = styled.div`display: flex; align-items: flex-start; gap: 8px;`;
-const QMark = styled.span`font-size: 14px; font-weight: 700; color: ${PRIMARY}; flex-shrink: 0; margin-top: 1px;`;
-const QText = styled.div`font-size: 14px; font-weight: 600; color: #1A1A1A; line-height: 1.5; flex: 1;`;
-const Arrow = styled.div<{ open: boolean }>`
-  flex-shrink: 0;
-  transform: ${p => p.open ? 'rotate(180deg)' : 'rotate(0)'};
-  transition: transform 0.2s;
-  margin-top: 2px;
-`;
-const FaqAnswer = styled.div`display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #F2F2F2;`;
-const AMark = styled.span`font-size: 14px; font-weight: 700; color: #949494; flex-shrink: 0; margin-top: 1px;`;
-const AText = styled.div`font-size: 14px; color: #757575; line-height: 1.6; white-space: pre-line;`;
-const AccountCopyRow = styled.div`
-  display: flex; justify-content: space-between; align-items: center;
-  margin-top: 10px; padding: 10px 12px; background: #f0f4ff;
-  border-radius: 8px; cursor: pointer;
-  &:active { opacity: 0.7; }
-`;

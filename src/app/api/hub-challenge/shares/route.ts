@@ -4,7 +4,7 @@ import { authOptions } from "@src/lib/auth";
 import { supabaseAdmin } from "@src/lib/supabase";
 import { getKoreanTimestamp } from "@src/lib/utils/date";
 import { revalidateTag } from "next/cache";
-import { HUB_CHALLENGE, getChallengeDayNumber } from "@src/lib/hub-challenge/constants";
+import { HUB_CHALLENGE } from "@src/lib/hub-challenge/constants";
 
 /** GET: 특정 day의 나눔 목록 조회 (익명, 내 나눔엔 is_mine 플래그) */
 export async function GET(request: NextRequest) {

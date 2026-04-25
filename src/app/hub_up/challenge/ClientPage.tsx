@@ -150,36 +150,30 @@ export default function ChallengeClientPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
+      // localStorage에 보류 progress가 있으면 서버 fetch 없이 바로 팝업 복원
+      const stored = localStorage.getItem("hub_challenge_pending_progress");
+      if (stored) {
+        try {
+          const pending = JSON.parse(stored);
+          pendingProgressRef.current = pending;
+          setShowCertifyPopup(true);
+          const prevProgress = {
+            ...pending,
+            completedDays: pending.completedDays.slice(0, -1),
+            lastCompletedDay: pending.completedDays[pending.completedDays.length - 2] ?? 0,
+            todayDone: false,
+          };
+          setMyProgress(prevProgress);
+          setLoading(false);
+          return; // 서버 fetch 스킵
+        } catch {
+          localStorage.removeItem("hub_challenge_pending_progress");
+        }
+      }
+      // pending 없으면 서버에서 최신 progress fetch
       fetch("/api/hub-challenge/my-progress")
         .then((r) => r.json())
-        .then((data) => {
-          if (!data.error) {
-            // localStorage에 보류 progress가 있으면 팝업 복원
-            const stored = localStorage.getItem("hub_challenge_pending_progress");
-            if (stored) {
-              try {
-                const pending = JSON.parse(stored);
-                pendingProgressRef.current = pending;
-                // 현재 서버 progress와 같으면 (이미 반영됨) 팝업 띄우기
-                setShowCertifyPopup(true);
-                // myProgress는 이전 상태(팝업 누르기 전)로 유지 — pending 적용 전 값 사용
-                // 서버에서 받은 값에서 completedDays를 1 줄여서 이전 위치 표시
-                const prevProgress = {
-                  ...pending,
-                  completedDays: pending.completedDays.slice(0, -1),
-                  lastCompletedDay: pending.completedDays[pending.completedDays.length - 2] ?? 0,
-                  todayDone: false,
-                };
-                setMyProgress(prevProgress);
-              } catch {
-                setMyProgress(data);
-                localStorage.removeItem("hub_challenge_pending_progress");
-              }
-            } else {
-              setMyProgress(data);
-            }
-          }
-        })
+        .then((data) => { if (!data.error) setMyProgress(data); })
         .catch(console.error)
         .finally(() => setLoading(false));
     } else if (status === "unauthenticated") {
