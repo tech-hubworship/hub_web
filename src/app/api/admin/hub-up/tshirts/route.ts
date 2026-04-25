@@ -64,7 +64,25 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(formattedData);
 }
 
-// PATCH: 여러 티셔츠 주문 상태/입금 확인 업데이트 (bulk)
+// DELETE: 티셔츠 주문 취소 (삭제)
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.isAdmin) {
+    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
+  }
+
+  const { ids } = await req.json();
+  if (!ids?.length) return NextResponse.json({ error: '잘못된 요청' }, { status: 400 });
+
+  const { error } = await supabaseAdmin
+    .from('hub_up_tshirt_orders')
+    .delete()
+    .in('id', ids);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
+}
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isAdmin) {

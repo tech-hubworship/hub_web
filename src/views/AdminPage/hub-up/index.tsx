@@ -142,6 +142,7 @@ export default function HubUpAdminPage() {
   const [busGroupFilter, setBusGroupFilter] = useState('');
   const [busCellFilter, setBusCellFilter] = useState('');
   const [busCarRoleFilter, setBusCarRoleFilter] = useState('');
+  const [tshirtSearch, setTshirtSearch] = useState('');
 
   // 입금 기간 정의
   const DEPOSIT_PERIODS = [
@@ -312,6 +313,20 @@ export default function HubUpAdminPage() {
         body: JSON.stringify({ ids, status }),
       });
       if (!res.ok) throw new Error('저장 실패');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hub-up-tshirts'] });
+      setSelectedIds(new Set());
+    },
+  });
+
+  const tshirtCancelMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch(`/api/admin/hub-up/tshirts`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error('취소 실패');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hub-up-tshirts'] });
@@ -1262,6 +1277,15 @@ export default function HubUpAdminPage() {
             })()}
 
             <ToolRow>
+              <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap'}}>
+                <input
+                  type="text"
+                  placeholder="이름 검색..."
+                  value={tshirtSearch}
+                  onChange={e => setTshirtSearch(e.target.value)}
+                  style={{padding:'6px 10px', border:'1px solid #dadce0', borderRadius:'6px', fontSize:'13px', minWidth:'140px'}}
+                />
+              </div>
               <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end'}}>
                 {selectedIds.size > 0 && (
                   <>
@@ -1272,6 +1296,17 @@ export default function HubUpAdminPage() {
                     <CancelBtn onClick={() => tshirtDepositMutation.mutate({ ids: Array.from(selectedIds), status: 'pending' })}>
                       확인 취소
                     </CancelBtn>
+                    <CancelBtn
+                      style={{background:'#fce8e6', color:'#c5221f', borderColor:'#f28b82'}}
+                      onClick={() => {
+                        if (confirm(`${selectedIds.size}명의 티셔츠 신청을 취소(삭제)하시겠습니까?`)) {
+                          tshirtCancelMutation.mutate(Array.from(selectedIds));
+                        }
+                      }}
+                      disabled={tshirtCancelMutation.isPending}
+                    >
+                      🗑 신청 취소
+                    </CancelBtn>
                   </>
                 )}
                 <ExportBtn onClick={() => exportTshirtExcel(tshirts)}>
@@ -1280,17 +1315,21 @@ export default function HubUpAdminPage() {
               </div>
             </ToolRow>
 
-            {isTshirtsLoading ? <Loading>불러오는 중...</Loading> : (
+            {isTshirtsLoading ? <Loading>불러오는 중...</Loading> : (() => {
+              const filtered = tshirtSearch.trim()
+                ? tshirts.filter((t: any) => t.name?.includes(tshirtSearch.trim()))
+                : tshirts;
+              return (
               <TableWrap>
                 <Table>
                   <thead>
                     <tr>
-                      <Th><input type="checkbox" checked={tshirts.length > 0 && selectedIds.size === tshirts.length} onChange={() => toggleAll(tshirts)} /></Th>
+                      <Th><input type="checkbox" checked={filtered.length > 0 && filtered.every((t:any) => selectedIds.has(t.id))} onChange={() => toggleAll(filtered)} /></Th>
                       <Th>이름</Th><Th>그룹</Th><Th>연락처</Th><Th>주문내역</Th><Th>총수량(총액)</Th><Th>자기신고</Th><Th>입금확인</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tshirts.map((t:any) => (
+                    {filtered.map((t:any) => (
                       <tr key={t.id} style={{background: t.status === 'confirmed' ? '#f0fdf4' : undefined}}>
                         <Td><input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} /></Td>
                         <Td><strong>{t.name}</strong></Td>
@@ -1312,18 +1351,29 @@ export default function HubUpAdminPage() {
                         <Td>
                           <BtnGrp>
                             {t.status === 'confirmed'
-                              ? <CancelBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'pending'})}>취소</CancelBtn>
+                              ? <CancelBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'pending'})}>확인취소</CancelBtn>
                               : <SaveBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'confirmed'})}>입금완료</SaveBtn>
                             }
+                            <CancelBtn
+                              style={{background:'#fce8e6', color:'#c5221f', borderColor:'#f28b82', marginTop:'4px'}}
+                              onClick={() => {
+                                if (confirm(`${t.name}님의 티셔츠 신청을 취소(삭제)하시겠습니까?`)) {
+                                  tshirtCancelMutation.mutate([t.id]);
+                                }
+                              }}
+                            >
+                              신청취소
+                            </CancelBtn>
                           </BtnGrp>
                         </Td>
                       </tr>
                     ))}
-                    {tshirts.length === 0 && <tr><td colSpan={9} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>주문자가 없습니다.</td></tr>}
+                    {filtered.length === 0 && <tr><td colSpan={9} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>{tshirtSearch ? '검색 결과가 없습니다.' : '주문자가 없습니다.'}</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
-            )}
+              );
+            })()}
           </div>
         )}
 
