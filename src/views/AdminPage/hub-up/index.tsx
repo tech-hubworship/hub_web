@@ -1325,7 +1325,7 @@ export default function HubUpAdminPage() {
                   <thead>
                     <tr>
                       <Th><input type="checkbox" checked={filtered.length > 0 && filtered.every((t:any) => selectedIds.has(t.id))} onChange={() => toggleAll(filtered)} /></Th>
-                      <Th>이름</Th><Th>그룹</Th><Th>연락처</Th><Th>주문내역</Th><Th>총수량(총액)</Th><Th>자기신고</Th><Th>입금확인</Th><Th>관리</Th>
+                      <Th>이름</Th><Th>그룹/다락방</Th><Th>연락처</Th><Th>주문내역</Th><Th>총수량(총액)</Th><Th>입금확인</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1333,7 +1333,14 @@ export default function HubUpAdminPage() {
                       <tr key={t.id} style={{background: t.status === 'confirmed' ? '#f0fdf4' : undefined}}>
                         <Td><input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} /></Td>
                         <Td><strong>{t.name}</strong></Td>
-                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{t.group_name}</Td>
+                        <Td style={{fontSize:'13px',color:'#5f6368'}}>
+                          {t.community && <div>{t.community}</div>}
+                          {(t.group_name || t.cell_name) && (
+                            <div style={{color:'#9aa0a6'}}>
+                              {[t.group_name, t.cell_name].filter(Boolean).join(' / ')}
+                            </div>
+                          )}
+                        </Td>
                         <Td style={{fontSize:'13px'}}>{t.phone}</Td>
                         <Td style={{fontSize:'13px'}}>
                           {t.items?.map((item:any, idx:number) => (
@@ -1346,7 +1353,6 @@ export default function HubUpAdminPage() {
                             ({calcTshirtPrice(t.items || []).toLocaleString()}원)
                           </div>
                         </Td>
-                        <Td><DepBadge ok={t.deposit_confirm}>{t.deposit_confirm ? '입금했다고 함' : '미신고'}</DepBadge></Td>
                         <Td><DepBadge ok={t.status === 'confirmed'}>{t.status === 'confirmed' ? '입금완료' : '확인중'}</DepBadge></Td>
                         <Td>
                           <BtnGrp>
@@ -1368,7 +1374,7 @@ export default function HubUpAdminPage() {
                         </Td>
                       </tr>
                     ))}
-                    {filtered.length === 0 && <tr><td colSpan={9} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>{tshirtSearch ? '검색 결과가 없습니다.' : '주문자가 없습니다.'}</td></tr>}
+                    {filtered.length === 0 && <tr><td colSpan={8} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>{tshirtSearch ? '검색 결과가 없습니다.' : '주문자가 없습니다.'}</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
