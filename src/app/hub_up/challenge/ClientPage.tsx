@@ -27,7 +27,8 @@ interface Share {
   user_name: string;
   user_affiliation: string;
   seq: number;
-  is_mine: boolean;
+  reg_id: string;   // 클라이언트에서 is_mine 판단용
+  is_mine: boolean; // 클라이언트에서 계산
 }
 
 interface MyProgress {
@@ -67,6 +68,68 @@ export default function ChallengeClientPage() {
   // 팝업 확인 전까지 보류할 progress 데이터
   const pendingProgressRef = useRef<MyProgress | null>(null);
 
+  // ── 나눔 캐시 유틸 ──────────────────────────────────────────
+  const CACHE_TTL = 30 * 60 * 1000; // 30분 (ms)
+  const sharesCacheKey = (day: number, p: number) => `hub_shares_cache_${day}_${p}`;
+
+  /** 캐시에서 shares 읽기. TTL 초과 or 없으면 null */
+  const readSharesCache = (day: number, p: number) => {
+    try {
+      const raw = localStorage.getItem(sharesCacheKey(day, p));
+      if (!raw) return null;
+      const { data, fetchedAt } = JSON.parse(raw);
+      if (Date.now() - fetchedAt > CACHE_TTL) return null;
+      return data as { shares: Share[]; total: number };
+    } catch { return null; }
+  };
+
+  /** 캐시에 shares 저장 */
+  const writeSharesCache = (day: number, p: number, data: { shares: Share[]; total: number }) => {
+    try {
+      localStorage.setItem(sharesCacheKey(day, p), JSON.stringify({ data, fetchedAt: Date.now() }));
+    } catch {}
+  };
+
+  /** 특정 day의 모든 페이지 캐시 무효화 */
+  const invalidateSharesCache = (day: number) => {
+    try {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith(`hub_shares_cache_${day}_`));
+      keys.forEach(k => localStorage.removeItem(k));
+    } catch {}
+  };
+
+  /** shares fetch (캐시 우선, force=true면 캐시 무시) */
+  const fetchShares = async (day: number, p: number, force = false) => {
+    if (!force) {
+      const cached = readSharesCache(day, p);
+      if (cached) {
+        // 캐시 데이터에 is_mine 재계산 (세션 정보는 항상 최신)
+        const myId = (session?.user as any)?.id || session?.user?.email || null;
+        const withMine = cached.shares.map(s => ({ ...s, is_mine: !!myId && s.reg_id === myId }));
+        setShares(withMine);
+        setTotalShares(cached.total);
+        return;
+      }
+    }
+    setSharesLoading(true);
+    try {
+      const res = await fetch(`/api/hub-challenge/shares?day=${day}&page=${p}&limit=5`);
+      const data = await res.json();
+      if (!data.error) {
+        const myId = (session?.user as any)?.id || session?.user?.email || null;
+        const withMine = (data.shares || []).map((s: any) => ({
+          ...s,
+          is_mine: !!myId && s.reg_id === myId,
+        }));
+        setShares(withMine);
+        setTotalShares(data.total || 0);
+        // 캐시엔 reg_id 포함 원본 저장 (is_mine은 재계산)
+        writeSharesCache(day, p, { shares: data.shares || [], total: data.total || 0 });
+      }
+    } catch (e) { console.error(e); }
+    finally { setSharesLoading(false); }
+  };
+
   const todayStr = getKSTDateStr();
   const todayChallenge = getTodayChallengeDay(todayStr);
 
@@ -89,7 +152,34 @@ export default function ChallengeClientPage() {
     if (status === "authenticated") {
       fetch("/api/hub-challenge/my-progress")
         .then((r) => r.json())
-        .then((data) => { if (!data.error) setMyProgress(data); })
+        .then((data) => {
+          if (!data.error) {
+            // localStorage에 보류 progress가 있으면 팝업 복원
+            const stored = localStorage.getItem("hub_challenge_pending_progress");
+            if (stored) {
+              try {
+                const pending = JSON.parse(stored);
+                pendingProgressRef.current = pending;
+                // 현재 서버 progress와 같으면 (이미 반영됨) 팝업 띄우기
+                setShowCertifyPopup(true);
+                // myProgress는 이전 상태(팝업 누르기 전)로 유지 — pending 적용 전 값 사용
+                // 서버에서 받은 값에서 completedDays를 1 줄여서 이전 위치 표시
+                const prevProgress = {
+                  ...pending,
+                  completedDays: pending.completedDays.slice(0, -1),
+                  lastCompletedDay: pending.completedDays[pending.completedDays.length - 2] ?? 0,
+                  todayDone: false,
+                };
+                setMyProgress(prevProgress);
+              } catch {
+                setMyProgress(data);
+                localStorage.removeItem("hub_challenge_pending_progress");
+              }
+            } else {
+              setMyProgress(data);
+            }
+          }
+        })
         .catch(console.error)
         .finally(() => setLoading(false));
     } else if (status === "unauthenticated") {
@@ -99,17 +189,8 @@ export default function ChallengeClientPage() {
 
   useEffect(() => {
     if (!dayData) return;
-    setSharesLoading(true);
-    fetch(`/api/hub-challenge/shares?day=${dayData.day}&page=${page}&limit=5`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.error) {
-          setShares(data.shares || []);
-          setTotalShares(data.total || 0);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setSharesLoading(false));
+    fetchShares(dayData.day, page);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayData.day, page]);
 
   const handleEditSubmit = async () => {
@@ -125,13 +206,9 @@ export default function ChallengeClientPage() {
       if (res.ok) {
         setEditingShare(null);
         setEditContent("");
-        // 목록 새로고침
-        const sharesRes = await fetch(`/api/hub-challenge/shares?day=${dayData.day}&page=${page}&limit=5`);
-        const sharesData = await sharesRes.json();
-        if (!sharesData.error) {
-          setShares(sharesData.shares || []);
-          setTotalShares(sharesData.total || 0);
-        }
+        // 수정 시 해당 day 캐시 무효화 후 즉시 fetch
+        invalidateSharesCache(dayData.day);
+        await fetchShares(dayData.day, page, true);
       } else {
         alert(data.error || "수정에 실패했습니다.");
       }
@@ -160,19 +237,18 @@ export default function ChallengeClientPage() {
       if (res.ok) {
         setShareContent("");
         // 나눔 목록 새로고침
-        const [progressRes, sharesRes] = await Promise.all([
-          fetch("/api/hub-challenge/my-progress"),
-          fetch(`/api/hub-challenge/shares?day=${dayData.day}&page=1&limit=5`),
-        ]);
+        const progressRes = await fetch("/api/hub-challenge/my-progress");
         const progressData = await progressRes.json();
-        const sharesData = await sharesRes.json();
         // progress는 팝업 버튼 누를 때까지 보류 (사람 이동 방지)
-        if (!progressData.error) pendingProgressRef.current = progressData;
-        if (!sharesData.error) {
-          setShares(sharesData.shares || []);
-          setTotalShares(sharesData.total || 0);
-          setPage(1);
+        if (!progressData.error) {
+          pendingProgressRef.current = progressData;
+          // 페이지 이탈 대비: localStorage에 보류 progress 저장
+          localStorage.setItem("hub_challenge_pending_progress", JSON.stringify(progressData));
         }
+        // 내가 올린 나눔 → 해당 day 캐시 무효화 후 즉시 fetch
+        invalidateSharesCache(dayData.day);
+        setPage(1);
+        await fetchShares(dayData.day, 1, true);
         // 팝업 표시 (사람 이동은 팝업 버튼에서)
         setShowCertifyPopup(true);
       } else {
@@ -188,9 +264,11 @@ export default function ChallengeClientPage() {
   // 팝업 '한 발자국 동행하기' 버튼 → 사람 이동 + 스크롤
   const handleWalkStep = () => {
     setShowCertifyPopup(false);
+    localStorage.removeItem("hub_challenge_pending_progress");
     // 보류했던 progress 적용 → 사람 이동
-    if (pendingProgressRef.current) {
-      setMyProgress(pendingProgressRef.current);
+    const pending = pendingProgressRef.current;
+    if (pending) {
+      setMyProgress(pending);
       pendingProgressRef.current = null;
     }
     setTimeout(() => {

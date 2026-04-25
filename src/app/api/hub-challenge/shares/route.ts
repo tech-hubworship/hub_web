@@ -23,13 +23,8 @@ export async function GET(request: NextRequest) {
       return Response.json({ error: "올바른 day 값이 아닙니다. (1~19)" }, { status: 400 });
     }
 
-    // 로그인 유저 확인 (선택적)
-    const session = await getServerSession(authOptions);
-    let myUserId: string | null = null;
-    if (session?.user) {
-      myUserId = (session.user as any).id || session.user.email || null;
-      if (myUserId && myUserId.length > 100) myUserId = myUserId.substring(0, 100);
-    }
+    // 로그인 유저 확인은 클라이언트에서 is_mine 처리하므로 서버에서 불필요
+    // → 응답을 공개 캐시 가능하게 유지
 
     const from = (page - 1) * limit;
     const to = from + limit - 1;
@@ -85,7 +80,7 @@ export async function GET(request: NextRequest) {
         user_name: userInfo?.name || "익명",
         user_affiliation: userInfo?.affiliation || "",
         seq: (count || 0) - from - index,
-        is_mine: myUserId !== null && share.reg_id === myUserId,
+        reg_id: share.reg_id, // 클라이언트에서 is_mine 판단용 (익명 처리된 이름과 별개)
       };
     });
 
@@ -94,6 +89,14 @@ export async function GET(request: NextRequest) {
       total: count || 0,
       page,
       limit,
+    }, {
+      headers: {
+        // Vercel Edge: 30분 캐시, 이후 stale-while-revalidate로 백그라운드 갱신
+        // revalidateTag 호출 시 즉시 무효화됨
+        "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+        "CDN-Cache-Control": "public, s-maxage=1800",
+        "Vercel-CDN-Cache-Control": "public, s-maxage=1800",
+      },
     });
   } catch (error) {
     console.error("나눔 조회 오류:", error);

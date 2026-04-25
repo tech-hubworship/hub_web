@@ -90,6 +90,17 @@ const nextConfig = {
         source: '/api/hub-up/form-data',
         headers: [{ key: 'Cache-Control', value: 'public, s-maxage=30, stale-while-revalidate=120' }],
       },
+      // ── 챌린지 나눔 목록 (공개, 30분 캐시) ──
+      // 개인 인증 여부(is_mine)는 클라이언트에서 처리하므로 공개 캐싱 가능
+      {
+        source: '/api/hub-challenge/shares',
+        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=1800, stale-while-revalidate=3600' }],
+      },
+      // ── 챌린지 페이지 ──
+      {
+        source: '/hub_up/challenge',
+        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=300' }],
+      },
     ];
   },
   async redirects() {
