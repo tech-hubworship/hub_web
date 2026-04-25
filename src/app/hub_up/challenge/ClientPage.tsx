@@ -62,6 +62,10 @@ export default function ChallengeClientPage() {
   const progressRef = useRef<HTMLDivElement>(null);
   // 일러스트 애니메이션 강조
   const [progressAnimating, setProgressAnimating] = useState(false);
+  // 인증 완료 팝업
+  const [showCertifyPopup, setShowCertifyPopup] = useState(false);
+  // 팝업 확인 전까지 보류할 progress 데이터
+  const pendingProgressRef = useRef<MyProgress | null>(null);
 
   const todayStr = getKSTDateStr();
   const todayChallenge = getTodayChallengeDay(todayStr);
@@ -155,25 +159,22 @@ export default function ChallengeClientPage() {
       const data = await res.json();
       if (res.ok) {
         setShareContent("");
-        // 프로그레스 바로 스크롤 + 애니메이션
+        // 나눔 목록 새로고침
         const [progressRes, sharesRes] = await Promise.all([
           fetch("/api/hub-challenge/my-progress"),
           fetch(`/api/hub-challenge/shares?day=${dayData.day}&page=1&limit=5`),
         ]);
         const progressData = await progressRes.json();
         const sharesData = await sharesRes.json();
-        if (!progressData.error) setMyProgress(progressData);
+        // progress는 팝업 버튼 누를 때까지 보류 (사람 이동 방지)
+        if (!progressData.error) pendingProgressRef.current = progressData;
         if (!sharesData.error) {
           setShares(sharesData.shares || []);
           setTotalShares(sharesData.total || 0);
           setPage(1);
         }
-        // 프로그레스 바로 스크롤 후 애니메이션
-        setTimeout(() => {
-          progressRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-          setProgressAnimating(true);
-          setTimeout(() => setProgressAnimating(false), 1800);
-        }, 100);
+        // 팝업 표시 (사람 이동은 팝업 버튼에서)
+        setShowCertifyPopup(true);
       } else {
         alert(data.error || "나눔 작성에 실패했습니다.");
       }
@@ -182,6 +183,21 @@ export default function ChallengeClientPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // 팝업 '한 발자국 동행하기' 버튼 → 사람 이동 + 스크롤
+  const handleWalkStep = () => {
+    setShowCertifyPopup(false);
+    // 보류했던 progress 적용 → 사람 이동
+    if (pendingProgressRef.current) {
+      setMyProgress(pendingProgressRef.current);
+      pendingProgressRef.current = null;
+    }
+    setTimeout(() => {
+      progressRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setProgressAnimating(true);
+      setTimeout(() => setProgressAnimating(false), 1800);
+    }, 100);
   };
 
   if (loading) {
@@ -398,6 +414,24 @@ export default function ChallengeClientPage() {
             로그인
           </LoginBarBtn>
         </LoginBar>
+      )}
+
+      {/* 인증 완료 팝업 */}
+      {showCertifyPopup && (
+        <PopupOverlay>
+          <PopupBox onClick={(e) => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <PopupIllust src="/images/challenge/challenge_illust.png" alt="" />
+            <PopupTitle>오늘의 실천 완료!</PopupTitle>
+            <PopupDesc>
+              하나님과 한 발자국 더 동행했어요.{"\n"}
+              내일도 함께 걸어가요.
+            </PopupDesc>
+            <PopupWalkBtn onClick={handleWalkStep}>
+              한 발자국 동행하기
+            </PopupWalkBtn>
+          </PopupBox>
+        </PopupOverlay>
       )}
     </Wrap>
   );
@@ -1084,4 +1118,79 @@ const LoginBarBtn = styled.button`
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
+`;
+
+/* ── 인증 완료 팝업 ── */
+const PopupOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+`;
+
+const PopupBox = styled.div`
+  width: 100%;
+  max-width: 320px;
+  background: ${PRIMARY};
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 32px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+`;
+
+const PopupIllust = styled.img`
+  width: 80px;
+  height: auto;
+  margin-bottom: 16px;
+`;
+
+const PopupTitle = styled.div`
+  font-size: 20px;
+  font-weight: 700;
+  color: ${WHITE};
+  margin-bottom: 10px;
+  letter-spacing: -0.02em;
+`;
+
+const PopupDesc = styled.p`
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: center;
+  line-height: 1.7;
+  white-space: pre-line;
+  margin: 0 0 24px;
+`;
+
+const PopupWalkBtn = styled.button`
+  width: 100%;
+  height: 48px;
+  background: ${WHITE};
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: ${PRIMARY};
+  font-family: inherit;
+  cursor: pointer;
+  margin-bottom: 10px;
+  letter-spacing: -0.02em;
+`;
+
+const PopupCloseBtn = styled.button`
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 8px;
 `;
