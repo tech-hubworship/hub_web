@@ -242,27 +242,12 @@ export default function ChallengeClientPage() {
         {/* 오늘의 실천 */}
         <SectionTitle>오늘의 실천</SectionTitle>
 
-        {/* 일러스트 + 로고 원 + 프로그레스 바 */}
-        <IllustProgressWrap ref={progressRef}>
-          {/* 일러스트 — progressPercent 위치에 따라 프로그레스 바 위에서 이동 */}
-          <IllustImg
-            style={{ left: `clamp(0px, calc(${progressPercent}% - 26px), calc(100% - 52px))` }}
-            $animating={progressAnimating}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/challenge/challenge_illust.png" alt="" />
-          </IllustImg>
-          {/* 로고 원 — 오른쪽 끝 고정 */}
-          <LogoCircle>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/challenge/challenge_logo.png" alt="" style={{ width: "33px", height: "9px", objectFit: "contain" }} />
-          </LogoCircle>
-          {/* 프로그레스 바 */}
-          <ProgressBg>
-            <ProgressFill style={{ width: `${progressPercent}%` }} $animating={progressAnimating} />
-            <ProgressDot style={{ left: `${progressPercent}%` }} />
-          </ProgressBg>
-        </IllustProgressWrap>
+        {/* ㄹ자 프로그레스 바 */}
+        <ZigzagProgress
+          completedDays={myProgress?.completedDays.length ?? 0}
+          animating={progressAnimating}
+          forwardedRef={progressRef}
+        />
 
         {/* Day 정보 카드: dDay | verse */}
         <DayCard>
@@ -418,6 +403,164 @@ export default function ChallengeClientPage() {
   );
 }
 
+// ─── ㄹ자 프로그레스 컴포넌트 ────────────────────────────────
+// Figma 스펙: 경로 290×169.5px, stroke 9px, BeHoly 45×45 원
+// viewBox에 좌우/상단 여백을 포함해 잘림 없이 표시
+
+function ZigzagProgress({
+  completedDays,
+  animating,
+  forwardedRef,
+}: {
+  completedDays: number;
+  animating: boolean;
+  forwardedRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const BH_R = 22.5;       // BeHoly 원 반지름 (45/2)
+  const ILLUST_W = 44;
+  const ILLUST_H = 52;
+
+  // viewBox 여백
+  const PAD_L = ILLUST_W / 2 + 2;  // 왼쪽: 일러스트 반폭 + 여유
+  const PAD_R = BH_R + 2;           // 오른쪽: BeHoly 반지름 + 여유
+  const PAD_T = ILLUST_H + 8;       // 상단: 일러스트 높이 + 여유
+  const PAD_B = BH_R + 4;           // 하단: BeHoly 반지름 + 여유
+
+  // 경로 크기 (Figma 스펙)
+  const PATH_W = 240;
+  const PATH_H = 169.5;
+  const SW = 9;             // stroke-width
+  const SH = SW / 2;        // 4.5
+
+  // 경로 stroke 중심선 좌표
+  const PL = PAD_L + SH;
+  const PR = PAD_L + PATH_W - SH;
+  const PT = PAD_T + SH;
+  const MID_Y = PAD_T + PATH_H / 2;
+  const BOT_Y = PAD_T + PATH_H - SH;
+
+  // viewBox 전체 크기
+  const VB_W = PAD_L + PATH_W + PAD_R;
+  const VB_H = PAD_T + PATH_H + PAD_B;
+
+  // 세그먼트 길이
+  const seg = [
+    PR - PL,        // 상단 가로
+    MID_Y - PT,     // 오른쪽 수직
+    PR - PL,        // 중단 가로
+    BOT_Y - MID_Y,  // 왼쪽 수직
+    PR - PL,        // 하단 가로
+  ];
+  const totalLen = seg.reduce((a, b) => a + b, 0);
+
+  function posOnPath(d: number): { x: number; y: number } {
+    let r = d;
+    if (r <= seg[0]) return { x: PL + r, y: PT };
+    r -= seg[0];
+    if (r <= seg[1]) return { x: PR, y: PT + r };
+    r -= seg[1];
+    if (r <= seg[2]) return { x: PR - r, y: MID_Y };
+    r -= seg[2];
+    if (r <= seg[3]) return { x: PL, y: MID_Y + r };
+    r -= seg[3];
+    return { x: PL + r, y: BOT_Y };
+  }
+
+  // 포인트: Day1~19를 경로 위에 균등 배치
+  // interval = totalLen / 20 → Day1=1칸, Day19=19칸, 앞뒤 여유 1칸씩
+  const interval = totalLen / 20;
+  const points = Array.from({ length: 19 }, (_, i) => posOnPath((i + 1) * interval));
+
+  // 완료 경로 길이: completedDays번째 점까지
+  const doneLen = completedDays === 0 ? 0
+    : completedDays >= 19 ? totalLen
+    : completedDays * interval;
+
+  // 일러스트 위치:
+  //   Day0 (미완료) → 경로 시작점 앞 (PL, PT)
+  //   Day1~19 → 해당 점 위치
+  const illustPos = completedDays === 0
+    ? { x: PL, y: PT }
+    : posOnPath(completedDays * interval);
+
+  const bgPath = `${PL},${PT} ${PR},${PT} ${PR},${MID_Y} ${PL},${MID_Y} ${PL},${BOT_Y} ${PR},${BOT_Y}`;
+
+  function getDonePath(): string {
+    const pts: string[] = [`${PL},${PT}`];
+    if (doneLen <= 0) return `${PL},${PT}`;
+    let r = doneLen;
+    if (r >= seg[0]) { pts.push(`${PR},${PT}`); r -= seg[0]; } else { pts.push(`${PL + r},${PT}`); return pts.join(" "); }
+    if (r >= seg[1]) { pts.push(`${PR},${MID_Y}`); r -= seg[1]; } else { pts.push(`${PR},${PT + r}`); return pts.join(" "); }
+    if (r >= seg[2]) { pts.push(`${PL},${MID_Y}`); r -= seg[2]; } else { pts.push(`${PR - r},${MID_Y}`); return pts.join(" "); }
+    if (r >= seg[3]) { pts.push(`${PL},${BOT_Y}`); r -= seg[3]; } else { pts.push(`${PL},${MID_Y + r}`); return pts.join(" "); }
+    pts.push(`${PL + r},${BOT_Y}`);
+    return pts.join(" ");
+  }
+
+  const illustX = illustPos.x - ILLUST_W / 2;
+  const illustY = illustPos.y - ILLUST_H - 4;
+
+  return (
+    <ZigzagWrap ref={forwardedRef}>
+      <svg
+        viewBox={`0 0 ${VB_W} ${VB_H}`}
+        width="100%"
+        style={{ display: "block" }}
+        aria-hidden="true"
+      >
+        {/* 배경 경로 */}
+        <polyline points={bgPath} fill="none" stroke="#CDCDCD" strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* 완료 경로 */}
+        {doneLen > 0 && (
+          <polyline points={getDonePath()} fill="none" stroke={LIGHT_BLUE} strokeWidth={SW} strokeLinecap="round" strokeLinejoin="round" />
+        )}
+
+        {/* 19개 점 */}
+        {points.map((pt, i) => {
+          const day = i + 1;
+          const done = day <= completedDays;
+          const isCurrent = day === completedDays;
+          return (
+            <circle
+              key={day}
+              cx={pt.x}
+              cy={pt.y}
+              r={isCurrent ? 6 : done ? 5 : 4}
+              fill={done ? LIGHT_BLUE : "#CDCDCD"}
+              stroke={isCurrent ? "rgba(141,173,255,0.45)" : "none"}
+              strokeWidth={isCurrent ? 4 : 0}
+            />
+          );
+        })}
+
+        {/* BeHoly: 45×45 파란 원 + 로고 이미지 */}
+        <circle cx={PR} cy={BOT_Y} r={BH_R} fill={LIGHT_BLUE} />
+        <image
+          href="/images/challenge/challenge_logo.png"
+          x={PR - 16.5}
+          y={BOT_Y - 4.5}
+          width={33}
+          height={9}
+          preserveAspectRatio="xMidYMid meet"
+        />
+
+        {/* 일러스트 */}
+        <image
+          href="/images/challenge/challenge_illust.png"
+          x={illustX}
+          y={illustY}
+          width={ILLUST_W}
+          height={ILLUST_H}
+          style={{ filter: animating ? "drop-shadow(0 0 8px rgba(141,173,255,0.9))" : undefined }}
+        />
+      </svg>
+    </ZigzagWrap>
+  );
+}
+
+// ─── Styled ──────────────────────────────────────────────────
+
 // ─── Styled ──────────────────────────────────────────────────
 
 const Wrap = styled.div`
@@ -505,16 +648,17 @@ const IntroText = styled.div<{ $expanded: boolean }>`
   padding: 16px 16px 0 16px;
   overflow: hidden;
   text-align: center;
-  max-height: ${(p) => (p.$expanded ? "3000px" : "96px")};
+  /* 8줄 = font-size(14px) * line-height(1.7) * 8 = ~190.4px, 상단 padding 포함 */
+  max-height: ${(p) => (p.$expanded ? "3000px" : "calc(14px * 1.9 * 8 + 16px)")};
   transition: max-height 0.45s ease;
   -webkit-mask-image: ${(p) =>
     p.$expanded
       ? "none"
-      : "linear-gradient(to bottom, black 50%, transparent 100%)"};
+      : "linear-gradient(to bottom, black 55%, transparent 100%)"};
   mask-image: ${(p) =>
     p.$expanded
       ? "none"
-      : "linear-gradient(to bottom, black 50%, transparent 100%)"};
+      : "linear-gradient(to bottom, black 55%, transparent 100%)"};
 `;
 
 const IntroToggleBtn = styled.button`
@@ -569,71 +713,9 @@ const SectionTitle = styled.h2`
   color: ${WHITE};
 `;
 
-const IllustProgressWrap = styled.div`
-  position: relative;
-  margin-bottom: 32px;
-  padding-top: 90px;
-`;
-
-/* 일러스트 — progressPercent 위치에 따라 프로그레스 바 위에서 수평 이동 */
-const IllustImg = styled.div<{ $animating?: boolean }>`
-  position: absolute;
-  bottom: 12px;
-  width: 52px;
-  transition: left 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  ${(p) => p.$animating && `
-    filter: drop-shadow(0 0 8px rgba(141, 173, 255, 0.9));
-  `}
-
-  img {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-`;
-
-const LogoCircle = styled.div`
-  position: absolute;
-  right: 0;
-  bottom: 18px;
-  width: 45px;
-  height: 45px;
-  background: ${LIGHT_BLUE};
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const ProgressBg = styled.div`
-  position: relative;
-  height: 4px;
-  background: #cdcdcd;
-  border-radius: 99px;
-`;
-
-const ProgressFill = styled.div<{ $animating?: boolean }>`
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  background: ${LIGHT_BLUE};
-  border-radius: 99px;
-  transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  ${(p) => p.$animating && `
-    box-shadow: 0 0 12px rgba(141, 173, 255, 0.8);
-  `}
-`;
-
-const ProgressDot = styled.div`
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 8.15px;
-  height: 8.15px;
-  background: ${WHITE};
-  border-radius: 50%;
-  transition: left 0.4s ease;
+const ZigzagWrap = styled.div`
+  margin: 0 0 32px;
+  padding: 0;
 `;
 
 const DayCard = styled.div`
