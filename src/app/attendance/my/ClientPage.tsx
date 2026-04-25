@@ -85,7 +85,7 @@ function LateFeeAccountCard() {
       <span style={{ color: "#cbd5e1" }}>|</span>
       <span>이지원</span>
       <span style={{ color: "#cbd5e1" }}>|</span>
-      <span style={{ color: "#94a3b8" }}>메모: 다락방/이름</span>
+      <span style={{ color: "#94a3b8" }}>송금시: 다락방/이름</span>
     </div>
   );
 }

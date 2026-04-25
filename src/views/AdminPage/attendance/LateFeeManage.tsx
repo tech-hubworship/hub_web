@@ -7,10 +7,20 @@ import * as S from "../users/style";
 
 export default function LateFeeManage() {
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
+  const [detailManualId, setDetailManualId] = useState<string | null>(null);
   const [settleModalOpen, setSettleModalOpen] = useState(false);
   const [settleAmount, setSettleAmount] = useState("");
   const [settleNote, setSettleNote] = useState("");
   const [settleSubmitting, setSettleSubmitting] = useState(false);
+
+  // 수동 추가 모달
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addAmount, setAddAmount] = useState("");
+  const [addGroup, setAddGroup] = useState("");
+  const [addCell, setAddCell] = useState("");
+  const [addNote, setAddNote] = useState("");
+  const [addSubmitting, setAddSubmitting] = useState(false);
 
   // ── 필터 상태 ──
   const [searchName, setSearchName] = useState("");
@@ -28,29 +38,34 @@ export default function LateFeeManage() {
 
   const queryClient = useQueryClient();
   const { data: detailData, isLoading: detailLoading } = useQuery({
-    queryKey: ["admin-late-fees-detail", detailUserId],
+    queryKey: ["admin-late-fees-detail", detailUserId, detailManualId],
     queryFn: async () => {
+      if (detailManualId) {
+        const res = await fetch(`/api/admin/attendance/late-fees?manualId=${detailManualId}`);
+        if (!res.ok) throw new Error("조회 실패");
+        return res.json();
+      }
       const res = await fetch(`/api/admin/attendance/late-fees?userId=${detailUserId}`);
       if (!res.ok) throw new Error("조회 실패");
       return res.json();
     },
-    enabled: !!detailUserId,
+    enabled: !!(detailUserId || detailManualId),
   });
 
   useEffect(() => {
-    if (detailUserId && detailData?.totalLateFee != null && settleModalOpen) {
-      setSettleAmount(String(detailData.totalLateFee));
+    if ((detailUserId || detailManualId) && detailData?.totalLateFee != null && settleModalOpen) {
+      setSettleAmount(String(detailData.remaining ?? detailData.totalLateFee));
     }
-  }, [detailUserId, detailData?.totalLateFee, settleModalOpen]);
+  }, [detailUserId, detailManualId, detailData?.totalLateFee, detailData?.remaining, settleModalOpen]);
 
   const openSettleModal = () => {
-    setSettleAmount(String(totalLateFee));
+    setSettleAmount(String(remaining));
     setSettleNote("");
     setSettleModalOpen(true);
   };
 
   const submitSettle = async () => {
-    if (!detailUserId) return;
+    if (!detailUserId && !detailManualId) return;
     const amountNum = parseInt(settleAmount, 10);
     if (Number.isNaN(amountNum) || amountNum < 0) {
       alert("0 이상의 금액을 입력해주세요.");
@@ -58,21 +73,27 @@ export default function LateFeeManage() {
     }
     setSettleSubmitting(true);
     try {
-      const res = await fetch("/api/admin/attendance/late-fees/settle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: detailUserId,
-          amount: amountNum,
-          note: settleNote.trim() || undefined,
-        }),
-      });
+      let res: Response;
+      if (detailManualId) {
+        // 수동 항목 정산
+        res = await fetch("/api/admin/attendance/late-fees", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ manual_id: detailManualId, settled: amountNum }),
+        });
+      } else {
+        res = await fetch("/api/admin/attendance/late-fees/settle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: detailUserId, amount: amountNum, note: settleNote.trim() || undefined }),
+        });
+      }
       const data = await res.json();
       if (res.ok) {
         setSettleModalOpen(false);
-        queryClient.invalidateQueries({ queryKey: ["admin-late-fees-detail", detailUserId] });
+        queryClient.invalidateQueries({ queryKey: ["admin-late-fees-detail", detailUserId, detailManualId] });
         queryClient.invalidateQueries({ queryKey: ["admin-late-fees"] });
-        alert(data.message || "정산 기록되었습니다.");
+        alert("정산 기록되었습니다.");
       } else {
         alert(data.error || "저장 실패");
       }
@@ -80,6 +101,40 @@ export default function LateFeeManage() {
       alert("오류가 발생했습니다.");
     } finally {
       setSettleSubmitting(false);
+    }
+  };
+
+  const submitAdd = async () => {
+    if (!addName.trim() || !addAmount) { alert("이름과 금액을 입력해주세요."); return; }
+    setAddSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/attendance/late-fees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: addName.trim(), amount: Number(addAmount), group_name: addGroup || undefined, cell_name: addCell || undefined, note: addNote || undefined }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAddModalOpen(false);
+        setAddName(""); setAddAmount(""); setAddGroup(""); setAddCell(""); setAddNote("");
+        queryClient.invalidateQueries({ queryKey: ["admin-late-fees"] });
+      } else {
+        alert(data.error || "추가 실패");
+      }
+    } catch {
+      alert("오류가 발생했습니다.");
+    } finally {
+      setAddSubmitting(false);
+    }
+  };
+
+  const deleteManual = async (manual_id: string, name: string) => {
+    if (!confirm(`"${name}" 항목을 삭제할까요?`)) return;
+    const res = await fetch(`/api/admin/attendance/late-fees?manual_id=${manual_id}`, { method: "DELETE" });
+    if (res.ok) {
+      queryClient.invalidateQueries({ queryKey: ["admin-late-fees"] });
+    } else {
+      alert("삭제 실패");
     }
   };
 
@@ -211,8 +266,14 @@ export default function LateFeeManage() {
             </button>
           )}
           <button
+            onClick={() => setAddModalOpen(true)}
+            style={{ padding: "8px 16px", background: "#059669", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}
+          >
+            + 수동 추가
+          </button>
+          <button
             onClick={exportCsv}
-            style={{ padding: "8px 16px", background: "#1d4ed8", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer", marginLeft: "auto" }}
+            style={{ padding: "8px 16px", background: "#1d4ed8", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}
           >
             📥 엑셀 다운로드
           </button>
@@ -246,8 +307,13 @@ export default function LateFeeManage() {
               </S.TableHeader>
               <tbody>
                 {filteredList.map((item: any) => (
-                  <S.TableRow key={item.user_id}>
-                    <S.TableData><span style={{ fontWeight: "600" }}>{item.name}</span></S.TableData>
+                  <S.TableRow key={item.user_id || item.manual_id}>
+                    <S.TableData>
+                      <span style={{ fontWeight: "600" }}>{item.name}</span>
+                      {item.isManual && (
+                        <span style={{ marginLeft: "6px", fontSize: "11px", background: "#fef3c7", color: "#92400e", padding: "1px 6px", borderRadius: "4px", fontWeight: "600" }}>수동</span>
+                      )}
+                    </S.TableData>
                     <S.TableData>{item.group_name || "-"} / {item.cell_name || "-"}</S.TableData>
                     <S.TableData>
                       <span style={{ color: "#dc2626", fontWeight: "bold" }}>{item.total_late_fee.toLocaleString()}원</span>
@@ -261,13 +327,27 @@ export default function LateFeeManage() {
                       </span>
                     </S.TableData>
                     <S.TableData>
-                      <button
-                        type="button"
-                        onClick={() => setDetailUserId(item.user_id)}
-                        style={{ padding: "6px 14px", background: "#3b82f6", color: "white", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}
-                      >
-                        상세보기
-                      </button>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (item.isManual) { setDetailManualId(item.manual_id); setDetailUserId(null); }
+                            else { setDetailUserId(item.user_id); setDetailManualId(null); }
+                          }}
+                          style={{ padding: "6px 14px", background: "#3b82f6", color: "white", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}
+                        >
+                          상세보기
+                        </button>
+                        {item.isManual && (
+                          <button
+                            type="button"
+                            onClick={() => deleteManual(item.manual_id, item.name)}
+                            style={{ padding: "6px 10px", background: "#fee2e2", color: "#dc2626", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}
+                          >
+                            삭제
+                          </button>
+                        )}
+                      </div>
                     </S.TableData>
                   </S.TableRow>
                 ))}
@@ -278,7 +358,7 @@ export default function LateFeeManage() {
       </S.Container>
 
       {/* 상세 로그 모달 */}
-      {detailUserId && (
+      {(detailUserId || detailManualId) && (
         <div
           style={{
             position: "fixed",
@@ -289,7 +369,7 @@ export default function LateFeeManage() {
             justifyContent: "center",
             zIndex: 1000,
           }}
-          onClick={() => setDetailUserId(null)}
+          onClick={() => { setDetailUserId(null); setDetailManualId(null); }}
         >
           <div
             style={{
@@ -315,7 +395,7 @@ export default function LateFeeManage() {
               }}
             >
               <h3 style={{ fontSize: "18px", fontWeight: "bold", margin: 0 }}>
-                {detailName} 지각비 로그
+                {detailName} 지각비 {detailData?.isManual ? "내역" : "로그"}
               </h3>
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <button
@@ -336,7 +416,7 @@ export default function LateFeeManage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDetailUserId(null)}
+                  onClick={() => { setDetailUserId(null); setDetailManualId(null); }}
                   style={{
                     padding: "6px 12px",
                     background: "#e2e8f0",
@@ -516,7 +596,7 @@ export default function LateFeeManage() {
       )}
 
       {/* 정산하기 모달 */}
-      {settleModalOpen && detailUserId && (
+      {settleModalOpen && (detailUserId || detailManualId) && (
         <div
           style={{
             position: "fixed",
@@ -616,6 +696,51 @@ export default function LateFeeManage() {
                   {settleSubmitting ? "저장 중…" : "정산 기록"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 수동 추가 모달 */}
+      {addModalOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1001 }}
+          onClick={() => !addSubmitting && setAddModalOpen(false)}
+        >
+          <div
+            style={{ background: "white", borderRadius: "12px", padding: "24px", maxWidth: "400px", width: "90%", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 style={{ fontSize: "16px", fontWeight: "600", margin: "0 0 16px 0" }}>수동 지각비 추가</h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {[
+                { label: "이름 *", value: addName, setter: setAddName, placeholder: "이름 입력" },
+                { label: "금액 (원) *", value: addAmount, setter: setAddAmount, placeholder: "예: 2000", type: "number" },
+                { label: "그룹", value: addGroup, setter: setAddGroup, placeholder: "예: 믿음그룹" },
+                { label: "다락방", value: addCell, setter: setAddCell, placeholder: "예: 화평다락방" },
+                { label: "비고", value: addNote, setter: setAddNote, placeholder: "메모 (선택)" },
+              ].map(({ label, value, setter, placeholder, type }) => (
+                <div key={label}>
+                  <label style={{ fontSize: "13px", color: "#64748b", display: "block", marginBottom: "4px" }}>{label}</label>
+                  <input
+                    type={type || "text"}
+                    value={value}
+                    onChange={(e) => setter(e.target.value)}
+                    placeholder={placeholder}
+                    style={{ width: "100%", padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: "8px", marginTop: "16px", justifyContent: "flex-end" }}>
+              <button onClick={() => setAddModalOpen(false)} style={{ padding: "8px 16px", background: "#f1f5f9", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "14px" }}>취소</button>
+              <button
+                onClick={submitAdd}
+                disabled={addSubmitting}
+                style={{ padding: "8px 16px", background: "#059669", color: "white", border: "none", borderRadius: "6px", cursor: addSubmitting ? "not-allowed" : "pointer", fontSize: "14px", fontWeight: "600", opacity: addSubmitting ? 0.6 : 1 }}
+              >
+                {addSubmitting ? "추가 중..." : "추가"}
+              </button>
             </div>
           </div>
         </div>
