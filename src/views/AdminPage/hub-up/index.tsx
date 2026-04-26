@@ -1602,7 +1602,7 @@ export default function HubUpAdminPage() {
                   <thead>
                     <tr>
                       <Th><input type="checkbox" checked={filtered.length > 0 && filtered.every((t:any) => selectedIds.has(t.id))} onChange={() => toggleAll(filtered)} /></Th>
-                      <Th>이름</Th><Th>그룹/다락방</Th><Th>연락처</Th><Th>주문내역</Th><Th>총수량(총액)</Th><Th>입금확인</Th><Th>관리</Th>
+                      <Th>이름</Th><Th>그룹/다락방</Th><Th>연락처</Th><Th>주문내역</Th><Th>총수량(총액)</Th><Th>신청일시</Th><Th>입금확인</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1630,6 +1630,13 @@ export default function HubUpAdminPage() {
                             ({calcTshirtPrice(t.items || []).toLocaleString()}원)
                           </div>
                         </Td>
+                        <Td style={{fontSize:'12px', color:'#5f6368', whiteSpace:'nowrap'}}>
+                          {t.created_at ? new Date(t.created_at).toLocaleString('ko-KR', {
+                            month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit', hour12: false,
+                            timeZone: 'Asia/Seoul',
+                          }) : '-'}
+                        </Td>
                         <Td><DepBadge ok={t.status === 'confirmed'}>{t.status === 'confirmed' ? '입금완료' : '확인중'}</DepBadge></Td>
                         <Td>
                           <BtnGrp>
@@ -1651,7 +1658,7 @@ export default function HubUpAdminPage() {
                         </Td>
                       </tr>
                     ))}
-                    {filtered.length === 0 && <tr><td colSpan={8} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>{tshirtSearch ? '검색 결과가 없습니다.' : '주문자가 없습니다.'}</td></tr>}
+                    {filtered.length === 0 && <tr><td colSpan={9} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>{tshirtSearch ? '검색 결과가 없습니다.' : '주문자가 없습니다.'}</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
