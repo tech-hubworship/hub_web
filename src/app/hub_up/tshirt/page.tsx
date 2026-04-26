@@ -155,6 +155,7 @@ export default function TshirtPage() {
         <ModalTitle>입금 계좌 안내</ModalTitle>
         <ModalDesc>티셔츠 예약이 종료되었습니다.<br />아래 계좌로 입금해 주세요.</ModalDesc>
         <AccountCard>
+          {totalPrice > 0 && <AccountRow><ALabel>금액</ALabel><AValue>{totalPrice.toLocaleString()}원</AValue></AccountRow>}
           <AccountRow><ALabel>은행</ALabel><AValue>{bankName}</AValue></AccountRow>
           <AccountRow copyable onClick={copyAccount}>
             <ALabel>계좌</ALabel>
