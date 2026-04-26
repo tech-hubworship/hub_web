@@ -94,7 +94,7 @@ const nextConfig = {
       // 개인 인증 여부(is_mine)는 클라이언트에서 처리하므로 공개 캐싱 가능
       {
         source: '/api/hub-challenge/shares',
-        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=1800, stale-while-revalidate=3600' }],
+        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=600, stale-while-revalidate=3600' }],
       },
       // ── 챌린지 페이지 ──
       {
