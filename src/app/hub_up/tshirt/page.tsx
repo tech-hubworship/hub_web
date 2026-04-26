@@ -52,6 +52,7 @@ export default function TshirtPage() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [activeColor, setActiveColor] = useState<'white' | 'black' | 'navy'>('white');
   const [imgIndex, setImgIndex] = useState(0);
   const touchStartX = useRef(0);
@@ -81,9 +82,8 @@ export default function TshirtPage() {
         setExistingOrder(tshirt.order);
         setItems(tshirt.order.items || []);
       }
-    }).finally(() => setLoading(false));
+    }).finally(() => { setLoading(false); setShowAccountModal(true); });
   }, [status, router]);
-
   const getQty = (color: string, size: string) =>
     items.find((i) => i.color === color && i.size === size)?.quantity || 0;
 
@@ -147,10 +147,42 @@ export default function TshirtPage() {
     return <LoadingWrap><Spinner /></LoadingWrap>;
   }
 
+  // 계좌 안내 모달 (페이지 진입 시 자동 표시)
+  const accountModal = showAccountModal && (
+    <ModalOverlay onClick={() => setShowAccountModal(false)}>
+      <ModalSheet onClick={(e) => e.stopPropagation()}>
+        <ModalHandle />
+        <ModalTitle>입금 계좌 안내</ModalTitle>
+        <ModalDesc>티셔츠 예약이 종료되었습니다.<br />아래 계좌로 입금해 주세요.</ModalDesc>
+        <AccountCard>
+          <AccountRow><ALabel>은행</ALabel><AValue>{bankName}</AValue></AccountRow>
+          <AccountRow copyable onClick={copyAccount}>
+            <ALabel>계좌</ALabel>
+            <AValueCopy>
+              {bankAccount}
+              <CopyIcon>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <rect x="9" y="9" width="13" height="13" rx="2" stroke="#2D478C" strokeWidth="2"/>
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="#2D478C" strokeWidth="2"/>
+                </svg>
+                복사
+              </CopyIcon>
+            </AValueCopy>
+          </AccountRow>
+          <AccountRow><ALabel>예금주</ALabel><AValue>{bankHolder}</AValue></AccountRow>
+          <AccountRow><ALabel>입금 기한</ALabel><AValue>4월 26일 (일) 23:59까지</AValue></AccountRow>
+        </AccountCard>
+        {copyToast && <CopyToast>계좌번호가 복사되었습니다 ✓</CopyToast>}
+        <ActionBtn onClick={() => { setShowAccountModal(false); router.push('/hub_up'); }}>홈으로</ActionBtn>
+      </ModalSheet>
+    </ModalOverlay>
+  );
+
   // 신청 완료 화면
   if (done) {
     return (
       <Wrap>
+        {accountModal}
         <TopNav>
           <BackBtn onClick={() => router.push('/hub_up/myinfo')}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -192,6 +224,7 @@ export default function TshirtPage() {
   if (!isSaleOpen && !existingOrder) {
     return (
       <Wrap>
+        {accountModal}
         <TopNav>
           <BackBtn onClick={() => router.back()}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -218,6 +251,8 @@ export default function TshirtPage() {
 
   return (
     <Wrap>
+      {accountModal}
+
       <TopNav>
         <BackBtn onClick={() => router.push('/hub_up')}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -568,4 +603,26 @@ const ClosedDesc = styled.p`font-size: 14px; color: #666; line-height: 1.6; marg
 const DistributeNotice = styled.div`
   margin-top: 16px; padding: 16px; background: #f0f4ff; border-radius: 8px;
   font-size: 13px; color: #2D478C; line-height: 1.6; text-align: center;
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000;
+  display: flex; align-items: flex-end; justify-content: center;
+`;
+const ModalSheet = styled.div`
+  width: 100%; max-width: 480px; background: #fff;
+  border-radius: 20px 20px 0 0; padding: 12px 24px calc(32px + env(safe-area-inset-bottom));
+  text-align: center;
+`;
+const ModalHandle = styled.div`
+  width: 36px; height: 4px; background: #e0e0e0; border-radius: 2px;
+  margin: 0 auto 20px;
+`;
+const ModalTitle = styled.div`
+  font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
+  margin-bottom: 8px; text-align: center;
+`;
+const ModalDesc = styled.p`
+  font-size: 14px; color: #666; line-height: 1.6; text-align: center;
+  margin: 0 0 20px;
 `;
