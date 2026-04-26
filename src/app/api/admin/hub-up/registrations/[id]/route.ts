@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@src/lib/auth';
 import { supabaseAdmin } from '@src/lib/supabase';
 
+// 전체 수정 권한 (MC 이지원)
+const FULL_EDIT_EMAILS = ['skj45691234@gmail.com', 'jhp6413@gmail.com', 'dlwldnjs7138@gmail.com'];
+
 export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
@@ -14,15 +17,35 @@ export async function PATCH(
 
   const { id } = await ctx.params;
   const body = await req.json();
-  const { room_number, room_note, admin_deposit_confirm } = body;
+  const userEmail = (session.user as any)?.email ?? '';
+  const canFullEdit = FULL_EDIT_EMAILS.includes(userEmail);
 
   const updateData: Record<string, any> = {};
-  if ('room_number' in body) updateData.room_number = room_number ?? null;
-  if ('room_note' in body) updateData.room_note = room_note ?? null;
+
+  // 기존 필드 (모든 관리자)
+  if ('room_number' in body) updateData.room_number = body.room_number ?? null;
+  if ('room_note' in body) updateData.room_note = body.room_note ?? null;
   if ('admin_deposit_confirm' in body) {
-    updateData.admin_deposit_confirm = admin_deposit_confirm;
-    // 입금확인 시 시간 기록, 취소 시 null
-    updateData.admin_deposit_confirmed_at = admin_deposit_confirm ? new Date().toISOString() : null;
+    updateData.admin_deposit_confirm = body.admin_deposit_confirm;
+    updateData.admin_deposit_confirmed_at = body.admin_deposit_confirm ? new Date().toISOString() : null;
+  }
+
+  // 전체 수정 필드 (MC 이지원만)
+  if (canFullEdit) {
+    const fullEditFields = [
+      'name', 'gender', 'phone', 'birthdate', 'community',
+      'group_name', 'leader_name',
+      'departure_slot', 'return_slot',
+      'elective_lecture', 'volunteer_team', 'intercessor_team',
+      'deposit_confirm',
+    ];
+    for (const field of fullEditFields) {
+      if (field in body) updateData[field] = body[field];
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: '수정할 내용이 없습니다.' }, { status: 400 });
   }
 
   const { error } = await supabaseAdmin

@@ -11,7 +11,8 @@ export async function GET() {
 
   const { data: regs, error } = await supabaseAdmin
     .from('hub_up_registrations')
-    .select('*');
+    .select('*')
+    .eq('is_waitlist', false);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

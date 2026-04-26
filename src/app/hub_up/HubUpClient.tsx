@@ -37,6 +37,26 @@ export default function HubUpClient({ days, faqs, schedule }: Props) {
   const [openDay, setOpenDay] = useState<number | null>(null);
   const [openFaq, setOpenFaq] = useState<string | null>(null);
 
+  // 챌린지 오픈 카운트다운
+  const CHALLENGE_OPEN = new Date('2026-04-26T23:59:59+09:00');
+  const [now, setNow] = useState(() => new Date());
+  const isOpen = now >= CHALLENGE_OPEN;
+
+  useEffect(() => {
+    if (isOpen) return;
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, [isOpen]);
+
+  const countdown = (() => {
+    const diff = CHALLENGE_OPEN.getTime() - now.getTime();
+    if (diff <= 0) return null;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  })();
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', onScroll);
@@ -68,6 +88,22 @@ export default function HubUpClient({ days, faqs, schedule }: Props) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/hubup/hero_main_new.png" alt="2026 HUBUP Be Holy" style={{ width: '100%', height: '100%', display: 'block' }} />
       </HeroImgWrap>
+
+      {/* 챌린지 배너 */}
+      <ChallengeBanner>
+        <ChallengeLabel>허브업 챌린지</ChallengeLabel>
+        <ChallengeTitle>레위기 19장 19일 실천</ChallengeTitle>
+        {isOpen ? (
+          <ChallengeBtn onClick={() => router.push('/hub_up/challenge')}>
+            오늘의 실천 참여하기 →
+          </ChallengeBtn>
+        ) : (
+          <ChallengeCountdownBtn disabled>
+            <ChallengeCountdownTop>챌린지 오픈까지</ChallengeCountdownTop>
+            <ChallengeCountdownTime>{countdown}</ChallengeCountdownTime>
+          </ChallengeCountdownBtn>
+        )}
+      </ChallengeBanner>
 
       <MainCopy>
         돌아온 2026 허브업!<br />
@@ -233,6 +269,81 @@ const HeroImgWrap = styled.div`
 const MainCopy = styled.h1`
   font-size: 28px; font-weight: 700; color: #000; text-align: center;
   line-height: 1.32; letter-spacing: -0.02em; margin: 0; padding: 40px 20px 20px;
+`;
+const ChallengeBanner = styled.div`
+  width: 100%;
+  background: #F5F5F5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 20px 38px;
+  gap: 0;
+`;
+const ChallengeLabel = styled.div`
+  font-family: 'Wanted Sans', 'Pretendard', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 37px;
+  text-align: center;
+  color: #2D478C;
+  margin-bottom: 0;
+`;
+const ChallengeTitle = styled.h2`
+  font-family: 'Wanted Sans', 'Pretendard', sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 37px;
+  text-align: center;
+  letter-spacing: -0.02em;
+  color: #2D478C;
+  margin: 0 0 14px 0;
+  white-space: nowrap;
+`;
+const ChallengeBtn = styled.button`
+  width: 100%;
+  max-width: 320px;
+  height: 51px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  background: #2D478C;
+  border: none;
+  cursor: pointer;
+  font-family: 'Wanted Sans', 'Pretendard', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 21px;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+  &:active { opacity: 0.85; }
+`;
+const ChallengeCountdownBtn = styled.button`
+  width: 100%;
+  max-width: 320px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  background: #8DADFF;
+  border: none;
+  cursor: not-allowed;
+  font-family: 'Wanted Sans', 'Pretendard', sans-serif;
+`;
+const ChallengeCountdownTop = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 0.02em;
+`;
+const ChallengeCountdownTime = styled.span`
+  font-size: 24px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
 `;
 const VenueRow = styled.div`display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px 40px;`;
 const VenueIcon = styled.span`display: flex; align-items: center; flex-shrink: 0;`;

@@ -3,9 +3,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@src/lib/auth';
 import { supabaseAdmin } from '@src/lib/supabase';
 
+// 총 정원 (config에서 가져오되 기본값 700)
+const DEFAULT_MAX_CAPACITY = 700;
+
 /**
  * POST /api/hub-up/register
  * 신청서 제출
+ * - 정원(700명) 이하: 정식 명단 (is_waitlist = false)
+ * - 정원 초과: 대기자 명단 (is_waitlist = true)
  */
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -23,6 +28,22 @@ export async function POST(req: NextRequest) {
   if (existing) {
     return NextResponse.json({ error: '이미 신청하셨습니다.' }, { status: 409 });
   }
+
+  // 정원 확인: 현재 정식 명단 인원 수 조회
+  const [{ data: configData }, { count: currentCount }] = await Promise.all([
+    supabaseAdmin
+      .from('hub_up_config')
+      .select('value')
+      .eq('key', 'max_capacity')
+      .maybeSingle(),
+    supabaseAdmin
+      .from('hub_up_registrations')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_waitlist', false),
+  ]);
+
+  const maxCapacity = configData?.value ? parseInt(configData.value, 10) : DEFAULT_MAX_CAPACITY;
+  const isWaitlist = (currentCount ?? 0) >= maxCapacity;
 
   const body = await req.json();
 
@@ -48,6 +69,7 @@ export async function POST(req: NextRequest) {
     deposit_confirm:     body.depositConfirm,
     intercessor_team:    body.intercessorTeam,
     volunteer_team:      body.volunteerTeam,
+    is_waitlist:         isWaitlist,
   });
 
   if (error) {
@@ -55,5 +77,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '제출 중 오류가 발생했습니다.' }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, isWaitlist });
 }

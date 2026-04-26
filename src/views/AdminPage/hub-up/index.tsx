@@ -13,6 +13,8 @@ interface Registration {
   admin_deposit_confirmed_at: string | null;
   room_number: string | null; room_note: string | null;
   leader_name: string;
+  is_waitlist?: boolean;
+  waitlist_approved_at?: string | null;
 }
 interface SlotStat { value: string; label: string; max_count: number; current_count: number; is_full: boolean; }
 
@@ -115,12 +117,15 @@ const GROUP_COLORS: Record<string, { bg: string; border: string; text: string; a
 export default function HubUpAdminPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'stats' | 'deposit' | 'list' | 'room' | 'bus' | 'tshirt' | 'unpaid' | 'challenge'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'deposit' | 'list' | 'room' | 'bus' | 'tshirt' | 'unpaid' | 'waitlist' | 'challenge'>('stats');
 
   // 미입금자 추적 접근 권한
   const userEmail = (session?.user as any)?.email ?? '';
+  const userName = (session?.user as any)?.name ?? '';
   const isAdmin = (session?.user as any)?.isAdmin ?? false;
   const canAccessUnpaid = isAdmin && UNPAID_ALLOWED_EMAILS.includes(userEmail);
+  // 전체 명단 수정 권한: MC 이지원
+  const canFullEdit = isAdmin && UNPAID_ALLOWED_EMAILS.includes(userEmail);
 
   // 미입금자 추적 상태
   const [unpaidName, setUnpaidName] = useState('');
@@ -143,6 +148,12 @@ export default function HubUpAdminPage() {
   const [busCellFilter, setBusCellFilter] = useState('');
   const [busCarRoleFilter, setBusCarRoleFilter] = useState('');
   const [tshirtSearch, setTshirtSearch] = useState('');
+  // 페이지네이션 (전체 명단)
+  const [listPage, setListPage] = useState(1);
+  const LIST_PAGE_SIZE = 100;
+  // 전체 명단 인라인 수정 상태
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [editRowData, setEditRowData] = useState<Partial<Registration>>({});
 
   // 입금 기간 정의
   const DEPOSIT_PERIODS = [
@@ -194,6 +205,64 @@ export default function HubUpAdminPage() {
   const { data: tshirts = [], isLoading: isTshirtsLoading } = useQuery<any[]>({
     queryKey: ['hub-up-tshirts'],
     queryFn: () => fetch('/api/admin/hub-up/tshirts').then(r => r.json()),
+  });
+
+  // 대기자 목록
+  const { data: waitlistEntries = [], isLoading: isWaitlistLoading } = useQuery<Registration[]>({
+    queryKey: ['hub-up-waitlist'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/hub-up/registrations?waitlist=true');
+      if (!res.ok) throw new Error('조회 실패');
+      return res.json();
+    },
+    refetchOnWindowFocus: true,
+  });
+
+  // 수정용 폼 옵션 (슬롯/강의/그룹)
+  const { data: formOptions } = useQuery<{
+    departureSlots: { value: string; label: string }[];
+    returnSlots: { value: string; label: string }[];
+    electives: { value: string; label: string }[];
+    groupOptions: string[];
+  }>({
+    queryKey: ['hub-up-form-options'],
+    queryFn: async () => {
+      const [slotRes, groupsRes, cellsRes] = await Promise.all([
+        fetch('/api/hub-up/form-data').then(r => r.json()),
+        fetch('/api/common/groups').then(r => r.json()),
+        fetch('/api/common/cells').then(r => r.json()),
+      ]);
+      // 그룹/다락방 목록 조합 (RegisterForm과 동일 로직)
+      const groupMap = new Map<number, string>();
+      if (Array.isArray(groupsRes)) {
+        groupsRes.forEach((g: any) => groupMap.set(g.id, g.name));
+      }
+      const cellsArray: any[] = Array.isArray(cellsRes?.cells) ? cellsRes.cells : Array.isArray(cellsRes) ? cellsRes : [];
+      const formatted = cellsArray
+        .map((cell: any) => {
+          const groupName = groupMap.get(cell.group_id);
+          const cellName = cell.name || '';
+          return { groupName, cellName, label: `${groupName}그룹 ${cellName}다락방` };
+        })
+        .filter(({ groupName, cellName }: any) => {
+          if (!groupName?.trim() || !cellName?.trim()) return false;
+          if (groupName.includes('해당없음') || cellName.includes('해당없음')) return false;
+          if (groupName.includes('실타') || cellName.includes('실타')) return false;
+          if (groupName.toUpperCase() === 'MC' || cellName.toUpperCase().includes('MC')) return false;
+          return true;
+        })
+        .map(({ label }: any) => label)
+        .sort((a: string, b: string) => a.localeCompare(b));
+      const groupOptions = ['MC', '그룹장', '타공동체', '타교회', ...Array.from(new Set(formatted)) as string[]];
+      return {
+        departureSlots: slotRes.departureSlots || [],
+        returnSlots: slotRes.returnSlots || [],
+        electives: slotRes.electives || [],
+        groupOptions,
+      };
+    },
+    enabled: canFullEdit,
+    staleTime: 60000,
   });
 
   const { data: unpaidEntries = [], isLoading: isUnpaidLoading } = useQuery<UnpaidEntry[]>({
@@ -345,6 +414,50 @@ export default function HubUpAdminPage() {
     },
   });
 
+  const waitlistApproveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch('/api/admin/hub-up/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error('승인 실패');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hub-up-waitlist'] });
+      queryClient.invalidateQueries({ queryKey: ['hub-up-registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['hub-up-stats'] });
+    },
+  });
+
+  const waitlistCancelMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/hub-up/registrations/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('취소 실패');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hub-up-waitlist'] });
+      queryClient.invalidateQueries({ queryKey: ['hub-up-stats'] });
+    },
+  });
+
+  const fullEditMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Registration> }) => {
+      const res = await fetch(`/api/admin/hub-up/registrations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('저장 실패');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hub-up-registrations'] });
+      queryClient.invalidateQueries({ queryKey: ['hub-up-stats'] });
+      setEditingRowId(null);
+      setEditRowData({});
+    },
+  });
+
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleAll = (list: Registration[]) => setSelectedIds(selectedIds.size === list.length ? new Set() : new Set(list.map(r => r.id)));
   const startEdit = (r: Registration) => { setEditingId(r.id); setEditRoom(r.room_number || ''); setEditNote(r.room_note || ''); };
@@ -392,6 +505,14 @@ export default function HubUpAdminPage() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
   }, [registrations, sortKey, sortDir, listGroupFilter, listCellFilter, listVolunteerFilter, listElectiveFilter, listElective1Filter, listElective2Filter]);
+
+  // 페이지네이션 적용된 명단
+  const pagedRegistrations = useMemo(() => {
+    const start = (listPage - 1) * LIST_PAGE_SIZE;
+    return sortedRegistrations.slice(start, start + LIST_PAGE_SIZE);
+  }, [sortedRegistrations, listPage, LIST_PAGE_SIZE]);
+
+  const listTotalPages = Math.max(1, Math.ceil(sortedRegistrations.length / LIST_PAGE_SIZE));
 
   const total = registrations.length;
   const assigned = registrations.filter(r => r.room_number).length;
@@ -489,6 +610,7 @@ export default function HubUpAdminPage() {
         <Tab active={activeTab === 'bus'} onClick={() => setActiveTab('bus')}>🚌 버스 현황</Tab>
         <Tab active={activeTab === 'tshirt'} onClick={() => setActiveTab('tshirt')}>👕 단체티 주문</Tab>
         {canAccessUnpaid && <Tab active={activeTab === 'unpaid'} onClick={() => setActiveTab('unpaid')}>📋 미입금 추적</Tab>}
+        <Tab active={activeTab === 'waitlist'} onClick={() => setActiveTab('waitlist')}>⏳ 대기자 승인{waitlistEntries.length > 0 ? ` (${waitlistEntries.length})` : ''}</Tab>
         <Tab active={activeTab === 'challenge'} onClick={() => setActiveTab('challenge')}>🏆 챌린지</Tab>
       </TabBar>
 
@@ -795,10 +917,10 @@ export default function HubUpAdminPage() {
                 <FilterLabel>필터</FilterLabel>
                 <SearchIn placeholder="이름 검색" value={search}
                   onChange={e => setSearch(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && setAppliedSearch(search)}
+                  onKeyDown={e => { if (e.key === 'Enter') { setAppliedSearch(search); setListPage(1); } }}
                   style={{maxWidth: '140px'}} />
                 <FilterLabel>그룹</FilterLabel>
-                <FilterSelect value={listGroupFilter} onChange={e => { setListGroupFilter(e.target.value); setListCellFilter(''); }}>
+                <FilterSelect value={listGroupFilter} onChange={e => { setListGroupFilter(e.target.value); setListCellFilter(''); setListPage(1); }}>
                   <option value="">전체</option>
                   {(() => {
                     const FIXED = ['MC', '타공동체', '타교회'];
@@ -850,7 +972,7 @@ export default function HubUpAdminPage() {
                   ))}
                 </FilterSelect>
                 {(listGroupFilter || listCellFilter || listVolunteerFilter || listElective1Filter || listElective2Filter || appliedSearch) && (
-                  <SearchBtn onClick={() => { setListGroupFilter(''); setListCellFilter(''); setListVolunteerFilter(''); setListElectiveFilter(''); setListElective1Filter(''); setListElective2Filter(''); setSearch(''); setAppliedSearch(''); }} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>
+                  <SearchBtn onClick={() => { setListGroupFilter(''); setListCellFilter(''); setListVolunteerFilter(''); setListElectiveFilter(''); setListElective1Filter(''); setListElective2Filter(''); setSearch(''); setAppliedSearch(''); setListPage(1); }} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>
                 )}
               </SearchBox>
               <ExportBtn onClick={() => {
@@ -884,43 +1006,198 @@ export default function HubUpAdminPage() {
                       <SortTh onClick={() => handleSort('room_number')}>숙소{sortIcon('room_number')}</SortTh>
                       <SortTh onClick={() => handleSort('created_at')}>신청일{sortIcon('created_at')}</SortTh>
                       <Th>관리</Th>
+                      {canFullEdit && <Th style={{background:'#fef9c3',color:'#854d0e'}}>✏️ 수정</Th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedRegistrations.map((r, i) => (
-                      <tr key={r.id}>
-                        <Td style={{color:'#9aa0a6',fontSize:'12px'}}>{i+1}</Td>
-                        <Td><strong>{r.name}</strong></Td>
-                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
-                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.leader_name || '-'}</Td>
-                        <Td style={{fontSize:'13px'}}>{r.community}</Td>
-                        <Td>{r.gender}</Td>
-                        <Td style={{fontSize:'13px'}}>{r.phone}</Td>
-                        <Td><SlotChip>{sl(r.departure_slot)}</SlotChip></Td>
-                        <Td style={{fontSize:'13px'}}>{sl(r.return_slot)}</Td>
-                        <Td style={{fontSize:'13px'}}>{r.elective_lecture || '-'}</Td>
-                        <Td style={{fontSize:'13px'}}>{r.volunteer_team || '-'}</Td>
-                        <Td><DepBadge ok={r.admin_deposit_confirm}>{r.admin_deposit_confirm ? '입금완료' : '미확인'}</DepBadge></Td>
-                        <Td><RoomBadge ok={!!r.room_number}>{r.room_number || '미배정'}</RoomBadge></Td>
-                        <Td style={{fontSize:'12px',color:'#9aa0a6'}}>{fmtDateTime(r.created_at)}</Td>
-                        <Td>
-                          <CancelBtn
-                            onClick={() => {
-                              if (confirm(`${r.name}님의 접수를 취소하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
-                                cancelMutation.mutate(r.id);
-                              }
-                            }}
-                            disabled={cancelMutation.isPending}
-                          >
-                            접수취소
-                          </CancelBtn>
-                        </Td>
-                      </tr>
-                    ))}
-                    {registrations.length === 0 && <tr><td colSpan={15} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
+                    {pagedRegistrations.map((r, i) => {
+                      const isEditing = editingRowId === r.id;
+                      const ed = editRowData;
+                      const depSlots = formOptions?.departureSlots || [];
+                      const retSlots = formOptions?.returnSlots || [];
+                      const electives = formOptions?.electives || [];
+                      const VOLUNTEER_OPTIONS = ['외부 안내팀', '시설팀', '식사팀', '허브런팀', '해당 없음'];
+                      const COMMUNITY_OPTIONS = ['허브', '타공동체(온누리교회)', '타교회'];
+                      const GENDER_OPTIONS = ['남자', '여자'];
+                      const groupOptions = formOptions?.groupOptions || [];
+
+                      return (
+                        <tr key={r.id} style={isEditing ? {background:'#fefce8'} : undefined}>
+                          <Td style={{color:'#9aa0a6',fontSize:'12px'}}>{(listPage - 1) * LIST_PAGE_SIZE + i + 1}</Td>
+                          {/* 이름 */}
+                          <Td>
+                            {isEditing
+                              ? <InlineInput value={ed.name ?? r.name} onChange={e => setEditRowData(p => ({...p, name: e.target.value}))} style={{width:70}} />
+                              : <strong>{r.name}</strong>}
+                          </Td>
+                          {/* 그룹 */}
+                          <Td style={{fontSize:'13px',color:'#5f6368'}}>
+                            {isEditing
+                              ? <InlineSelect value={ed.group_name ?? r.group_name} onChange={e => setEditRowData(p => ({...p, group_name: e.target.value}))}>
+                                  {groupOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                                </InlineSelect>
+                              : r.group_name}
+                          </Td>
+                          {/* 순장 */}
+                          <Td style={{fontSize:'13px',color:'#5f6368'}}>
+                            {isEditing
+                              ? <InlineInput value={ed.leader_name ?? r.leader_name ?? ''} onChange={e => setEditRowData(p => ({...p, leader_name: e.target.value}))} style={{width:70}} />
+                              : (r.leader_name || '-')}
+                          </Td>
+                          {/* 공동체 */}
+                          <Td style={{fontSize:'13px'}}>
+                            {isEditing
+                              ? <InlineSelect value={ed.community ?? r.community} onChange={e => setEditRowData(p => ({...p, community: e.target.value}))}>
+                                  {COMMUNITY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                                </InlineSelect>
+                              : r.community}
+                          </Td>
+                          {/* 성별 */}
+                          <Td>
+                            {isEditing
+                              ? <InlineSelect value={ed.gender ?? r.gender} onChange={e => setEditRowData(p => ({...p, gender: e.target.value}))}>
+                                  {GENDER_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                                </InlineSelect>
+                              : r.gender}
+                          </Td>
+                          {/* 연락처 */}
+                          <Td style={{fontSize:'13px'}}>
+                            {isEditing
+                              ? <InlineInput value={ed.phone ?? r.phone} onChange={e => setEditRowData(p => ({...p, phone: e.target.value}))} style={{width:110}} />
+                              : r.phone}
+                          </Td>
+                          {/* 출발 */}
+                          <Td>
+                            {isEditing
+                              ? <InlineSelect value={ed.departure_slot ?? r.departure_slot} onChange={e => setEditRowData(p => ({...p, departure_slot: e.target.value}))}>
+                                  {depSlots.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                  <option value="car">자차/대중교통</option>
+                                </InlineSelect>
+                              : <SlotChip>{sl(r.departure_slot)}</SlotChip>}
+                          </Td>
+                          {/* 복귀 */}
+                          <Td style={{fontSize:'13px'}}>
+                            {isEditing
+                              ? <InlineSelect value={ed.return_slot ?? r.return_slot} onChange={e => setEditRowData(p => ({...p, return_slot: e.target.value}))}>
+                                  {retSlots.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                  <option value="car">자차/대중교통</option>
+                                </InlineSelect>
+                              : sl(r.return_slot)}
+                          </Td>
+                          {/* 선택강의 */}
+                          <Td style={{fontSize:'13px'}}>
+                            {isEditing ? (() => {
+                              const electiveLabels = electives.map((e: any) => e.label);
+                              const currentSelected = (ed.elective_lecture ?? r.elective_lecture ?? '')
+                                .split(',').map((s: string) => s.trim()).filter(Boolean);
+                              return (
+                                <div style={{display:'flex', flexDirection:'column', gap:3}}>
+                                  {electiveLabels.map((label: string) => {
+                                    const checked = currentSelected.includes(label);
+                                    return (
+                                      <label key={label} style={{display:'flex', alignItems:'center', gap:4, fontSize:12, cursor:'pointer', whiteSpace:'nowrap'}}>
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => {
+                                            let next: string[];
+                                            if (checked) {
+                                              next = currentSelected.filter((v: string) => v !== label);
+                                            } else if (currentSelected.length < 2) {
+                                              next = [...currentSelected, label];
+                                            } else {
+                                              return; // 2개 초과 선택 방지
+                                            }
+                                            setEditRowData(p => ({...p, elective_lecture: next.join(', ')}));
+                                          }}
+                                        />
+                                        {label}
+                                      </label>
+                                    );
+                                  })}
+                                  <span style={{fontSize:11, color:'#9aa0a6'}}>{currentSelected.length}/2 선택</span>
+                                </div>
+                              );
+                            })() : (r.elective_lecture || '-')}
+                          </Td>
+                          {/* 자원봉사 */}
+                          <Td style={{fontSize:'13px'}}>
+                            {isEditing
+                              ? <InlineSelect value={ed.volunteer_team ?? r.volunteer_team ?? ''} onChange={e => setEditRowData(p => ({...p, volunteer_team: e.target.value}))}>
+                                  {VOLUNTEER_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                                </InlineSelect>
+                              : (r.volunteer_team || '-')}
+                          </Td>
+                          {/* 입금 */}
+                          <Td><DepBadge ok={r.admin_deposit_confirm}>{r.admin_deposit_confirm ? '입금완료' : '미확인'}</DepBadge></Td>
+                          {/* 숙소 */}
+                          <Td><RoomBadge ok={!!r.room_number}>{r.room_number || '미배정'}</RoomBadge></Td>
+                          {/* 신청일 */}
+                          <Td style={{fontSize:'12px',color:'#9aa0a6'}}>{fmtDateTime(r.created_at)}</Td>
+                          {/* 관리 */}
+                          <Td>
+                            <CancelBtn
+                              onClick={() => {
+                                if (confirm(`${r.name}님의 접수를 취소하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+                                  cancelMutation.mutate(r.id);
+                                }
+                              }}
+                              disabled={cancelMutation.isPending}
+                            >
+                              접수취소
+                            </CancelBtn>
+                          </Td>
+                          {/* 수정 열 (canFullEdit만 표시) */}
+                          {canFullEdit && (
+                            <Td style={{background:'#fefce8'}}>
+                              {isEditing ? (
+                                <BtnGrp>
+                                  <SaveBtn
+                                    onClick={() => fullEditMutation.mutate({ id: r.id, data: ed })}
+                                    disabled={fullEditMutation.isPending}
+                                  >
+                                    저장
+                                  </SaveBtn>
+                                  <CancelBtn onClick={() => { setEditingRowId(null); setEditRowData({}); }}>
+                                    취소
+                                  </CancelBtn>
+                                </BtnGrp>
+                              ) : (
+                                <EditBtn onClick={() => { setEditingRowId(r.id); setEditRowData({}); }}>
+                                  수정
+                                </EditBtn>
+                              )}
+                            </Td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                    {registrations.length === 0 && <tr><td colSpan={canFullEdit ? 16 : 15} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
+            )}
+            {/* 페이지네이션 */}
+            {listTotalPages > 1 && (
+              <PaginationRow>
+                <PaginationBtn disabled={listPage === 1} onClick={() => setListPage(1)}>«</PaginationBtn>
+                <PaginationBtn disabled={listPage === 1} onClick={() => setListPage(p => p - 1)}>‹</PaginationBtn>
+                {Array.from({ length: listTotalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === listTotalPages || Math.abs(p - listPage) <= 2)
+                  .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...');
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, idx) =>
+                    p === '...'
+                      ? <PaginationEllipsis key={`e${idx}`}>…</PaginationEllipsis>
+                      : <PaginationBtn key={p} active={listPage === p} onClick={() => setListPage(p as number)}>{p}</PaginationBtn>
+                  )}
+                <PaginationBtn disabled={listPage === listTotalPages} onClick={() => setListPage(p => p + 1)}>›</PaginationBtn>
+                <PaginationBtn disabled={listPage === listTotalPages} onClick={() => setListPage(listTotalPages)}>»</PaginationBtn>
+                <PaginationInfo>{sortedRegistrations.length}명 중 {(listPage - 1) * LIST_PAGE_SIZE + 1}–{Math.min(listPage * LIST_PAGE_SIZE, sortedRegistrations.length)}명</PaginationInfo>
+              </PaginationRow>
             )}
           </div>
         )}
@@ -1456,6 +1733,95 @@ export default function HubUpAdminPage() {
           </div>
         )}
 
+        {/* ── 대기자 승인 탭 ── */}
+        {activeTab === 'waitlist' && (
+          <div>
+            <WaitlistHeader>
+              <WaitlistDesc>
+                정원(700명) 초과로 대기 중인 신청자 목록입니다. <strong>명단 포함</strong> 버튼을 누르면 정식 명단으로 이동하며 버스·숙소 탭에도 연동됩니다.
+              </WaitlistDesc>
+              <DepositSummary>
+                <RoomStatItem><RoomStatNum>{waitlistEntries.length}</RoomStatNum><RoomStatLabel>대기 중</RoomStatLabel></RoomStatItem>
+              </DepositSummary>
+            </WaitlistHeader>
+            {isWaitlistLoading ? <Loading>불러오는 중...</Loading> : (
+              <TableWrap>
+                <Table>
+                  <thead>
+                    <tr>
+                      <Th>#</Th>
+                      <Th>이름</Th>
+                      <Th>그룹</Th>
+                      <Th>순장</Th>
+                      <Th>공동체</Th>
+                      <Th>성별</Th>
+                      <Th>연락처</Th>
+                      <Th>출발</Th>
+                      <Th>복귀</Th>
+                      <Th>선택강의</Th>
+                      <Th>자원봉사</Th>
+                      <Th>자기입금</Th>
+                      <Th>신청일</Th>
+                      <Th>관리</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {waitlistEntries.map((r, i) => (
+                      <tr key={r.id} style={{background: '#fffbeb'}}>
+                        <Td style={{color:'#9aa0a6',fontSize:'12px'}}>{i + 1}</Td>
+                        <Td><strong>{r.name}</strong></Td>
+                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
+                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.leader_name || '-'}</Td>
+                        <Td style={{fontSize:'13px'}}>{r.community}</Td>
+                        <Td>{r.gender}</Td>
+                        <Td style={{fontSize:'13px'}}>{r.phone}</Td>
+                        <Td><SlotChip>{sl(r.departure_slot)}</SlotChip></Td>
+                        <Td style={{fontSize:'13px'}}>{sl(r.return_slot)}</Td>
+                        <Td style={{fontSize:'13px'}}>{r.elective_lecture || '-'}</Td>
+                        <Td style={{fontSize:'13px'}}>{r.volunteer_team || '-'}</Td>
+                        <Td><DepBadge ok={r.deposit_confirm}>{r.deposit_confirm ? '입금했다고 함' : '미신고'}</DepBadge></Td>
+                        <Td style={{fontSize:'12px',color:'#9aa0a6'}}>{fmtDateTime(r.created_at)}</Td>
+                        <Td>
+                          <BtnGrp>
+                            <SaveBtn
+                              onClick={() => {
+                                if (confirm(`${r.name}님을 정식 명단에 포함하시겠습니까?\n버스·숙소 탭에도 연동됩니다.`)) {
+                                  waitlistApproveMutation.mutate(r.id);
+                                }
+                              }}
+                              disabled={waitlistApproveMutation.isPending}
+                            >
+                              ✅ 명단 포함
+                            </SaveBtn>
+                            <CancelBtn
+                              style={{marginTop:'4px'}}
+                              onClick={() => {
+                                if (confirm(`${r.name}님의 대기 신청을 취소하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+                                  waitlistCancelMutation.mutate(r.id);
+                                }
+                              }}
+                              disabled={waitlistCancelMutation.isPending}
+                            >
+                              신청취소
+                            </CancelBtn>
+                          </BtnGrp>
+                        </Td>
+                      </tr>
+                    ))}
+                    {waitlistEntries.length === 0 && (
+                      <tr>
+                        <td colSpan={14} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>
+                          대기자가 없습니다.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </Table>
+              </TableWrap>
+            )}
+          </div>
+        )}
+
         {/* ── 챌린지 탭 ── */}
         {activeTab === 'challenge' && (
           <ChallengeTabContent />
@@ -1884,6 +2250,34 @@ const TshirtCrossTable = styled.table`width: 100%; border-collapse: collapse; fo
 const TshirtCrossTh = styled.th`padding: 8px 12px; background: #f8f9fa; text-align: center; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; border-right: 1px solid #e8eaed; white-space: nowrap; &:first-of-type { text-align: left; }`;
 const TshirtCrossTd = styled.td<{bold?:boolean}>`padding: 8px 12px; text-align: center; border-bottom: 1px solid #f1f3f4; border-right: 1px solid #f1f3f4; font-weight: ${p=>p.bold?'700':'400'}; color: ${p=>p.bold?'#202124':'#3c4043'}; &:first-of-type { text-align: left; display: flex; align-items: center; gap: 6px; }`;
 const ColorDot = styled.span<{color:string}>`display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${p=>p.color}; border: 1px solid #dadce0; flex-shrink: 0;`;
+
+// ── 페이지네이션 Styles ──────────────────────────────────────
+const InlineInput = styled.input`
+  padding: 3px 6px; border: 1px solid #dadce0; border-radius: 4px;
+  font-size: 12px; color: #202124; background: white; outline: none;
+  &:focus { border-color: #278f5a; }
+`;
+const InlineSelect = styled.select`
+  padding: 3px 4px; border: 1px solid #dadce0; border-radius: 4px;
+  font-size: 12px; color: #202124; background: white; outline: none; max-width: 130px;
+  &:focus { border-color: #278f5a; }
+`;
+const PaginationRow = styled.div`display: flex; align-items: center; gap: 4px; justify-content: center; padding: 16px 0; flex-wrap: wrap;`;
+const PaginationBtn = styled.button<{active?: boolean; disabled?: boolean}>`
+  min-width: 32px; height: 32px; padding: 0 8px;
+  border-radius: 6px; border: 1px solid ${p => p.active ? '#278f5a' : '#dadce0'};
+  background: ${p => p.active ? '#278f5a' : 'white'};
+  color: ${p => p.active ? 'white' : p.disabled ? '#c5c5c5' : '#3c4043'};
+  font-size: 13px; font-weight: ${p => p.active ? '700' : '400'};
+  cursor: ${p => p.disabled ? 'not-allowed' : 'pointer'};
+  &:hover:not(:disabled) { background: ${p => p.active ? '#1e7a4a' : '#f1f3f4'}; }
+`;
+const PaginationEllipsis = styled.span`min-width: 32px; text-align: center; color: #9aa0a6; font-size: 13px;`;
+const PaginationInfo = styled.span`font-size: 12px; color: #9aa0a6; margin-left: 8px;`;
+
+// ── 대기자 탭 Styles ─────────────────────────────────────────
+const WaitlistHeader = styled.div`display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;`;
+const WaitlistDesc = styled.p`font-size: 13px; color: #5f6368; margin: 0; padding: 12px 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; line-height: 1.6;`;
 
 // ── 챌린지 탭 Styles ────────────────────────────────────────
 const ChallengeWrap = styled.div`display: flex; flex-direction: column; gap: 16px;`;
