@@ -5,6 +5,21 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import * as S from "../users/style";
 
+const QUARTER_LABELS: Record<string, string> = {
+  "": "전체",
+  "1": "1분기",
+  "2": "2분기",
+  "3": "3분기",
+  "4": "4분기",
+};
+const QUARTER_DATES: Record<string, string> = {
+  "": "",
+  "1": "25.11.15~26.1.15",
+  "2": "26.1.24~4.25",
+  "3": "26.4.30~7.25",
+  "4": "26.7.30~",
+};
+
 export default function LateFeeManage() {
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
   const [detailManualId, setDetailManualId] = useState<string | null>(null);
@@ -22,15 +37,20 @@ export default function LateFeeManage() {
   const [addNote, setAddNote] = useState("");
   const [addSubmitting, setAddSubmitting] = useState(false);
 
+  // ── 분기 필터 ──
+  const [selectedQuarter, setSelectedQuarter] = useState<string>("");
+
   // ── 필터 상태 ──
   const [searchName, setSearchName] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
   const [filterCell, setFilterCell] = useState("");
 
   const { data: listData, isLoading } = useQuery({
-    queryKey: ["admin-late-fees"],
+    queryKey: ["admin-late-fees", selectedQuarter],
     queryFn: async () => {
-      const res = await fetch("/api/admin/attendance/late-fees");
+      const params = new URLSearchParams();
+      if (selectedQuarter) params.set("quarter", selectedQuarter);
+      const res = await fetch(`/api/admin/attendance/late-fees${params.toString() ? "?" + params.toString() : ""}`);
       if (!res.ok) throw new Error("조회 실패");
       return res.json();
     },
@@ -38,14 +58,15 @@ export default function LateFeeManage() {
 
   const queryClient = useQueryClient();
   const { data: detailData, isLoading: detailLoading } = useQuery({
-    queryKey: ["admin-late-fees-detail", detailUserId, detailManualId],
+    queryKey: ["admin-late-fees-detail", detailUserId, detailManualId, selectedQuarter],
     queryFn: async () => {
+      const qParam = selectedQuarter ? `&quarter=${selectedQuarter}` : "";
       if (detailManualId) {
         const res = await fetch(`/api/admin/attendance/late-fees?manualId=${detailManualId}`);
         if (!res.ok) throw new Error("조회 실패");
         return res.json();
       }
-      const res = await fetch(`/api/admin/attendance/late-fees?userId=${detailUserId}`);
+      const res = await fetch(`/api/admin/attendance/late-fees?userId=${detailUserId}${qParam}`);
       if (!res.ok) throw new Error("조회 실패");
       return res.json();
     },
@@ -91,8 +112,8 @@ export default function LateFeeManage() {
       const data = await res.json();
       if (res.ok) {
         setSettleModalOpen(false);
-        queryClient.invalidateQueries({ queryKey: ["admin-late-fees-detail", detailUserId, detailManualId] });
-        queryClient.invalidateQueries({ queryKey: ["admin-late-fees"] });
+        queryClient.invalidateQueries({ queryKey: ["admin-late-fees-detail", detailUserId, detailManualId, selectedQuarter] });
+        queryClient.invalidateQueries({ queryKey: ["admin-late-fees", selectedQuarter] });
         alert("정산 기록되었습니다.");
       } else {
         alert(data.error || "저장 실패");
@@ -117,7 +138,7 @@ export default function LateFeeManage() {
       if (res.ok) {
         setAddModalOpen(false);
         setAddName(""); setAddAmount(""); setAddGroup(""); setAddCell(""); setAddNote("");
-        queryClient.invalidateQueries({ queryKey: ["admin-late-fees"] });
+        queryClient.invalidateQueries({ queryKey: ["admin-late-fees", selectedQuarter] });
       } else {
         alert(data.error || "추가 실패");
       }
@@ -140,6 +161,8 @@ export default function LateFeeManage() {
 
   const list: any[] = listData?.data || [];
   const stats = listData?.stats || {};
+  const groupStats: any[] = listData?.groupStats || [];
+  const unpaidSummaryText: string = listData?.unpaidSummaryText || "";
   const detailLogs = detailData?.logs || [];
   const detailSettlements = detailData?.settlements || [];
   const detailName = detailData?.name || "-";
@@ -207,6 +230,33 @@ export default function LateFeeManage() {
       </S.Header>
 
       <S.Container>
+        {/* ── 분기 탭 ── */}
+        <div style={{ display: "flex", gap: "6px", marginBottom: "20px", flexWrap: "wrap" }}>
+          {Object.entries(QUARTER_LABELS).map(([q, label]) => (
+            <button
+              key={q}
+              onClick={() => { setSelectedQuarter(q); setSearchName(""); setFilterGroup(""); setFilterCell(""); }}
+              style={{
+                padding: "8px 16px",
+                background: selectedQuarter === q ? "#2563eb" : "#f1f5f9",
+                color: selectedQuarter === q ? "white" : "#475569",
+                border: selectedQuarter === q ? "none" : "1px solid #e2e8f0",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: selectedQuarter === q ? "700" : "500",
+                cursor: "pointer",
+              }}
+            >
+              {label}
+              {QUARTER_DATES[q] && (
+                <span style={{ marginLeft: "6px", fontSize: "11px", opacity: 0.75 }}>
+                  {QUARTER_DATES[q]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
         {/* 요약 통계 */}
         {stats.totalMembers !== undefined && (
           <div style={{ marginBottom: "20px", padding: "20px", background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
@@ -228,6 +278,59 @@ export default function LateFeeManage() {
                 <div style={{ fontSize: "14px", color: "#64748b" }}>미정산 지각비</div>
                 <div style={{ fontSize: "22px", fontWeight: "bold", color: "#ea580c" }}>{(stats.totalUnsettled ?? 0).toLocaleString()}원</div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── 그룹별 통계 ── */}
+        {groupStats.length > 0 && (
+          <div style={{ marginBottom: "20px", padding: "20px", background: "white", border: "1px solid #e2e8f0", borderRadius: "12px" }}>
+            <h3 style={{ fontSize: "15px", fontWeight: "bold", color: "#1e293b", margin: "0 0 14px 0" }}>
+              📊 그룹별 지각비 현황
+              {selectedQuarter && <span style={{ marginLeft: "8px", fontSize: "12px", color: "#64748b", fontWeight: "normal" }}>{QUARTER_LABELS[selectedQuarter]} ({QUARTER_DATES[selectedQuarter]})</span>}
+            </h3>
+
+            {/* 미납 현황 텍스트 + 복사 버튼 */}
+            {unpaidSummaryText && (
+              <div style={{ marginBottom: "16px", padding: "14px 16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+                <pre style={{ margin: 0, fontSize: "13px", lineHeight: "1.8", color: "#1e293b", fontFamily: "inherit", whiteSpace: "pre-wrap" }}>
+                  {unpaidSummaryText}
+                </pre>
+                <button
+                  onClick={() => navigator.clipboard.writeText(unpaidSummaryText).then(() => alert("복사되었습니다!"))}
+                  style={{ padding: "6px 14px", background: "#2563eb", color: "white", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                >
+                  📋 복사
+                </button>
+              </div>
+            )}
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc" }}>
+                    {["그룹", "전체 인원", "미납 인원", "총 지각비", "정산 완료", "미정산"].map((h) => (
+                      <th key={h} style={{ padding: "8px 12px", textAlign: h === "그룹" ? "left" : "right", fontWeight: "600", color: "#475569", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupStats.map((g: any) => (
+                    <tr key={g.group_name} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "8px 12px", fontWeight: "600", color: "#1e293b" }}>{g.group_name}</td>
+                      <td style={{ padding: "8px 12px", textAlign: "right", color: "#475569" }}>{g.total_members}명</td>
+                      <td style={{ padding: "8px 12px", textAlign: "right" }}>
+                        <span style={{ color: g.unpaid_count > 0 ? "#dc2626" : "#16a34a", fontWeight: "700" }}>{g.unpaid_count}명</span>
+                      </td>
+                      <td style={{ padding: "8px 12px", textAlign: "right", color: "#dc2626", fontWeight: "600" }}>{g.total_late_fee.toLocaleString()}원</td>
+                      <td style={{ padding: "8px 12px", textAlign: "right", color: "#16a34a", fontWeight: "600" }}>{g.total_settled.toLocaleString()}원</td>
+                      <td style={{ padding: "8px 12px", textAlign: "right", color: g.remaining > 0 ? "#ea580c" : "#16a34a", fontWeight: "700" }}>{g.remaining.toLocaleString()}원</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
