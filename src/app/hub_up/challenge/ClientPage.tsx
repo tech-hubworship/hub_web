@@ -16,9 +16,6 @@ const LIGHT_BLUE = "#8DADFF";
 const LIGHT_BG = "#D0DDFF";
 const WHITE = "#FFFFFF";
 
-// ── 테스트 모드: true면 하단에 Day 선택 버튼 표시 ──
-const TEST_MODE = false;
-
 interface Share {
   share_id: string;
   day: number;
@@ -39,7 +36,8 @@ interface MyProgress {
   totalShares: number;
 }
 
-export default function ChallengeClientPage() {
+export default function ChallengeClientPage({ testMode = false }: { testMode?: boolean }) {
+  const TEST_MODE = testMode;
   const router = useRouter();
   const { data: session, status } = useSession();
   const [shares, setShares] = useState<Share[]>([]);
@@ -69,7 +67,7 @@ export default function ChallengeClientPage() {
   const pendingProgressRef = useRef<MyProgress | null>(null);
 
   // ── 나눔 캐시 유틸 ──────────────────────────────────────────
-  const CACHE_TTL = 30 * 60 * 1000; // 30분 (ms)
+  const CACHE_TTL = 5 * 60 * 1000; // 5분 (페이지네이션 이동 시 재사용)
   const sharesCacheKey = (day: number, p: number) => `hub_shares_cache_${day}_${p}`;
 
   /** 캐시에서 shares 읽기. TTL 초과 or 없으면 null */
@@ -183,9 +181,18 @@ export default function ChallengeClientPage() {
 
   useEffect(() => {
     if (!dayData) return;
+    // day가 바뀌면 항상 최신 데이터 (첫 진입 포함)
+    fetchShares(dayData.day, 1, true);
+    setPage(1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayData.day]);
+
+  useEffect(() => {
+    if (!dayData) return;
+    // 페이지네이션 이동 시 캐시 우선 사용
     fetchShares(dayData.day, page);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dayData.day, page]);
+  }, [page]);
 
   const handleEditSubmit = async () => {
     if (!editingShare || !editContent.trim()) return;
