@@ -65,6 +65,8 @@ export default function ChallengeClientPage({ testMode = false }: { testMode?: b
   const [showCertifyPopup, setShowCertifyPopup] = useState(false);
   // 팝업 확인 전까지 보류할 progress 데이터
   const pendingProgressRef = useRef<MyProgress | null>(null);
+  // setPage(1)을 프로그래밍적으로 호출할 때 page useEffect 스킵용
+  const skipPageEffectRef = useRef(false);
 
   // ── 나눔 캐시 유틸 ──────────────────────────────────────────
   const CACHE_TTL = 5 * 60 * 1000; // 5분 (페이지네이션 이동 시 재사용)
@@ -182,6 +184,7 @@ export default function ChallengeClientPage({ testMode = false }: { testMode?: b
   useEffect(() => {
     if (!dayData) return;
     // day가 바뀌면 항상 최신 데이터 (첫 진입 포함)
+    skipPageEffectRef.current = true; // setPage(1) 트리거 방지
     fetchShares(dayData.day, 1, true);
     setPage(1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,7 +192,12 @@ export default function ChallengeClientPage({ testMode = false }: { testMode?: b
 
   useEffect(() => {
     if (!dayData) return;
-    // 페이지네이션 이동 시 캐시 우선 사용
+    // 프로그래밍적 setPage(1)이면 스킵 (day useEffect 또는 handleSubmit에서 이미 fetch함)
+    if (skipPageEffectRef.current) {
+      skipPageEffectRef.current = false;
+      return;
+    }
+    // 사용자가 직접 페이지 버튼 누를 때만 캐시 우선 fetch
     fetchShares(dayData.day, page);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
@@ -248,8 +256,9 @@ export default function ChallengeClientPage({ testMode = false }: { testMode?: b
         }
         // 내가 올린 나눔 → 해당 day 캐시 무효화 후 즉시 fetch
         invalidateSharesCache(dayData.day);
-        setPage(1);
         await fetchShares(dayData.day, 1, true);
+        skipPageEffectRef.current = true; // setPage(1) 트리거 방지
+        setPage(1);
         // 팝업 표시 (사람 이동은 팝업 버튼에서)
         setShowCertifyPopup(true);
       } else {
@@ -360,25 +369,35 @@ export default function ChallengeClientPage({ testMode = false }: { testMode?: b
           </PracticeDetailList>
         </DayCard>
 
-        {/* 입력창 */}
-        <TextareaWrap>
-          <Textarea
-            placeholder={`오늘의 실천 결과를 나눠주세요.\n실패한 이야기도 괜찮아요.`}
-            value={shareContent}
-            onChange={(e) => setShareContent(e.target.value)}
-            maxLength={300}
-            disabled={!canCertify}
-          />
-          <CharCount>{shareContent.length} / 300자</CharCount>
-        </TextareaWrap>
+        {/* 입력창 / 완료 메시지 */}
+        {!TEST_MODE && todayDone ? (
+          <TodayDoneBox>
+            <TodayDoneIcon>✅</TodayDoneIcon>
+            <TodayDoneText>오늘의 나눔을 완료했어요!</TodayDoneText>
+            <TodayDoneSubText>내일도 함께 걸어가요 🙏</TodayDoneSubText>
+          </TodayDoneBox>
+        ) : (
+          <>
+            <TextareaWrap>
+              <Textarea
+                placeholder={`오늘의 실천 결과를 나눠주세요.\n실패한 이야기도 괜찮아요.`}
+                value={shareContent}
+                onChange={(e) => setShareContent(e.target.value)}
+                maxLength={300}
+                disabled={!canCertify}
+              />
+              <CharCount>{shareContent.length} / 300자</CharCount>
+            </TextareaWrap>
 
-        {/* 인증하기 버튼 */}
-        <CertifyBtn
-          onClick={handleSubmit}
-          disabled={!canCertify || !shareContent.trim() || isSubmitting}
-        >
-          {isSubmitting ? "작성 중..." : "인증하기"}
-        </CertifyBtn>
+            {/* 인증하기 버튼 */}
+            <CertifyBtn
+              onClick={handleSubmit}
+              disabled={!canCertify || !shareContent.trim() || isSubmitting}
+            >
+              {isSubmitting ? "작성 중..." : "인증하기"}
+            </CertifyBtn>
+          </>
+        )}
 
         {/* 나눔 카드 목록 */}
         {sharesLoading ? (
@@ -938,6 +957,36 @@ const CertifyBtn = styled.button<{ disabled?: boolean }>`
   cursor: ${(p) => (p.disabled ? "not-allowed" : "pointer")};
   opacity: ${(p) => (p.disabled ? 0.5 : 1)};
   letter-spacing: -0.02em;
+`;
+
+const TodayDoneBox = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 16px;
+  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1.5px solid rgba(141, 173, 255, 0.5);
+  border-radius: 12px;
+`;
+
+const TodayDoneIcon = styled.div`
+  font-size: 28px;
+`;
+
+const TodayDoneText = styled.div`
+  font-size: 16px;
+  font-weight: 700;
+  color: ${WHITE};
+  letter-spacing: -0.02em;
+`;
+
+const TodayDoneSubText = styled.div`
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.65);
 `;
 
 const LoadingText = styled.p`
