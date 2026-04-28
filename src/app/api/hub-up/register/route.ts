@@ -29,8 +29,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '이미 신청하셨습니다.' }, { status: 409 });
   }
 
-  // 정원 확인: 현재 정식 명단 인원 수 조회
-  const [{ data: configData }, { count: currentCount }] = await Promise.all([
+  // 정원 확인: 정식 명단 + 대기자 명단 합산 기준
+  // 취소로 정식이 줄어도 대기자가 있으면 새 신청자는 대기자로 들어감
+  const [{ data: configData }, { count: totalCount }] = await Promise.all([
     supabaseAdmin
       .from('hub_up_config')
       .select('value')
@@ -38,12 +39,11 @@ export async function POST(req: NextRequest) {
       .maybeSingle(),
     supabaseAdmin
       .from('hub_up_registrations')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_waitlist', false),
+      .select('id', { count: 'exact', head: true }),
   ]);
 
   const maxCapacity = configData?.value ? parseInt(configData.value, 10) : DEFAULT_MAX_CAPACITY;
-  const isWaitlist = (currentCount ?? 0) >= maxCapacity;
+  const isWaitlist = (totalCount ?? 0) >= maxCapacity;
 
   const body = await req.json();
 
