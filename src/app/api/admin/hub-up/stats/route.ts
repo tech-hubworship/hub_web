@@ -106,7 +106,7 @@ export async function GET() {
     total,
     gender: { male, female, other },
     deposited,
-    depositRate: total > 0 ? Math.round((deposited / total) * 100) : 0,
+    depositRate: total > 0 ? Math.floor((deposited / total) * 100) : 0,
     departureCounts,
     returnCounts,
     carRoleCounts,
