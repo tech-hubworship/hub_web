@@ -438,15 +438,23 @@ export default function ChallengeClientPage({ testMode = false }: { testMode?: b
                 >
                   ‹
                 </PageBtn>
-                {Array.from({ length: Math.ceil(totalShares / 5) }, (_, i) => i + 1).map((p) => (
-                  <PageBtn
-                    key={p}
-                    $active={page === p}
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </PageBtn>
-                ))}
+                {(() => {
+                  const totalPages = Math.ceil(totalShares / 5);
+                  const delta = 2;
+                  const pages: (number | '...')[] = [];
+                  for (let i = 1; i <= totalPages; i++) {
+                    if (i === 1 || i === totalPages || (i >= page - delta && i <= page + delta)) {
+                      pages.push(i);
+                    } else if (pages[pages.length - 1] !== '...') {
+                      pages.push('...');
+                    }
+                  }
+                  return pages.map((p, i) =>
+                    p === '...'
+                      ? <PageEllipsis key={`ellipsis-${i}`}>…</PageEllipsis>
+                      : <PageBtn key={p} $active={page === p} onClick={() => setPage(p as number)}>{p}</PageBtn>
+                  );
+                })()}
                 <PageBtn
                   onClick={() => setPage((p) => Math.min(Math.ceil(totalShares / 5), p + 1))}
                   disabled={page === Math.ceil(totalShares / 5)}
@@ -1100,6 +1108,16 @@ const PageBtn = styled.button<{ $active?: boolean; disabled?: boolean }>`
   font-family: inherit;
   cursor: ${(p) => (p.disabled ? "default" : "pointer")};
   transition: all 0.15s ease;
+`;
+
+const PageEllipsis = styled.span`
+  min-width: 24px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.4);
+  font-size: 14px;
 `;
 
 /* ── 테스트 패널 ── */
