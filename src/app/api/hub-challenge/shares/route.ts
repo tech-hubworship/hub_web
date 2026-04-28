@@ -91,11 +91,7 @@ export async function GET(request: NextRequest) {
       limit,
     }, {
       headers: {
-        // Vercel Edge: 30분 캐시, 이후 stale-while-revalidate로 백그라운드 갱신
-        // revalidateTag 호출 시 즉시 무효화됨
-        "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
-        "CDN-Cache-Control": "public, s-maxage=1800",
-        "Vercel-CDN-Cache-Control": "public, s-maxage=1800",
+        "Cache-Control": "no-store",
       },
     });
   } catch (error) {
