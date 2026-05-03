@@ -29,6 +29,39 @@ interface Props {
   schedule: ScheduleItem[];
 }
 
+const WALLPAPERS = [
+  {
+    src: '/images/wallpapers/1.png',
+    title: '말씀과 기도,\n예수그리스도와 성령하나님',
+    verse: '[딤전4:5]\n하나님의 말씀과 기도로 거룩하여짐이라',
+  },
+  {
+    src: '/images/wallpapers/2.png',
+    title: 'Be Holy,\n매일 하나님과 동행하는 것',
+    verse: '[레19:2] 너는 이스라엘 자손의 온 회중에게 말하여 이르라\n너희는 거룩하라 이는 나 여호와 너희 하나님이 거룩함이니라\n[딤전4:5] 하나님의 말씀과 기도로 거룩하여짐이라',
+  },
+  {
+    src: '/images/wallpapers/3.png',
+    title: 'Holy Forever\n천사들 외쳐 거룩',
+    verse: '[사6:2-3] 2 스랍들이 모시고 섰는데 각기 여섯 날개가 있어\n그 둘로는 자기의 얼굴을 가리었고\n그 둘로는 자기의 발을 가리었고 그 둘로는 날며\n3 서로 불러 이르되 거룩하다 거룩하다 거룩하다\n만군의 여호와여 그의 영광이 온 땅에 충만하도다 하더라',
+  },
+  {
+    src: '/images/wallpapers/4.png',
+    title: '모세와 떨기나무',
+    verse: '[출3:2] 여호와의 사자가 떨기나무 가운데로부터\n나오는 불꽃 안에서 그에게 나타나시니라\n그가 보니 떨기나무에 불이 붙었으나\n그 떨기나무가 사라지지 아니하는지라\n[출3:5] 하나님이 이르시되 이리로 가까이 오지 말라\n네가 선 곳은 거룩한 땅이니 네 발에서 신을 벗으라',
+  },
+  {
+    src: '/images/wallpapers/5.png',
+    title: '천국 백성답게\n사는 삶',
+    verse: '[빌3:20] 그러나 우리의 시민권은 하늘에 있는지라\n거기로부터 구원하는 자 곧 주 예수 그리스도를 기다리노니\n[롬12:2] 너희는 이 세대를 본받지 말고\n오직 마음을 새롭게 함으로 변화를 받아\n하나님의 선하시고 기뻐하시고 온전하신 뜻이 무엇인지 분별하도록 하라',
+  },
+  {
+    src: '/images/wallpapers/6.png',
+    title: '거룩함으로 옷입다',
+    verse: '[시110:3] 주의 권능의 날에 주의 백성이 거룩한 옷을 입고\n즐거이 헌신하니\n새벽 이슬 같은 주의 청년들이 주께 나오는도다',
+  },
+];
+
 export default function HubUpClient({ days, faqs, schedule }: Props) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -36,6 +69,7 @@ export default function HubUpClient({ days, faqs, schedule }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [openDay, setOpenDay] = useState<number | null>(null);
   const [openFaq, setOpenFaq] = useState<string | null>(null);
+  const [activeWallpaper, setActiveWallpaper] = useState(0);
 
   // 챌린지 오픈 카운트다운
   const CHALLENGE_OPEN = new Date('2026-04-26T23:59:59+09:00');
@@ -225,6 +259,42 @@ export default function HubUpClient({ days, faqs, schedule }: Props) {
         <FaqMoreBtn onClick={() => router.push('/hub_up/faq')}>더 많은 FAQ 보기 →</FaqMoreBtn>
       </FaqSection>
 
+      {/* 배경화면 다운로드 섹션 */}
+      <WallpaperSection>
+        <WallpaperTitle>배경화면 다운로드</WallpaperTitle>
+        <WallpaperSubDesc>{WALLPAPERS[activeWallpaper].title}</WallpaperSubDesc>
+
+        {/* 캐러셀 */}
+        <WallpaperCarouselWrap>
+          {WALLPAPERS.map((w, i) => {
+            const offset = i - activeWallpaper;
+            return (
+              <WallpaperCardItem
+                key={i}
+                $offset={offset}
+                onClick={() => { if (offset !== 0) setActiveWallpaper(i); }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={w.src} alt={w.title} />
+              </WallpaperCardItem>
+            );
+          })}
+        </WallpaperCarouselWrap>
+
+        {/* 말씀 구절 박스 */}
+        <WallpaperVerseBox>
+          <WallpaperVerseText>{WALLPAPERS[activeWallpaper].verse}</WallpaperVerseText>
+        </WallpaperVerseBox>
+
+        {/* 다운로드 버튼 */}
+        <WallpaperDownloadBtn
+          href={WALLPAPERS[activeWallpaper].src}
+          download={`hubup2026_wallpaper_${activeWallpaper + 1}.png`}
+        >
+          배경화면 다운로드
+        </WallpaperDownloadBtn>
+      </WallpaperSection>
+
       <Footer>
         <FooterText>개인정보 처리 방침</FooterText>
         <FooterText>@온누리교회 허브대학부</FooterText>
@@ -235,7 +305,7 @@ export default function HubUpClient({ days, faqs, schedule }: Props) {
 
 // ─── Styled Components ───────────────────
 
-const Wrap = styled.div`width: 100%; background: #fff; font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;`;
+const Wrap = styled.div`width: 100%; background: #fff; font-family: 'Wanted Sans', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;`;
 const Nav = styled.div<{ scrolled: boolean }>`
   position: fixed; top: 0; left: 50%; transform: translateX(-50%);
   width: 100%; max-width: 480px; height: 60px;
@@ -396,5 +466,106 @@ const FaqAnswer = styled.div`font-size: 14px; color: #757575; line-height: 1.6; 
 const FaqLink = styled.a`display: block; margin-top: 8px; font-size: 13px; font-weight: 600; color: #2D478C; text-decoration: none;`;
 const FaqDivider = styled.div`height: 1px; background: rgba(0,0,0,0.5);`;
 const FaqMoreBtn = styled.button`width: 100%; padding: 16px; background: none; border: 1px solid #E6E6E6; border-radius: 8px; font-size: 14px; font-weight: 600; color: #838383; cursor: pointer; margin-top: 16px; font-family: inherit;`;
+
+/* ── 배경화면 다운로드 ── */
+const WallpaperSection = styled.div`
+  background: #2D478C;
+  padding: 40px 0 48px;
+  font-family: 'Wanted Sans', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+`;
+const WallpaperTitle = styled.h2`
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+  line-height: 1.32;
+`;
+const WallpaperSubDesc = styled.p`
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  margin: 0 0 28px;
+  line-height: 1.43;
+  white-space: pre-line;
+  letter-spacing: -0.02em;
+  min-height: 40px;
+`;
+const WallpaperCarouselWrap = styled.div`
+  position: relative;
+  height: 278px;
+  margin-bottom: 24px;
+  overflow: hidden;
+`;
+const WallpaperCardItem = styled.div<{ $offset: number }>`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 145px;
+  height: 240px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1B3376;
+  cursor: ${p => p.$offset !== 0 ? 'pointer' : 'default'};
+  transform: translate(
+    calc(-50% + ${p => p.$offset * 160}px),
+    calc(-50% + ${p => p.$offset !== 0 ? '10px' : '0px'})
+  ) scale(${p => p.$offset === 0 ? 1 : 0.85});
+  opacity: ${p => Math.abs(p.$offset) <= 1 ? (p.$offset === 0 ? 1 : 0.55) : 0};
+  border: ${p => p.$offset === 0 ? '2px solid #fff' : '2px solid transparent'};
+  transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              opacity 0.35s ease,
+              border-color 0.35s ease;
+  z-index: ${p => p.$offset === 0 ? 2 : 1};
+  pointer-events: ${p => Math.abs(p.$offset) <= 1 ? 'auto' : 'none'};
+  img {
+    width: 129px;
+    height: 279px;
+    object-fit: cover;
+    display: block;
+    margin: -20px auto 0;
+    pointer-events: none;
+  }
+`;
+const WallpaperVerseBox = styled.div`
+  margin: 0 20px 20px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+`;
+const WallpaperVerseText = styled.p`
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  margin: 0;
+  line-height: 1.6;
+  letter-spacing: -0.02em;
+  word-break: keep-all;
+  white-space: pre-line;
+`;
+const WallpaperDownloadBtn = styled.a`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 20px;
+  height: 51px;
+  background: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  color: #000;
+  text-decoration: none;
+  letter-spacing: -0.02em;
+  transition: opacity 0.2s;
+  &:active { opacity: 0.8; }
+`;
+
 const Footer = styled.div`background: #C5C5C5; padding: 20px;`;
 const FooterText = styled.p`font-size: 12px; font-weight: 700; color: #000; margin: 0 0 4px 0; line-height: 1.67;`;
