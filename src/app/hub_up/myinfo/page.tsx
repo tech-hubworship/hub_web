@@ -100,7 +100,7 @@ export default function MyInfoPage() {
   if (error) return <LoadingWrap style={{ color: '#d93025' }}>{error}</LoadingWrap>;
 
   const isTshirtChangeable = new Date() <= new Date('2026-04-26T23:59:00+09:00');
-  const isDistributing = true;//new Date() >= new Date('2026-05-09T00:00:00+09:00');
+  const isDistributing = new Date() >= new Date('2026-05-09T00:00:00+09:00');
 
   const TshirtSection = () => (
     <Section>
