@@ -148,6 +148,7 @@ export default function HubUpAdminPage() {
   const [busCellFilter, setBusCellFilter] = useState('');
   const [busCarRoleFilter, setBusCarRoleFilter] = useState('');
   const [tshirtSearch, setTshirtSearch] = useState('');
+  const [tshirtReceiveFilter, setTshirtReceiveFilter] = useState<'all' | 'received' | 'pending'>('all');
   // 페이지네이션 (전체 명단)
   const [listPage, setListPage] = useState(1);
   const LIST_PAGE_SIZE = 100;
@@ -1437,8 +1438,8 @@ export default function HubUpAdminPage() {
           <div>
             <DepositSummary>
               <RoomStatItem><RoomStatNum>{tshirts.length}</RoomStatNum><RoomStatLabel>전체 주문자</RoomStatLabel></RoomStatItem>
-              <RoomStatItem><RoomStatNum style={{color:'#278f5a'}}>{tshirts.filter((t:any) => t.status === 'confirmed').length}</RoomStatNum><RoomStatLabel>입금완료</RoomStatLabel></RoomStatItem>
-              <RoomStatItem><RoomStatNum style={{color:'#d93025'}}>{tshirts.filter((t:any) => t.status !== 'confirmed').length}</RoomStatNum><RoomStatLabel>미확인/취소</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#278f5a'}}>{tshirts.filter((t:any) => t.status === 'confirmed' || t.status === 'distributed').length}</RoomStatNum><RoomStatLabel>입금완료</RoomStatLabel></RoomStatItem>
+              <RoomStatItem><RoomStatNum style={{color:'#d93025'}}>{tshirts.filter((t:any) => t.status !== 'confirmed' && t.status !== 'distributed').length}</RoomStatNum><RoomStatLabel>미확인/취소</RoomStatLabel></RoomStatItem>
               <RoomStatItem>
                 <RoomStatNum>
                   {tshirts.reduce((acc: number, t: any) => acc + (t.items || []).reduce((sum: number, item: any) => sum + item.quantity, 0), 0)}장
@@ -1459,9 +1460,17 @@ export default function HubUpAdminPage() {
               </RoomStatItem>
               <RoomStatItem>
                 <RoomStatNum style={{color:'#d93025'}}>
-                  {tshirts.filter((t:any) => t.status !== 'confirmed').reduce((acc: number, t: any) => acc + calcTshirtPrice(t.items || []), 0).toLocaleString()}원
+                  {tshirts.filter((t:any) => t.status !== 'confirmed' && t.status !== 'distributed').reduce((acc: number, t: any) => acc + calcTshirtPrice(t.items || []), 0).toLocaleString()}원
                 </RoomStatNum>
                 <RoomStatLabel>미수금</RoomStatLabel>
+              </RoomStatItem>
+              <RoomStatItem>
+                <RoomStatNum style={{color:'#7c3aed'}}>{tshirts.filter((t:any) => t.status === 'distributed').length}</RoomStatNum>
+                <RoomStatLabel>수령완료</RoomStatLabel>
+              </RoomStatItem>
+              <RoomStatItem>
+                <RoomStatNum style={{color:'#f59e0b'}}>{tshirts.filter((t:any) => t.status !== 'distributed').length}</RoomStatNum>
+                <RoomStatLabel>미수령</RoomStatLabel>
               </RoomStatItem>
             </DepositSummary>
 
@@ -1549,6 +1558,100 @@ export default function HubUpAdminPage() {
                       </tr>
                     </tbody>
                   </TshirtCrossTable>
+
+                  {/* ── 수령 현황 ── */}
+                  {(() => {
+                    const SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+                    const COLORS = ['white', 'black', 'navy'] as const;
+
+                    // 색상별 수령 집계
+                    const recvByColor: Record<string, number> = { white: 0, black: 0, navy: 0 };
+                    tshirts.filter((t: any) => t.status === 'distributed').forEach((t: any) => {
+                      (t.items || []).forEach((item: any) => {
+                        const c = item.color?.toLowerCase();
+                        if (c in recvByColor) recvByColor[c] += item.quantity;
+                      });
+                    });
+
+                    // 날짜별 수령 집계 (KST 기준)
+                    const byDate: Record<string, { sortKey: string; total: number }> = {};
+                    tshirts.filter((t: any) => t.status === 'distributed' && t.received_at).forEach((t: any) => {
+                      const dt = new Date(t.received_at);
+                      const dateKey = dt.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric' });
+                      const sortKey = dt.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+                      if (!byDate[dateKey]) byDate[dateKey] = { sortKey, total: 0 };
+                      (t.items || []).forEach((item: any) => { byDate[dateKey].total += item.quantity; });
+                    });
+                    const dateEntries = Object.entries(byDate).sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
+
+                    const totalAll = Object.values(colorTotals).reduce((a, b) => a + b, 0);
+                    const totalRecv = Object.values(recvByColor).reduce((a, b) => a + b, 0);
+                    const overallPct = totalAll > 0 ? Math.round((totalRecv / totalAll) * 100) : 0;
+
+                    const COLOR_META = [
+                      { key: 'white' as const, label: 'White', bg: '#f9f9f9', border: '#e0e0e0', textColor: '#111' },
+                      { key: 'black' as const, label: 'Black', bg: '#222',    border: '#222',    textColor: '#fff' },
+                      { key: 'navy'  as const, label: 'Navy',  bg: '#1e3a5f', border: '#1e3a5f', textColor: '#fff' },
+                    ];
+
+                    return (
+                      <div style={{ marginTop: 24 }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#202124', marginBottom: 12 }}>수령 현황</div>
+
+                        {/* 전체 진행률 */}
+                        <div style={{ background: '#f8f9fa', borderRadius: 10, padding: '14px 16px', marginBottom: 14 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#5f6368' }}>전체 수령률</span>
+                            <span style={{ fontSize: 15, fontWeight: 800, color: '#7c3aed' }}>{totalRecv} / {totalAll}장 ({overallPct}%)</span>
+                          </div>
+                          <div style={{ height: 8, background: '#e8eaed', borderRadius: 4 }}>
+                            <div style={{ width: `${overallPct}%`, height: '100%', background: '#7c3aed', borderRadius: 4, transition: 'width 0.3s' }} />
+                          </div>
+                        </div>
+
+                        {/* 색상별 카드 */}
+                        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                          {COLOR_META.map(({ key: c, label, bg, border, textColor }) => {
+                            const total = colorTotals[c] || 0;
+                            const recv  = recvByColor[c] || 0;
+                            const pct   = total > 0 ? Math.round((recv / total) * 100) : 0;
+                            return (
+                              <div key={c} style={{ flex: 1, background: bg, border: `1px solid ${border}`, borderRadius: 10, padding: '12px 14px' }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: textColor, marginBottom: 6 }}>{label}</div>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: textColor }}>{recv}<span style={{ fontSize: 11, fontWeight: 500 }}>/{total}</span></div>
+                                <div style={{ fontSize: 11, color: c === 'white' ? '#888' : 'rgba(255,255,255,0.7)', marginBottom: 6 }}>수령/전체</div>
+                                <div style={{ height: 4, background: c === 'white' ? '#e0e0e0' : 'rgba(255,255,255,0.25)', borderRadius: 2 }}>
+                                  <div style={{ width: `${pct}%`, height: '100%', background: c === 'white' ? '#7c3aed' : 'rgba(255,255,255,0.85)', borderRadius: 2 }} />
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: c === 'white' ? '#7c3aed' : 'rgba(255,255,255,0.9)', marginTop: 4 }}>{pct}%</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* 날짜별 수령 */}
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#5f6368', marginBottom: 8 }}>날짜별 수령</div>
+                        {dateEntries.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '16px', color: '#9aa0a6', fontSize: 13, background: '#f8f9fa', borderRadius: 8 }}>
+                            아직 수령된 티셔츠가 없습니다.
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {dateEntries.map(([date, d]) => (
+                              <div key={date} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8f9fa', borderRadius: 8, padding: '10px 14px' }}>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: '#202124' }}>📅 {date}</span>
+                                <span style={{ fontSize: 14, fontWeight: 800, color: '#7c3aed', background: '#ede9fe', padding: '3px 10px', borderRadius: 20 }}>{d.total}장</span>
+                              </div>
+                            ))}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#ede9fe', borderRadius: 8, padding: '10px 14px' }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#7c3aed' }}>합계</span>
+                              <span style={{ fontSize: 14, fontWeight: 800, color: '#7c3aed' }}>{totalRecv}장</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
@@ -1562,6 +1665,15 @@ export default function HubUpAdminPage() {
                   onChange={e => setTshirtSearch(e.target.value)}
                   style={{padding:'6px 10px', border:'1px solid #dadce0', borderRadius:'6px', fontSize:'13px', minWidth:'140px'}}
                 />
+                {(['all', 'received', 'pending'] as const).map(f => (
+                  <FilterChip
+                    key={f}
+                    active={tshirtReceiveFilter === f}
+                    onClick={() => setTshirtReceiveFilter(f)}
+                  >
+                    {f === 'all' ? '전체' : f === 'received' ? '✅ 수령완료' : '⏳ 미수령'}
+                  </FilterChip>
+                ))}
               </div>
               <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end'}}>
                 {selectedIds.size > 0 && (
@@ -1593,21 +1705,26 @@ export default function HubUpAdminPage() {
             </ToolRow>
 
             {isTshirtsLoading ? <Loading>불러오는 중...</Loading> : (() => {
-              const filtered = tshirtSearch.trim()
-                ? tshirts.filter((t: any) => t.name?.includes(tshirtSearch.trim()))
-                : tshirts;
+              const filtered = tshirts.filter((t: any) => {
+                const matchSearch = !tshirtSearch.trim() || t.name?.includes(tshirtSearch.trim());
+                const matchReceive =
+                  tshirtReceiveFilter === 'all' ? true :
+                  tshirtReceiveFilter === 'received' ? t.status === 'distributed' :
+                  t.status !== 'distributed';
+                return matchSearch && matchReceive;
+              });
               return (
               <TableWrap>
                 <Table>
                   <thead>
                     <tr>
                       <Th><input type="checkbox" checked={filtered.length > 0 && filtered.every((t:any) => selectedIds.has(t.id))} onChange={() => toggleAll(filtered)} /></Th>
-                      <Th>이름</Th><Th>그룹/다락방</Th><Th>연락처</Th><Th>주문내역</Th><Th>총수량(총액)</Th><Th>신청일시</Th><Th>입금확인</Th><Th>관리</Th>
+                      <Th>이름</Th><Th>그룹/다락방</Th><Th>연락처</Th><Th>주문내역</Th><Th>총수량(총액)</Th><Th>신청일시</Th><Th>입금확인</Th><Th>수령</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map((t:any) => (
-                      <tr key={t.id} style={{background: t.status === 'confirmed' ? '#f0fdf4' : undefined}}>
+                      <tr key={t.id} style={{background: t.status === 'distributed' ? '#f5f3ff' : t.status === 'confirmed' ? '#f0fdf4' : undefined}}>
                         <Td><input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} /></Td>
                         <Td><strong>{t.name}</strong></Td>
                         <Td style={{fontSize:'13px',color:'#5f6368'}}>
@@ -1637,11 +1754,31 @@ export default function HubUpAdminPage() {
                             timeZone: 'Asia/Seoul',
                           }) : '-'}
                         </Td>
-                        <Td><DepBadge ok={t.status === 'confirmed'}>{t.status === 'confirmed' ? '입금완료' : '확인중'}</DepBadge></Td>
+                        <Td><DepBadge ok={t.status === 'confirmed' || t.status === 'distributed'}>{t.status === 'confirmed' || t.status === 'distributed' ? '입금완료' : '확인중'}</DepBadge></Td>
+                        <Td>
+                          {t.status === 'distributed' ? (
+                            <div>
+                              <DepBadge ok style={{background:'#ede9fe', color:'#6d28d9'}}>수령완료</DepBadge>
+                              {t.received_at && (
+                                <div style={{fontSize:'11px', color:'#7c3aed', marginTop:'3px', whiteSpace:'nowrap'}}>
+                                  {new Date(t.received_at).toLocaleString('ko-KR', {
+                                    timeZone: 'Asia/Seoul',
+                                    month: '2-digit', day: '2-digit',
+                                    hour: '2-digit', minute: '2-digit', hour12: false,
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <DepBadge ok={false}>미수령</DepBadge>
+                          )}
+                        </Td>
                         <Td>
                           <BtnGrp>
                             {t.status === 'confirmed'
                               ? <CancelBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'pending'})}>확인취소</CancelBtn>
+                              : t.status === 'distributed'
+                              ? null
                               : <SaveBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'confirmed'})}>입금완료</SaveBtn>
                             }
                             <CancelBtn
@@ -1658,7 +1795,7 @@ export default function HubUpAdminPage() {
                         </Td>
                       </tr>
                     ))}
-                    {filtered.length === 0 && <tr><td colSpan={9} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>{tshirtSearch ? '검색 결과가 없습니다.' : '주문자가 없습니다.'}</td></tr>}
+                    {filtered.length === 0 && <tr><td colSpan={10} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>{tshirtSearch ? '검색 결과가 없습니다.' : '주문자가 없습니다.'}</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
@@ -2232,6 +2369,13 @@ const Th = styled.th`padding: 9px 10px; background: #f8f9fa; text-align: left; f
 const SortTh = styled.th`padding: 9px 10px; background: #f8f9fa; text-align: left; font-weight: 600; color: #5f6368; border-bottom: 1px solid #e8eaed; white-space: nowrap; cursor: pointer; user-select: none; &:hover { background: #e8eaed; color: #202124; }`;
 const Td = styled.td`padding: 9px 10px; border-bottom: 1px solid #f1f3f4; vertical-align: middle;`;
 const DepBadge = styled.span<{ok:boolean}>`padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; background: ${p=>p.ok?'#e6f4ea':'#fce8e6'}; color: ${p=>p.ok?'#278f5a':'#d93025'};`;
+const FilterChip = styled.button<{active:boolean}>`
+  padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid;
+  background: ${p => p.active ? '#2D478C' : '#fff'};
+  color: ${p => p.active ? '#fff' : '#5f6368'};
+  border-color: ${p => p.active ? '#2D478C' : '#dadce0'};
+  &:hover { opacity: 0.85; }
+`;
 const UnpaidSubTitle = styled.p`font-size: 13px; color: #9aa0a6; margin-bottom: 14px; line-height: 1.6;`;
 const UnpaidAddCard = styled.div`background: white; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 16px;`;
 const UnpaidMemoInput = styled.input`width: 100%; min-width: 120px; padding: 4px 8px; border: 1px solid #e8eaed; border-radius: 6px; font-size: 12px; color: #202124; background: white; &:focus { outline: none; border-color: #1d4ed8; }`;

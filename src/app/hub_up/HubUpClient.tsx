@@ -103,7 +103,7 @@ export default function HubUpClient({ days, faqs, schedule }: Props) {
         <HamburgerBtn onClick={() => setMenuOpen(!menuOpen)} scrolled={scrolled}>
           <span /><span /><span />
         </HamburgerBtn>
-        <NavCta scrolled={scrolled} onClick={() => router.push('/hub_up/register')}>신청하기</NavCta>
+        <NavCta scrolled={scrolled} disabled onClick={() => {}}>신청 마감</NavCta>
       </Nav>
 
       {menuOpen && (
@@ -111,7 +111,7 @@ export default function HubUpClient({ days, faqs, schedule }: Props) {
           {session && (
             <DropItem onClick={() => { router.push('/hub_up/myinfo'); setMenuOpen(false); }}>내 정보</DropItem>
           )}
-          <DropItem onClick={() => { router.push('/hub_up/tshirt'); setMenuOpen(false); }}>티셔츠 예약</DropItem>
+          <DropItem style={{ color: '#bbb', cursor: 'default' }}>티셔츠 예약 (마감)</DropItem>
           <DropItem onClick={() => { router.push('/hub_up/faq'); setMenuOpen(false); }}>FAQ</DropItem>
           <DropItem onClick={() => { router.push('/'); setMenuOpen(false); }} style={{ color: '#888' }}>홈으로 돌아가기</DropItem>
         </DropMenu>
@@ -211,9 +211,10 @@ export default function HubUpClient({ days, faqs, schedule }: Props) {
       </ScheduleSection>
 
       {/* T-SHIRTS 배너 */}
-      <TshirtBanner onClick={() => router.push('/hub_up/tshirt')}>
+      <TshirtBanner>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/tshirt/tshirt_banner.png" alt="T-SHIRTS" style={{ width: '100%', height: 'auto', display: 'block' }} />
+        <img src="/images/tshirt/tshirt_banner.png" alt="T-SHIRTS" style={{ width: '100%', height: 'auto', display: 'block', filter: 'grayscale(40%) brightness(0.7)' }} />
+        <TshirtBannerOverlay>판매 종료</TshirtBannerOverlay>
       </TshirtBanner>
 
       {/* 콘텐츠 섹션 */}
@@ -323,6 +324,12 @@ const NavCta = styled.button<{ scrolled: boolean }>`
   border: 1px solid ${p => p.scrolled ? '#2D478C' : '#fff'};
   padding: 8px 14px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; line-height: 1;
   transition: background 0.3s, border-color 0.3s;
+  &:disabled {
+    background: ${p => p.scrolled ? '#aaa' : 'transparent'};
+    border-color: ${p => p.scrolled ? '#aaa' : 'rgba(255,255,255,0.5)'};
+    color: ${p => p.scrolled ? '#fff' : 'rgba(255,255,255,0.6)'};
+    cursor: not-allowed;
+  }
 `;
 const DropMenu = styled.div`
   position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
@@ -450,7 +457,14 @@ const ClockIcon = () => (
 const TimelineDivider = styled.div`height: 1px; background: #D8D8D8;`;
 const FaqPreviewRow = styled.div`display: flex; align-items: center; justify-content: center; padding: 14px 0; cursor: pointer;`;
 const FaqPreviewQ = styled.div`font-size: 13px; font-weight: 500; color: #2D478C; text-decoration: underline; text-underline-offset: 3px; text-align: center;`;
-const TshirtBanner = styled.div`width: 100%; cursor: pointer; overflow: hidden;`;
+const TshirtBanner = styled.div`width: 100%; overflow: hidden; position: relative; cursor: default;`;
+const TshirtBannerOverlay = styled.div`
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 800; color: #fff;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+`;
 const BlackSection = styled.div`background: #000; padding: 40px 20px; display: flex; flex-direction: column; gap: 8px;`;
 const ClosingText = styled.h2`font-size: 28px; font-weight: 700; color: #fff; text-align: center; line-height: 1.32; margin: 0 0 24px 0;`;
 const ClosingDesc = styled.p`font-size: 14px; font-weight: 700; color: #fff; text-align: center; line-height: 1.43; margin: 8px 0 0 0;`;

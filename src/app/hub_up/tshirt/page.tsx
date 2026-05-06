@@ -39,7 +39,7 @@ function calcUnitPrice(totalQty: number, basePrice: number): number {
 const SALE_START    = new Date('2026-04-12T00:00:00+09:00');
 const SALE_END      = new Date('2026-04-26T23:59:00+09:00');
 const CHANGE_END    = new Date('2026-04-26T23:59:00+09:00');
-const DISTRIBUTE_START = new Date('2026-05-10T00:00:00+09:00');
+const DISTRIBUTE_START = new Date('2026-05-09T00:00:00+09:00');
 
 interface OrderItem { color: string; size: string; quantity: number; }
 
@@ -378,7 +378,7 @@ export default function TshirtPage() {
             </SizeList>
             <DistributeNotice>
               현장에서 QR을 제시하고 티셔츠를 수령하세요.<br />
-              배부 일정: 5월 10일 (일)
+              배부 일정: 5월 9일 (토)
             </DistributeNotice>
           </>
         )}
@@ -393,7 +393,9 @@ export default function TshirtPage() {
 
       <BottomBar>
         {isDistributing ? (
-          <ReserveBtn onClick={() => router.push('/hub_up/myinfo')}>내 정보에서 QR 확인하기</ReserveBtn>
+          existingOrder
+            ? <ReserveBtn onClick={() => router.push('/hub_up/myinfo')}>내 정보에서 QR 확인하기</ReserveBtn>
+            : <ReserveBtn disabled>티셔츠 예약이 마감되었습니다</ReserveBtn>
         ) : (
           <ReserveBtn disabled={!totalCount || submitting || !isChangeable} onClick={handleSubmit}>
             {submitting ? '처리중...' : existingOrder ? '변경하기 →' : '예약하기 →'}

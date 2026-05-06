@@ -100,7 +100,7 @@ export default function MyInfoPage() {
   if (error) return <LoadingWrap style={{ color: '#d93025' }}>{error}</LoadingWrap>;
 
   const isTshirtChangeable = new Date() <= new Date('2026-04-26T23:59:00+09:00');
-  const isDistributing = new Date() >= new Date('2026-05-10T00:00:00+09:00');
+  const isDistributing = true;//new Date() >= new Date('2026-05-09T00:00:00+09:00');
 
   const TshirtSection = () => (
     <Section>
@@ -115,20 +115,36 @@ export default function MyInfoPage() {
           ))}
           <InfoRow>
             <InfoLabel>입금</InfoLabel>
-            <StatusBadge ok={tshirtOrder.status === 'confirmed'}>
-              {tshirtOrder.status === 'confirmed' ? '완료' : '미확인'}
+            <StatusBadge ok={tshirtOrder.status === 'confirmed' || tshirtOrder.status === 'distributed'}>
+              {tshirtOrder.status === 'confirmed' || tshirtOrder.status === 'distributed' ? '완료' : '미확인'}
             </StatusBadge>
           </InfoRow>
-          {isDistributing && (
+          {isDistributing && tshirtOrder.qr_code && (
             <QRSection>
-              <QRTitle>티셔츠 수령 QR</QRTitle>
-              <QRDesc>현장에서 이 QR을 제시해주세요.</QRDesc>
-              <QRWrap>
-                <QRCodeSVG
-                  value={tshirtOrder.items.map(item => `${colorLabel(item.color)} ${item.size}: ${item.quantity}개`).join('\n')}
-                  size={180}
-                />
-              </QRWrap>
+              {tshirtOrder.status === 'distributed' ? (
+                <ReceivedBox>
+                  <ReceivedCheckIcon>✅</ReceivedCheckIcon>
+                  <ReceivedTitle>수령 완료</ReceivedTitle>
+                  <ReceivedDesc>티셔츠를 수령하셨습니다.</ReceivedDesc>
+                </ReceivedBox>
+              ) : (tshirtOrder.status === 'confirmed') ? (
+                <>
+                  <QRTitle>티셔츠 수령 QR</QRTitle>
+                  <QRDesc>현장 스태프에게 이 QR을 제시해주세요.</QRDesc>
+                  <QRWrap>
+                    <QRCodeSVG
+                      value={`${typeof window !== 'undefined' ? window.location.origin : 'https://hub.onuri.org'}/admin/hub-up/tshirt-pickup/${tshirtOrder.qr_code}`}
+                      size={180}
+                    />
+                  </QRWrap>
+                </>
+              ) : (
+                <UnpaidNotice>
+                  <UnpaidNoticeIcon>🔒</UnpaidNoticeIcon>
+                  <UnpaidNoticeText>입금 확인 후 QR이 표시됩니다.</UnpaidNoticeText>
+                  <UnpaidNoticeDesc>입금 확인이 완료되면 이 자리에 수령 QR이 나타납니다.</UnpaidNoticeDesc>
+                </UnpaidNotice>
+              )}
             </QRSection>
           )}
           {isTshirtChangeable && (
@@ -308,6 +324,31 @@ const QRSection = styled.div`margin-top: 16px; text-align: center;`;
 const QRTitle = styled.div`font-size: 15px; font-weight: 700; color: #111; margin-bottom: 4px;`;
 const QRDesc = styled.div`font-size: 12px; color: #888; margin-bottom: 16px;`;
 const QRWrap = styled.div`display: inline-block; padding: 16px; background: #fff; border-radius: 12px; border: 1px solid #E5E5EA;`;
+const ReceivedBox = styled.div`
+  background: #E6F4EA;
+  border-radius: 16px;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+`;
+const ReceivedCheckIcon = styled.div`font-size: 36px;`;
+const ReceivedTitle = styled.div`font-size: 18px; font-weight: 800; color: #1a7f4b;`;
+const ReceivedDesc = styled.div`font-size: 13px; color: #2e7d52;`;
+const UnpaidNotice = styled.div`
+  background: #FFF8E1;
+  border: 1px solid #FFD54F;
+  border-radius: 16px;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+`;
+const UnpaidNoticeIcon = styled.div`font-size: 32px;`;
+const UnpaidNoticeText = styled.div`font-size: 15px; font-weight: 700; color: #7a5c00;`;
+const UnpaidNoticeDesc = styled.div`font-size: 12px; color: #a07800; text-align: center; line-height: 1.5;`;
 const EmptyBox = styled.div`display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center;`;
 const EmptyIcon = styled.div`font-size: 48px; margin-bottom: 16px;`;
 const EmptyTitle = styled.h3`font-size: 18px; font-weight: 700; color: #111; margin: 0 0 8px 0;`;

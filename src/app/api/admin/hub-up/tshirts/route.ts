@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from('hub_up_tshirt_orders')
-    .select('id, created_at, updated_at, items, deposit_confirm, status, qr_code, user_id')
+    .select('id, created_at, updated_at, items, deposit_confirm, status, qr_code, received_at, user_id')
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
