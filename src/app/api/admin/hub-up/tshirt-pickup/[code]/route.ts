@@ -6,14 +6,14 @@ import { supabaseAdmin } from '@src/lib/supabase';
 // GET: QR 코드로 주문 정보 조회
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isAdmin) {
     return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
   }
 
-  const { code } = params;
+  const { code } = await params;
 
   const { data: order, error } = await supabaseAdmin
     .from('hub_up_tshirt_orders')
@@ -55,14 +55,14 @@ export async function GET(
 // POST: 수령 완료 처리
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isAdmin) {
     return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
   }
 
-  const { code } = params;
+  const { code } = await params;
 
   // 주문 존재 확인
   const { data: order, error: findError } = await supabaseAdmin
@@ -95,14 +95,14 @@ export async function POST(
 // DELETE: 수령 취소 (되돌리기)
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.isAdmin) {
     return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
   }
 
-  const { code } = params;
+  const { code } = await params;
 
   const { data: order, error: findError } = await supabaseAdmin
     .from('hub_up_tshirt_orders')
