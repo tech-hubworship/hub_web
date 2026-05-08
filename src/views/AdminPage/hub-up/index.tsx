@@ -151,6 +151,7 @@ export default function HubUpAdminPage() {
   const [tshirtReceiveFilter, setTshirtReceiveFilter] = useState<'all' | 'received' | 'pending'>('all');
   const [roomGroupFilter, setRoomGroupFilter] = useState('');
   const [roomCellFilter, setRoomCellFilter] = useState('');
+  const [roomGenderFilter, setRoomGenderFilter] = useState('');
   // 페이지네이션 (전체 명단)
   const [listPage, setListPage] = useState(1);
   const LIST_PAGE_SIZE = 100;
@@ -1413,6 +1414,15 @@ export default function HubUpAdminPage() {
                 {(roomGroupFilter || roomCellFilter) && (
                   <SearchBtn onClick={() => { setRoomGroupFilter(''); setRoomCellFilter(''); }} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>
                 )}
+                <FilterLabel>성별</FilterLabel>
+                <FilterSelect value={roomGenderFilter} onChange={e => setRoomGenderFilter(e.target.value)}>
+                  <option value="">전체</option>
+                  <option value="남">남</option>
+                  <option value="여">여</option>
+                </FilterSelect>
+                {(roomGroupFilter || roomCellFilter || roomGenderFilter) && (
+                  <SearchBtn onClick={() => { setRoomGroupFilter(''); setRoomCellFilter(''); setRoomGenderFilter(''); }} style={{background:'#f1f3f4',color:'#5f6368'}}>전체 초기화</SearchBtn>
+                )}
                 <ExportBtn onClick={() => exportToExcel(registrations, '허브업_숙소배정')}>📥 엑셀 다운로드</ExportBtn>
               </SearchBox>
               {selectedIds.size > 0 && (
@@ -1431,6 +1441,7 @@ export default function HubUpAdminPage() {
                   else { const match = r.group_name?.match(/^(.+?)그룹/); if (!match || match[1] !== roomGroupFilter) return false; }
                 }
                 if (roomCellFilter && !r.group_name?.includes(roomCellFilter)) return false;
+                if (roomGenderFilter && r.gender !== roomGenderFilter) return false;
                 return true;
               });
               return (
