@@ -1417,8 +1417,8 @@ export default function HubUpAdminPage() {
                 <FilterLabel>성별</FilterLabel>
                 <FilterSelect value={roomGenderFilter} onChange={e => setRoomGenderFilter(e.target.value)}>
                   <option value="">전체</option>
-                  <option value="남">남</option>
-                  <option value="여">여</option>
+                  <option value="남자">남자</option>
+                  <option value="여자">여자</option>
                 </FilterSelect>
                 {(roomGroupFilter || roomCellFilter || roomGenderFilter) && (
                   <SearchBtn onClick={() => { setRoomGroupFilter(''); setRoomCellFilter(''); setRoomGenderFilter(''); }} style={{background:'#f1f3f4',color:'#5f6368'}}>전체 초기화</SearchBtn>
