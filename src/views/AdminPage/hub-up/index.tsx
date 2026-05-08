@@ -149,6 +149,8 @@ export default function HubUpAdminPage() {
   const [busCarRoleFilter, setBusCarRoleFilter] = useState('');
   const [tshirtSearch, setTshirtSearch] = useState('');
   const [tshirtReceiveFilter, setTshirtReceiveFilter] = useState<'all' | 'received' | 'pending'>('all');
+  const [roomGroupFilter, setRoomGroupFilter] = useState('');
+  const [roomCellFilter, setRoomCellFilter] = useState('');
   // 페이지네이션 (전체 명단)
   const [listPage, setListPage] = useState(1);
   const LIST_PAGE_SIZE = 100;
@@ -1374,6 +1376,43 @@ export default function HubUpAdminPage() {
                   onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&setAppliedSearch(search)} />
                 <SearchBtn onClick={()=>setAppliedSearch(search)}>검색</SearchBtn>
                 {appliedSearch && <SearchBtn onClick={()=>{setSearch('');setAppliedSearch('');}} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>}
+                <FilterLabel>그룹</FilterLabel>
+                <FilterSelect value={roomGroupFilter} onChange={e => { setRoomGroupFilter(e.target.value); setRoomCellFilter(''); }}>
+                  <option value="">전체</option>
+                  {(() => {
+                    const FIXED = ['MC', '타공동체', '타교회'];
+                    const groups = Array.from(new Set(registrations.map((r: any) => {
+                      const match = r.group_name?.match(/^(.+?)그룹/);
+                      if (match) return match[1];
+                      if (FIXED.includes(r.group_name ?? '')) return r.group_name;
+                      return null;
+                    }).filter(Boolean) as string[]));
+                    const normal = groups.filter(g => !FIXED.includes(g)).sort((a, b) => a.localeCompare(b, 'ko'));
+                    const fixed = FIXED.filter(f => groups.includes(f));
+                    return [...normal, ...fixed].map(g => <option key={g} value={g}>{g}</option>);
+                  })()}
+                </FilterSelect>
+                <FilterLabel>다락방</FilterLabel>
+                <FilterSelect value={roomCellFilter} onChange={e => setRoomCellFilter(e.target.value)}>
+                  <option value="">전체</option>
+                  {Array.from(new Set(
+                    registrations
+                      .filter((r: any) => {
+                        if (!roomGroupFilter) return true;
+                        const FIXED = ['MC', '타공동체', '타교회'];
+                        if (FIXED.includes(roomGroupFilter)) return r.group_name === roomGroupFilter;
+                        const match = r.group_name?.match(/^(.+?)그룹/);
+                        return match ? match[1] === roomGroupFilter : false;
+                      })
+                      .map((r: any) => r.group_name?.match(/그룹\s*(.+다락방)/)?.[1])
+                      .filter(Boolean)
+                  )).sort((a, b) => (a as string).localeCompare(b as string, 'ko')).map(c => (
+                    <option key={c as string} value={c as string}>{c as string}</option>
+                  ))}
+                </FilterSelect>
+                {(roomGroupFilter || roomCellFilter) && (
+                  <SearchBtn onClick={() => { setRoomGroupFilter(''); setRoomCellFilter(''); }} style={{background:'#f1f3f4',color:'#5f6368'}}>초기화</SearchBtn>
+                )}
                 <ExportBtn onClick={() => exportToExcel(registrations, '허브업_숙소배정')}>📥 엑셀 다운로드</ExportBtn>
               </SearchBox>
               {selectedIds.size > 0 && (
@@ -1384,17 +1423,27 @@ export default function HubUpAdminPage() {
                 </BulkBox>
               )}
             </ToolRow>
-            {isLoading ? <Loading>불러오는 중...</Loading> : (
+            {isLoading ? <Loading>불러오는 중...</Loading> : (() => {
+              const FIXED = ['MC', '타공동체', '타교회'];
+              const filteredRoom = registrations.filter((r: any) => {
+                if (roomGroupFilter) {
+                  if (FIXED.includes(roomGroupFilter)) { if (r.group_name !== roomGroupFilter) return false; }
+                  else { const match = r.group_name?.match(/^(.+?)그룹/); if (!match || match[1] !== roomGroupFilter) return false; }
+                }
+                if (roomCellFilter && !r.group_name?.includes(roomCellFilter)) return false;
+                return true;
+              });
+              return (
               <TableWrap>
                 <Table>
                   <thead>
                     <tr>
-                      <Th style={{width:36}}><input type="checkbox" checked={selectedIds.size===registrations.length&&registrations.length>0} onChange={() => toggleAll(registrations)}/></Th>
+                      <Th style={{width:36}}><input type="checkbox" checked={selectedIds.size===filteredRoom.length&&filteredRoom.length>0} onChange={() => toggleAll(filteredRoom)}/></Th>
                       <Th>이름</Th><Th>그룹</Th><Th>순장</Th><Th>성별</Th><Th>출발</Th><Th>복귀</Th><Th>강의</Th><Th>입금</Th><Th>숙소</Th><Th>메모</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
-                    {registrations.map(r => (
+                    {filteredRoom.map((r: any) => (
                       <tr key={r.id}>
                         <Td><input type="checkbox" checked={selectedIds.has(r.id)} onChange={()=>toggleSelect(r.id)}/></Td>
                         <Td><strong>{r.name}</strong></Td>
@@ -1425,11 +1474,12 @@ export default function HubUpAdminPage() {
                         </Td>
                       </tr>
                     ))}
-                    {registrations.length===0 && <tr><td colSpan={12} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
+                    {filteredRoom.length===0 && <tr><td colSpan={12} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
-            )}
+              );
+            })()}
           </div>
         )}
 
