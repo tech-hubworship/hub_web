@@ -107,12 +107,41 @@ export default function MyInfoPage() {
       <SectionTitle>티셔츠</SectionTitle>
       {tshirtOrder ? (
         <>
-          {tshirtOrder.items.map((item) => (
-            <InfoRow key={`${item.color}-${item.size}`}>
-              <InfoLabel>{colorLabel(item.color)} {item.size}</InfoLabel>
-              <InfoValue>{item.quantity}개</InfoValue>
-            </InfoRow>
-          ))}
+          {(() => {
+            const SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+            const COLORS = ['white', 'black', 'navy'] as const;
+            const COLOR_META = {
+              white: { label: 'White', bg: '#fff',    border: '#222', text: '#000' },
+              black: { label: 'Black', bg: '#111',    border: '#111', text: '#fff' },
+              navy:  { label: 'Navy',  bg: '#1e3a5f', border: '#1e3a5f', text: '#fff' },
+            };
+            const map: Record<string, Record<string, number>> = {};
+            tshirtOrder.items.forEach(({ color, size, quantity }) => {
+              if (!map[size]) map[size] = {};
+              map[size][color.toLowerCase()] = (map[size][color.toLowerCase()] || 0) + quantity;
+            });
+            const usedSizes = SIZES.filter(s => map[s]);
+            return usedSizes.map(size => (
+              <TshirtSizeGroup key={size}>
+                <TshirtSizeLabel>{size}</TshirtSizeLabel>
+                <TshirtSizeDivider />
+                <TshirtColorRow>
+                  {COLORS.map(c => {
+                    const qty = map[size]?.[c] || 0;
+                    const meta = COLOR_META[c];
+                    return (
+                      <TshirtColorCard key={c} bg={meta.bg} border={meta.border} dim={qty === 0}>
+                        <TshirtColorName style={{ color: qty === 0 ? (c === 'white' ? '#bbb' : 'rgba(255,255,255,0.35)') : meta.text }}>{meta.label}</TshirtColorName>
+                        <TshirtColorQty style={{ color: qty === 0 ? (c === 'white' ? '#ccc' : 'rgba(255,255,255,0.3)') : meta.text }}>
+                          {qty === 0 ? '-' : `${qty}장`}
+                        </TshirtColorQty>
+                      </TshirtColorCard>
+                    );
+                  })}
+                </TshirtColorRow>
+              </TshirtSizeGroup>
+            ));
+          })()}
           <InfoRow>
             <InfoLabel>입금</InfoLabel>
             <StatusBadge ok={tshirtOrder.status === 'confirmed' || tshirtOrder.status === 'distributed'}>
@@ -324,6 +353,22 @@ const QRSection = styled.div`margin-top: 16px; text-align: center;`;
 const QRTitle = styled.div`font-size: 15px; font-weight: 700; color: #111; margin-bottom: 4px;`;
 const QRDesc = styled.div`font-size: 12px; color: #888; margin-bottom: 16px;`;
 const QRWrap = styled.div`display: inline-block; padding: 16px; background: #fff; border-radius: 12px; border: 1px solid #E5E5EA;`;
+const TshirtSizeGroup = styled.div`margin-bottom: 20px;`;
+const TshirtSizeLabel = styled.div`font-size: 22px; font-weight: 800; color: #111; margin-bottom: 8px;`;
+const TshirtSizeDivider = styled.div`height: 1px; background: #E5E5EA; margin-bottom: 12px;`;
+const TshirtColorRow = styled.div`display: flex; gap: 8px;`;
+const TshirtColorCard = styled.div<{ bg: string; border: string; dim: boolean }>`
+  flex: 1;
+  background: ${p => p.bg};
+  border: 1.5px solid ${p => p.border};
+  border-radius: 12px;
+  padding: 14px 8px;
+  text-align: center;
+  opacity: ${p => p.dim ? 0.3 : 1};
+`;
+const TshirtColorName = styled.div`font-size: 12px; font-weight: 600; margin-bottom: 6px;`;
+const TshirtColorQty = styled.div`font-size: 22px; font-weight: 800;`;
+
 const ReceivedBox = styled.div`
   background: #E6F4EA;
   border-radius: 16px;

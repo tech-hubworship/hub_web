@@ -142,16 +142,51 @@ export default function TshirtPickupPage() {
         {/* 주문 내역 */}
         <Card>
           <CardTitle>주문 내역</CardTitle>
-          {order.items.map((item) => (
-            <Row key={`${item.color}-${item.size}`}>
-              <Label>{COLOR_LABELS[item.color] || item.color} {item.size}</Label>
-              <Value bold>{item.quantity}개</Value>
-            </Row>
-          ))}
-          <TotalRow>
-            <Label>총 수량</Label>
-            <TotalValue>{order.items.reduce((s, i) => s + i.quantity, 0)}개</TotalValue>
-          </TotalRow>
+          {(() => {
+            const SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+            const COLORS = ['white', 'black', 'navy'] as const;
+            const COLOR_META = {
+              white: { label: 'White', bg: '#fff',    border: '#222', text: '#000' },
+              black: { label: 'Black', bg: '#111',    border: '#111', text: '#fff' },
+              navy:  { label: 'Navy',  bg: '#1e3a5f', border: '#1e3a5f', text: '#fff' },
+            };
+            // size → color → qty
+            const map: Record<string, Record<string, number>> = {};
+            order.items.forEach(({ color, size, quantity }) => {
+              if (!map[size]) map[size] = {};
+              map[size][color.toLowerCase()] = (map[size][color.toLowerCase()] || 0) + quantity;
+            });
+            const usedSizes = SIZES.filter(s => map[s]);
+            const total = order.items.reduce((s, i) => s + i.quantity, 0);
+            return (
+              <>
+                {usedSizes.map(size => (
+                  <SizeGroup key={size}>
+                    <SizeLabel>{size}</SizeLabel>
+                    <SizeDivider />
+                    <ColorCardRow>
+                      {COLORS.map(c => {
+                        const qty = map[size]?.[c] || 0;
+                        const meta = COLOR_META[c];
+                        return (
+                          <ColorCard key={c} bg={meta.bg} border={meta.border} dim={qty === 0}>
+                            <ColorCardName style={{ color: qty === 0 ? (c === 'white' ? '#bbb' : 'rgba(255,255,255,0.35)') : meta.text }}>{meta.label}</ColorCardName>
+                            <ColorCardQty style={{ color: qty === 0 ? (c === 'white' ? '#ccc' : 'rgba(255,255,255,0.3)') : meta.text }}>
+                              {qty === 0 ? '-' : `${qty}장`}
+                            </ColorCardQty>
+                          </ColorCard>
+                        );
+                      })}
+                    </ColorCardRow>
+                  </SizeGroup>
+                ))}
+                <TotalRow>
+                  <Label>총 수량</Label>
+                  <TotalValue>{total}장</TotalValue>
+                </TotalRow>
+              </>
+            );
+          })()}
         </Card>
 
         {/* 입금 미확인 경고 */}
@@ -334,3 +369,19 @@ const UndoBtn = styled.button`
   cursor: pointer;
   &:disabled { opacity: 0.6; cursor: not-allowed; }
 `;
+
+const SizeGroup = styled.div`margin-bottom: 20px;`;
+const SizeLabel = styled.div`font-size: 22px; font-weight: 800; color: #111; margin-bottom: 8px;`;
+const SizeDivider = styled.div`height: 1px; background: #E5E5EA; margin-bottom: 12px;`;
+const ColorCardRow = styled.div`display: flex; gap: 8px;`;
+const ColorCard = styled.div<{ bg: string; border: string; dim: boolean }>`
+  flex: 1;
+  background: ${p => p.bg};
+  border: 1.5px solid ${p => p.border};
+  border-radius: 12px;
+  padding: 14px 8px;
+  text-align: center;
+  opacity: ${p => p.dim ? 0.35 : 1};
+`;
+const ColorCardName = styled.div`font-size: 12px; font-weight: 600; margin-bottom: 6px;`;
+const ColorCardQty = styled.div`font-size: 22px; font-weight: 800;`;
