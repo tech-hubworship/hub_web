@@ -393,6 +393,17 @@ export default function HubUpAdminPage() {
     },
   });
 
+  const tshirtReceiveMutation = useMutation({
+    mutationFn: async ({ id, qr_code, undo }: { id: string; qr_code: string; undo?: boolean }) => {
+      const res = await fetch(`/api/admin/hub-up/tshirt-pickup/${qr_code}`, {
+        method: undo ? 'DELETE' : 'POST',
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? '처리 실패'); }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hub-up-tshirts'] }),
+    onError: (e: any) => alert(e.message),
+  });
+
   const tshirtCancelMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       const res = await fetch(`/api/admin/hub-up/tshirts`, {
@@ -1746,17 +1757,6 @@ export default function HubUpAdminPage() {
                     <CancelBtn onClick={() => tshirtDepositMutation.mutate({ ids: Array.from(selectedIds), status: 'pending' })}>
                       확인 취소
                     </CancelBtn>
-                    <CancelBtn
-                      style={{background:'#fce8e6', color:'#c5221f', borderColor:'#f28b82'}}
-                      onClick={() => {
-                        if (confirm(`${selectedIds.size}명의 티셔츠 신청을 취소(삭제)하시겠습니까?`)) {
-                          tshirtCancelMutation.mutate(Array.from(selectedIds));
-                        }
-                      }}
-                      disabled={tshirtCancelMutation.isPending}
-                    >
-                      🗑 신청 취소
-                    </CancelBtn>
                   </>
                 )}
                 <ExportBtn onClick={() => exportTshirtExcel(tshirts)}>
@@ -1836,22 +1836,27 @@ export default function HubUpAdminPage() {
                         </Td>
                         <Td>
                           <BtnGrp>
-                            {t.status === 'confirmed'
-                              ? <CancelBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'pending'})}>확인취소</CancelBtn>
-                              : t.status === 'distributed'
-                              ? null
-                              : <SaveBtn onClick={()=>tshirtDepositMutation.mutate({ids: [t.id], status: 'confirmed'})}>입금완료</SaveBtn>
-                            }
-                            <CancelBtn
-                              style={{background:'#fce8e6', color:'#c5221f', borderColor:'#f28b82', marginTop:'4px'}}
-                              onClick={() => {
-                                if (confirm(`${t.name}님의 티셔츠 신청을 취소(삭제)하시겠습니까?`)) {
-                                  tshirtCancelMutation.mutate([t.id]);
+                            {t.status === 'distributed' ? (
+                              <>
+                                <CancelBtn onClick={() => tshirtReceiveMutation.mutate({ id: t.id, qr_code: t.qr_code, undo: true })} disabled={tshirtReceiveMutation.isPending}>
+                                  수령취소
+                                </CancelBtn>
+                              </>
+                            ) : (
+                              <>
+                                {t.status === 'confirmed'
+                                  ? <CancelBtn onClick={() => tshirtDepositMutation.mutate({ ids: [t.id], status: 'pending' })}>확인취소</CancelBtn>
+                                  : <SaveBtn onClick={() => tshirtDepositMutation.mutate({ ids: [t.id], status: 'confirmed' })}>입금완료</SaveBtn>
                                 }
-                              }}
-                            >
-                              신청취소
-                            </CancelBtn>
+                                <SaveBtn
+                                  style={{background:'#7c3aed', borderColor:'#7c3aed', marginTop:'4px'}}
+                                  onClick={() => tshirtReceiveMutation.mutate({ id: t.id, qr_code: t.qr_code })}
+                                  disabled={tshirtReceiveMutation.isPending}
+                                >
+                                  📦 수령처리
+                                </SaveBtn>
+                              </>
+                            )}
                           </BtnGrp>
                         </Td>
                       </tr>
