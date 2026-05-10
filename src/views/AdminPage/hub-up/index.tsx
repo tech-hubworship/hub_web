@@ -2,6 +2,7 @@
 import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
+import TimePicker from '@src/app/hub_up/register/TimePicker';
 
 // ── Types ──────────────────────────────────────────────────
 interface Registration {
@@ -152,6 +153,9 @@ export default function HubUpAdminPage() {
   const [roomGroupFilter, setRoomGroupFilter] = useState('');
   const [roomCellFilter, setRoomCellFilter] = useState('');
   const [roomGenderFilter, setRoomGenderFilter] = useState('');
+  const [busEditingId, setBusEditingId] = useState<string | null>(null);
+  const [busEditData, setBusEditData] = useState<Record<string, any>>({});
+  const [busTimeModal, setBusTimeModal] = useState<{ field: 'car_arrival_time' | 'car_departure_time'; label: string } | null>(null);
   // 페이지네이션 (전체 명단)
   const [listPage, setListPage] = useState(1);
   const LIST_PAGE_SIZE = 100;
@@ -390,6 +394,22 @@ export default function HubUpAdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hub-up-tshirts'] });
       setSelectedIds(new Set());
+    },
+  });
+
+  const busCarEditMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, any> }) => {
+      const res = await fetch(`/api/admin/hub-up/registrations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('저장 실패');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hub-up-bus-stats'] });
+      setBusEditingId(null);
+      setBusEditData({});
     },
   });
 
@@ -1334,30 +1354,75 @@ export default function HubUpAdminPage() {
                     <tr>
                       <Th>#</Th><Th>이름</Th><Th>그룹</Th><Th>연락처</Th><Th>출발</Th><Th>복귀</Th>
                       {(busSlotFilter === 'car' || busReturnFilter === 'car') && <>
-                        <Th>역할</Th><Th>탑승인원</Th><Th>동승자</Th><Th>차량번호</Th><Th>입소시간</Th><Th>복귀시간</Th>
+                        <Th>역할</Th><Th>탑승인원</Th><Th>동승자</Th><Th>차량번호</Th><Th>입소시간</Th><Th>복귀시간</Th><Th>관리</Th>
                       </>}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredBus.map((r: any, i: number) => (
-                      <tr key={r.id}>
-                        <Td style={{color:'#9aa0a6',fontSize:'12px'}}>{i+1}</Td>
-                        <Td><strong>{r.name}</strong></Td>
-                        <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
-                        <Td style={{fontSize:'13px'}}>{r.phone}</Td>
-                        <Td><SlotChip>{sl(r.departure_slot)}</SlotChip></Td>
-                        <Td>{sl(r.return_slot)}</Td>
-                        {(busSlotFilter === 'car' || busReturnFilter === 'car') && <>
-                          <Td style={{fontSize:'13px'}}>{r.car_role || '-'}</Td>
-                          <Td style={{fontSize:'13px'}}>{r.car_passenger_count ? `${r.car_passenger_count}명` : '-'}</Td>
-                          <Td style={{fontSize:'13px'}}>{r.car_passenger_names || '-'}</Td>
-                          <Td style={{fontSize:'13px'}}>{r.car_plate_number || '-'}</Td>
-                          <Td style={{fontSize:'13px'}}>{r.car_arrival_time || '-'}</Td>
-                          <Td style={{fontSize:'13px'}}>{r.car_departure_time || '-'}</Td>
-                        </>}
-                      </tr>
-                    ))}
-                    {filteredBus.length === 0 && <tr><td colSpan={(busSlotFilter === 'car' || busReturnFilter === 'car') ? 12 : 6} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
+                    {filteredBus.map((r: any, i: number) => {
+                      const isEditing = busEditingId === r.id;
+                      const ed = busEditData;
+                      const isCarRow = busSlotFilter === 'car' || busReturnFilter === 'car';
+                      return (
+                        <tr key={r.id}>
+                          <Td style={{color:'#9aa0a6',fontSize:'12px'}}>{i+1}</Td>
+                          <Td><strong>{r.name}</strong></Td>
+                          <Td style={{fontSize:'13px',color:'#5f6368'}}>{r.group_name}</Td>
+                          <Td style={{fontSize:'13px'}}>{r.phone}</Td>
+                          <Td><SlotChip>{sl(r.departure_slot)}</SlotChip></Td>
+                          <Td>{sl(r.return_slot)}</Td>
+                          {isCarRow && <>
+                            <Td style={{fontSize:'13px'}}>
+                              {isEditing
+                                ? <InlineSelect value={ed.car_role ?? r.car_role ?? ''} onChange={e => setBusEditData(p => ({...p, car_role: e.target.value}))}>
+                                    <option value="">-</option>
+                                    <option value="운전자">운전자</option>
+                                    <option value="동승자">동승자</option>
+                                  </InlineSelect>
+                                : (r.car_role || '-')}
+                            </Td>
+                            <Td style={{fontSize:'13px'}}>
+                              {isEditing
+                                ? <InlineInput type="number" min={0} style={{width:60}} value={ed.car_passenger_count ?? r.car_passenger_count ?? ''} onChange={e => setBusEditData(p => ({...p, car_passenger_count: e.target.value ? Number(e.target.value) : null}))} />
+                                : (r.car_passenger_count ? `${r.car_passenger_count}명` : '-')}
+                            </Td>
+                            <Td style={{fontSize:'13px'}}>
+                              {isEditing
+                                ? <InlineInput style={{width:120}} value={ed.car_passenger_names ?? r.car_passenger_names ?? ''} onChange={e => setBusEditData(p => ({...p, car_passenger_names: e.target.value || null}))} />
+                                : (r.car_passenger_names || '-')}
+                            </Td>
+                            <Td style={{fontSize:'13px'}}>
+                              {isEditing
+                                ? <InlineInput style={{width:90}} value={ed.car_plate_number ?? r.car_plate_number ?? ''} onChange={e => setBusEditData(p => ({...p, car_plate_number: e.target.value || null}))} />
+                                : (r.car_plate_number || '-')}
+                            </Td>
+                            <Td style={{fontSize:'13px'}}>
+                              {isEditing
+                                ? <TimePickerBtn onClick={() => setBusTimeModal({ field: 'car_arrival_time', label: '입소시간' })}>
+                                    {ed.car_arrival_time ?? r.car_arrival_time ?? '선택'}
+                                  </TimePickerBtn>
+                                : (r.car_arrival_time || '-')}
+                            </Td>
+                            <Td style={{fontSize:'13px'}}>
+                              {isEditing
+                                ? <TimePickerBtn onClick={() => setBusTimeModal({ field: 'car_departure_time', label: '복귀시간' })}>
+                                    {ed.car_departure_time ?? r.car_departure_time ?? '선택'}
+                                  </TimePickerBtn>
+                                : (r.car_departure_time || '-')}
+                            </Td>
+                            <Td>
+                              {isEditing
+                                ? <BtnGrp>
+                                    <SaveBtn onClick={() => busCarEditMutation.mutate({ id: r.id, data: ed })} disabled={busCarEditMutation.isPending}>저장</SaveBtn>
+                                    <CancelBtn onClick={() => { setBusEditingId(null); setBusEditData({}); }}>취소</CancelBtn>
+                                  </BtnGrp>
+                                : <EditBtn onClick={() => { setBusEditingId(r.id); setBusEditData({}); }}>수정</EditBtn>}
+                            </Td>
+                          </>}
+                        </tr>
+                      );
+                    })}
+                    {filteredBus.length === 0 && <tr><td colSpan={(busSlotFilter === 'car' || busReturnFilter === 'car') ? 13 : 6} style={{textAlign:'center',padding:'40px',color:'#9aa0a6'}}>신청자가 없습니다.</td></tr>}
                   </tbody>
                 </Table>
               </TableWrap>
@@ -2037,6 +2102,24 @@ export default function HubUpAdminPage() {
           <ChallengeTabContent />
         )}
       </TabContent>
+
+      {/* ── 자차 시간 선택 모달 ── */}
+      {busTimeModal && busEditingId && (
+        <BusTimeModalOverlay onClick={() => setBusTimeModal(null)}>
+          <BusTimeModalSheet onClick={e => e.stopPropagation()}>
+            <BusTimeModalTitle>{busTimeModal.label} 선택</BusTimeModalTitle>
+            <TimePicker
+              label=""
+              value={busEditData[busTimeModal.field] ?? ''}
+              onChange={val => setBusEditData(p => ({ ...p, [busTimeModal!.field]: val }))}
+              minHour={0}
+              maxHour={23}
+              dates={['5/15', '5/16', '5/17']}
+            />
+            <BusTimeModalBtn onClick={() => setBusTimeModal(null)}>확인</BusTimeModalBtn>
+          </BusTimeModalSheet>
+        </BusTimeModalOverlay>
+      )}
     </Wrap>
   );
 }
@@ -2441,6 +2524,27 @@ const FilterChip = styled.button<{active:boolean}>`
   color: ${p => p.active ? '#fff' : '#5f6368'};
   border-color: ${p => p.active ? '#2D478C' : '#dadce0'};
   &:hover { opacity: 0.85; }
+`;
+const TimePickerBtn = styled.button`
+  padding: 4px 10px; border: 1px solid #dadce0; border-radius: 6px;
+  background: #fff; font-size: 12px; font-weight: 600; color: #2D478C; cursor: pointer;
+  white-space: nowrap;
+  &:hover { background: #f0f4ff; }
+`;
+const BusTimeModalOverlay = styled.div`
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 3000;
+  display: flex; align-items: flex-end; justify-content: center;
+`;
+const BusTimeModalSheet = styled.div`
+  width: 100%; max-width: 480px; background: #fff;
+  border-radius: 20px 20px 0 0; padding: 24px 24px 40px;
+`;
+const BusTimeModalTitle = styled.div`
+  font-size: 17px; font-weight: 700; color: #111; text-align: center; margin-bottom: 20px;
+`;
+const BusTimeModalBtn = styled.button`
+  width: 100%; height: 48px; background: #2D478C; color: #fff; border: none;
+  border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 16px;
 `;
 const UnpaidSubTitle = styled.p`font-size: 13px; color: #9aa0a6; margin-bottom: 14px; line-height: 1.6;`;
 const UnpaidAddCard = styled.div`background: white; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 16px;`;

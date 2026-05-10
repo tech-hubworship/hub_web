@@ -44,6 +44,15 @@ export async function PATCH(
     }
   }
 
+  // 자차 정보 (모든 관리자 수정 가능)
+  const carFields = [
+    'car_role', 'car_passenger_count', 'car_passenger_names',
+    'car_plate_number', 'car_arrival_time', 'car_departure_time',
+  ];
+  for (const field of carFields) {
+    if (field in body) updateData[field] = body[field] ?? null;
+  }
+
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: '수정할 내용이 없습니다.' }, { status: 400 });
   }
