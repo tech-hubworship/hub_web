@@ -1635,6 +1635,16 @@ export default function HubUpAdminPage() {
                   if (sizeTotals[item.size] !== undefined) sizeTotals[item.size] += item.quantity;
                 });
               });
+              // 수령된 색상×사이즈 집계
+              const recvColorSizeTotals: Record<string, Record<string, number>> = { white: {}, black: {}, navy: {} };
+              SIZES.forEach(s => COLORS.forEach(c => { recvColorSizeTotals[c][s] = 0; }));
+              tshirts.filter((t: any) => t.status === 'distributed').forEach((t: any) => {
+                (t.items || []).forEach((item: any) => {
+                  const c = item.color?.toLowerCase();
+                  if (COLORS.includes(c) && recvColorSizeTotals[c][item.size] !== undefined)
+                    recvColorSizeTotals[c][item.size] += item.quantity;
+                });
+              });
               return (
                 <div>
                   <TshirtStatsWrap>
@@ -1682,16 +1692,56 @@ export default function HubUpAdminPage() {
                             <ColorDot color={c === 'white' ? '#e8eaed' : c === 'black' ? '#222' : '#1e3a5f'} />
                             {c.charAt(0).toUpperCase() + c.slice(1)}
                           </TshirtCrossTd>
-                          {SIZES.map(s => (
-                            <TshirtCrossTd key={s}>{colorSizeTotals[c][s] || 0}</TshirtCrossTd>
-                          ))}
-                          <TshirtCrossTd bold>{colorTotals[c]}</TshirtCrossTd>
+                          {SIZES.map(s => {
+                            const total = colorSizeTotals[c][s] || 0;
+                            const recv  = recvColorSizeTotals[c][s] || 0;
+                            const remain = total - recv;
+                            return (
+                              <TshirtCrossTd key={s}>
+                                <div>{total}</div>
+                                {recv > 0 && (
+                                  <div style={{fontSize:10, color: remain === 0 ? '#d93025' : '#7c3aed', fontWeight:700, marginTop:1}}>
+                                    {remain === 0 ? '완료' : `잔여 ${remain}`}
+                                  </div>
+                                )}
+                              </TshirtCrossTd>
+                            );
+                          })}
+                          <TshirtCrossTd bold>
+                            <div>{colorTotals[c]}</div>
+                            {SIZES.reduce((s2, s) => s2 + (recvColorSizeTotals[c][s] || 0), 0) > 0 && (
+                              <div style={{fontSize:10, color:'#7c3aed', fontWeight:700, marginTop:1}}>
+                                잔여 {colorTotals[c] - SIZES.reduce((s2, s) => s2 + (recvColorSizeTotals[c][s] || 0), 0)}
+                              </div>
+                            )}
+                          </TshirtCrossTd>
                         </tr>
                       ))}
                       <tr>
                         <TshirtCrossTd bold>합계</TshirtCrossTd>
-                        {SIZES.map(s => <TshirtCrossTd key={s} bold>{sizeTotals[s]}</TshirtCrossTd>)}
-                        <TshirtCrossTd bold>{Object.values(colorTotals).reduce((a,b)=>a+b,0)}</TshirtCrossTd>
+                        {SIZES.map(s => {
+                          const total = sizeTotals[s];
+                          const recv  = COLORS.reduce((sum, c) => sum + (recvColorSizeTotals[c][s] || 0), 0);
+                          const remain = total - recv;
+                          return (
+                            <TshirtCrossTd key={s} bold>
+                              <div>{total}</div>
+                              {recv > 0 && (
+                                <div style={{fontSize:10, color: remain === 0 ? '#d93025' : '#7c3aed', fontWeight:700, marginTop:1}}>
+                                  {remain === 0 ? '완료' : `잔여 ${remain}`}
+                                </div>
+                              )}
+                            </TshirtCrossTd>
+                          );
+                        })}
+                        <TshirtCrossTd bold>
+                          <div>{Object.values(colorTotals).reduce((a,b)=>a+b,0)}</div>
+                          {Object.values(recvColorSizeTotals).some(cs => Object.values(cs).some(v => v > 0)) && (
+                            <div style={{fontSize:10, color:'#7c3aed', fontWeight:700, marginTop:1}}>
+                              잔여 {Object.values(colorTotals).reduce((a,b)=>a+b,0) - COLORS.reduce((sum,c) => sum + SIZES.reduce((s2,s) => s2 + (recvColorSizeTotals[c][s]||0), 0), 0)}
+                            </div>
+                          )}
+                        </TshirtCrossTd>
                       </tr>
                     </tbody>
                   </TshirtCrossTable>
