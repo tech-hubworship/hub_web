@@ -16,6 +16,12 @@ interface Registration {
   leader_name: string;
   is_waitlist?: boolean;
   waitlist_approved_at?: string | null;
+  car_role?: string | null;
+  car_passenger_count?: number | null;
+  car_passenger_names?: string | null;
+  car_plate_number?: string | null;
+  car_arrival_time?: string | null;
+  car_departure_time?: string | null;
 }
 interface SlotStat { value: string; label: string; max_count: number; current_count: number; is_full: boolean; }
 
@@ -64,7 +70,7 @@ function calcTshirtPrice(items: any[]): number {
 
 // ── Excel Export ──────────────────────────────────────────
 function exportToExcel(registrations: Registration[], filename: string) {
-  const headers = ['이름','그룹','공동체','성별','연락처','순장','출발','복귀','선택강의','자원봉사','자기입금','입금확인','숙소','메모','신청일시'];
+  const headers = ['이름','그룹','공동체','성별','연락처','순장','출발','복귀','선택강의','자원봉사','자기입금','입금확인','숙소','메모','자차역할','차량번호','입소시간','복귀시간','신청일시'];
   const rows = registrations.map(r => [
     r.name, r.group_name, r.community, r.gender, r.phone, r.leader_name,
     sl(r.departure_slot), sl(r.return_slot), r.elective_lecture,
@@ -72,6 +78,10 @@ function exportToExcel(registrations: Registration[], filename: string) {
     r.deposit_confirm ? 'O' : 'X',
     r.admin_deposit_confirm ? 'O' : 'X',
     r.room_number || '', r.room_note || '',
+    r.car_role || '',
+    r.car_plate_number || '',
+    r.car_arrival_time ? fmtDateTime(r.car_arrival_time) : '',
+    r.car_departure_time ? fmtDateTime(r.car_departure_time) : '',
     new Date(r.created_at).toLocaleString('ko-KR'),
   ]);
   const csv = [headers, ...rows].map(row =>

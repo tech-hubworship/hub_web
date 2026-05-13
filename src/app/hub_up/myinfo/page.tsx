@@ -101,6 +101,9 @@ export default function MyInfoPage() {
 
   const isTshirtChangeable = new Date() <= new Date('2026-04-26T23:59:00+09:00');
   const isDistributing = new Date() >= new Date('2026-05-09T00:00:00+09:00');
+  // bus_change_deadline config 키가 있으면 그 시각 기준, 없으면 변경 불가로 처리
+  const busChangeDeadline = tshirtConfig['bus_change_deadline'];
+  const isBusChangeable = busChangeDeadline ? new Date() <= new Date(busChangeDeadline) : false;
 
   const TshirtSection = () => (
     <Section>
@@ -292,9 +295,13 @@ export default function MyInfoPage() {
           <SectionTitle>차량</SectionTitle>
           <InfoRow><InfoLabel>출발 버스</InfoLabel><InfoValue>{slotLabel(registration.departure_slot)}</InfoValue></InfoRow>
           <InfoRow><InfoLabel>복귀 버스</InfoLabel><InfoValue>{slotLabel(registration.return_slot)}</InfoValue></InfoRow>
-          <SecondaryBtn onClick={() => window.location.href = '/api/hub-up/bus-change-token'}>
-            버스 시간 변경 문의하기
-          </SecondaryBtn>
+          {isBusChangeable ? (
+            <SecondaryBtn onClick={() => window.location.href = '/api/hub-up/bus-change-token'}>
+              버스 시간 변경 문의하기
+            </SecondaryBtn>
+          ) : (
+            <DeadlineNotice>🚌 버스 시간 변경 마감</DeadlineNotice>
+          )}
         </Section>
 
         {/* 티셔츠 */}
@@ -347,6 +354,7 @@ const RoomLabel = styled.div`font-size: 12px; color: #888; margin-bottom: 4px;`;
 const RoomNumber = styled.div`font-size: 28px; font-weight: 800; color: ${PRIMARY};`;
 const RoomNote = styled.div`font-size: 12px; color: #888; margin-top: 4px;`;
 const SecondaryBtn = styled.button`width: 100%; padding: 12px; background: #F5F5F5; color: #111; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 14px;`;
+const DeadlineNotice = styled.div`width: 100%; padding: 12px; background: #F5F5F5; color: #999; border-radius: 10px; font-size: 14px; font-weight: 600; text-align: center; margin-top: 14px; cursor: default;`;
 const PrimaryBtn = styled.button`width: 100%; padding: 14px; background: ${PRIMARY}; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer;`;
 const DeadlineNote = styled.p`font-size: 12px; color: #888; text-align: center; margin: 8px 0 0 0;`;
 const QRSection = styled.div`margin-top: 16px; text-align: center;`;
