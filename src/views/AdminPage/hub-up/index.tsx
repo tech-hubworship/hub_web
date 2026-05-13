@@ -70,28 +70,37 @@ function calcTshirtPrice(items: any[]): number {
 
 // ── Excel Export ──────────────────────────────────────────
 function exportToExcel(registrations: Registration[], filename: string) {
-  const headers = ['이름','그룹','공동체','성별','연락처','순장','출발','복귀','선택강의','자원봉사','자기입금','입금확인','숙소','메모','자차역할','차량번호','입소시간','복귀시간','신청일시'];
-  const rows = registrations.map(r => [
-    r.name, r.group_name, r.community, r.gender, r.phone, r.leader_name,
-    sl(r.departure_slot), sl(r.return_slot), r.elective_lecture,
-    r.volunteer_team,
-    r.deposit_confirm ? 'O' : 'X',
-    r.admin_deposit_confirm ? 'O' : 'X',
-    r.room_number || '', r.room_note || '',
-    r.car_role || '',
-    r.car_plate_number || '',
-    r.car_arrival_time ? fmtDateTime(r.car_arrival_time) : '',
-    r.car_departure_time ? fmtDateTime(r.car_departure_time) : '',
-    new Date(r.created_at).toLocaleString('ko-KR'),
-  ]);
-  const csv = [headers, ...rows].map(row =>
-    row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
-  ).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `${filename}.csv`; a.click();
-  URL.revokeObjectURL(url);
+  import('xlsx').then(XLSX => {
+    const headers = ['이름','그룹','공동체','성별','연락처','순장','출발','복귀','선택강의','자원봉사','자기입금','입금확인','숙소','메모','자차역할','차량번호','입소시간','복귀시간'];
+    const rows = registrations.map(r => [
+      r.name, r.group_name, r.community, r.gender, r.phone, r.leader_name,
+      sl(r.departure_slot), sl(r.return_slot), r.elective_lecture,
+      r.volunteer_team,
+      r.deposit_confirm ? 'O' : 'X',
+      r.admin_deposit_confirm ? 'O' : 'X',
+      r.room_number || '', r.room_note || '',
+      r.car_role || '',
+      r.car_plate_number || '',
+      r.car_arrival_time ? fmtDateTime(r.car_arrival_time) : '',
+      r.car_departure_time ? fmtDateTime(r.car_departure_time) : '',
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+    // 각 열의 최대 글자 수 기준으로 열 너비 자동 맞춤
+    const colWidths = headers.map((h, i) => {
+      const maxLen = Math.max(
+        h.length,
+        ...rows.map(row => String(row[i] ?? '').length)
+      );
+      return { wch: maxLen + 2 };
+    });
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '신청자');
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+  });
 }
 
 function exportTshirtExcel(orders: any[]) {
