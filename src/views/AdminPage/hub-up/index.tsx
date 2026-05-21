@@ -68,62 +68,251 @@ function calcTshirtPrice(items: any[]): number {
   return totalQty * unitPrice;
 }
 
-// ── Excel Export ──────────────────────────────────────────
-function exportToExcel(registrations: Registration[], filename: string) {
-  import('xlsx').then(XLSX => {
-    const headers = ['이름','그룹','공동체','성별','연락처','순장','출발','복귀','선택강의','자원봉사','자기입금','입금확인','숙소','메모','자차역할','차량번호','입소시간','복귀시간'];
-    const rows = registrations.map(r => [
-      r.name, r.group_name, r.community, r.gender, r.phone, r.leader_name,
-      sl(r.departure_slot), sl(r.return_slot), r.elective_lecture,
-      r.volunteer_team,
-      r.deposit_confirm ? 'O' : 'X',
-      r.admin_deposit_confirm ? 'O' : 'X',
-      r.room_number || '', r.room_note || '',
-      r.car_role || '',
-      r.car_plate_number || '',
-      r.car_arrival_time ? fmtDateTime(r.car_arrival_time) : '',
-      r.car_departure_time ? fmtDateTime(r.car_departure_time) : '',
-    ]);
+// ── Excel Export (멀티시트 .xlsx) ─────────────────────────
+async function getXLSX() {
+  const XLSX = await import('xlsx');
+  return XLSX;
+}
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-
-    // 각 열의 최대 글자 수 기준으로 열 너비 자동 맞춤
-    const colWidths = headers.map((h, i) => {
-      const maxLen = Math.max(
-        h.length,
-        ...rows.map(row => String(row[i] ?? '').length)
-      );
-      return { wch: maxLen + 2 };
-    });
-    ws['!cols'] = colWidths;
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '신청자');
-    XLSX.writeFile(wb, `${filename}.xlsx`);
+/** 열 너비 자동 맞춤 헬퍼 */
+function autoColWidths(headers: string[], rows: any[][]): { wch: number }[] {
+  return headers.map((h, i) => {
+    const maxLen = Math.max(h.length, ...rows.map(row => String(row[i] ?? '').length));
+    return { wch: maxLen + 2 };
   });
 }
 
-function exportTshirtExcel(orders: any[]) {
-  const headers = ['이름','그룹','연락처','주문내역','총수량','총액','자기신고','관리자확인','주문일시'];
-  const rows = orders.map(o => {
-    const itemsStr = (o.items || []).map((i:any) => `${i.color} ${i.size} ${i.quantity}개`).join(', ');
-    const totalQty = (o.items || []).reduce((acc:number, i:any) => acc + i.quantity, 0);
-    const totalPrice = calcTshirtPrice(o.items || []);
+/** 단일 시트 다운로드 (각 탭 개별 버튼용) */
+async function exportToExcel(registrations: Registration[], filename: string) {
+  const XLSX = await getXLSX();
+  const headers = ['ID','이름','그룹','공동체','성별','생년월일','연락처','순장','출발슬롯','복귀슬롯','선택강의','자원봉사','중보기도','자기입금','입금확인','입금확인시각','숙소호수','숙소메모','자차역할','차량번호','탑승인원','동승자이름','입소예정시각','복귀예정시각','신청일시'];
+  const rows = (registrations as any[]).map(r => [
+    r.id,
+    r.name, r.group_name, r.community, r.gender, r.birthdate || '', r.phone, r.leader_name,
+    sl(r.departure_slot), sl(r.return_slot), r.elective_lecture,
+    r.volunteer_team, r.intercessor_team || '',
+    r.deposit_confirm ? 'O' : 'X',
+    r.admin_deposit_confirm ? 'O' : 'X',
+    r.admin_deposit_confirmed_at ? new Date(r.admin_deposit_confirmed_at).toLocaleString('ko-KR') : '-',
+    r.room_number || '', r.room_note || '',
+    r.car_role || '', r.car_plate_number || '',
+    r.car_passenger_count || '', r.car_passenger_names || '',
+    r.car_arrival_time ? fmtDateTime(r.car_arrival_time) : '',
+    r.car_departure_time ? fmtDateTime(r.car_departure_time) : '',
+    new Date(r.created_at).toLocaleString('ko-KR'),
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = autoColWidths(headers, rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '명단');
+  XLSX.writeFile(wb, `${filename}.xlsx`);
+}
+
+/**
+ * 전체 통합 엑셀 다운로드 — 시트 구성:
+ *  1. 통계요약   2. 전체명단   3. 입금현황
+ *  4. 버스현황   5. 숙소배정   6. 단체티주문
+ *  7. 미입금추적 8. 대기자명단 9. 챌린지
+ */
+async function exportAllSheetsExcel(params: {
+  registrations: Registration[];
+  tshirts: any[];
+  waitlist: Registration[];
+  unpaidEntries: UnpaidEntry[];
+  stats: Stats | undefined;
+  busStats: { slotStats: SlotStat[]; registrations: Registration[] } | undefined;
+  challengeData: { participants: any[]; totalParticipants: number; totalShares: number } | null;
+}) {
+  const XLSX = await getXLSX();
+  const { registrations, tshirts, waitlist, unpaidEntries, stats, busStats, challengeData } = params;
+  const wb = XLSX.utils.book_new();
+
+  // ── 시트 1: 통계 요약 ──────────────────────────────────
+  const summaryData: any[][] = [];
+  if (stats) {
+    summaryData.push(['== 전체 현황 ==']);
+    summaryData.push(['항목', '값']);
+    summaryData.push(['총 신청', stats.total]);
+    summaryData.push(['남', stats.gender?.male ?? 0]);
+    summaryData.push(['여', stats.gender?.female ?? 0]);
+    summaryData.push(['입금완료', stats.deposited]);
+    summaryData.push(['미입금', stats.total - stats.deposited]);
+    summaryData.push(['입금률', `${stats.depositRate}%`]);
+    summaryData.push([]);
+
+    summaryData.push(['== 그룹별 현황 ==']);
+    summaryData.push(['그룹', '남', '여', '합계', '비율']);
+    Object.entries(stats.topGroupCounts || {})
+      .sort(([, a], [, b]) => b.total - a.total)
+      .forEach(([g, c]) => {
+        const p = stats.total > 0 ? Math.round((c.total / stats.total) * 100) : 0;
+        summaryData.push([g, c.male, c.female, c.total, `${p}%`]);
+      });
+    summaryData.push([]);
+
+    summaryData.push(['== 출발 버스 현황 ==']);
+    summaryData.push(['슬롯', '인원', '비율']);
+    Object.entries(stats.departureCounts || {}).sort(([a],[b])=>a.localeCompare(b)).forEach(([slot, cnt]) => {
+      summaryData.push([sl(slot), cnt, `${stats.total > 0 ? Math.round((cnt/stats.total)*100) : 0}%`]);
+    });
+    summaryData.push([]);
+
+    summaryData.push(['== 복귀 버스 현황 ==']);
+    summaryData.push(['슬롯', '인원', '비율']);
+    Object.entries(stats.returnCounts || {}).sort(([a],[b])=>a.localeCompare(b)).forEach(([slot, cnt]) => {
+      summaryData.push([sl(slot), cnt, `${stats.total > 0 ? Math.round((cnt/stats.total)*100) : 0}%`]);
+    });
+    summaryData.push([]);
+
+    summaryData.push(['== 선택강의 ==']);
+    summaryData.push(['강의', '인원']);
+    Object.entries(stats.electiveCounts || {}).forEach(([lec, cnt]) => summaryData.push([lec, cnt]));
+    summaryData.push([]);
+
+    summaryData.push(['== 자원봉사팀 ==']);
+    summaryData.push(['팀', '인원']);
+    Object.entries(stats.volunteerCounts || {}).forEach(([team, cnt]) => summaryData.push([team, cnt]));
+    summaryData.push([]);
+
+    summaryData.push(['== 공동체별 ==']);
+    summaryData.push(['공동체', '인원']);
+    Object.entries(stats.communityCounts || {}).sort(([,a],[,b])=>b-a).forEach(([c, cnt]) => summaryData.push([c, cnt]));
+  }
+  const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+  ws1['!cols'] = [{ wch: 24 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 8 }];
+  XLSX.utils.book_append_sheet(wb, ws1, '통계요약');
+
+  // ── 시트 2: 전체 명단 ──────────────────────────────────
+  const listH = ['#','ID','이름','그룹','공동체','성별','생년월일','연락처','순장','출발슬롯','복귀슬롯','선택강의','자원봉사','중보기도','자기입금','입금확인','입금확인시각','숙소호수','숙소메모','자차역할','차량번호','탑승인원','동승자이름','입소예정시각','복귀예정시각','신청일시'];
+  const listR = registrations.map((r: any, i) => [
+    i+1, r.id,
+    r.name, r.group_name, r.community, r.gender, r.birthdate || '', r.phone, r.leader_name,
+    sl(r.departure_slot), sl(r.return_slot), r.elective_lecture,
+    r.volunteer_team, r.intercessor_team || '',
+    r.deposit_confirm ? 'O' : 'X',
+    r.admin_deposit_confirm ? 'O' : 'X',
+    r.admin_deposit_confirmed_at ? new Date(r.admin_deposit_confirmed_at).toLocaleString('ko-KR') : '-',
+    r.room_number || '', r.room_note || '',
+    r.car_role || '', r.car_plate_number || '',
+    r.car_passenger_count || '', r.car_passenger_names || '',
+    r.car_arrival_time ? fmtDateTime(r.car_arrival_time) : '',
+    r.car_departure_time ? fmtDateTime(r.car_departure_time) : '',
+    new Date(r.created_at).toLocaleString('ko-KR'),
+  ]);
+  const ws2 = XLSX.utils.aoa_to_sheet([listH, ...listR]);
+  ws2['!cols'] = autoColWidths(listH, listR);
+  XLSX.utils.book_append_sheet(wb, ws2, '전체명단');
+
+  // ── 시트 3: 입금 현황 ──────────────────────────────────
+  const depH = ['ID','이름','그룹','공동체','연락처','자기신고','입금확인','확인시각','신청일시'];
+  const depR = registrations.map((r: any) => [
+    r.id, r.name, r.group_name, r.community, r.phone,
+    r.deposit_confirm ? 'O' : 'X',
+    r.admin_deposit_confirm ? '입금완료' : '미확인',
+    r.admin_deposit_confirmed_at ? new Date(r.admin_deposit_confirmed_at).toLocaleString('ko-KR') : '-',
+    new Date(r.created_at).toLocaleString('ko-KR'),
+  ]);
+  const ws3 = XLSX.utils.aoa_to_sheet([depH, ...depR]);
+  ws3['!cols'] = autoColWidths(depH, depR);
+  XLSX.utils.book_append_sheet(wb, ws3, '입금현황');
+
+  // ── 시트 4: 버스 현황 ──────────────────────────────────
+  const busRegs = busStats?.registrations ?? registrations;
+  const busH = ['ID','이름','그룹','연락처','출발슬롯','복귀슬롯','자기입금','자차역할','차량번호','탑승인원','동승자이름','입소예정시각','복귀예정시각'];
+  const busR = busRegs.map((r: any) => [
+    r.id, r.name, r.group_name, r.phone,
+    sl(r.departure_slot), sl(r.return_slot),
+    r.deposit_confirm ? 'O' : 'X',
+    r.car_role || '-', r.car_plate_number || '-',
+    r.car_passenger_count || '-', r.car_passenger_names || '-',
+    r.car_arrival_time ? fmtDateTime(r.car_arrival_time) : '-',
+    r.car_departure_time ? fmtDateTime(r.car_departure_time) : '-',
+  ]);
+  const ws4 = XLSX.utils.aoa_to_sheet([busH, ...busR]);
+  ws4['!cols'] = autoColWidths(busH, busR);
+  XLSX.utils.book_append_sheet(wb, ws4, '버스현황');
+
+  // ── 시트 5: 숙소 배정 ──────────────────────────────────
+  const roomH = ['ID','이름','그룹','성별','연락처','출발슬롯','복귀슬롯','숙소호수','숙소메모','입금확인'];
+  const roomR = registrations.map((r: any) => [
+    r.id, r.name, r.group_name, r.gender, r.phone,
+    sl(r.departure_slot), sl(r.return_slot),
+    r.room_number || '미배정', r.room_note || '',
+    r.admin_deposit_confirm ? 'O' : 'X',
+  ]);
+  const ws5 = XLSX.utils.aoa_to_sheet([roomH, ...roomR]);
+  ws5['!cols'] = autoColWidths(roomH, roomR);
+  XLSX.utils.book_append_sheet(wb, ws5, '숙소배정');
+
+  // ── 시트 6: 단체티 주문 ────────────────────────────────
+  const tshirtH = ['ID','이름','그룹','다락방','공동체','연락처','주문내역','총수량','총액(원)','자기신고','관리자확인','QR코드','수령여부','수령시각','주문일시','수정일시'];
+  const tshirtR = tshirts.map((o: any) => {
+    const itemsStr = (o.items || []).map((i: any) => `${i.color} ${i.size} ${i.quantity}개`).join(', ');
+    const totalQty = (o.items || []).reduce((acc: number, i: any) => acc + i.quantity, 0);
     return [
-      o.name, o.group_name, o.phone, itemsStr, totalQty, totalPrice,
+      o.id, o.name, o.group_name, o.cell_name || '', o.community || '', o.phone,
+      itemsStr, totalQty, calcTshirtPrice(o.items || []),
       o.deposit_confirm ? 'O' : 'X',
       o.status === 'confirmed' ? '완료' : (o.status === 'pending' ? '확인중' : '취소'),
-      new Date(o.created_at).toLocaleString('ko-KR')
+      o.qr_code || '',
+      o.received_at ? 'O' : 'X',
+      o.received_at ? new Date(o.received_at).toLocaleString('ko-KR') : '-',
+      new Date(o.created_at).toLocaleString('ko-KR'),
+      o.updated_at ? new Date(o.updated_at).toLocaleString('ko-KR') : '-',
     ];
   });
-  const csv = [headers, ...rows].map(row =>
-    row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')
-  ).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `허브업_티셔츠_주문내역.csv`; a.click();
-  URL.revokeObjectURL(url);
+  const ws6 = XLSX.utils.aoa_to_sheet([tshirtH, ...tshirtR]);
+  ws6['!cols'] = autoColWidths(tshirtH, tshirtR);
+  XLSX.utils.book_append_sheet(wb, ws6, '단체티주문');
+
+  // ── 시트 7: 미입금 추적 ────────────────────────────────
+  const unpaidH = ['ID','이름','연락처','신청여부','입금확인','문자발송','메모','등록일시'];
+  const unpaidR = unpaidEntries.map((u: any) => [
+    u.id, u.name, u.phone,
+    u.registered ? 'O' : 'X',
+    u.deposit_confirmed ? 'O' : 'X',
+    u.sms_sent ? 'O' : 'X',
+    u.memo || '',
+    new Date(u.created_at).toLocaleString('ko-KR'),
+  ]);
+  const ws7 = XLSX.utils.aoa_to_sheet([unpaidH, ...unpaidR]);
+  ws7['!cols'] = autoColWidths(unpaidH, unpaidR);
+  XLSX.utils.book_append_sheet(wb, ws7, '미입금추적');
+
+  // ── 시트 8: 대기자 명단 ────────────────────────────────
+  const waitH = ['ID','이름','그룹','공동체','성별','생년월일','연락처','순장','출발슬롯','복귀슬롯','선택강의','자원봉사','중보기도','자기입금','자차역할','차량번호','탑승인원','동승자이름','입소예정시각','복귀예정시각','신청일시','승인일시'];
+  const waitR = waitlist.map((r: any) => [
+    r.id, r.name, r.group_name, r.community, r.gender, r.birthdate || '', r.phone, r.leader_name,
+    sl(r.departure_slot), sl(r.return_slot), r.elective_lecture,
+    r.volunteer_team, r.intercessor_team || '',
+    r.deposit_confirm ? 'O' : 'X',
+    r.car_role || '', r.car_plate_number || '',
+    r.car_passenger_count || '', r.car_passenger_names || '',
+    r.car_arrival_time ? fmtDateTime(r.car_arrival_time) : '',
+    r.car_departure_time ? fmtDateTime(r.car_departure_time) : '',
+    new Date(r.created_at).toLocaleString('ko-KR'),
+    r.waitlist_approved_at ? new Date(r.waitlist_approved_at).toLocaleString('ko-KR') : '미승인',
+  ]);
+  const ws8 = XLSX.utils.aoa_to_sheet([waitH, ...waitR]);
+  ws8['!cols'] = autoColWidths(waitH, waitR);
+  XLSX.utils.book_append_sheet(wb, ws8, '대기자명단');
+
+  // ── 시트 9: 챌린지 ─────────────────────────────────────
+  const chalH = ['UserID','이름','소속','참여일수','총나눔수','완주여부','마지막나눔일시','완료한Day목록'];
+  const chalR = (challengeData?.participants ?? []).map((p: any) => [
+    p.user_id,
+    p.name, p.affiliation ?? '',
+    p.completed_count, p.total_shares,
+    p.completed_count >= 19 ? '완주' : '미완주',
+    p.last_share_dt ? new Date(p.last_share_dt).toLocaleString('ko-KR') : '-',
+    (p.completed_days ?? []).map((d: number) => `Day${d}`).join(', '),
+  ]);
+  const ws9 = XLSX.utils.aoa_to_sheet([chalH, ...chalR]);
+  ws9['!cols'] = autoColWidths(chalH, chalR);
+  XLSX.utils.book_append_sheet(wb, ws9, '챌린지');
+
+  const today = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `허브업_전체_${today}.xlsx`);
 }
 
 const GROUP_COLORS: Record<string, { bg: string; border: string; text: string; accent: string }> = {
@@ -301,6 +490,18 @@ export default function HubUpAdminPage() {
     },
     enabled: canAccessUnpaid,
     refetchOnWindowFocus: true,
+  });
+
+  // 챌린지 데이터 (전체 엑셀 다운로드용)
+  const { data: challengeExportData = null } = useQuery<{ participants: any[]; totalParticipants: number; totalShares: number } | null>({
+    queryKey: ['hub-challenge-participants-export'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/hub-challenge/participants');
+      if (!res.ok) return null;
+      const d = await res.json();
+      return d.error ? null : d;
+    },
+    staleTime: 60000,
   });
 
   const unpaidAddMutation = useMutation({
@@ -648,7 +849,7 @@ export default function HubUpAdminPage() {
           <Badge color="#278f5a">입금 {stats?.deposited ?? 0}명</Badge>
           <Badge color="#d93025">미입금 {(stats?.total ?? 0) - (stats?.deposited ?? 0)}명</Badge>
         </HeaderBadges>
-        <ExportBtn onClick={() => exportToExcel(registrations, '허브업_신청자_전체')}>
+        <ExportBtn onClick={() => exportAllSheetsExcel({ registrations, tshirts, waitlist: waitlistEntries, unpaidEntries, stats, busStats, challengeData: challengeExportData })}>
           📥 전체 엑셀 다운로드
         </ExportBtn>
         <RefreshBtn onClick={() => queryClient.invalidateQueries({ queryKey: ['hub-up'] })}>
@@ -1893,7 +2094,25 @@ export default function HubUpAdminPage() {
                     </CancelBtn>
                   </>
                 )}
-                <ExportBtn onClick={() => exportTshirtExcel(tshirts)}>
+                <ExportBtn onClick={async () => {
+                  const XLSX = await import('xlsx');
+                  const h = ['이름','그룹','연락처','주문내역','총수량','총액(원)','자기신고','관리자확인','수령여부','수령시각','주문일시'];
+                  const r = tshirts.map((o: any) => {
+                    const itemsStr = (o.items||[]).map((i:any)=>`${i.color} ${i.size} ${i.quantity}개`).join(', ');
+                    const qty = (o.items||[]).reduce((a:number,i:any)=>a+i.quantity,0);
+                    return [o.name,o.group_name,o.phone,itemsStr,qty,calcTshirtPrice(o.items||[]),
+                      o.deposit_confirm?'O':'X',
+                      o.status==='confirmed'?'완료':(o.status==='pending'?'확인중':'취소'),
+                      o.received_at?'O':'X',
+                      o.received_at?new Date(o.received_at).toLocaleString('ko-KR'):'-',
+                      new Date(o.created_at).toLocaleString('ko-KR')];
+                  });
+                  const ws = XLSX.utils.aoa_to_sheet([h,...r]);
+                  ws['!cols'] = h.map((hh,i)=>({wch:Math.max(hh.length,...r.map(row=>String(row[i]??'').length))+2}));
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb,ws,'단체티주문');
+                  XLSX.writeFile(wb,'허브업_티셔츠_주문내역.xlsx');
+                }}>
                   📥 티셔츠 내역 엑셀
                 </ExportBtn>
               </div>
