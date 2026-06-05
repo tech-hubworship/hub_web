@@ -183,9 +183,9 @@ async function exportAllSheetsExcel(params: {
   XLSX.utils.book_append_sheet(wb, ws1, '통계요약');
 
   // ── 시트 2: 전체 명단 ──────────────────────────────────
-  const listH = ['#','ID','이름','그룹','공동체','성별','생년월일','연락처','순장','출발슬롯','복귀슬롯','선택강의','자원봉사','중보기도','자기입금','입금확인','입금확인시각','숙소호수','숙소메모','자차역할','차량번호','탑승인원','동승자이름','입소예정시각','복귀예정시각','신청일시'];
+  const listH = ['#','이름','그룹','공동체','성별','생년월일','연락처','순장','출발슬롯','복귀슬롯','선택강의','자원봉사','중보기도','자기입금','입금확인','입금확인시각','숙소호수','숙소메모','자차역할','차량번호','탑승인원','동승자이름','입소예정시각','복귀예정시각','신청일시'];
   const listR = registrations.map((r: any, i) => [
-    i+1, r.id,
+    i+1,
     r.name, r.group_name, r.community, r.gender, r.birthdate || '', r.phone, r.leader_name,
     sl(r.departure_slot), sl(r.return_slot), r.elective_lecture,
     r.volunteer_team, r.intercessor_team || '',
@@ -204,9 +204,9 @@ async function exportAllSheetsExcel(params: {
   XLSX.utils.book_append_sheet(wb, ws2, '전체명단');
 
   // ── 시트 3: 입금 현황 ──────────────────────────────────
-  const depH = ['ID','이름','그룹','공동체','연락처','자기신고','입금확인','확인시각','신청일시'];
+  const depH = ['이름','그룹','공동체','연락처','자기신고','입금확인','확인시각','신청일시'];
   const depR = registrations.map((r: any) => [
-    r.id, r.name, r.group_name, r.community, r.phone,
+    r.name, r.group_name, r.community, r.phone,
     r.deposit_confirm ? 'O' : 'X',
     r.admin_deposit_confirm ? '입금완료' : '미확인',
     r.admin_deposit_confirmed_at ? new Date(r.admin_deposit_confirmed_at).toLocaleString('ko-KR') : '-',
@@ -218,9 +218,9 @@ async function exportAllSheetsExcel(params: {
 
   // ── 시트 4: 버스 현황 ──────────────────────────────────
   const busRegs = busStats?.registrations ?? registrations;
-  const busH = ['ID','이름','그룹','연락처','출발슬롯','복귀슬롯','자기입금','자차역할','차량번호','탑승인원','동승자이름','입소예정시각','복귀예정시각'];
+  const busH = ['이름','그룹','연락처','출발슬롯','복귀슬롯','자기입금','자차역할','차량번호','탑승인원','동승자이름','입소예정시각','복귀예정시각'];
   const busR = busRegs.map((r: any) => [
-    r.id, r.name, r.group_name, r.phone,
+    r.name, r.group_name, r.phone,
     sl(r.departure_slot), sl(r.return_slot),
     r.deposit_confirm ? 'O' : 'X',
     r.car_role || '-', r.car_plate_number || '-',
@@ -233,9 +233,9 @@ async function exportAllSheetsExcel(params: {
   XLSX.utils.book_append_sheet(wb, ws4, '버스현황');
 
   // ── 시트 5: 숙소 배정 ──────────────────────────────────
-  const roomH = ['ID','이름','그룹','성별','연락처','출발슬롯','복귀슬롯','숙소호수','숙소메모','입금확인'];
+  const roomH = ['이름','그룹','성별','연락처','출발슬롯','복귀슬롯','숙소호수','숙소메모','입금확인'];
   const roomR = registrations.map((r: any) => [
-    r.id, r.name, r.group_name, r.gender, r.phone,
+    r.name, r.group_name, r.gender, r.phone,
     sl(r.departure_slot), sl(r.return_slot),
     r.room_number || '미배정', r.room_note || '',
     r.admin_deposit_confirm ? 'O' : 'X',
@@ -245,12 +245,12 @@ async function exportAllSheetsExcel(params: {
   XLSX.utils.book_append_sheet(wb, ws5, '숙소배정');
 
   // ── 시트 6: 단체티 주문 ────────────────────────────────
-  const tshirtH = ['ID','이름','그룹','다락방','공동체','연락처','주문내역','총수량','총액(원)','자기신고','관리자확인','QR코드','수령여부','수령시각','주문일시','수정일시'];
+  const tshirtH = ['이름','그룹','다락방','공동체','연락처','주문내역','총수량','총액(원)','자기신고','관리자확인','QR코드','수령여부','수령시각','주문일시','수정일시'];
   const tshirtR = tshirts.map((o: any) => {
     const itemsStr = (o.items || []).map((i: any) => `${i.color} ${i.size} ${i.quantity}개`).join(', ');
     const totalQty = (o.items || []).reduce((acc: number, i: any) => acc + i.quantity, 0);
     return [
-      o.id, o.name, o.group_name, o.cell_name || '', o.community || '', o.phone,
+      o.name, o.group_name, o.cell_name || '', o.community || '', o.phone,
       itemsStr, totalQty, calcTshirtPrice(o.items || []),
       o.deposit_confirm ? 'O' : 'X',
       o.status === 'confirmed' ? '완료' : (o.status === 'pending' ? '확인중' : '취소'),
@@ -266,9 +266,9 @@ async function exportAllSheetsExcel(params: {
   XLSX.utils.book_append_sheet(wb, ws6, '단체티주문');
 
   // ── 시트 7: 미입금 추적 ────────────────────────────────
-  const unpaidH = ['ID','이름','연락처','신청여부','입금확인','문자발송','메모','등록일시'];
+  const unpaidH = ['이름','연락처','신청여부','입금확인','문자발송','메모','등록일시'];
   const unpaidR = unpaidEntries.map((u: any) => [
-    u.id, u.name, u.phone,
+    u.name, u.phone,
     u.registered ? 'O' : 'X',
     u.deposit_confirmed ? 'O' : 'X',
     u.sms_sent ? 'O' : 'X',
@@ -280,9 +280,9 @@ async function exportAllSheetsExcel(params: {
   XLSX.utils.book_append_sheet(wb, ws7, '미입금추적');
 
   // ── 시트 8: 대기자 명단 ────────────────────────────────
-  const waitH = ['ID','이름','그룹','공동체','성별','생년월일','연락처','순장','출발슬롯','복귀슬롯','선택강의','자원봉사','중보기도','자기입금','자차역할','차량번호','탑승인원','동승자이름','입소예정시각','복귀예정시각','신청일시','승인일시'];
+  const waitH = ['이름','그룹','공동체','성별','생년월일','연락처','순장','출발슬롯','복귀슬롯','선택강의','자원봉사','중보기도','자기입금','자차역할','차량번호','탑승인원','동승자이름','입소예정시각','복귀예정시각','신청일시','승인일시'];
   const waitR = waitlist.map((r: any) => [
-    r.id, r.name, r.group_name, r.community, r.gender, r.birthdate || '', r.phone, r.leader_name,
+    r.name, r.group_name, r.community, r.gender, r.birthdate || '', r.phone, r.leader_name,
     sl(r.departure_slot), sl(r.return_slot), r.elective_lecture,
     r.volunteer_team, r.intercessor_team || '',
     r.deposit_confirm ? 'O' : 'X',
@@ -492,17 +492,7 @@ export default function HubUpAdminPage() {
     refetchOnWindowFocus: true,
   });
 
-  // 챌린지 데이터 (전체 엑셀 다운로드용)
-  const { data: challengeExportData = null } = useQuery<{ participants: any[]; totalParticipants: number; totalShares: number } | null>({
-    queryKey: ['hub-challenge-participants-export'],
-    queryFn: async () => {
-      const res = await fetch('/api/admin/hub-challenge/participants');
-      if (!res.ok) return null;
-      const d = await res.json();
-      return d.error ? null : d;
-    },
-    staleTime: 60000,
-  });
+  // 챌린지 데이터 (전체 엑셀 다운로드용) — 버튼 클릭 시 직접 fetch하므로 쿼리 불필요
 
   const unpaidAddMutation = useMutation({
     mutationFn: async () => {
@@ -849,7 +839,23 @@ export default function HubUpAdminPage() {
           <Badge color="#278f5a">입금 {stats?.deposited ?? 0}명</Badge>
           <Badge color="#d93025">미입금 {(stats?.total ?? 0) - (stats?.deposited ?? 0)}명</Badge>
         </HeaderBadges>
-        <ExportBtn onClick={() => exportAllSheetsExcel({ registrations, tshirts, waitlist: waitlistEntries, unpaidEntries, stats, busStats, challengeData: challengeExportData })}>
+        <ExportBtn onClick={async () => {
+          // 버튼 클릭 시 최신 데이터를 직접 fetch해서 내보냄
+          const [tshirtRes, challengeRes, waitlistRes] = await Promise.all([
+            fetch('/api/admin/hub-up/tshirts').then(r => r.json()).catch(() => []),
+            fetch('/api/admin/hub-challenge/participants').then(r => r.json()).catch(() => null),
+            fetch('/api/admin/hub-up/registrations?waitlist=true').then(r => r.json()).catch(() => []),
+          ]);
+          await exportAllSheetsExcel({
+            registrations,
+            tshirts: Array.isArray(tshirtRes) ? tshirtRes : [],
+            waitlist: Array.isArray(waitlistRes) ? waitlistRes : [],
+            unpaidEntries,
+            stats,
+            busStats,
+            challengeData: challengeRes?.error ? null : challengeRes,
+          });
+        }}>
           📥 전체 엑셀 다운로드
         </ExportBtn>
         <RefreshBtn onClick={() => queryClient.invalidateQueries({ queryKey: ['hub-up'] })}>
