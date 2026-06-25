@@ -131,7 +131,7 @@ export default function OutreachMainClient() {
         )}
       </AppHeader>
 
-      <MapArea>
+      <MapArea onClick={() => selectedId !== null && setSelectedId(null)}>
         <WorldMap
           countries={countries}
           selectedId={selectedId}
@@ -153,7 +153,7 @@ export default function OutreachMainClient() {
         </ChipArea>
       </MapArea>
 
-      <Sheet data-open={selectedId !== null ? "true" : "false"}>
+      <Sheet data-open={selectedId !== null ? "true" : "false"} onClick={(e) => e.stopPropagation()}>
         <DragHandle />
         {selectedCountry && (
           <>

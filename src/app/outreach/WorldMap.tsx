@@ -50,14 +50,15 @@ function toAlpha2(iso: string) {
 }
 
 function visitFill(count: number): string {
-  if (count >= 3) return "#FFB732";
-  if (count === 2) return "#FFDB99";
-  return "#EBD5AD";
+  if (count >= 3) return "#B13B1B";
+  if (count === 2) return "#E15C37";
+  return "#EB927A";
 }
 
 const LAND = "#C8BEA8";
 const OCEAN = "#EDE8DE";
 const BORDER = "#EDE8DE";
+const INITIAL_ZOOM = 1.2;
 
 // 한 링(좌표 배열)이 날짜변경선(±180°)을 가로지르는지 — 연속 점의 경도차 > 180°
 function ringCrossesAntimeridian(ring: number[][]): boolean {
@@ -83,12 +84,14 @@ function dropAntimeridian(geo: GeoJSON.FeatureCollection): GeoJSON.FeatureCollec
   return geo;
 }
 
-function pinSvg(selected: boolean): string {
-  const w = selected ? 44 : 32;
-  const h = Math.round(w * 1.4);
-  return `<svg width="${w}" height="${h}" viewBox="0 0 24 34" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">
-    <path d="M12 0C5.4 0 0 5.4 0 12C0 18.6 12 34 12 34C12 34 24 18.6 24 12C24 5.4 18.6 0 12 0Z" fill="#E53935"/>
-    <circle cx="12" cy="12" r="5" fill="white" opacity="0.9"/>
+function pinSvg(selected: boolean, zoom = 1.4): string {
+  const base = Math.round(Math.max(16, Math.min(44, 20 + zoom * 6)));
+  const w = selected ? Math.min(54, base + 10) : base;
+  const h = Math.round(w * 1.619);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 32 51.8095" xmlns="http://www.w3.org/2000/svg" style="display:block">
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M16 0C24.8366 0 32 7.16344 32 16C32 24.3226 25.6456 31.1611 17.5238 31.9284V48.7619C17.5238 49.6035 16.8416 50.2857 16 50.2857C15.1584 50.2857 14.4762 49.6035 14.4762 48.7619V31.9284C6.35439 31.1611 0 24.3226 0 16C0 7.16344 7.16344 0 16 0Z" fill="#513400"/>
+    <path d="M21.3333 16C21.3333 13.0545 18.9455 10.6667 16 10.6667C13.0545 10.6667 10.6667 13.0545 10.6667 16C10.6667 18.9455 13.0545 21.3333 16 21.3333C18.9455 21.3333 21.3333 18.9455 21.3333 16Z" fill="white"/>
+    <path opacity="0.3" d="M16 51.8095C18.1039 51.8095 19.8095 50.9567 19.8095 49.9048C19.8095 48.8528 18.1039 48 16 48C13.896 48 12.1904 48.8528 12.1904 49.9048C12.1904 50.9567 13.896 51.8095 16 51.8095Z" fill="#513400"/>
   </svg>`;
 }
 
@@ -114,6 +117,8 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
   // 콜백/선택값을 ref로 보관해 맵 재생성 없이 최신값 참조
   const onClickRef = useRef(onCountryClick);
   onClickRef.current = onCountryClick;
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
 
   // ── 맵 생성 (마운트 1회) ──────────────────────────────────────────────
   useEffect(() => {
@@ -135,7 +140,7 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
       container: containerRef.current,
       style,
       center: [60, 25],
-      zoom: 1.4,
+      zoom: INITIAL_ZOOM,
       attributionControl: false,
       renderWorldCopies: false,
       dragRotate: false,
@@ -154,6 +159,12 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
     });
     map.on("mouseenter", "land", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "land", () => { map.getCanvas().style.cursor = ""; });
+    map.on("zoom", () => {
+      const zoom = map.getZoom();
+      markersRef.current.forEach(({ el }, id) => {
+        el.innerHTML = pinSvg(id === selectedIdRef.current, zoom);
+      });
+    });
 
     return () => {
       map.remove();
@@ -223,11 +234,22 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
     return () => { cancelled = true; };
   }, [countries]);
 
-  // ── 선택 상태에 따라 핀 크기 갱신 ─────────────────────────────────────
+  // ── 선택 상태에 따라 핀 크기 갱신 + 줌 동작 ──────────────────────────
   useEffect(() => {
+    const map = mapRef.current;
+    const zoom = map?.getZoom() ?? INITIAL_ZOOM;
     markersRef.current.forEach(({ el }, id) => {
-      el.innerHTML = pinSvg(id === selectedId);
+      el.innerHTML = pinSvg(id === selectedId, zoom);
     });
+    if (selectedId === null) {
+      map?.flyTo({ zoom: INITIAL_ZOOM, duration: 600 });
+    } else {
+      const entry = markersRef.current.get(selectedId);
+      if (entry && map) {
+        const { lng, lat } = entry.marker.getLngLat();
+        map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 3), duration: 800 });
+      }
+    }
   }, [selectedId]);
 
   return (
