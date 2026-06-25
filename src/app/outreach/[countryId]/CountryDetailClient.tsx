@@ -164,53 +164,55 @@ export default function CountryDetailClient({ countryId }: { countryId: string }
             {/* 3) 팀 소개 섹션 (선택) */}
             {(selected.key_phrase || selected.description) && (
               <IntroCard>
-                {selected.key_phrase && <KeyPhrase>{selected.key_phrase}</KeyPhrase>}
+                {selected.key_phrase && <KeyPhrase>"{selected.key_phrase}"</KeyPhrase>}
                 {selected.description && <IntroText>{selected.description}</IntroText>}
               </IntroCard>
             )}
 
             {/* 4) 상세정보 섹션 */}
-            {selected.mission_field && (
-              <Field>
-                <FieldLabel>선교지</FieldLabel>
-                <FieldValue>{selected.mission_field}</FieldValue>
-              </Field>
-            )}
+            <Fields>
+              {selected.mission_field && (
+                <Field>
+                  <FieldLabel>선교지</FieldLabel>
+                  <FieldValue>{selected.mission_field}</FieldValue>
+                </Field>
+              )}
 
-            {selected.ministry_content && (
-              <Field>
-                <FieldLabel>사역내용</FieldLabel>
-                <FieldValue $multiline>{selected.ministry_content}</FieldValue>
-              </Field>
-            )}
+              {selected.ministry_content && (
+                <Field>
+                  <FieldLabel>사역내용</FieldLabel>
+                  <FieldValue $multiline>{selected.ministry_content}</FieldValue>
+                </Field>
+              )}
 
-            {selected.theme_verse && (
-              <Field>
-                <FieldLabel>주제말씀</FieldLabel>
-                <FieldValue $multiline>{selected.theme_verse}</FieldValue>
-              </Field>
-            )}
+              {selected.theme_verse && (
+                <Field>
+                  <FieldLabel>주제말씀</FieldLabel>
+                  <FieldValue $multiline>{selected.theme_verse}</FieldValue>
+                </Field>
+              )}
 
-            {selected.prayer_topics && (
-              <Field>
-                <FieldLabel>선교사 기도 제목</FieldLabel>
-                <FieldValue $multiline>{selected.prayer_topics}</FieldValue>
-              </Field>
-            )}
+              {selected.prayer_topics && (
+                <Field>
+                  <FieldLabel>선교사 기도 제목</FieldLabel>
+                  <BulletText text={selected.prayer_topics} />
+                </Field>
+              )}
 
-            {selected.team_prayer_topics && (
-              <Field>
-                <FieldLabel>팀 기도 제목</FieldLabel>
-                <FieldValue $multiline>{selected.team_prayer_topics}</FieldValue>
-              </Field>
-            )}
+              {selected.team_prayer_topics && (
+                <Field>
+                  <FieldLabel>팀 기도 제목</FieldLabel>
+                  <BulletText text={selected.team_prayer_topics} />
+                </Field>
+              )}
 
-            {selected.members && selected.members.length > 0 && (
-              <Field>
-                <FieldLabel>참여 인원</FieldLabel>
-                <FieldValue>{selected.leader_pastor}, {selected.members.join(", ")}</FieldValue>
-              </Field>
-            )}
+              {selected.members && selected.members.length > 0 && (
+                <Field>
+                  <FieldLabel>참여 인원</FieldLabel>
+                  <FieldValue>{selected.leader_pastor}, {selected.members.join(", ")}</FieldValue>
+                </Field>
+              )}
+            </Fields>
           </Body>
 
           {/* 5) 앨범 */}
@@ -271,6 +273,19 @@ export default function CountryDetailClient({ countryId }: { countryId: string }
   );
 }
 
+function BulletText({ text }: { text: string }) {
+  return (
+    <BulletList>
+      {text.split("\n").filter((l) => l.trim()).map((line, i) => (
+        <BulletLine key={i}>
+          <BulletDot>•</BulletDot>
+          <span>{line.trim()}</span>
+        </BulletLine>
+      ))}
+    </BulletList>
+  );
+}
+
 function LoadingPage({ children }: { children?: React.ReactNode }) {
   return (
     <Page>
@@ -289,7 +304,7 @@ const BG = "#FFFFFF";
 const TEXT = "#1A1A1A";
 const MUTED = "#9A9A9A";
 const SUBTLE = "#B5B5B5";
-const CARD = "#EDEDED";
+const CARD = "#F7F7F7";
 const PH = "#D9D9D9";
 const ACCENT = "#B08433"; // 선택 시즌 강조 (gold/ochre)
 const SANS = `-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', sans-serif`;
@@ -300,8 +315,11 @@ const Page = styled.div`
   background: ${BG};
   color: ${TEXT};
   font-family: ${SANS};
+  line-height: 1.5;
+  letter-spacing: -0.02em;
   max-width: 480px;
   margin: 0 auto;
+  :where(h1, h2, h3, h4, h5, h6, p) { color: inherit; }
 `;
 
 const AppHeader = styled.header`
@@ -338,7 +356,7 @@ const HeaderTitle = styled.div`
   flex: 1;
   text-align: center;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
   color: ${TEXT};
   display: flex;
   align-items: center;
@@ -356,7 +374,7 @@ const Content = styled.div``;
 
 const Hero = styled.div`
   width: 100%;
-  aspect-ratio: 1 / 0.62;
+  height: 200px;
   background: ${PH};
   overflow: hidden;
 `;
@@ -380,19 +398,25 @@ const HeroPlaceholder = styled.div`
 `;
 
 const Body = styled.div`
-  padding: 24px 20px 8px;
+  padding: 24px;
+`;
+
+const Fields = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 `;
 
 const CountryRow = styled.div`
   display: flex;
-  align-items: center;
+  align-items: top;
   gap: 12px;
   margin-bottom: 16px;
 `;
 
 const Flag = styled.div`
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: #f2f2f2;
   display: flex;
@@ -403,61 +427,82 @@ const Flag = styled.div`
   flex-shrink: 0;
 `;
 
-const CountryName = styled.h1`
-  font-size: 21px;
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.2;
-  color: #000;
+const CountryName = styled.div`
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 2px;
 `;
 
 const DateRange = styled.p`
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 130%;
   color: ${SUBTLE};
-  margin: 4px 0 0;
 `;
 
 const IntroCard = styled.div`
   background: ${CARD};
   border-radius: 12px;
-  padding: 22px 20px;
+  padding: 18px 20px;
   text-align: center;
   margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 `;
 
 const KeyPhrase = styled.p`
-  font-size: 15px;
-  font-weight: 700;
-  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 500;
   color: ${TEXT};
 `;
 
 const IntroText = styled.p`
   font-size: 14px;
-  line-height: 1.6;
   color: #6e6e6e;
   margin: 0;
   white-space: pre-wrap;
 `;
 
 const Field = styled.div`
-  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 `;
 
 const FieldLabel = styled.div`
   font-size: 14px;
-  font-weight: 400px;
   color: ${MUTED};
-  margin-bottom: 8px;
 `;
 
 const FieldValue = styled.p<{ $multiline?: boolean }>`
   font-size: 14px;
-  line-height: 1.5;
+  font-weight: 500;
   color: ${TEXT};
   margin: 0;
   word-break: keep-all;
   white-space: ${({ $multiline }) => ($multiline ? "pre-wrap" : "normal")};
+`;
+
+const BulletList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 4px;
+`;
+
+const BulletLine = styled.div`
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: ${TEXT};
+  word-break: keep-all;
+`;
+
+const BulletDot = styled.span`
+  flex-shrink: 0;
+  color: ${MUTED};
 `;
 
 const AlbumSection = styled.div`
