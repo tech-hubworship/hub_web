@@ -5,6 +5,7 @@ import styled from "@emotion/styled";
 export const BG   = "#FFFFFF";
 export const TEXT = "#1A1A1A";
 export const TEXT2 = "#575757";
+export const TEXT3 = "#383838";
 export const MUTED  = "#9A9A9A";
 export const SUBTLE = "#B5B5B5";
 export const SANS = `-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', sans-serif`;

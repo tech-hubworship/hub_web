@@ -4,250 +4,447 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import styled from "@emotion/styled";
+import {
+  OutreachPage,
+  AppHeader,
+  HeaderBtn,
+  HeaderSpacer,
+  HeaderTitle,
+  LoadingPage,
+  TEXT,
+  TEXT3,
+  MUTED,
+  SANS,
+  BG,
+} from "./_components/shared";
 
-// react-simple-maps SSR 불가 → dynamic import
 const WorldMap = dynamic(() => import("./WorldMap"), { ssr: false });
 
 interface Country {
   id: number;
   name_ko: string;
-  name_en: string;
   iso_code: string;
   lat: number;
   lng: number;
   season_count: number;
 }
 
+interface Season {
+  id: number;
+  year: number;
+  period: "summer" | "winter";
+  start_date: string | null;
+  end_date: string | null;
+  region: string | null;
+}
+
+// alpha-3 코드 중 앞 2글자 ≠ alpha-2인 경우만 명시
+const ISO3_FIX: Record<string, string> = {
+  TUR: "TR", POL: "PL", DEU: "DE", CHE: "CH", NLD: "NL", AUT: "AT",
+  BEL: "BE", SWE: "SE", NOR: "NO", DNK: "DK", FIN: "FI", PRT: "PT",
+  GBR: "GB", IRL: "IE", CZE: "CZ", HUN: "HU", BGR: "BG", HRV: "HR",
+  UKR: "UA", KAZ: "KZ", UZB: "UZ", TJK: "TJ", TKM: "TM", KGZ: "KG",
+  AZE: "AZ", ARM: "AM", GEO: "GE", MYS: "MY", KOR: "KR", KWT: "KW",
+  QAT: "QA", BHR: "BH", OMN: "OM", YEM: "YE", AFG: "AF", SEN: "SN",
+  NGA: "NG", ETH: "ET", KEN: "KE", TZA: "TZ", UGA: "UG", MOZ: "MZ",
+  ZMB: "ZM", ZWE: "ZW", ZAF: "ZA", NAM: "NA", MDG: "MG", MWI: "MW",
+  RWA: "RW", BEN: "BJ", TCD: "TD", CAF: "CF", COD: "CD", COG: "CG",
+  NZL: "NZ", PRY: "PY", CHL: "CL", URY: "UY", GUY: "GY", SUR: "SR",
+  SSD: "SS", CRI: "CR", DOM: "DO", JAM: "JM", ECU: "EC",
+};
+
+function toAlpha2(iso: string): string {
+  const u = iso.toUpperCase();
+  if (u.length === 2) return u;
+  return ISO3_FIX[u] ?? u.substring(0, 2);
+}
+
+function flagEmoji(iso: string) {
+  return toAlpha2(iso)
+    .split("")
+    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
+    .join("");
+}
+
+function fmtDate(d: string | null) {
+  if (!d) return "";
+  const parts = d.split("-");
+  return `${parts[1]}.${parts[2]}`;
+}
+
 export default function OutreachMainClient() {
   const router = useRouter();
   const [countries, setCountries] = useState<Country[]>([]);
-  const [totalSeasons, setTotalSeasons] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [sheetLoading, setSheetLoading] = useState(false);
+  const [activeYear, setActiveYear] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/outreach/countries")
       .then((r) => r.json())
-      .then((d) => {
-        setCountries(d.countries ?? []);
-        setTotalSeasons((d.countries ?? []).reduce((s: number, c: Country) => s + c.season_count, 0));
-      })
+      .then((d) => setCountries(d.countries ?? []))
       .finally(() => setLoading(false));
   }, []);
 
+  const selectCountry = async (id: number) => {
+    if (selectedId === id) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId(id);
+    setActiveYear(null);
+    setSeasons([]);
+    setSheetLoading(true);
+    const res = await fetch(`/api/outreach/countries/${id}`);
+    const data = await res.json();
+    setSeasons(data.seasons ?? []);
+    setSheetLoading(false);
+  };
+
+  const selectedCountry = countries.find((c) => c.id === selectedId) ?? null;
+  const uniqueYears = [...new Set(seasons.map((s) => s.year))].sort((a, b) => b - a);
+  const uniqueRegions = [
+    ...new Set(seasons.map((s) => s.region).filter(Boolean)),
+  ] as string[];
+  const filteredSeasons =
+    activeYear !== null ? seasons.filter((s) => s.year === activeYear) : seasons;
+
+  if (loading) return <LoadingPage />;
+
   return (
-    <Page>
-      <TopBar>OUTREACH ARCHIVE · 1985 — PRESENT</TopBar>
+    <OutreachPage>
+      <AppHeader>
+        <HeaderBtn aria-label="뒤로가기" onClick={() => router.back()}>←</HeaderBtn>
+        <HeaderTitle as="span"></HeaderTitle>
+        <HeaderSpacer />
+      </AppHeader>
 
-      <Inner>
-        <Hero>
-          <HeroTitle>
-            우리가 다녀온 <em>발자취</em>
-          </HeroTitle>
-          <HeroMeta>V1.0 · PROTOTYPE &nbsp;&nbsp; UPDATED 2026.04.27</HeroMeta>
-        </Hero>
+      <MapArea>
+        <WorldMap
+          countries={countries}
+          selectedId={selectedId}
+          onCountryClick={selectCountry}
+        />
+        <ChipArea>
+          <ChipRows>
+            {[
+              countries.slice(0, Math.ceil(countries.length / 2)),
+              countries.slice(Math.ceil(countries.length / 2)),
+            ].map((row, ri) => (
+              <ChipRow key={ri}>
+                {row.map((c) => (
+                  <Chip
+                    key={c.id}
+                    data-active={selectedId === c.id ? "true" : "false"}
+                    onClick={() => selectCountry(c.id)}
+                  >
+                    <span>{flagEmoji(c.iso_code)}</span>
+                    {c.name_ko}
+                  </Chip>
+                ))}
+              </ChipRow>
+            ))}
+          </ChipRows>
+        </ChipArea>
+      </MapArea>
 
-        <Section>
-          <SectionLabel>── WORLD ATLAS</SectionLabel>
-          <Headline>
-            매년 우리는 어디론가 <em>떠났습니다</em>
-          </Headline>
-          <Desc>
-            매년 여름과 겨울, 우리 교회는 세계 곳곳으로 아웃리치를 떠나왔습니다.
-            흩어졌던 단체사진과 기도카드, 함께한 이름들을 한 곳에 모았습니다.
-            지도 위 표식을 따라가 보세요.
-          </Desc>
-
-          <StatsRow>
-            <StatBox>
-              <StatNum>{loading ? "—" : countries.length}</StatNum>
-              <StatLabel>COUNTRIES</StatLabel>
-            </StatBox>
-            <StatBox>
-              <StatNum>{loading ? "—" : totalSeasons}</StatNum>
-              <StatLabel>SEASONS</StatLabel>
-            </StatBox>
-          </StatsRow>
-
-          <MapWrapper>
-            <MapInner>
-              <MapHeader>— MISSION FIELD ATLAS —</MapHeader>
-              {loading ? (
-                <MapPlaceholder />
-              ) : (
-                <WorldMap
-                  countries={countries}
-                  onCountryClick={(id) => router.push(`/outreach/${id}`)}
-                />
+      <Sheet data-open={selectedId !== null ? "true" : "false"}>
+        <DragHandle />
+        {selectedCountry && (
+          <>
+            <SheetHeader>
+              <SheetLeft>
+                <CountryFlag>{flagEmoji(selectedCountry.iso_code)}</CountryFlag>
+                <CountryName>{selectedCountry.name_ko}</CountryName>
+              </SheetLeft>
+              {uniqueRegions.length > 0 && (
+                <RegionRow>
+                  {uniqueRegions.map((r) => (
+                    <RegionTag key={r}>{r}</RegionTag>
+                  ))}
+                </RegionRow>
               )}
-            </MapInner>
-          </MapWrapper>
-        </Section>
-      </Inner>
+            </SheetHeader>
 
-      <Footer>
-        <FooterText>MISSION OUTREACH ARCHIVE</FooterText>
-        <FooterText>— MADE WITH CARE —</FooterText>
-        <FooterText>V1.0 · PROTOTYPE</FooterText>
-      </Footer>
-    </Page>
+            <YearRow>
+              <YearTab
+                data-active={activeYear === null ? "true" : "false"}
+                onClick={() => setActiveYear(null)}
+              >
+                전체
+              </YearTab>
+              {uniqueYears.map((y) => (
+                <YearTab
+                  key={y}
+                  data-active={activeYear === y ? "true" : "false"}
+                  onClick={() => setActiveYear(y)}
+                >
+                  {y}
+                </YearTab>
+              ))}
+            </YearRow>
+
+            <SeasonList>
+              {sheetLoading ? (
+                <SheetLoadingText>불러오는 중...</SheetLoadingText>
+              ) : (
+                filteredSeasons.map((s) => (
+                  <SeasonCard
+                    key={s.id}
+                    onClick={() => router.push(`/outreach/${selectedCountry.id}`)}
+                  >
+                    <SeasonEmoji>
+                      {s.period === "winter" ? "❄️" : "☀️"}
+                    </SeasonEmoji>
+                    <SeasonInfo>
+                      <SeasonTitle>
+                        {s.year}년 {s.period === "winter" ? "겨울" : "여름"}
+                      </SeasonTitle>
+                      {(s.start_date || s.end_date) && (
+                        <SeasonDate>
+                          {fmtDate(s.start_date)}~{fmtDate(s.end_date)}
+                        </SeasonDate>
+                      )}
+                    </SeasonInfo>
+                    <SeasonArrow>→</SeasonArrow>
+                  </SeasonCard>
+                ))
+              )}
+            </SeasonList>
+          </>
+        )}
+      </Sheet>
+    </OutreachPage>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
-const CREAM   = "#F5F0E8";
-const BEIGE   = "#D9CEBC";
-const TERRA   = "#C45C3A";
-const DARK    = "#2D2A24";
-const MUTED   = "#8C7F6E";
-const BORDER  = "#BFB8A8";
-
-const Page = styled.div`
-  min-height: 100vh;
-  background: ${CREAM};
-  color: ${DARK};
-  font-family: "Noto Serif KR", "Noto Serif", Georgia, serif;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+const ChipArea = styled.div`
+  position: absolute;
+  top: 10px;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  overflow-x: auto;
+  padding: 0 16px;
+  &::-webkit-scrollbar { display: none; }
 `;
 
-const Inner = styled.div`
+const ChipRows = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: max-content;
+`;
+
+const ChipRow = styled.div`
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+`;
+
+const Chip = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #E6E6E6;
+  background: ${BG};
+  font-size: 13px;
+  font-family: ${SANS};
+  color: ${TEXT3};
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+  transition: background 0.15s, border-color 0.15s;
+
+  &[data-active="true"] {
+    border-color: #A07018;
+    color: #A07018;
+    font-weight: 500;
+  }
+`;
+
+const MapArea = styled.div`
+  flex: 1;
+  position: relative;
+  background: #EDE8DE;
+  min-height: 200px;
+`;
+
+
+const Sheet = styled.div`
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   max-width: 480px;
   margin: 0 auto;
-  padding: 0 20px;
-`;
+  background: ${BG};
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.12);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 100;
+  max-height: 60dvh;
+  display: flex;
+  flex-direction: column;
 
-const TopBar = styled.div`
-  padding: 8px 20px;
-  font-size: 9px;
-  letter-spacing: 0.15em;
-  color: ${MUTED};
-  border-bottom: 1px solid ${BORDER};
-  font-family: "Cormorant Garamond", "Times New Roman", serif;
-`;
-
-const Hero = styled.div`
-  padding: 20px 0 0;
-`;
-
-const HeroTitle = styled.h1`
-  font-size: 22px;
-  font-weight: 600;
-  margin: 0 0 4px;
-  line-height: 1.2;
-  color: ${MUTED};
-  em {
-    font-style: italic;
-    color: ${TERRA};
+  &[data-open="true"] {
+    transform: translateY(0);
   }
 `;
 
-const HeroMeta = styled.p`
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  color: ${MUTED};
-  margin: 0;
-  font-family: "Cormorant Garamond", serif;
-`;
-
-const Section = styled.section`
-  padding: 24px 0 0;
-`;
-
-const SectionLabel = styled.p`
-  font-size: 9px;
-  letter-spacing: 0.15em;
-  color: ${MUTED};
-  margin: 0 0 10px;
-  font-family: "Cormorant Garamond", serif;
-`;
-
-const Headline = styled.h2`
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: ${MUTED};
-  margin: 0 0 10px;
-  em {
-    font-style: italic;
-    color: ${TERRA};
-  }
-`;
-
-const Desc = styled.p`
-  font-size: 12px;
-  line-height: 1.8;
-  color: ${MUTED};
-  margin: 0 0 16px;
-`;
-
-const StatsRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border: 1px solid ${BORDER};
-  margin-bottom: 16px;
-`;
-
-const StatBox = styled.div`
-  padding: 12px 16px;
-  &:first-of-type { border-right: 1px solid ${BORDER}; }
-`;
-
-const StatNum = styled.div`
-  font-size: 28px;
-  font-weight: 300;
-  color: ${TERRA};
-  line-height: 1;
-  font-family: "Cormorant Garamond", serif;
-`;
-
-const StatLabel = styled.div`
-  font-size: 9px;
-  letter-spacing: 0.15em;
-  color: ${MUTED};
-  margin-top: 2px;
-  font-family: "Cormorant Garamond", serif;
-`;
-
-const MapWrapper = styled.div`
-  border: 1px solid ${BORDER};
+const DragHandle = styled.div`
+  width: 36px;
+  height: 4px;
+  background: #E0D9CF;
   border-radius: 2px;
-  overflow: hidden;
-  background: ${BEIGE};
-  background-image:
-    linear-gradient(${BORDER}55 1px, transparent 1px),
-    linear-gradient(90deg, ${BORDER}55 1px, transparent 1px);
-  background-size: 24px 24px;
-  height: 220px;
+  margin: 12px auto 16px;
+  flex-shrink: 0;
 `;
 
-const MapInner = styled.div`
-  padding: 0;
+const SheetHeader = styled.div`
+  padding: 0 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 8px;
 `;
 
-const MapHeader = styled.div`
-  text-align: center;
-  font-size: 8px;
-  letter-spacing: 0.2em;
+const SheetLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+`;
+
+const CountryFlag = styled.span`
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+`;
+
+const CountryName = styled.span`
+  font-size: 20px;
+  font-weight: 600;
+  color: ${TEXT};
+  font-family: ${SANS};
+  letter-spacing: -0.02em;
+`;
+
+const RegionRow = styled.div`
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex-shrink: 0;
+`;
+
+const RegionTag = styled.span`
+  padding: 4px 10px;
+  border: 1px solid #DDD6C8;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #6B5E4E;
+  font-family: ${SANS};
+  background: #F8F5F0;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+`;
+
+const YearRow = styled.div`
+  display: flex;
+  padding: 0 12px 8px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  &::-webkit-scrollbar { display: none; }
+`;
+
+const YearTab = styled.button`
+  padding: 6px 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-size: 14px;
+  font-family: ${SANS};
   color: ${MUTED};
-  padding: 8px 0 4px;
-  font-family: "Cormorant Garamond", serif;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+  transition: color 0.15s, border-color 0.15s;
+
+  &[data-active="true"] {
+    color: #A07018;
+    border-bottom-color: #A07018;
+    font-weight: 600;
+  }
 `;
 
-const MapPlaceholder = styled.div`
-  height: 220px;
+const SeasonList = styled.div`
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 20px max(16px, env(safe-area-inset-bottom));
+  &::-webkit-scrollbar { display: none; }
 `;
 
-const Footer = styled.footer`
-  margin-top: 40px;
-  padding: 16px 20px;
-  border-top: 1px solid ${BORDER};
-  text-align: center;
+const SeasonCard = styled.button`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border: none;
+  background: none;
+  border-bottom: 1px solid #F0EAE0;
+  cursor: pointer;
+  text-align: left;
+  font-family: ${SANS};
+
+  &:last-of-type {
+    border-bottom: none;
+  }
 `;
 
-const FooterText = styled.p`
-  font-size: 9px;
-  letter-spacing: 0.15em;
+const SeasonEmoji = styled.span`
+  font-size: 22px;
+  flex-shrink: 0;
+`;
+
+const SeasonInfo = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const SeasonTitle = styled.span`
+  font-size: 15px;
+  font-weight: 500;
+  color: ${TEXT};
+  letter-spacing: -0.02em;
+`;
+
+const SeasonDate = styled.span`
+  font-size: 12px;
   color: ${MUTED};
-  margin: 3px 0;
-  font-family: "Cormorant Garamond", serif;
+`;
+
+const SeasonArrow = styled.span`
+  font-size: 16px;
+  color: ${MUTED};
+  flex-shrink: 0;
+`;
+
+const SheetLoadingText = styled.p`
+  padding: 24px 0;
+  text-align: center;
+  color: ${MUTED};
+  font-size: 14px;
+  font-family: ${SANS};
 `;
