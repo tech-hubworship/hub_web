@@ -58,7 +58,7 @@ function visitFill(count: number): string {
 const LAND = "#C8BEA8";
 const OCEAN = "#EDE8DE";
 const BORDER = "#EDE8DE";
-const INITIAL_ZOOM = 1.2;
+const INITIAL_ZOOM = 1.0;
 
 // 한 링(좌표 배열)이 날짜변경선(±180°)을 가로지르는지 — 연속 점의 경도차 > 180°
 function ringCrossesAntimeridian(ring: number[][]): boolean {

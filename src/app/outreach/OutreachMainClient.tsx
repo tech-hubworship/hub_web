@@ -4,17 +4,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import styled from "@emotion/styled";
+import { Footprints, Sun, Snowflake } from "lucide-react";
 import {
   OutreachPage as _OutreachPage,
   AppHeader,
   HeaderBtn,
   HeaderSpacer,
   LoadingPage,
-  TEXT,
   MUTED,
   SANS,
   SERIF,
-  BG,
 } from "./_components/shared";
 
 const WorldMap = dynamic(() => import("./WorldMap"), { ssr: false });
@@ -65,7 +64,12 @@ function flagUrl(iso: string) {
 function fmtDate(d: string | null) {
   if (!d) return "";
   const parts = d.split("-");
-  return `${parts[1]}.${parts[2]}`;
+  return `${parts[0]}.${parts[1]}.${parts[2]}`;
+}
+
+// 같은 해에서는 여름 → 겨울 순. 내림차순 정렬 시 첫번째가 최신 시즌
+function seasonRank(s: Season) {
+  return s.year * 10 + (s.period === "winter" ? 1 : 0);
 }
 
 export default function OutreachMainClient() {
@@ -75,7 +79,7 @@ export default function OutreachMainClient() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [sheetLoading, setSheetLoading] = useState(false);
-  const [activeYear, setActiveYear] = useState<number | null>(null);
+  const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/outreach/countries")
@@ -90,30 +94,30 @@ export default function OutreachMainClient() {
       return;
     }
     setSelectedId(id);
-    setActiveYear(null);
+    setSelectedSeasonId(null);
     setSeasons([]);
     setSheetLoading(true);
     const res = await fetch(`/api/outreach/countries/${id}`);
     const data = await res.json();
-    setSeasons(data.seasons ?? []);
+    const list: Season[] = [...(data.seasons ?? [])].sort(
+      (a, b) => seasonRank(b) - seasonRank(a)
+    );
+    setSeasons(list);
+    setSelectedSeasonId(list.length ? list[0].id : null);
     setSheetLoading(false);
   };
 
   const selectedCountry = countries.find((c) => c.id === selectedId) ?? null;
   const countryCount = countries.length;
   const seasonCount = countries.reduce((sum, c) => sum + c.season_count, 0);
-  const uniqueYears = [...new Set(seasons.map((s) => s.year))].sort((a, b) => b - a);
-  const uniqueRegions = [
-    ...new Set(seasons.map((s) => s.region).filter(Boolean)),
-  ] as string[];
-  const filteredSeasons =
-    activeYear !== null ? seasons.filter((s) => s.year === activeYear) : seasons;
+  const selectedSeason =
+    seasons.find((s) => s.id === selectedSeasonId) ?? seasons[0] ?? null;
 
   if (loading) return <LoadingPage />;
 
   return (
     <MapPage>
-      <AppHeader>
+      <MapHeader>
         <HeaderBtn aria-label="뒤로가기" onClick={() => router.back()}>←</HeaderBtn>
         {countryCount > 0 ? (
           <HeaderStats>
@@ -129,7 +133,7 @@ export default function OutreachMainClient() {
         ) : (
           <HeaderSpacer />
         )}
-      </AppHeader>
+      </MapHeader>
 
       <MapArea onClick={() => selectedId !== null && setSelectedId(null)}>
         <WorldMap
@@ -162,59 +166,64 @@ export default function OutreachMainClient() {
                 <CountryFlag src={flagUrl(selectedCountry.iso_code)} alt="" />
                 <CountryName>{selectedCountry.name_ko}</CountryName>
               </SheetLeft>
-              {uniqueRegions.length > 0 && (
-                <RegionRow>
-                  {uniqueRegions.map((r) => (
-                    <RegionTag key={r}>{r}</RegionTag>
-                  ))}
-                </RegionRow>
-              )}
+              <StepCount>
+                <Footprints size={15} strokeWidth={2} aria-hidden />
+                {selectedCountry.season_count}번의 발걸음
+              </StepCount>
             </SheetHeader>
 
-            <YearRow>
-              <YearTab
-                data-active={activeYear === null ? "true" : "false"}
-                onClick={() => setActiveYear(null)}
-              >
-                전체
-              </YearTab>
-              {uniqueYears.map((y) => (
-                <YearTab
-                  key={y}
-                  data-active={activeYear === y ? "true" : "false"}
-                  onClick={() => setActiveYear(y)}
-                >
-                  {y}
-                </YearTab>
-              ))}
-            </YearRow>
+            {seasons.length > 0 && (
+              <SeasonTimeline>
+                <TimelineScroll>
+                <TimelineTrack>
+                {seasons.map((s) => (
+                  <TimelineItem
+                    key={s.id}
+                    data-active={selectedSeasonId === s.id ? "true" : "false"}
+                    onClick={() => setSelectedSeasonId(s.id)}
+                  >
+                    <TimelineDotSlot>
+                      <TimelineDot>
+                        <Footprints size={15} strokeWidth={2} aria-hidden />
+                      </TimelineDot>
+                    </TimelineDotSlot>
+                    <TimelineLabel>
+                      {s.year % 100}' {s.period === "winter" ? "겨울" : "여름"}
+                    </TimelineLabel>
+                  </TimelineItem>
+                ))}
+                </TimelineTrack>
+                </TimelineScroll>
+              </SeasonTimeline>
+            )}
 
             <SeasonList>
               {sheetLoading ? (
                 <SheetLoadingText>불러오는 중...</SheetLoadingText>
-              ) : (
-                filteredSeasons.map((s) => (
-                  <SeasonCard
-                    key={s.id}
-                    onClick={() => router.push(`/outreach/${selectedCountry.id}`)}
-                  >
+              ) : selectedSeason ? (
+                <SeasonCard onClick={() => router.push(`/outreach/${selectedCountry.id}/${selectedSeason.id}`)}>
+                  <SeasonCardLeft>
                     <SeasonEmoji>
-                      {s.period === "winter" ? "❄️" : "☀️"}
+                      {selectedSeason.period === "winter" ? (
+                        <Snowflake size={18} strokeWidth={2} color="#5B9BD5" aria-hidden />
+                      ) : (
+                        <Sun size={18} strokeWidth={2} color="#E8843E" aria-hidden />
+                      )}
                     </SeasonEmoji>
                     <SeasonInfo>
                       <SeasonTitle>
-                        {s.year}년 {s.period === "winter" ? "겨울" : "여름"}
+                        {selectedSeason.year}년 {selectedSeason.period === "winter" ? "겨울" : "여름"}
                       </SeasonTitle>
-                      {(s.start_date || s.end_date) && (
+                      {(selectedSeason.start_date || selectedSeason.end_date) && (
                         <SeasonDate>
-                          {fmtDate(s.start_date)}~{fmtDate(s.end_date)}
+                          {fmtDate(selectedSeason.start_date)} ~ {fmtDate(selectedSeason.end_date)}
                         </SeasonDate>
                       )}
                     </SeasonInfo>
-                    <SeasonArrow>→</SeasonArrow>
-                  </SeasonCard>
-                ))
-              )}
+                  </SeasonCardLeft>
+                  <SeasonArrow>→</SeasonArrow>
+                </SeasonCard>
+              ) : null}
             </SeasonList>
           </>
         )}
@@ -312,6 +321,11 @@ const ChipFlag = styled.img`
 const MapPage = styled(_OutreachPage)`
   height: 100dvh;
   overflow: hidden;
+  color: #513400;
+`;
+
+const MapHeader = styled(AppHeader)`
+  background: #FFFAF0;
 `;
 
 const MapArea = styled.div`
@@ -329,7 +343,7 @@ const Sheet = styled.div`
   right: 0;
   max-width: 480px;
   margin: 0 auto;
-  background: ${BG};
+  background: #FFFAF0;
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.12);
   transform: translateY(100%);
@@ -354,7 +368,7 @@ const DragHandle = styled.div`
 `;
 
 const SheetHeader = styled.div`
-  padding: 0 20px 12px;
+  padding: 12px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -381,63 +395,157 @@ const CountryFlag = styled.img`
 const CountryName = styled.span`
   font-size: 20px;
   font-weight: 600;
-  color: ${TEXT};
+  color: #513400;
   font-family: ${SANS};
   letter-spacing: -0.02em;
 `;
 
-const RegionRow = styled.div`
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+const StepCount = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex-shrink: 0;
-`;
-
-const RegionTag = styled.span`
-  padding: 4px 10px;
-  border: 1px solid #DDD6C8;
-  border-radius: 12px;
-  font-size: 12px;
-  color: #6B5E4E;
+  padding: 5px 10px;
+  border: 1px solid rgba(160, 53, 24, 0.4);
+  border-radius: 99px;
+  background: rgba(160, 53, 24, 0.06);
+  font-size: 13px;
   font-family: ${SANS};
-  background: #F8F5F0;
+  font-weight: 500;
+  color: #a03518;
+  letter-spacing: -0.26px;
   white-space: nowrap;
-  letter-spacing: -0.02em;
+
+  & > svg {
+    width: 14px;
+    height: 14px;
+  }
 `;
 
-const YearRow = styled.div`
+// 같은 폭(56px) 안에서 천천히 차오르는 concave 램프 → 가장자리 아이템이 더 강하게 흐려짐
+const TIMELINE_MASK = `linear-gradient(
+  to right,
+  transparent 0,
+  rgba(0, 0, 0, 0.03) 14px,
+  rgba(0, 0, 0, 0.18) 28px,
+  rgba(0, 0, 0, 0.55) 42px,
+  #000 56px,
+  #000 calc(100% - 56px),
+  rgba(0, 0, 0, 0.55) calc(100% - 42px),
+  rgba(0, 0, 0, 0.18) calc(100% - 28px),
+  rgba(0, 0, 0, 0.03) calc(100% - 14px),
+  transparent 100%
+)`;
+
+const SeasonTimeline = styled.div`
+  position: relative;
+  padding: 16px 24px;
+  -webkit-mask-image: ${TIMELINE_MASK};
+  mask-image: ${TIMELINE_MASK};
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 24px;
+    right: 24px;
+    top: 30px;
+    height: 1px;
+    border-top: 1px dashed #a03518;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+`;
+
+const TimelineScroll = styled.div`
   display: flex;
-  padding: 0 12px 8px;
+  justify-content: safe center;
   overflow-x: auto;
-  flex-shrink: 0;
   &::-webkit-scrollbar { display: none; }
 `;
 
-const YearTab = styled.button`
-  padding: 6px 10px;
+const TimelineTrack = styled.div`
+  display: flex;
+  gap: 24px;
+  width: max-content;
+  padding: 0 30px;
+`;
+
+const TimelineItem = styled.button`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 0;
   border: none;
-  border-bottom: 2px solid transparent;
   background: none;
-  font-size: 14px;
-  font-family: ${SANS};
-  color: ${MUTED};
   cursor: pointer;
-  white-space: nowrap;
-  letter-spacing: -0.02em;
-  transition: color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  opacity: 0.8;
+  transition: opacity 0.15s;
 
   &[data-active="true"] {
-    color: #A07018;
-    border-bottom-color: #A07018;
-    font-weight: 600;
+    opacity: 1;
   }
+
+  &[data-active="true"] > div:first-child > div {
+    width: 28px;
+    height: 28px;
+  }
+
+  &[data-active="true"] > div:first-child > div > svg {
+    opacity: 1;
+  }
+
+  &[data-active="true"] > span:last-child {
+    font-weight: 500;
+    color: #a9381a;
+  }
+`;
+
+const TimelineDotSlot = styled.div`
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+`;
+
+const TimelineDot = styled.div`
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: #a03518;
+  color: #fff;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: width 0.15s, height 0.15s;
+
+  & > svg {
+    width: 15px;
+    height: 15px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+`;
+
+const TimelineLabel = styled.span`
+  font-size: 14px;
+  font-family: ${SANS};
+  color: #513400;
+  letter-spacing: -0.28px;
+  white-space: nowrap;
+  transition: font-weight 0.15s, color 0.15s;
 `;
 
 const SeasonList = styled.div`
   overflow-y: auto;
   flex: 1;
-  padding: 0 20px max(16px, env(safe-area-inset-bottom));
+  padding: 8px 24px max(16px, env(safe-area-inset-bottom));
   &::-webkit-scrollbar { display: none; }
 `;
 
@@ -445,47 +553,57 @@ const SeasonCard = styled.button`
   width: 100%;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  padding: 14px 0;
-  border: none;
+  padding: 16px;
+  border: 1px solid rgba(160, 112, 24, 0.2);
+  border-radius: 8px;
   background: none;
-  border-bottom: 1px solid #F0EAE0;
   cursor: pointer;
   text-align: left;
   font-family: ${SANS};
+  box-shadow: 0px 10px 30px rgba(78, 89, 104, 0.05),
+    0px 15px 80px rgba(78, 89, 104, 0.08);
+`;
 
-  &:last-of-type {
-    border-bottom: none;
-  }
+const SeasonCardLeft = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
 `;
 
 const SeasonEmoji = styled.span`
-  font-size: 22px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 0;
   flex-shrink: 0;
 `;
 
 const SeasonInfo = styled.div`
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  min-width: 0;
 `;
 
 const SeasonTitle = styled.span`
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
-  color: ${TEXT};
-  letter-spacing: -0.02em;
+  color: #513400;
+  letter-spacing: -0.28px;
 `;
 
 const SeasonDate = styled.span`
   font-size: 12px;
-  color: ${MUTED};
+  color: #575757;
+  opacity: 0.7;
+  letter-spacing: -0.24px;
 `;
 
 const SeasonArrow = styled.span`
   font-size: 16px;
-  color: ${MUTED};
+  color: #513400;
   flex-shrink: 0;
 `;
 
