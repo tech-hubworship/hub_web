@@ -30,7 +30,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .eq("country_id", id)
     .eq("is_active", true)
     .order("year", { ascending: false })
-    .order("period", { ascending: false }); // winter > summer (알파벳 역순)
+    .order("period", { ascending: true }); // summer < winter (알파벳 오름차순 → 여름이 위)
 
   if (sErr) return jsonError("시즌 조회 실패", 500);
 

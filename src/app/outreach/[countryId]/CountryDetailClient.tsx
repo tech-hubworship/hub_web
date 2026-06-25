@@ -366,7 +366,7 @@ const HeaderTitle = styled.div`
 `;
 
 const Caret = styled.span`
-  font-size: 13px;
+  font-size: 20px;
   color: ${MUTED};
 `;
 
@@ -602,19 +602,18 @@ const SheetItem = styled.button<{ $active: boolean }>`
   width: 100%;
   border: none;
   background: none;
-  padding: 16px 24px;
-  font-size: 17px;
+  padding: 14px 24px;
+  font-size: 16px;
   font-family: ${SANS};
-  font-weight: ${({ $active }) => ($active ? 700 : 400)};
+  font-weight: ${({ $active }) => ($active ? 500 : 400)};
   color: ${({ $active }) => ($active ? ACCENT : "#555")};
   cursor: pointer;
   text-align: left;
 `;
 
 const Check = styled.span<{ $active: boolean }>`
-  font-size: 16px;
+  font-size: 14px;
   color: ${({ $active }) => ($active ? ACCENT : SUBTLE)};
-  width: 18px;
 `;
 
 // ── 라이트박스 ──
