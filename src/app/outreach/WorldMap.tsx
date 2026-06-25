@@ -5,6 +5,7 @@ import maplibregl from "maplibre-gl";
 import type { Map as MlMap, StyleSpecification } from "maplibre-gl";
 import * as topojson from "topojson-client";
 import styled from "@emotion/styled";
+import { TEXT, BG, VISIT_1, VISIT_2, VISIT_3, LAND, OCEAN, BORDER, LINE, SURFACE } from "./_components/shared";
 
 const TOPO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -50,15 +51,12 @@ function toAlpha2(iso: string) {
 }
 
 function visitFill(count: number): string {
-  if (count >= 3) return "#B13B1B";
-  if (count === 2) return "#E15C37";
-  return "#EB927A";
+  if (count >= 3) return VISIT_3;
+  if (count === 2) return VISIT_2;
+  return VISIT_1;
 }
 
-const LAND = "#C8BEA8";
-const OCEAN = "#EDE8DE";
-const BORDER = "#EDE8DE";
-const INITIAL_ZOOM = 1.0;
+const INITIAL_ZOOM = 1.4;
 
 // 한 링(좌표 배열)이 날짜변경선(±180°)을 가로지르는지 — 연속 점의 경도차 > 180°
 function ringCrossesAntimeridian(ring: number[][]): boolean {
@@ -89,9 +87,9 @@ function pinSvg(selected: boolean, zoom = 1.4): string {
   const w = selected ? Math.min(54, base + 10) : base;
   const h = Math.round(w * 1.619);
   return `<svg width="${w}" height="${h}" viewBox="0 0 32 51.8095" xmlns="http://www.w3.org/2000/svg" style="display:block">
-    <path fill-rule="evenodd" clip-rule="evenodd" d="M16 0C24.8366 0 32 7.16344 32 16C32 24.3226 25.6456 31.1611 17.5238 31.9284V48.7619C17.5238 49.6035 16.8416 50.2857 16 50.2857C15.1584 50.2857 14.4762 49.6035 14.4762 48.7619V31.9284C6.35439 31.1611 0 24.3226 0 16C0 7.16344 7.16344 0 16 0Z" fill="#513400"/>
-    <path d="M21.3333 16C21.3333 13.0545 18.9455 10.6667 16 10.6667C13.0545 10.6667 10.6667 13.0545 10.6667 16C10.6667 18.9455 13.0545 21.3333 16 21.3333C18.9455 21.3333 21.3333 18.9455 21.3333 16Z" fill="white"/>
-    <path opacity="0.3" d="M16 51.8095C18.1039 51.8095 19.8095 50.9567 19.8095 49.9048C19.8095 48.8528 18.1039 48 16 48C13.896 48 12.1904 48.8528 12.1904 49.9048C12.1904 50.9567 13.896 51.8095 16 51.8095Z" fill="#513400"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M16 0C24.8366 0 32 7.16344 32 16C32 24.3226 25.6456 31.1611 17.5238 31.9284V48.7619C17.5238 49.6035 16.8416 50.2857 16 50.2857C15.1584 50.2857 14.4762 49.6035 14.4762 48.7619V31.9284C6.35439 31.1611 0 24.3226 0 16C0 7.16344 7.16344 0 16 0Z" fill="${TEXT}"/>
+    <path d="M21.3333 16C21.3333 13.0545 18.9455 10.6667 16 10.6667C13.0545 10.6667 10.6667 13.0545 10.6667 16C10.6667 18.9455 13.0545 21.3333 16 21.3333C18.9455 21.3333 21.3333 18.9455 21.3333 16Z" fill="${BG}"/>
+    <path opacity="0.3" d="M16 51.8095C18.1039 51.8095 19.8095 50.9567 19.8095 49.9048C19.8095 48.8528 18.1039 48 16 48C13.896 48 12.1904 48.8528 12.1904 49.9048C12.1904 50.9567 13.896 51.8095 16 51.8095Z" fill="${TEXT}"/>
   </svg>`;
 }
 
@@ -128,11 +126,22 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
       version: 8,
       sources: {
         countries: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
+        // 바다 배경 이미지를 전 세계 좌표(웹 메르카토르 범위)에 배치 → 지도와 함께 팬/줌
+        ocean: {
+          type: "image",
+          url: "/images/outreach/ocean.png",
+          coordinates: [
+            [-180, 85.051129],
+            [180, 85.051129],
+            [180, -85.051129],
+            [-180, -85.051129],
+          ],
+        },
       },
       layers: [
-        { id: "ocean", type: "background", paint: { "background-color": OCEAN } },
+        { id: "ocean", type: "raster", source: "ocean", paint: { "raster-opacity": 1, "raster-fade-duration": 0 } },
         { id: "land", type: "fill", source: "countries", paint: { "fill-color": ["get", "fillColor"] } },
-        { id: "border", type: "line", source: "countries", paint: { "line-color": BORDER, "line-width": 0.5 } },
+        { id: "border", type: "line", source: "countries", paint: { "line-color": ["get", "borderColor"], "line-width": 0.5 } },
       ],
     };
 
@@ -198,6 +207,7 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
         f.properties = {
           ...(f.properties ?? {}),
           fillColor: c ? visitFill(c.season_count) : LAND,
+          borderColor: c ? VISIT_3 : BORDER,
           _cid: c ? c.id : null,
         };
       }
@@ -272,6 +282,7 @@ const Wrapper = styled.div`
 const MapDiv = styled.div`
   width: 100%;
   height: 100%;
+  /* 이미지 범위 밖(극지방 등)에 보일 폴백 색. 바다 이미지는 GL raster 레이어로 렌더 */
   background: ${OCEAN};
 
   /* maplibre-gl.css가 App Router에서 주입 안 되는 경우 대비, 마커 위치잡기 핵심 규칙 직접 주입 */
@@ -303,8 +314,8 @@ const ZoomButtons = styled.div`
 const ZoomBtn = styled.button`
   width: 32px;
   height: 32px;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid #DDD6C8;
+  background: ${BG}E0;
+  border: 1px solid ${LINE};
   border-radius: 8px;
   font-size: 18px;
   line-height: 1;
@@ -314,5 +325,5 @@ const ZoomBtn = styled.button`
   align-items: center;
   justify-content: center;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-  &:active { background: #F0EAE0; }
+  &:active { background: ${SURFACE}; }
 `;
