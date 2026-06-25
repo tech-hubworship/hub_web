@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "@emotion/styled";
+import {
+  OutreachPage as Page,
+  AppHeader,
+  HeaderBtn,
+  HeaderTitle,
+  HeaderSpacer,
+  LoadingPage,
+  MUTED,
+  SUBTLE,
+} from "../_components/shared";
 
 interface Season {
   id: number;
@@ -286,84 +296,13 @@ function BulletText({ text }: { text: string }) {
   );
 }
 
-function LoadingPage({ children }: { children?: React.ReactNode }) {
-  return (
-    <Page>
-      <AppHeader>
-        <HeaderSpacer />
-        <HeaderTitle as="span">아웃리치</HeaderTitle>
-        <HeaderSpacer />
-      </AppHeader>
-      <LoadingText>{children ?? "불러오는 중..."}</LoadingText>
-    </Page>
-  );
-}
-
 // ─── Theme ──────────────────────────────────────────────────────────────────
 const BG = "#FFFFFF";
 const TEXT = "#1A1A1A";
-const MUTED = "#9A9A9A";
-const SUBTLE = "#B5B5B5";
 const CARD = "#F7F7F7";
 const PH = "#D9D9D9";
-const ACCENT = "#B08433"; // 선택 시즌 강조 (gold/ochre)
+const ACCENT = "#B08433";
 const SANS = `-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', sans-serif`;
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const Page = styled.div`
-  min-height: 100vh;
-  background: ${BG};
-  color: ${TEXT};
-  font-family: ${SANS};
-  line-height: 1.5;
-  letter-spacing: -0.02em;
-  max-width: 480px;
-  margin: 0 auto;
-  :where(h1, h2, h3, h4, h5, h6, p) { color: inherit; }
-`;
-
-const AppHeader = styled.header`
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  background: ${BG};
-`;
-
-const HeaderBtn = styled.button`
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: none;
-  font-size: 22px;
-  color: ${TEXT};
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const HeaderSpacer = styled.div`
-  width: 40px;
-  height: 40px;
-`;
-
-const HeaderTitle = styled.div`
-  flex: 1;
-  text-align: center;
-  font-size: 16px;
-  font-weight: 500;
-  color: ${TEXT};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  cursor: ${({ role }) => (role === "button" ? "pointer" : "default")};
-`;
 
 const Caret = styled.span`
   font-size: 20px;
@@ -647,9 +586,3 @@ const LightboxClose = styled.button`
   line-height: 1;
 `;
 
-const LoadingText = styled.div`
-  padding: 60px 20px;
-  text-align: center;
-  color: ${MUTED};
-  font-size: 14px;
-`;
