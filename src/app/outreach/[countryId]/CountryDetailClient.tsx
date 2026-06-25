@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import styled from "@emotion/styled";
+import { ChevronDown, Check, ArrowRight } from "lucide-react";
 import {
   OutreachPage as Page,
   AppHeader,
@@ -10,7 +11,13 @@ import {
   HeaderTitle,
   HeaderSpacer,
   LoadingPage,
+  BG,
+  TEXT,
+  PRIMARY,
+  BORDER,
   SUBTLE,
+  SANS,
+  SERIF,
 } from "../_components/shared";
 
 interface Season {
@@ -48,37 +55,19 @@ function seasonLabel(s: Season) {
   return `${s.year}년 ${PERIOD_KO[s.period]}`;
 }
 
-/** YYYY-MM-DD → YYYY.MM.DD */
-function fmtDate(d: string | null) {
-  if (!d) return "";
-  return d.slice(0, 10).replace(/-/g, ".");
+/** 폴라로이드 캡션: "Bangkok, Thailand, 2024" */
+function captionText(country: Country, s: Season) {
+  return [s.region, country.name_en, s.year].filter(Boolean).join(", ");
 }
 
-// ISO 3166-1 alpha-3 → alpha-2 (국기 이모지용, 자주 가는 선교지 위주 + 확장 가능)
-const ISO3_TO_2: Record<string, string> = {
-  JPN: "JP", THA: "TH", KHM: "KH", VNM: "VN", LAO: "LA", MMR: "MM",
-  PHL: "PH", IDN: "ID", MYS: "MY", IND: "IN", NPL: "NP", LKA: "LK",
-  CHN: "CN", MNG: "MN", TWN: "TW", BGD: "BD", PAK: "PK", KAZ: "KZ",
-  UZB: "UZ", KGZ: "KG", USA: "US", MEX: "MX", BRA: "BR", PER: "PE",
-  KEN: "KE", ETH: "ET", TZA: "TZ", UGA: "UG", ZAF: "ZA", NGA: "NG",
-  GHA: "GH", EGY: "EG", TUR: "TR", DEU: "DE", FRA: "FR", GBR: "GB",
-  ITA: "IT", ESP: "ES", RUS: "RU", AUS: "AU", NZL: "NZ", KOR: "KR",
-};
-
-/** alpha-2 → 국기 이모지 (regional indicator) */
-function flagEmoji(iso3: string | null | undefined) {
-  if (!iso3) return "🌍";
-  const a2 = ISO3_TO_2[iso3.toUpperCase()];
-  if (!a2) return "🌍";
-  return a2
-    .split("")
-    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
-    .join("");
-}
-
-export default function CountryDetailClient({ countryId }: { countryId: string }) {
+export default function CountryDetailClient({
+  countryId,
+  seasonId,
+}: {
+  countryId: string;
+  seasonId?: string;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [country, setCountry] = useState<Country | null>(null);
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -94,11 +83,12 @@ export default function CountryDetailClient({ countryId }: { countryId: string }
         setCountry(d.country ?? null);
         const list: Season[] = d.seasons ?? [];
         setSeasons(list);
-        const qSeason = searchParams?.get("season");
-        if (qSeason && list.some((s) => String(s.id) === qSeason)) {
-          setSelectedId(Number(qSeason));
+        // 경로의 시즌 id가 유효하면 사용, 없으면 최신 시즌 + 경로 정규화
+        if (seasonId && list.some((s) => String(s.id) === seasonId)) {
+          setSelectedId(Number(seasonId));
         } else if (list.length > 0) {
           setSelectedId(list[0].id);
+          window.history.replaceState(null, "", `/outreach/${countryId}/${list[0].id}`);
         }
       })
       .finally(() => setLoading(false));
@@ -107,24 +97,14 @@ export default function CountryDetailClient({ countryId }: { countryId: string }
   function selectSeason(id: number) {
     setSelectedId(id);
     setSheetOpen(false);
-    const url = new URL(window.location.href);
-    url.searchParams.set("season", String(id));
-    window.history.replaceState(null, "", url.toString());
+    // 경로만 갱신 (리페치 없이 즉시 전환)
+    window.history.replaceState(null, "", `/outreach/${countryId}/${id}`);
   }
 
   const selected = seasons.find((s) => s.id === selectedId) ?? null;
 
   if (loading) return <LoadingPage />;
   if (!country) return <LoadingPage>국가를 찾을 수 없습니다.</LoadingPage>;
-
-  const countryLine = selected?.region
-    ? `${country.name_ko} (${selected.region})`
-    : country.name_ko;
-
-  const dateRange =
-    selected?.start_date || selected?.end_date
-      ? `${fmtDate(selected.start_date)} ~ ${fmtDate(selected.end_date)}`
-      : "";
 
   const albumUrls = selected?.gallery_urls ?? [];
 
@@ -140,37 +120,35 @@ export default function CountryDetailClient({ countryId }: { countryId: string }
           role={seasons.length > 1 ? "button" : undefined}
         >
           {selected ? seasonLabel(selected) : country.name_ko}
-          {seasons.length > 1 && <Caret>⌄</Caret>}
+          {seasons.length > 1 && <ChevronDown size={18} strokeWidth={2} aria-hidden />}
         </HeaderTitle>
         <HeaderSpacer />
       </AppHeader>
 
       {selected && (
         <Content key={selected.id}>
-          {/* 1) 대표사진 */}
-          <Hero>
-            {selected.hero_image_url ? (
-              <HeroImg
-                src={selected.hero_image_url}
-                alt={`${countryLine} 대표사진`}
-                onClick={() => setLightboxUrl(selected.hero_image_url)}
-              />
-            ) : (
-              <HeroPlaceholder>대표 사진</HeroPlaceholder>
-            )}
-          </Hero>
+          {/* 1) 폴라로이드 대표사진 */}
+          <HeroWrap>
+            <Polaroid>
+              <PhotoWindow>
+                {selected.hero_image_url ? (
+                  <PhotoImg
+                    src={selected.hero_image_url}
+                    alt={`${country.name_ko} 대표사진`}
+                    onClick={() => setLightboxUrl(selected.hero_image_url)}
+                  />
+                ) : (
+                  <PhotoPlaceholder>사진 준비 중</PhotoPlaceholder>
+                )}
+              </PhotoWindow>
+              <Caption>{captionText(country, selected)}</Caption>
+              <Tape src="/images/outreach/tape.png" alt="" $pos="tl" />
+              <Tape src="/images/outreach/tape.png" alt="" $pos="br" />
+            </Polaroid>
+          </HeroWrap>
 
           <Body>
-            {/* 2) 국가 + 방문일자 */}
-            <CountryRow>
-              <Flag>{flagEmoji(country.iso_code)}</Flag>
-              <div>
-                <CountryName>{countryLine}</CountryName>
-                {dateRange && <DateRange>{dateRange}</DateRange>}
-              </div>
-            </CountryRow>
-
-            {/* 3) 팀 소개 섹션 (선택) */}
+            {/* 2) 팀 소개 카드 */}
             {(selected.key_phrase || selected.description) && (
               <IntroCard>
                 {selected.key_phrase && <KeyPhrase>"{selected.key_phrase}"</KeyPhrase>}
@@ -178,7 +156,7 @@ export default function CountryDetailClient({ countryId }: { countryId: string }
               </IntroCard>
             )}
 
-            {/* 4) 상세정보 섹션 */}
+            {/* 3) 상세 정보 */}
             <Fields>
               {selected.mission_field && (
                 <Field>
@@ -186,68 +164,62 @@ export default function CountryDetailClient({ countryId }: { countryId: string }
                   <FieldValue>{selected.mission_field}</FieldValue>
                 </Field>
               )}
-
               {selected.ministry_content && (
                 <Field>
-                  <FieldLabel>사역내용</FieldLabel>
+                  <FieldLabel>사역 내용</FieldLabel>
                   <FieldValue $multiline>{selected.ministry_content}</FieldValue>
                 </Field>
               )}
-
               {selected.theme_verse && (
                 <Field>
-                  <FieldLabel>주제말씀</FieldLabel>
+                  <FieldLabel>주제 말씀</FieldLabel>
                   <FieldValue $multiline>{selected.theme_verse}</FieldValue>
                 </Field>
               )}
-
               {selected.prayer_topics && (
                 <Field>
                   <FieldLabel>선교사 기도 제목</FieldLabel>
                   <BulletText text={selected.prayer_topics} />
                 </Field>
               )}
-
               {selected.team_prayer_topics && (
                 <Field>
                   <FieldLabel>팀 기도 제목</FieldLabel>
                   <BulletText text={selected.team_prayer_topics} />
                 </Field>
               )}
-
               {selected.members && selected.members.length > 0 && (
                 <Field>
                   <FieldLabel>참여 인원</FieldLabel>
-                  <FieldValue>{selected.leader_pastor}, {selected.members.join(", ")}</FieldValue>
+                  <FieldValue>
+                    {[selected.leader_pastor, ...selected.members].filter(Boolean).join(", ")}
+                  </FieldValue>
                 </Field>
               )}
             </Fields>
-          </Body>
 
-          {/* 5) 앨범 */}
-          {albumUrls.length > 0 && (
-            <AlbumSection>
-              <AlbumHeader>
-                <AlbumTitle>앨범</AlbumTitle>
-                <AlbumMore
-                  aria-label="앨범 더보기"
-                  onClick={() => setLightboxUrl(albumUrls[0])}
-                >
-                  →
-                </AlbumMore>
-              </AlbumHeader>
-              <AlbumScroll>
-                {albumUrls.map((url, i) => (
-                  <AlbumThumb
-                    key={`${url}-${i}`}
-                    src={url}
-                    alt={`앨범 ${i + 1}`}
-                    onClick={() => setLightboxUrl(url)}
-                  />
-                ))}
-              </AlbumScroll>
-            </AlbumSection>
-          )}
+            {/* 4) 앨범 */}
+            {albumUrls.length > 0 && (
+              <AlbumSection>
+                <AlbumHeader>
+                  <AlbumTitle>앨범</AlbumTitle>
+                  <AlbumMore aria-label="앨범 더보기" onClick={() => setLightboxUrl(albumUrls[0])}>
+                    <ArrowRight size={20} strokeWidth={2} aria-hidden />
+                  </AlbumMore>
+                </AlbumHeader>
+                <AlbumGrid>
+                  {albumUrls.map((url, i) => (
+                    <AlbumThumb
+                      key={`${url}-${i}`}
+                      src={url}
+                      alt={`앨범 ${i + 1}`}
+                      onClick={() => setLightboxUrl(url)}
+                    />
+                  ))}
+                </AlbumGrid>
+              </AlbumSection>
+            )}
+          </Body>
         </Content>
       )}
 
@@ -255,18 +227,21 @@ export default function CountryDetailClient({ countryId }: { countryId: string }
       {sheetOpen && (
         <SheetOverlay onClick={() => setSheetOpen(false)}>
           <Sheet onClick={(e) => e.stopPropagation()}>
-            <SheetHandle />
+            <HandleBar>
+              <DragHandle />
+            </HandleBar>
             <SheetList>
               {seasons.map((s) => {
                 const active = s.id === selectedId;
                 return (
                   <SheetItem key={s.id} $active={active} onClick={() => selectSeason(s.id)}>
-                    <Check $active={active}>✓</Check>
+                    <Check size={20} strokeWidth={2.5} aria-hidden />
                     {seasonLabel(s)}
                   </SheetItem>
                 );
               })}
             </SheetList>
+            <SheetFade />
           </Sheet>
         </SheetOverlay>
       )}
@@ -282,43 +257,82 @@ export default function CountryDetailClient({ countryId }: { countryId: string }
   );
 }
 
+/** 줄바꿈(\n) 기준으로 분리해 글머리기호 + 행잉 인덴트로 렌더 */
 function BulletText({ text }: { text: string }) {
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   return (
     <BulletList>
-      {text.split("\n").filter((l) => l.trim()).map((line, i) => (
-        <BulletLine key={i}>
-          <BulletDot>•</BulletDot>
-          <span>{line.trim()}</span>
-        </BulletLine>
+      {lines.map((line, i) => (
+        <BulletItem key={i}>
+          <Bullet aria-hidden>•</Bullet>
+          <span>{line}</span>
+        </BulletItem>
       ))}
     </BulletList>
   );
 }
 
-// ─── Theme ──────────────────────────────────────────────────────────────────
-const BG = "#FFFAF0";
-const TEXT = "#1A1A1A";
-const MUTED = "#9A9A9A";
-const CARD = "#F7F7F7";
-const PH = "#D9D9D9";
-const ACCENT = "#B08433";
-const SANS = `-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', sans-serif`;
-
-const Caret = styled.span`
-  font-size: 20px;
-  color: ${MUTED};
-`;
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const Content = styled.div``;
 
-const Hero = styled.div`
-  width: 100%;
-  height: 200px;
-  background: ${PH};
-  overflow: hidden;
+const BulletList = styled.ul`
+  margin: 0;
+  padding: 0 0 0 2px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 `;
 
-const HeroImg = styled.img`
+const BulletItem = styled.li`
+  display: flex;
+  gap: 6px;
+  font-family: ${SANS};
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.28px;
+  color: ${TEXT};
+  word-break: keep-all;
+`;
+
+const Bullet = styled.span`
+  flex-shrink: 0;
+  color: ${PRIMARY};
+`;
+
+// ── 폴라로이드 ──
+// frame.png = 외곽 골드 보더 + 사진영역(상단 77.3%) + 크림 캡션밴드(하단). 비율 654:572.
+const HeroWrap = styled.div`
+  padding: 16px 16px 8px;
+  overflow: visible;
+`;
+
+const Polaroid = styled.div`
+  position: relative;
+  width: 100%;
+  aspect-ratio: 654 / 572;
+  background: url("/images/outreach/frame.png") center / 100% 100% no-repeat;
+  transform: rotate(-1.8deg);
+  filter: drop-shadow(0 8px 20px rgba(78, 89, 104, 0.18));
+`;
+
+const PhotoWindow = styled.div`
+  position: absolute;
+  top: 0.4%;
+  left: 0.35%;
+  right: 0.35%;
+  bottom: 23%;
+  overflow: hidden;
+  border-radius: 3px 3px 0 0;
+  background: ${BG};
+`;
+
+const PhotoImg = styled.img`
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -326,18 +340,87 @@ const HeroImg = styled.img`
   cursor: pointer;
 `;
 
-const HeroPlaceholder = styled.div`
+const PhotoPlaceholder = styled.div`
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${MUTED};
-  font-size: 15px;
+  color: ${SUBTLE};
+  font-size: 14px;
+  font-family: ${SANS};
 `;
 
+const Caption = styled.p`
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 77%;
+  bottom: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ${SERIF};
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.5;
+  letter-spacing: -0.4px;
+  text-align: center;
+  color: ${PRIMARY};
+`;
+
+const Tape = styled.img<{ $pos: "tl" | "br" }>`
+  position: absolute;
+  width: 68px;
+  height: auto;
+  pointer-events: none;
+  opacity: 0.92;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12));
+  ${({ $pos }) =>
+    $pos === "tl"
+      ? `top: -14px; left: -16px; transform: rotate(-40deg);`
+      : `bottom: -12px; right: -16px; transform: rotate(-40deg);`}
+`;
+
+// ── 본문 ──
 const Body = styled.div`
-  padding: 24px;
+  padding: 16px 24px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+`;
+
+const IntroCard = styled.div`
+  width: 100%;
+  background: ${BORDER}0D;
+  border: 1px solid ${BORDER}80;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const KeyPhrase = styled.p`
+  margin: 0;
+  font-family: ${SERIF};
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.28px;
+  color: ${TEXT};
+`;
+
+const IntroText = styled.p`
+  margin: 0;
+  font-family: ${SANS};
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.28px;
+  color: ${TEXT};
+  opacity: 0.7;
+  white-space: pre-wrap;
 `;
 
 const Fields = styled.div`
@@ -346,154 +429,82 @@ const Fields = styled.div`
   gap: 24px;
 `;
 
-const CountryRow = styled.div`
-  display: flex;
-  align-items: top;
-  gap: 12px;
-  margin-bottom: 16px;
-`;
-
-const Flag = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #f2f2f2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  overflow: hidden;
-  flex-shrink: 0;
-`;
-
-const CountryName = styled.div`
-  font-size: 18px;
-  font-weight: 500;
-  margin-bottom: 2px;
-`;
-
-const DateRange = styled.p`
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 130%;
-  color: ${SUBTLE};
-`;
-
-const IntroCard = styled.div`
-  background: ${CARD};
-  border-radius: 12px;
-  padding: 18px 20px;
-  text-align: center;
-  margin-bottom: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
-
-const KeyPhrase = styled.p`
-  font-size: 14px;
-  font-weight: 500;
-  color: ${TEXT};
-`;
-
-const IntroText = styled.p`
-  font-size: 14px;
-  color: #6e6e6e;
-  margin: 0;
-  white-space: pre-wrap;
-`;
-
 const Field = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 `;
 
-const FieldLabel = styled.div`
+const FieldLabel = styled.p`
+  margin: 0;
+  font-family: ${SANS};
   font-size: 14px;
-  color: ${MUTED};
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.28px;
+  color: ${PRIMARY};
 `;
 
 const FieldValue = styled.p<{ $multiline?: boolean }>`
+  margin: 0;
+  font-family: ${SANS};
   font-size: 14px;
   font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.28px;
   color: ${TEXT};
-  margin: 0;
   word-break: keep-all;
   white-space: ${({ $multiline }) => ($multiline ? "pre-wrap" : "normal")};
 `;
 
-const BulletList = styled.div`
+// ── 앨범 ──
+const AlbumSection = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-left: 4px;
-`;
-
-const BulletLine = styled.div`
-  display: flex;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: ${TEXT};
-  word-break: keep-all;
-`;
-
-const BulletDot = styled.span`
-  flex-shrink: 0;
-  color: ${MUTED};
-`;
-
-const AlbumSection = styled.div`
-  padding: 16px 0 60px;
+  gap: 16px;
 `;
 
 const AlbumHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-  margin-bottom: 14px;
 `;
 
 const AlbumTitle = styled.h2`
-  font-size: 17px;
-  font-weight: 700;
   margin: 0;
+  font-family: ${SANS};
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.32px;
+  color: ${TEXT};
 `;
 
 const AlbumMore = styled.button`
   border: none;
   background: none;
-  font-size: 20px;
   color: ${TEXT};
   cursor: pointer;
-  padding: 4px;
+  padding: 0;
+  display: flex;
+  align-items: center;
 `;
 
-const AlbumScroll = styled.div`
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding: 0 20px;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
+const AlbumGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 `;
 
 const AlbumThumb = styled.img`
-  width: 30%;
-  flex: 0 0 auto;
+  width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: 8px;
-  background: ${PH};
+  background: #d3d3d3;
   cursor: pointer;
 `;
 
-// ── 바텀시트 ──
+// ── 시즌 선택 바텀시트 ──
 const SheetOverlay = styled.div`
   position: fixed;
   inset: 0;
@@ -505,11 +516,16 @@ const SheetOverlay = styled.div`
 `;
 
 const Sheet = styled.div`
+  position: relative;
   width: 100%;
   max-width: 480px;
+  max-height: 60dvh;
   background: ${BG};
-  border-radius: 20px 20px 0 0;
-  padding: 12px 0 max(24px, env(safe-area-inset-bottom));
+  border: 1px solid ${BORDER}33;
+  border-radius: 24px 24px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   animation: slideUp 0.22s ease;
   @keyframes slideUp {
     from {
@@ -521,38 +537,64 @@ const Sheet = styled.div`
   }
 `;
 
-const SheetHandle = styled.div`
-  width: 40px;
+const HandleBar = styled.div`
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  flex-shrink: 0;
+`;
+
+const DragHandle = styled.div`
+  width: 32px;
   height: 4px;
-  border-radius: 2px;
-  background: #d0d0d0;
-  margin: 0 auto 12px;
+  border-radius: 100px;
+  background: ${BORDER}66;
 `;
 
 const SheetList = styled.div`
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const SheetItem = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   width: 100%;
+  height: 48px;
+  flex-shrink: 0;
   border: none;
   background: none;
-  padding: 14px 24px;
-  font-size: 16px;
+  padding: 0 8px 0 16px;
   font-family: ${SANS};
-  font-weight: ${({ $active }) => ($active ? 500 : 400)};
-  color: ${({ $active }) => ($active ? ACCENT : "#555")};
-  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.32px;
   text-align: left;
+  cursor: pointer;
+  color: ${({ $active }) => ($active ? BORDER : SUBTLE)};
+
+  & > svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    opacity: ${({ $active }) => ($active ? 1 : 0.45)};
+  }
 `;
 
-const Check = styled.span<{ $active: boolean }>`
-  font-size: 14px;
-  color: ${({ $active }) => ($active ? ACCENT : SUBTLE)};
+const SheetFade = styled.div`
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  pointer-events: none;
+  background: linear-gradient(to top, ${BG}, ${BG}00);
 `;
 
 // ── 라이트박스 ──
@@ -585,4 +627,3 @@ const LightboxClose = styled.button`
   cursor: pointer;
   line-height: 1;
 `;
-
