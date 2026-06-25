@@ -1,8 +1,10 @@
-import { Metadata } from "next";
+"use client";
+import { useEffect } from "react";
 import OutreachAdminClient from "./OutreachAdminClient";
 
-export const metadata: Metadata = { title: "아웃리치 관리" };
-
 export default function OutreachAdminPage() {
+  useEffect(() => {
+    document.title = "아웃리치 관리";
+  }, []);
   return <OutreachAdminClient />;
 }
