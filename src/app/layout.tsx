@@ -44,6 +44,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     'html',
     { lang: 'ko', dir: 'ltr' },
     React.createElement(
+      'head',
+      null,
+      React.createElement('link', {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      }),
+      React.createElement('link', {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossOrigin: 'anonymous',
+      }),
+      React.createElement('link', {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap',
+      })
+    ),
+    React.createElement(
       'body',
       null,
       React.createElement(Providers, null, children)
