@@ -11,7 +11,15 @@ import {
   HeaderBtn,
   HeaderSpacer,
   LoadingPage,
-  MUTED,
+  TEXT,
+  TEXT2,
+  BG,
+  PRIMARY,
+  BORDER,
+  SUBTLE,
+  LINE,
+  SURFACE,
+  CHIP,
   SANS,
   SERIF,
 } from "./_components/shared";
@@ -117,7 +125,7 @@ export default function OutreachMainClient() {
 
   return (
     <MapPage>
-      <MapHeader>
+      <AppHeader>
         <HeaderBtn aria-label="뒤로가기" onClick={() => router.back()}>←</HeaderBtn>
         {countryCount > 0 ? (
           <HeaderStats>
@@ -133,7 +141,7 @@ export default function OutreachMainClient() {
         ) : (
           <HeaderSpacer />
         )}
-      </MapHeader>
+      </AppHeader>
 
       <MapArea onClick={() => selectedId !== null && setSelectedId(null)}>
         <WorldMap
@@ -252,14 +260,14 @@ const StatNum = styled.span`
   font-weight: 700;
   font-size: 20px;
   line-height: 1.5;
-  color: #A03518;
+  color: ${PRIMARY};
   letter-spacing: -0.02em;
 `;
 
 const StatLabel = styled.span`
   font-family: ${SANS};
   font-size: 12px;
-  color: #513400;
+  color: ${TEXT};
   opacity: 0.7;
   padding: 3px 0;
   letter-spacing: -0.02em;
@@ -267,7 +275,7 @@ const StatLabel = styled.span`
 
 const ChipArea = styled.div`
   position: absolute;
-  top: 10px;
+  top: 56px;
   left: 0;
   right: 0;
   z-index: 1100;
@@ -289,11 +297,11 @@ const Chip = styled.button`
   gap: 4px;
   padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid rgba(160, 112, 24, 0.5);
-  background: #FFFCF5;
+  border: 1px solid ${BORDER}80;
+  background: ${CHIP};
   font-size: 14px;
   font-family: ${SANS};
-  color: #513400;
+  color: ${TEXT};
   cursor: pointer;
   white-space: nowrap;
   letter-spacing: -0.28px;
@@ -302,9 +310,9 @@ const Chip = styled.button`
   transition: background 0.15s, border-color 0.15s;
 
   &[data-active="true"] {
-    background: #FFF7F5;
-    border-color: #A03518;
-    color: #A03518;
+    background: ${CHIP};
+    border-color: ${PRIMARY};
+    color: ${PRIMARY};
     font-weight: 500;
   }
 `;
@@ -313,7 +321,7 @@ const ChipFlag = styled.img`
   width: 16px;
   height: 16px;
   border-radius: 99px;
-  border: 0.5px solid #E6E6E6;
+  border: 0.5px solid ${LINE};
   object-fit: cover;
   flex-shrink: 0;
 `;
@@ -321,18 +329,14 @@ const ChipFlag = styled.img`
 const MapPage = styled(_OutreachPage)`
   height: 100dvh;
   overflow: hidden;
-  color: #513400;
-`;
-
-const MapHeader = styled(AppHeader)`
-  background: #FFFAF0;
+  color: ${TEXT};
 `;
 
 const MapArea = styled.div`
-  flex: 1;
-  position: relative;
-  background: #EDE8DE;
-  min-height: 200px;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: ${SURFACE};
 `;
 
 
@@ -343,7 +347,7 @@ const Sheet = styled.div`
   right: 0;
   max-width: 480px;
   margin: 0 auto;
-  background: #FFFAF0;
+  background: ${BG};
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.12);
   transform: translateY(100%);
@@ -361,7 +365,7 @@ const Sheet = styled.div`
 const DragHandle = styled.div`
   width: 36px;
   height: 4px;
-  background: #E0D9CF;
+  background: ${SURFACE};
   border-radius: 2px;
   margin: 12px auto 16px;
   flex-shrink: 0;
@@ -387,7 +391,7 @@ const CountryFlag = styled.img`
   width: 28px;
   height: 28px;
   border-radius: 99px;
-  border: 0.5px solid #E6E6E6;
+  border: 0.5px solid ${LINE};
   object-fit: cover;
   flex-shrink: 0;
 `;
@@ -395,7 +399,7 @@ const CountryFlag = styled.img`
 const CountryName = styled.span`
   font-size: 20px;
   font-weight: 600;
-  color: #513400;
+  color: ${TEXT};
   font-family: ${SANS};
   letter-spacing: -0.02em;
 `;
@@ -406,13 +410,13 @@ const StepCount = styled.span`
   gap: 5px;
   flex-shrink: 0;
   padding: 5px 10px;
-  border: 1px solid rgba(160, 53, 24, 0.4);
+  border: 1px solid ${PRIMARY}66;
   border-radius: 99px;
-  background: rgba(160, 53, 24, 0.06);
+  background: ${PRIMARY}0F;
   font-size: 13px;
   font-family: ${SANS};
   font-weight: 500;
-  color: #a03518;
+  color: ${PRIMARY};
   letter-spacing: -0.26px;
   white-space: nowrap;
 
@@ -450,7 +454,7 @@ const SeasonTimeline = styled.div`
     right: 24px;
     top: 30px;
     height: 1px;
-    border-top: 1px dashed #a03518;
+    border-top: 1px dashed ${PRIMARY};
     opacity: 0.5;
     pointer-events: none;
   }
@@ -500,7 +504,7 @@ const TimelineItem = styled.button`
 
   &[data-active="true"] > span:last-child {
     font-weight: 500;
-    color: #a9381a;
+    color: ${PRIMARY};
   }
 `;
 
@@ -516,8 +520,8 @@ const TimelineDot = styled.div`
   width: 8px;
   height: 8px;
   border-radius: 99px;
-  background: #a03518;
-  color: #fff;
+  background: ${PRIMARY};
+  color: ${BG};
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -536,7 +540,7 @@ const TimelineDot = styled.div`
 const TimelineLabel = styled.span`
   font-size: 14px;
   font-family: ${SANS};
-  color: #513400;
+  color: ${TEXT};
   letter-spacing: -0.28px;
   white-space: nowrap;
   transition: font-weight 0.15s, color 0.15s;
@@ -556,7 +560,7 @@ const SeasonCard = styled.button`
   justify-content: space-between;
   gap: 12px;
   padding: 16px;
-  border: 1px solid rgba(160, 112, 24, 0.2);
+  border: 1px solid ${BORDER}33;
   border-radius: 8px;
   background: none;
   cursor: pointer;
@@ -590,27 +594,27 @@ const SeasonInfo = styled.div`
 const SeasonTitle = styled.span`
   font-size: 14px;
   font-weight: 500;
-  color: #513400;
+  color: ${TEXT};
   letter-spacing: -0.28px;
 `;
 
 const SeasonDate = styled.span`
   font-size: 12px;
-  color: #575757;
+  color: ${TEXT2};
   opacity: 0.7;
   letter-spacing: -0.24px;
 `;
 
 const SeasonArrow = styled.span`
   font-size: 16px;
-  color: #513400;
+  color: ${TEXT};
   flex-shrink: 0;
 `;
 
 const SheetLoadingText = styled.p`
   padding: 24px 0;
   text-align: center;
-  color: ${MUTED};
+  color: ${SUBTLE};
   font-size: 14px;
   font-family: ${SANS};
 `;
