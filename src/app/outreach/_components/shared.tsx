@@ -9,6 +9,7 @@ export const TEXT3 = "#383838";
 export const MUTED  = "#9A9A9A";
 export const SUBTLE = "#B5B5B5";
 export const SANS = `-apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', sans-serif`;
+export const SERIF = `'Nanum Myeongjo', 'AppleMyungjo', 'Apple SD Gothic Neo', serif`;
 
 // ─── Base ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ export const AppHeader = styled.header`
   align-items: center;
   justify-content: space-between;
   padding: 0 8px;
-  background: ${BG};
+  background: transparent;
 `;
 
 export const HeaderBtn = styled.button`

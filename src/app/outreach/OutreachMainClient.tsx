@@ -9,12 +9,11 @@ import {
   AppHeader,
   HeaderBtn,
   HeaderSpacer,
-  HeaderTitle,
   LoadingPage,
   TEXT,
-  TEXT3,
   MUTED,
   SANS,
+  SERIF,
   BG,
 } from "./_components/shared";
 
@@ -59,11 +58,8 @@ function toAlpha2(iso: string): string {
   return ISO3_FIX[u] ?? u.substring(0, 2);
 }
 
-function flagEmoji(iso: string) {
-  return toAlpha2(iso)
-    .split("")
-    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
-    .join("");
+function flagUrl(iso: string) {
+  return `/images/outreach/flags/${toAlpha2(iso).toLowerCase()}.png`;
 }
 
 function fmtDate(d: string | null) {
@@ -104,6 +100,8 @@ export default function OutreachMainClient() {
   };
 
   const selectedCountry = countries.find((c) => c.id === selectedId) ?? null;
+  const countryCount = countries.length;
+  const seasonCount = countries.reduce((sum, c) => sum + c.season_count, 0);
   const uniqueYears = [...new Set(seasons.map((s) => s.year))].sort((a, b) => b - a);
   const uniqueRegions = [
     ...new Set(seasons.map((s) => s.region).filter(Boolean)),
@@ -117,8 +115,20 @@ export default function OutreachMainClient() {
     <MapPage>
       <AppHeader>
         <HeaderBtn aria-label="뒤로가기" onClick={() => router.back()}>←</HeaderBtn>
-        <HeaderTitle as="span"></HeaderTitle>
-        <HeaderSpacer />
+        {countryCount > 0 ? (
+          <HeaderStats>
+            <Stat>
+              <StatNum>{countryCount}</StatNum>
+              <StatLabel>개국</StatLabel>
+            </Stat>
+            <Stat>
+              <StatNum>{seasonCount}</StatNum>
+              <StatLabel>시즌</StatLabel>
+            </Stat>
+          </HeaderStats>
+        ) : (
+          <HeaderSpacer />
+        )}
       </AppHeader>
 
       <MapArea>
@@ -128,25 +138,18 @@ export default function OutreachMainClient() {
           onCountryClick={selectCountry}
         />
         <ChipArea>
-          <ChipRows>
-            {[
-              countries.slice(0, Math.ceil(countries.length / 2)),
-              countries.slice(Math.ceil(countries.length / 2)),
-            ].map((row, ri) => (
-              <ChipRow key={ri}>
-                {row.map((c) => (
-                  <Chip
-                    key={c.id}
-                    data-active={selectedId === c.id ? "true" : "false"}
-                    onClick={() => selectCountry(c.id)}
-                  >
-                    <span>{flagEmoji(c.iso_code)}</span>
-                    {c.name_ko}
-                  </Chip>
-                ))}
-              </ChipRow>
+          <ChipRow>
+            {countries.map((c) => (
+              <Chip
+                key={c.id}
+                data-active={selectedId === c.id ? "true" : "false"}
+                onClick={() => selectCountry(c.id)}
+              >
+                <ChipFlag src={flagUrl(c.iso_code)} alt="" />
+                {c.name_ko}
+              </Chip>
             ))}
-          </ChipRows>
+          </ChipRow>
         </ChipArea>
       </MapArea>
 
@@ -156,7 +159,7 @@ export default function OutreachMainClient() {
           <>
             <SheetHeader>
               <SheetLeft>
-                <CountryFlag>{flagEmoji(selectedCountry.iso_code)}</CountryFlag>
+                <CountryFlag src={flagUrl(selectedCountry.iso_code)} alt="" />
                 <CountryName>{selectedCountry.name_ko}</CountryName>
               </SheetLeft>
               {uniqueRegions.length > 0 && (
@@ -222,6 +225,37 @@ export default function OutreachMainClient() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
+const HeaderStats = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 8px;
+`;
+
+const Stat = styled.div`
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+`;
+
+const StatNum = styled.span`
+  font-family: ${SERIF};
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #A03518;
+  letter-spacing: -0.02em;
+`;
+
+const StatLabel = styled.span`
+  font-family: ${SANS};
+  font-size: 12px;
+  color: #513400;
+  opacity: 0.7;
+  padding: 3px 0;
+  letter-spacing: -0.02em;
+`;
+
 const ChipArea = styled.div`
   position: absolute;
   top: 10px;
@@ -233,17 +267,11 @@ const ChipArea = styled.div`
   &::-webkit-scrollbar { display: none; }
 `;
 
-const ChipRows = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: max-content;
-`;
-
 const ChipRow = styled.div`
   display: flex;
   flex-direction: row;
   gap: 6px;
+  width: max-content;
 `;
 
 const Chip = styled.button`
@@ -252,21 +280,33 @@ const Chip = styled.button`
   gap: 4px;
   padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid #E6E6E6;
-  background: ${BG};
-  font-size: 13px;
+  border: 1px solid rgba(160, 112, 24, 0.5);
+  background: #FFFCF5;
+  font-size: 14px;
   font-family: ${SANS};
-  color: ${TEXT3};
+  color: #513400;
   cursor: pointer;
   white-space: nowrap;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.28px;
+  box-shadow: 0px 4px 8px rgba(78, 89, 104, 0.05),
+    0px 15px 40px rgba(78, 89, 104, 0.2);
   transition: background 0.15s, border-color 0.15s;
 
   &[data-active="true"] {
-    border-color: #A07018;
-    color: #A07018;
+    background: #FFF7F5;
+    border-color: #A03518;
+    color: #A03518;
     font-weight: 500;
   }
+`;
+
+const ChipFlag = styled.img`
+  width: 16px;
+  height: 16px;
+  border-radius: 99px;
+  border: 0.5px solid #E6E6E6;
+  object-fit: cover;
+  flex-shrink: 0;
 `;
 
 const MapPage = styled(_OutreachPage)`
@@ -329,9 +369,12 @@ const SheetLeft = styled.div`
   min-width: 0;
 `;
 
-const CountryFlag = styled.span`
-  font-size: 28px;
-  line-height: 1;
+const CountryFlag = styled.img`
+  width: 28px;
+  height: 28px;
+  border-radius: 99px;
+  border: 0.5px solid #E6E6E6;
+  object-fit: cover;
   flex-shrink: 0;
 `;
 
