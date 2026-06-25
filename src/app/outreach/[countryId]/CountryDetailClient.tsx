@@ -10,7 +10,6 @@ import {
   HeaderTitle,
   HeaderSpacer,
   LoadingPage,
-  MUTED,
   SUBTLE,
 } from "../_components/shared";
 
@@ -297,8 +296,9 @@ function BulletText({ text }: { text: string }) {
 }
 
 // ─── Theme ──────────────────────────────────────────────────────────────────
-const BG = "#FFFFFF";
+const BG = "#FFFAF0";
 const TEXT = "#1A1A1A";
+const MUTED = "#9A9A9A";
 const CARD = "#F7F7F7";
 const PH = "#D9D9D9";
 const ACCENT = "#B08433";
@@ -580,7 +580,7 @@ const LightboxClose = styled.button`
   right: 20px;
   background: none;
   border: none;
-  color: white;
+  color: ${BG};
   font-size: 24px;
   cursor: pointer;
   line-height: 1;
