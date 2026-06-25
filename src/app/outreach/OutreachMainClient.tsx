@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import styled from "@emotion/styled";
 import {
-  OutreachPage,
+  OutreachPage as _OutreachPage,
   AppHeader,
   HeaderBtn,
   HeaderSpacer,
@@ -114,7 +114,7 @@ export default function OutreachMainClient() {
   if (loading) return <LoadingPage />;
 
   return (
-    <OutreachPage>
+    <MapPage>
       <AppHeader>
         <HeaderBtn aria-label="뒤로가기" onClick={() => router.back()}>←</HeaderBtn>
         <HeaderTitle as="span"></HeaderTitle>
@@ -216,7 +216,7 @@ export default function OutreachMainClient() {
           </>
         )}
       </Sheet>
-    </OutreachPage>
+    </MapPage>
   );
 }
 
@@ -227,7 +227,7 @@ const ChipArea = styled.div`
   top: 10px;
   left: 0;
   right: 0;
-  z-index: 10;
+  z-index: 1100;
   overflow-x: auto;
   padding: 0 16px;
   &::-webkit-scrollbar { display: none; }
@@ -269,6 +269,11 @@ const Chip = styled.button`
   }
 `;
 
+const MapPage = styled(_OutreachPage)`
+  height: 100dvh;
+  overflow: hidden;
+`;
+
 const MapArea = styled.div`
   flex: 1;
   position: relative;
@@ -289,7 +294,7 @@ const Sheet = styled.div`
   box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.12);
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-  z-index: 100;
+  z-index: 1200;
   max-height: 60dvh;
   display: flex;
   flex-direction: column;
