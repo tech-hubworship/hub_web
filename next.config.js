@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  // react-leaflet v4는 React 18 StrictMode의 effect 이중 호출과 호환되지 않아
+  // "Map container is already initialized" 에러가 발생하므로 비활성화.
+  // StrictMode는 dev 전용 검사라 프로덕션 동작에는 영향 없음.
+  reactStrictMode: false,
   eslint: {
     ignoreDuringBuilds: true,
   },

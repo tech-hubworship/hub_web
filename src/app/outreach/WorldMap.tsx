@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { MapContainer, GeoJSON, Marker, useMap } from "react-leaflet";
-import type { Map as LeafletMap, PathOptions, Layer } from "leaflet";
-import L from "leaflet";
+import { useEffect, useRef } from "react";
+import maplibregl from "maplibre-gl";
+import type { Map as MlMap, StyleSpecification } from "maplibre-gl";
 import * as topojson from "topojson-client";
 import styled from "@emotion/styled";
 
@@ -56,28 +55,41 @@ function visitFill(count: number): string {
   return "#EBD5AD";
 }
 
-function pinIcon(selected: boolean): L.DivIcon {
-  const w = selected ? 44 : 32;
-  const h = Math.round(w * 1.4);
-  return L.divIcon({
-    html: `<svg width="${w}" height="${h}" viewBox="0 0 24 34" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">
-      <path d="M12 0C5.4 0 0 5.4 0 12C0 18.6 12 34 12 34C12 34 24 18.6 24 12C24 5.4 18.6 0 12 0Z" fill="#E53935"/>
-      <circle cx="12" cy="12" r="5" fill="white" opacity="0.9"/>
-    </svg>`,
-    iconSize: [w, h],
-    iconAnchor: [w / 2, h],
-    className: "",
-  });
+const LAND = "#C8BEA8";
+const OCEAN = "#EDE8DE";
+const BORDER = "#EDE8DE";
+
+// 한 링(좌표 배열)이 날짜변경선(±180°)을 가로지르는지 — 연속 점의 경도차 > 180°
+function ringCrossesAntimeridian(ring: number[][]): boolean {
+  for (let i = 1; i < ring.length; i++) {
+    if (Math.abs(ring[i][0] - ring[i - 1][0]) > 180) return true;
+  }
+  return false;
 }
 
-// 마운트 직후 컨테이너 크기를 재계산하고 전 세계를 화면에 맞춤
-function MapInit() {
-  const map = useMap();
-  useEffect(() => {
-    map.invalidateSize();
-    map.fitWorld({ padding: [4, 4] });
-  }, [map]);
-  return null;
+// 안티메리디안을 가로지르는 폴리곤 조각 제거 (평면 Mercator에서 화면을 가로지르는 띠 방지).
+// 러시아 극동 파편·남극·피지 등 비방문 지역만 사라지고 본토는 유지된다.
+function dropAntimeridian(geo: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+  for (const f of geo.features) {
+    const g = f.geometry;
+    if (g.type === "Polygon") {
+      if (ringCrossesAntimeridian(g.coordinates[0])) {
+        f.geometry = { type: "Polygon", coordinates: [] };
+      }
+    } else if (g.type === "MultiPolygon") {
+      g.coordinates = g.coordinates.filter((poly) => !ringCrossesAntimeridian(poly[0]));
+    }
+  }
+  return geo;
+}
+
+function pinSvg(selected: boolean): string {
+  const w = selected ? 44 : 32;
+  const h = Math.round(w * 1.4);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 24 34" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">
+    <path d="M12 0C5.4 0 0 5.4 0 12C0 18.6 12 34 12 34C12 34 24 18.6 24 12C24 5.4 18.6 0 12 0Z" fill="#E53935"/>
+    <circle cx="12" cy="12" r="5" fill="white" opacity="0.9"/>
+  </svg>`;
 }
 
 interface Country {
@@ -96,74 +108,131 @@ interface Props {
 }
 
 export default function WorldMap({ countries, selectedId, onCountryClick }: Props) {
-  const mapRef = useRef<LeafletMap | null>(null);
-  const [geoJson, setGeoJson] = useState<GeoJSON.FeatureCollection | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<MlMap | null>(null);
+  const markersRef = useRef<Map<number, { marker: maplibregl.Marker; el: HTMLDivElement }>>(new Map());
+  // 콜백/선택값을 ref로 보관해 맵 재생성 없이 최신값 참조
+  const onClickRef = useRef(onCountryClick);
+  onClickRef.current = onCountryClick;
 
-  const visited = new Map(
-    countries.map((c) => [ISO_NUM[toAlpha2(c.iso_code)], c])
-  );
-
+  // ── 맵 생성 (마운트 1회) ──────────────────────────────────────────────
   useEffect(() => {
-    fetch(TOPO_URL)
-      .then((r) => r.json())
-      .then((topo) => {
-        const geo = topojson.feature(
-          topo,
-          topo.objects.countries
-        ) as unknown as GeoJSON.FeatureCollection;
-        setGeoJson(geo);
-      });
+    if (!containerRef.current) return;
+
+    const style: StyleSpecification = {
+      version: 8,
+      sources: {
+        countries: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
+      },
+      layers: [
+        { id: "ocean", type: "background", paint: { "background-color": OCEAN } },
+        { id: "land", type: "fill", source: "countries", paint: { "fill-color": ["get", "fillColor"] } },
+        { id: "border", type: "line", source: "countries", paint: { "line-color": BORDER, "line-width": 0.5 } },
+      ],
+    };
+
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style,
+      center: [60, 25],
+      zoom: 1.4,
+      attributionControl: false,
+      renderWorldCopies: false,
+      dragRotate: false,
+      pitchWithRotate: false,
+      maxZoom: 10,
+      minZoom: 0,
+    });
+    map.touchZoomRotate.disableRotation();
+    mapRef.current = map;
+
+    // 방문 국가 클릭 (fill 레이어)
+    map.on("click", "land", (e) => {
+      const f = e.features?.[0];
+      const cid = f?.properties?._cid;
+      if (cid != null) onClickRef.current(Number(cid));
+    });
+    map.on("mouseenter", "land", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "land", () => { map.getCanvas().style.cursor = ""; });
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
   }, []);
 
-  const countryStyle = (feature?: GeoJSON.Feature): PathOptions => {
-    const c = visited.get(String(feature?.id));
-    return {
-      fillColor: c ? visitFill(c.season_count) : "#C8BEA8",
-      fillOpacity: 1,
-      color: "#EDE8DE",
-      weight: 0.5,
-    };
-  };
+  // ── GeoJSON 채색 + 마커 + 초기 프레이밍 (countries 변경 시) ──────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || countries.length === 0) return;
 
-  const onEachCountry = (feature: GeoJSON.Feature, layer: Layer) => {
-    const c = visited.get(String(feature?.id));
-    if (c) layer.on("click", () => onCountryClick(c.id));
-  };
+    const visited = new Map<string, Country>();
+    for (const c of countries) {
+      const key = ISO_NUM[toAlpha2(c.iso_code)];
+      if (key) visited.set(key, c);
+    }
+
+    let cancelled = false;
+
+    const apply = async () => {
+      const res = await fetch(TOPO_URL);
+      const topo = await res.json();
+      const geo = dropAntimeridian(
+        topojson.feature(topo, topo.objects.countries) as unknown as GeoJSON.FeatureCollection
+      );
+      if (cancelled) return;
+
+      for (const f of geo.features) {
+        const c = visited.get(String(f.id));
+        f.properties = {
+          ...(f.properties ?? {}),
+          fillColor: c ? visitFill(c.season_count) : LAND,
+          _cid: c ? c.id : null,
+        };
+      }
+
+      const src = map.getSource("countries") as maplibregl.GeoJSONSource | undefined;
+      if (src) src.setData(geo);
+
+      // 마커 (재생성)
+      markersRef.current.forEach(({ marker }) => marker.remove());
+      markersRef.current.clear();
+      for (const c of countries) {
+        const el = document.createElement("div");
+        el.style.cursor = "pointer";
+        el.innerHTML = pinSvg(false);
+        el.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          onClickRef.current(c.id);
+        });
+        const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
+          .setLngLat([c.lng, c.lat])
+          .addTo(map);
+        markersRef.current.set(c.id, { marker, el });
+      }
+
+      // 방문 지역에 맞춰 프레이밍
+      const bounds = new maplibregl.LngLatBounds();
+      countries.forEach((c) => bounds.extend([c.lng, c.lat]));
+      map.fitBounds(bounds, { padding: 60, animate: false, maxZoom: 6 });
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once("load", apply);
+
+    return () => { cancelled = true; };
+  }, [countries]);
+
+  // ── 선택 상태에 따라 핀 크기 갱신 ─────────────────────────────────────
+  useEffect(() => {
+    markersRef.current.forEach(({ el }, id) => {
+      el.innerHTML = pinSvg(id === selectedId);
+    });
+  }, [selectedId]);
 
   return (
     <Wrapper>
-      <MapContainer
-        ref={mapRef}
-        center={[15, 70]}
-        zoom={0}
-        minZoom={0}
-        maxZoom={10}
-        style={{ width: "100%", height: "100%" }}
-        zoomControl={false}
-        scrollWheelZoom
-        attributionControl={false}
-        maxBounds={[[-85, -180], [85, 180]]}
-        maxBoundsViscosity={0.8}
-      >
-        <MapInit />
-        {geoJson && (
-          <GeoJSON
-            key="world"
-            data={geoJson}
-            style={countryStyle}
-            onEachFeature={onEachCountry}
-          />
-        )}
-        {countries.map((c) => (
-          <Marker
-            key={`${c.id}-${selectedId === c.id}`}
-            position={[c.lat, c.lng]}
-            icon={pinIcon(selectedId === c.id)}
-            eventHandlers={{ click: () => onCountryClick(c.id) }}
-          />
-        ))}
-      </MapContainer>
-
+      <MapDiv ref={containerRef} />
       <ZoomButtons>
         <ZoomBtn onClick={() => mapRef.current?.zoomIn()} aria-label="줌 인">+</ZoomBtn>
         <ZoomBtn onClick={() => mapRef.current?.zoomOut()} aria-label="줌 아웃">−</ZoomBtn>
@@ -175,11 +244,27 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
 const Wrapper = styled.div`
   position: absolute;
   inset: 0;
+  overflow: hidden;
+`;
 
-  .leaflet-container {
-    background: #EDE8DE;
-    width: 100%;
-    height: 100%;
+const MapDiv = styled.div`
+  width: 100%;
+  height: 100%;
+  background: ${OCEAN};
+
+  /* maplibre-gl.css가 App Router에서 주입 안 되는 경우 대비, 마커 위치잡기 핵심 규칙 직접 주입 */
+  .maplibregl-marker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    will-change: transform;
+    pointer-events: auto;
+  }
+  .maplibregl-canvas-container,
+  .maplibregl-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
   }
 `;
 

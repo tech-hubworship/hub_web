@@ -1,5 +1,5 @@
 "use client";
-import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import OutreachMainClient from "./OutreachMainClient";
 
 export default function OutreachPage() {
