@@ -164,6 +164,7 @@ export default function OutreachMainClient() {
             ))}
           </ChipRow>
         </ChipArea>
+        <Compass src="/images/outreach/compass.png" alt="" aria-hidden />
       </MapArea>
 
       <Sheet data-open={selectedId !== null ? "true" : "false"} onClick={(e) => e.stopPropagation()}>
@@ -338,6 +339,20 @@ const MapArea = styled.div`
   inset: 0;
   z-index: 0;
   background: ${SURFACE};
+`;
+
+// 좌측 하단 나침반 데코. MapArea(z-index:0 스택 컨텍스트) 내부라
+// 바깥의 Sheet(z-index:1200)가 올라오면 자연히 가려진다.
+const Compass = styled.img`
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  width: 50px;
+  height: auto;
+  z-index: 1000;
+  opacity: 0.9;
+  pointer-events: none;
+  user-select: none;
 `;
 
 
