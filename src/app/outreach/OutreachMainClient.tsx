@@ -75,9 +75,10 @@ function fmtDate(d: string | null) {
   return `${parts[0]}.${parts[1]}.${parts[2]}`;
 }
 
-// 같은 해에서는 여름 → 겨울 순. 내림차순 정렬 시 첫번째가 최신 시즌
+// 같은 해에서는 겨울(1~2월) → 여름(7~8월) 순으로 시간이 흐름.
+// 따라서 여름이 더 최근 → 내림차순 정렬 시 첫번째가 최신 시즌.
 function seasonRank(s: Season) {
-  return s.year * 10 + (s.period === "winter" ? 1 : 0);
+  return s.year * 10 + (s.period === "summer" ? 1 : 0);
 }
 
 export default function OutreachMainClient() {
@@ -163,6 +164,7 @@ export default function OutreachMainClient() {
             ))}
           </ChipRow>
         </ChipArea>
+        <Compass src="/images/outreach/compass.png" alt="" aria-hidden />
       </MapArea>
 
       <Sheet data-open={selectedId !== null ? "true" : "false"} onClick={(e) => e.stopPropagation()}>
@@ -337,6 +339,20 @@ const MapArea = styled.div`
   inset: 0;
   z-index: 0;
   background: ${SURFACE};
+`;
+
+// 좌측 하단 나침반 데코. MapArea(z-index:0 스택 컨텍스트) 내부라
+// 바깥의 Sheet(z-index:1200)가 올라오면 자연히 가려진다.
+const Compass = styled.img`
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  width: 50px;
+  height: auto;
+  z-index: 1000;
+  opacity: 0.9;
+  pointer-events: none;
+  user-select: none;
 `;
 
 

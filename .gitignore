@@ -53,6 +53,10 @@ web_modules/
 # Optional npm cache directory
 .npm
 
+# 이 프로젝트는 pnpm 단일 사용 (Vercel도 pnpm-lock.yaml 기준 배포).
+# npm install로 생기는 package-lock.json은 추적하지 않아 lock drift를 방지한다.
+package-lock.json
+
 # Optional eslint cache
 .eslintcache
 
