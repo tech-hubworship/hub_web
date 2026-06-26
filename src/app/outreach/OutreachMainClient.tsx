@@ -75,9 +75,10 @@ function fmtDate(d: string | null) {
   return `${parts[0]}.${parts[1]}.${parts[2]}`;
 }
 
-// 같은 해에서는 여름 → 겨울 순. 내림차순 정렬 시 첫번째가 최신 시즌
+// 같은 해에서는 겨울(1~2월) → 여름(7~8월) 순으로 시간이 흐름.
+// 따라서 여름이 더 최근 → 내림차순 정렬 시 첫번째가 최신 시즌.
 function seasonRank(s: Season) {
-  return s.year * 10 + (s.period === "winter" ? 1 : 0);
+  return s.year * 10 + (s.period === "summer" ? 1 : 0);
 }
 
 export default function OutreachMainClient() {
