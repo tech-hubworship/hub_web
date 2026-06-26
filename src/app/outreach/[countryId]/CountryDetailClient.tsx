@@ -109,9 +109,9 @@ export default function CountryDetailClient({
   const albumUrls = selected?.gallery_urls ?? [];
 
   return (
-    <Page>
-      {/* 고정 앱 헤더 */}
-      <AppHeader>
+    <PaperPage>
+      {/* 고정 앱 헤더 (이 페이지에서만 불투명 — paper.png 상단 색상으로 채움) */}
+      <PaperHeader>
         <HeaderBtn aria-label="뒤로가기" onClick={() => router.push("/outreach")}>
           ←
         </HeaderBtn>
@@ -123,7 +123,7 @@ export default function CountryDetailClient({
           {seasons.length > 1 && <ChevronDown size={18} strokeWidth={2} aria-hidden />}
         </HeaderTitle>
         <HeaderSpacer />
-      </AppHeader>
+      </PaperHeader>
 
       {selected && (
         <Content key={selected.id}>
@@ -253,7 +253,7 @@ export default function CountryDetailClient({
           <LightboxClose onClick={() => setLightboxUrl(null)}>✕</LightboxClose>
         </Lightbox>
       )}
-    </Page>
+    </PaperPage>
   );
 }
 
@@ -276,6 +276,17 @@ function BulletText({ text }: { text: string }) {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
+
+// 상세 페이지 배경: 종이 질감 이미지 (BG 색상 폴백). cover로 빈틈 없이 채움.
+const PaperPage = styled(Page)`
+  background: ${BG} url("/images/outreach/paper.png") top center / cover no-repeat;
+`;
+
+// 이 페이지 헤더만 불투명. paper.png 상단부가 균일 크림색이라 동일 색(#FBF4E6)으로 채움.
+// (모바일/iOS에서 background-attachment:fixed 미지원 이슈를 피하면서 시각적으로 동일)
+const PaperHeader = styled(AppHeader)`
+  background: #fbf4e6;
+`;
 
 const Content = styled.div``;
 
@@ -308,16 +319,17 @@ const Bullet = styled.span`
 // ── 폴라로이드 ──
 // frame.png = 외곽 골드 보더 + 사진영역(상단 77.3%) + 크림 캡션밴드(하단). 비율 654:572.
 const HeroWrap = styled.div`
-  padding: 16px 16px 8px;
+  padding: 16px 16px 22px;
   overflow: visible;
 `;
 
 const Polaroid = styled.div`
   position: relative;
-  width: 100%;
+  width: 88%;
+  margin: 0 auto;
   aspect-ratio: 654 / 572;
   background: url("/images/outreach/frame.png") center / 100% 100% no-repeat;
-  transform: rotate(-1.8deg);
+  transform: rotate(-4.5deg);
   filter: drop-shadow(0 8px 20px rgba(78, 89, 104, 0.18));
 `;
 
@@ -363,9 +375,9 @@ const Caption = styled.p`
   justify-content: center;
   font-family: ${SERIF};
   font-style: italic;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.5;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.6px;
   text-align: center;
   color: ${PRIMARY};
 `;
@@ -379,8 +391,8 @@ const Tape = styled.img<{ $pos: "tl" | "br" }>`
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12));
   ${({ $pos }) =>
     $pos === "tl"
-      ? `top: -14px; left: -16px; transform: rotate(-40deg);`
-      : `bottom: -12px; right: -16px; transform: rotate(-40deg);`}
+      ? `top: -14px; left: -16px; transform: rotate(4.5deg);`
+      : `bottom: -12px; right: -16px; transform: rotate(4.5deg);`}
 `;
 
 // ── 본문 ──
@@ -418,6 +430,7 @@ const IntroText = styled.p`
   font-size: 14px;
   line-height: 1.5;
   letter-spacing: -0.28px;
+  word-break: keep-all;
   color: ${TEXT};
   opacity: 0.7;
   white-space: pre-wrap;
