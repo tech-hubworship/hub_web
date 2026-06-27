@@ -2,7 +2,10 @@ import { supabaseAdmin } from "@src/lib/supabase";
 import { jsonError, jsonOk } from "@src/lib/api/response";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+
+// 국가·시즌은 거의 변하지 않음(시즌 등록/사진 업로드 시에만 갱신).
+// CDN에서 5분 캐시 + 10분 stale-while-revalidate → Supabase 직격 호출을 대폭 줄임.
+const CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=600";
 
 /** 공개: 방문 국가 목록 (지도 핀용) */
 export async function GET() {
@@ -31,5 +34,5 @@ export async function GET() {
     season_count: c.outreach_seasons?.length ?? 0,
   }));
 
-  return jsonOk({ countries });
+  return jsonOk({ countries }, 200, { "Cache-Control": CACHE });
 }

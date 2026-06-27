@@ -2,7 +2,10 @@ import { supabaseAdmin } from "@src/lib/supabase";
 import { jsonError, jsonOk } from "@src/lib/api/response";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+
+// 국가·시즌은 거의 변하지 않음 → CDN 5분 캐시 + 10분 stale-while-revalidate.
+// (404/500 등 에러 응답에는 헤더를 붙이지 않아 캐시되지 않음)
+const CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=600";
 
 /** 공개: 국가 상세 + 시즌 목록 (최신순) */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -34,5 +37,5 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   if (sErr) return jsonError("시즌 조회 실패", 500);
 
-  return jsonOk({ country, seasons: seasons ?? [] });
+  return jsonOk({ country, seasons: seasons ?? [] }, 200, { "Cache-Control": CACHE });
 }
