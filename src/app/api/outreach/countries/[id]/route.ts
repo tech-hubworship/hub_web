@@ -22,7 +22,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .select(
       `
       id, year, period, start_date, end_date,
-      region, key_phrase, mission_field, theme_verse, ministry_content,
+      region_en, region_ko, key_phrase, mission_field, theme_verse, ministry_content,
       leader_pastor, members, prayer_topics, team_prayer_topics,
       hero_image_url, gallery_urls, prayer_card_urls, description
     `

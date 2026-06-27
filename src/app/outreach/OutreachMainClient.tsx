@@ -41,7 +41,8 @@ interface Season {
   period: "summer" | "winter";
   start_date: string | null;
   end_date: string | null;
-  region: string | null;
+  region_en: string | null;
+  region_ko: string | null;
 }
 
 // alpha-3 코드 중 앞 2글자 ≠ alpha-2인 경우만 명시
@@ -79,6 +80,14 @@ function fmtDate(d: string | null) {
 // 따라서 여름이 더 최근 → 내림차순 정렬 시 첫번째가 최신 시즌.
 function seasonRank(s: Season) {
   return s.year * 10 + (s.period === "summer" ? 1 : 0);
+}
+
+// region_ko를 라벨로: 2곳 이하는 전부(쉼표 join), 3곳 이상은 "대표지역 외 n곳"
+function regionLabel(regionKo: string | null): string {
+  if (!regionKo) return "";
+  const parts = regionKo.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 3) return `${parts[0]} 외 ${parts.length - 1}곳`;
+  return parts.join(", ");
 }
 
 export default function OutreachMainClient() {
@@ -121,6 +130,7 @@ export default function OutreachMainClient() {
   const seasonCount = countries.reduce((sum, c) => sum + c.season_count, 0);
   const selectedSeason =
     seasons.find((s) => s.id === selectedSeasonId) ?? seasons[0] ?? null;
+  const selectedRegionLabel = regionLabel(selectedSeason?.region_ko ?? null);
 
   if (loading) return <LoadingPage />;
 
@@ -227,6 +237,7 @@ export default function OutreachMainClient() {
                     <SeasonInfo>
                       <SeasonTitle>
                         {selectedSeason.year}년 {selectedSeason.period === "winter" ? "겨울" : "여름"}
+                        {selectedRegionLabel && ` (${selectedRegionLabel})`}
                       </SeasonTitle>
                       {(selectedSeason.start_date || selectedSeason.end_date) && (
                         <SeasonDate>
@@ -286,7 +297,7 @@ const ChipArea = styled.div`
   right: 0;
   z-index: 1100;
   overflow-x: auto;
-  padding: 0 16px;
+  padding: 8px 16px 16px;
   &::-webkit-scrollbar { display: none; }
 `;
 
@@ -311,8 +322,7 @@ const Chip = styled.button`
   cursor: pointer;
   white-space: nowrap;
   letter-spacing: -0.28px;
-  box-shadow: 0px 4px 8px rgba(78, 89, 104, 0.05),
-    0px 15px 40px rgba(78, 89, 104, 0.2);
+  box-shadow: 0px 2px 6px rgba(78, 89, 104, 0.12);
   transition: background 0.15s, border-color 0.15s;
 
   &[data-active="true"] {
@@ -326,6 +336,15 @@ const Chip = styled.button`
 const ChipFlag = styled.img`
   width: 16px;
   height: 16px;
+  border-radius: 99px;
+  border: 0.5px solid ${LINE};
+  object-fit: cover;
+  flex-shrink: 0;
+`;
+
+const CountryFlag = styled.img`
+  width: 28px;
+  height: 28px;
   border-radius: 99px;
   border: 0.5px solid ${LINE};
   object-fit: cover;
@@ -405,15 +424,6 @@ const SheetLeft = styled.div`
   align-items: center;
   gap: 8px;
   min-width: 0;
-`;
-
-const CountryFlag = styled.img`
-  width: 28px;
-  height: 28px;
-  border-radius: 99px;
-  border: 0.5px solid ${LINE};
-  object-fit: cover;
-  flex-shrink: 0;
 `;
 
 const CountryName = styled.span`
@@ -586,8 +596,6 @@ const SeasonCard = styled.button`
   cursor: pointer;
   text-align: left;
   font-family: ${SANS};
-  box-shadow: 0px 10px 30px rgba(78, 89, 104, 0.05),
-    0px 15px 80px rgba(78, 89, 104, 0.08);
 `;
 
 const SeasonCardLeft = styled.div`
