@@ -149,7 +149,7 @@ export default function OutreachMainClient() {
   return (
     <MapPage>
       <AppHeader>
-        <HeaderBtn aria-label="뒤로가기" onClick={() => router.back()}>
+        <HeaderBtn aria-label="뒤로가기" onClick={() => router.push("/outreach/onboarding")}>
           <img src="/images/outreach/arrow_back.png" alt="" width={24} height={24} style={{ display: "block", objectFit: "contain" }} />
         </HeaderBtn>
         {countryCount > 0 ? (
