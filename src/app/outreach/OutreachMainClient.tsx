@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import styled from "@emotion/styled";
@@ -98,6 +98,8 @@ export default function OutreachMainClient() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [sheetLoading, setSheetLoading] = useState(false);
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
+  const chipAreaRef = useRef<HTMLDivElement>(null);
+  const chipRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
     fetch("/api/outreach/countries")
@@ -105,6 +107,16 @@ export default function OutreachMainClient() {
       .then((d) => setCountries(d.countries ?? []))
       .finally(() => setLoading(false));
   }, []);
+
+  // 선택된 국가 칩을 칩 영역 가운데로 스크롤 (핀/칩 어느 쪽으로 선택해도 동작)
+  useEffect(() => {
+    if (selectedId == null) return;
+    const area = chipAreaRef.current;
+    const chip = chipRefs.current.get(selectedId);
+    if (!area || !chip) return;
+    const target = chip.offsetLeft - (area.clientWidth - chip.clientWidth) / 2;
+    area.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+  }, [selectedId]);
 
   const selectCountry = async (id: number) => {
     if (selectedId === id) {
@@ -162,13 +174,20 @@ export default function OutreachMainClient() {
           selectedId={selectedId}
           onCountryClick={selectCountry}
         />
-        <ChipArea>
+        <ChipArea ref={chipAreaRef}>
           <ChipRow>
             {countries.map((c) => (
               <Chip
                 key={c.id}
+                ref={(el) => {
+                  if (el) chipRefs.current.set(c.id, el);
+                  else chipRefs.current.delete(c.id);
+                }}
                 data-active={selectedId === c.id ? "true" : "false"}
-                onClick={() => selectCountry(c.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectCountry(c.id);
+                }}
               >
                 <ChipFlag src={flagUrl(c.iso_code)} alt="" />
                 {c.name_ko}
