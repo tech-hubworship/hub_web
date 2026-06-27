@@ -43,7 +43,9 @@ export default function OnboardingClient() {
   return (
     <OnboardingPage>
       <AppHeader>
-        <BackBtn aria-label="뒤로가기">←</BackBtn>
+        <BackBtn aria-label="뒤로가기">
+          <img src="/images/outreach/arrow_back.png" alt="" />
+        </BackBtn>
         <HeaderTitle as="span"></HeaderTitle>
         <HeaderSpacer />
       </AppHeader>
@@ -57,27 +59,29 @@ export default function OnboardingClient() {
 
         <GlobeIcon src="/images/outreach/globe.png" alt="" />
 
-        {countryCount > 0 && (
-          <StatsRow>
-            <Stat>
-              <StatNum>{countryCount}</StatNum>
-              <StatLabel>개국</StatLabel>
-            </Stat>
-            <Stat>
-              <StatNum>{seasonCount}</StatNum>
-              <StatLabel>시즌</StatLabel>
-            </Stat>
-          </StatsRow>
-        )}
+        <BottomCluster>
+          {countryCount > 0 && (
+            <StatsRow>
+              <Stat>
+                <StatNum>{countryCount}</StatNum>
+                <StatLabel>개국</StatLabel>
+              </Stat>
+              <Stat>
+                <StatNum>{seasonCount}</StatNum>
+                <StatLabel>시즌</StatLabel>
+              </Stat>
+            </StatsRow>
+          )}
 
-        <VerseSection>
-          <VerseText>
-            보내심을 받지 아니하였으면 어찌 전파하리요<br/>
-            기록된 바 아름답도다 좋은 소식을<br/>
-            전하는 자들의 발이여 함과 같으니라
-          </VerseText>
-          <VerseRef>[ 로마서 10:15 ]</VerseRef>
-        </VerseSection>
+          <VerseSection>
+            <VerseText>
+              보내심을 받지 아니하였으면 어찌 전파하리요.<br/>
+              기록된 바 아름답도다 좋은 소식을 전하는 자들의<br/>
+              발이여 함과 같으니라.
+            </VerseText>
+            <VerseRef>[ 로마서 10 : 15 ]</VerseRef>
+          </VerseSection>
+        </BottomCluster>
 
       </Main>
 
@@ -102,13 +106,13 @@ const Main = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0px 24px;
+  justify-content: center;
   text-align: center;
 `;
 
 const GlobeIcon = styled.img`
-  width: 240px;
-  height: 240px;
+  width: calc(100% - 96px);
+  height: auto;
   object-fit: contain;
 `;
 
@@ -116,31 +120,46 @@ const TitleSection = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 24px 0px;
+  padding: 24px;
   gap: 8px;
   width: 100%;
 `;
 
+const BottomCluster = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 32px 24px 8px;
+`;
+
 const BackBtn = styled(HeaderBtn)`
   color: ${TEXT};
+  img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+  }
 `;
 
 const Title = styled.h1`
   font-family: ${SERIF};
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
   color: ${TEXT};
   line-height: 1.35;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.02em;
 `;
 
 const Subtitle = styled.p`
   font-family: ${SERIF};
   font-size: 14px;
+  font-weight: 300;
   color: ${TEXT};
   white-space: pre-wrap;
   line-height: 1.5;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   margin: 0;
 `;
 
@@ -149,7 +168,6 @@ const StatsRow = styled.div`
   align-items: flex-end;
   gap: 10px;
   padding: 4px 0;
-  margin-top: 12px
 `;
 
 const Stat = styled.div`
@@ -177,22 +195,26 @@ const StatLabel = styled.span`
 `;
 
 const VerseSection = styled.div`
-  padding: 8px 24px;
+  padding: 0 24px;
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 `;
 
 const VerseText = styled.p`
-  font-size: 12px;
-  color: ${TEXT};
+  font-size: 13px;
+  color: rgba(81, 52, 0, 0.7);
+  line-height: 1.5;
+  letter-spacing: -0.02em;
   margin: 0;
 `;
 
 const VerseRef = styled.p`
-  font-size: 12px;
-  color: ${TEXT};
+  font-size: 13px;
+  color: rgba(81, 52, 0, 0.7);
+  line-height: 1.5;
+  letter-spacing: -0.02em;
   margin: 0;
 `;
 
@@ -200,7 +222,7 @@ const Footer = styled.div`
   position: sticky;
   bottom: 0;
   z-index: 10;
-  padding: 12px 24px max(24px, env(safe-area-inset-bottom));
+  padding: 24px 24px max(24px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -208,7 +230,6 @@ const Footer = styled.div`
 
 const CTAButton = styled.button`
   width: 100%;
-  max-width: 320px;
   height: 52px;
   background: ${CTA_COLOR};
   color: ${BG};
