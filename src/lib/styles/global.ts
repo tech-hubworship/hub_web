@@ -23,6 +23,8 @@ export const global = css`
     color-scheme: light only;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     font-size: 6.25%;
     scroll-behavior: smooth;
   }

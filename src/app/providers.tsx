@@ -14,6 +14,7 @@ import { Analytics } from "@vercel/analytics/react";
 // import { SpeedInsights } from "@vercel/speed-insights/next"; // 무료 플랜 소진으로 미사용
 import { global } from "@src/lib/styles/global";
 import { InquiryModalProvider } from "@src/contexts/InquiryModalContext";
+import EmotionRegistry from "./EmotionRegistry";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -36,6 +37,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const isAdmin = pathname?.startsWith("/admin") ?? false;
 
   return (
+    <EmotionRegistry>
     <RecoilRoot>
       <SessionProvider refetchOnWindowFocus={false} refetchInterval={60 * 60}>
         <InquiryModalProvider>
@@ -71,6 +73,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         </InquiryModalProvider>
       </SessionProvider>
     </RecoilRoot>
+    </EmotionRegistry>
   );
 }
 
