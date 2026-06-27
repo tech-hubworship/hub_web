@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import styled from "@emotion/styled";
-import { Footprints, Sun, Snowflake } from "lucide-react";
+import { Footprints } from "lucide-react";
 import {
   OutreachPage as _OutreachPage,
   AppHeader,
@@ -127,7 +127,9 @@ export default function OutreachMainClient() {
   return (
     <MapPage>
       <AppHeader>
-        <HeaderBtn aria-label="뒤로가기" onClick={() => router.back()}>←</HeaderBtn>
+        <HeaderBtn aria-label="뒤로가기" onClick={() => router.back()}>
+          <img src="/images/outreach/arrow_back.png" alt="" width={24} height={24} style={{ display: "block", objectFit: "contain" }} />
+        </HeaderBtn>
         {countryCount > 0 ? (
           <HeaderStats>
             <Stat>
@@ -214,11 +216,13 @@ export default function OutreachMainClient() {
                 <SeasonCard onClick={() => router.push(`/outreach/${selectedCountry.id}/${selectedSeason.id}`)}>
                   <SeasonCardLeft>
                     <SeasonEmoji>
-                      {selectedSeason.period === "winter" ? (
-                        <Snowflake size={18} strokeWidth={2} color="#5B9BD5" aria-hidden />
-                      ) : (
-                        <Sun size={18} strokeWidth={2} color="#E8843E" aria-hidden />
-                      )}
+                      <img
+                        src={`/images/outreach/${selectedSeason.period === "winter" ? "winter" : "summer"}.png`}
+                        alt=""
+                        width={20}
+                        height={20}
+                        style={{ display: "block", objectFit: "contain" }}
+                      />
                     </SeasonEmoji>
                     <SeasonInfo>
                       <SeasonTitle>

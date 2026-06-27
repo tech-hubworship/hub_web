@@ -113,7 +113,7 @@ export default function CountryDetailClient({
       {/* 고정 앱 헤더 (이 페이지에서만 불투명 — paper.png 상단 색상으로 채움) */}
       <PaperHeader>
         <HeaderBtn aria-label="뒤로가기" onClick={() => router.push("/outreach")}>
-          ←
+          <img src="/images/outreach/arrow_back.png" alt="" width={24} height={24} style={{ display: "block", objectFit: "contain" }} />
         </HeaderBtn>
         <HeaderTitle
           onClick={() => seasons.length > 1 && setSheetOpen(true)}
