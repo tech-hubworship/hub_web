@@ -337,7 +337,6 @@ const Polaroid = styled.div`
   aspect-ratio: 654 / 572;
   background: url("/images/outreach/frame.png") center / 100% 100% no-repeat;
   transform: rotate(-4.5deg);
-  filter: drop-shadow(0 8px 20px rgba(78, 89, 104, 0.18));
 `;
 
 const PhotoWindow = styled.div`
