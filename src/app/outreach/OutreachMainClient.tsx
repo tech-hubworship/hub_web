@@ -345,10 +345,10 @@ const MapArea = styled.div`
 // 바깥의 Sheet(z-index:1200)가 올라오면 자연히 가려진다.
 const Compass = styled.img`
   position: absolute;
-  left: 6px;
-  bottom: 6px;
-  width: 50px;
-  height: auto;
+  right: 22px;
+  bottom: 34px;
+  width: 30px;
+  height: 30px;
   z-index: 1000;
   opacity: 0.9;
   pointer-events: none;

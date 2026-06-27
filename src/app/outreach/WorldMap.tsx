@@ -5,7 +5,7 @@ import maplibregl from "maplibre-gl";
 import type { Map as MlMap, StyleSpecification } from "maplibre-gl";
 import * as topojson from "topojson-client";
 import styled from "@emotion/styled";
-import { TEXT, BG, VISIT_1, VISIT_2, VISIT_3, LAND, OCEAN, BORDER, LINE, SURFACE } from "./_components/shared";
+import { TEXT, BG, VISIT_1, VISIT_2, VISIT_3, LAND, OCEAN, BORDER } from "./_components/shared";
 
 const TOPO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
@@ -265,10 +265,6 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
   return (
     <Wrapper>
       <MapDiv ref={containerRef} />
-      <ZoomButtons>
-        <ZoomBtn onClick={() => mapRef.current?.zoomIn()} aria-label="줌 인">+</ZoomBtn>
-        <ZoomBtn onClick={() => mapRef.current?.zoomOut()} aria-label="줌 아웃">−</ZoomBtn>
-      </ZoomButtons>
     </Wrapper>
   );
 }
@@ -299,31 +295,4 @@ const MapDiv = styled.div`
     top: 0;
     left: 0;
   }
-`;
-
-const ZoomButtons = styled.div`
-  position: absolute;
-  bottom: 16px;
-  right: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  z-index: 1000;
-`;
-
-const ZoomBtn = styled.button`
-  width: 32px;
-  height: 32px;
-  background: ${BG}E0;
-  border: 1px solid ${LINE};
-  border-radius: 8px;
-  font-size: 18px;
-  line-height: 1;
-  color: #5A4A35;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-  &:active { background: ${SURFACE}; }
 `;
