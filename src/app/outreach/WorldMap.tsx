@@ -84,13 +84,28 @@ function dropAntimeridian(geo: GeoJSON.FeatureCollection): GeoJSON.FeatureCollec
 
 function pinSvg(selected: boolean, zoom = 1.4): string {
   const base = Math.round(Math.max(16, Math.min(44, 20 + zoom * 6)));
-  const w = selected ? Math.min(54, base + 10) : base;
+  const w = selected ? 32 : base;
   const h = Math.round(w * 1.619);
   return `<svg width="${w}" height="${h}" viewBox="0 0 32 51.8095" xmlns="http://www.w3.org/2000/svg" style="display:block">
     <path fill-rule="evenodd" clip-rule="evenodd" d="M16 0C24.8366 0 32 7.16344 32 16C32 24.3226 25.6456 31.1611 17.5238 31.9284V48.7619C17.5238 49.6035 16.8416 50.2857 16 50.2857C15.1584 50.2857 14.4762 49.6035 14.4762 48.7619V31.9284C6.35439 31.1611 0 24.3226 0 16C0 7.16344 7.16344 0 16 0Z" fill="${TEXT}"/>
     <path d="M21.3333 16C21.3333 13.0545 18.9455 10.6667 16 10.6667C13.0545 10.6667 10.6667 13.0545 10.6667 16C10.6667 18.9455 13.0545 21.3333 16 21.3333C18.9455 21.3333 21.3333 18.9455 21.3333 16Z" fill="${BG}"/>
     <path opacity="0.3" d="M16 51.8095C18.1039 51.8095 19.8095 50.9567 19.8095 49.9048C19.8095 48.8528 18.1039 48 16 48C13.896 48 12.1904 48.8528 12.1904 49.9048C12.1904 50.9567 13.896 51.8095 16 51.8095Z" fill="${TEXT}"/>
   </svg>`;
+}
+
+// 미선택 핀: 해당 국가 국기 원형(기본 24×24px) + 아래 갈색 막대
+function flagMarker(iso: string): string {
+  const src = `/images/outreach/flags/${toAlpha2(iso).toLowerCase()}.png`;
+  return `<div style="display:flex;flex-direction:column;align-items:center">
+    <img src="${src}" alt="" width="24" height="24"
+      style="display:block;width:24px;height:24px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.55)" />
+    <div style="width:2px;height:10px;background:${TEXT}"></div>
+  </div>`;
+}
+
+// 선택 → 갈색 도넛 핀, 미선택 → 국기 원형
+function markerHtml(selected: boolean, iso: string, zoom = INITIAL_ZOOM): string {
+  return selected ? pinSvg(true, zoom) : flagMarker(iso);
 }
 
 interface Country {
@@ -111,7 +126,9 @@ interface Props {
 export default function WorldMap({ countries, selectedId, onCountryClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
-  const markersRef = useRef<Map<number, { marker: maplibregl.Marker; el: HTMLDivElement }>>(new Map());
+  const markersRef = useRef<Map<number, { marker: maplibregl.Marker; el: HTMLDivElement; iso: string }>>(new Map());
+  // 현재 갈색 도넛으로 렌더된(선택된) 핀 id — 선택 전환 시 이전 핀만 국기로 복귀시키기 위함
+  const renderedSelRef = useRef<number | null>(null);
   // 콜백/선택값을 ref로 보관해 맵 재생성 없이 최신값 참조
   const onClickRef = useRef(onCountryClick);
   onClickRef.current = onCountryClick;
@@ -169,10 +186,11 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
     map.on("mouseenter", "land", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "land", () => { map.getCanvas().style.cursor = ""; });
     map.on("zoom", () => {
-      const zoom = map.getZoom();
-      markersRef.current.forEach(({ el }, id) => {
-        el.innerHTML = pinSvg(id === selectedIdRef.current, zoom);
-      });
+      // 선택된(갈색 도넛) 핀만 줌에 맞춰 크기 갱신. 국기 핀은 24×24 고정이라 갱신 불필요(이미지 깜빡임 방지).
+      const sel = selectedIdRef.current;
+      if (sel == null) return;
+      const entry = markersRef.current.get(sel);
+      if (entry) entry.el.innerHTML = markerHtml(true, entry.iso, map.getZoom());
     });
 
     return () => {
@@ -221,7 +239,7 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
       for (const c of countries) {
         const el = document.createElement("div");
         el.style.cursor = "pointer";
-        el.innerHTML = pinSvg(false);
+        el.innerHTML = markerHtml(c.id === selectedIdRef.current, c.iso_code);
         el.addEventListener("click", (ev) => {
           ev.stopPropagation();
           onClickRef.current(c.id);
@@ -229,8 +247,9 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
         const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
           .setLngLat([c.lng, c.lat])
           .addTo(map);
-        markersRef.current.set(c.id, { marker, el });
+        markersRef.current.set(c.id, { marker, el, iso: c.iso_code });
       }
+      renderedSelRef.current = selectedIdRef.current;
 
       // 방문 지역에 맞춰 프레이밍
       const bounds = new maplibregl.LngLatBounds();
@@ -248,9 +267,18 @@ export default function WorldMap({ countries, selectedId, onCountryClick }: Prop
   useEffect(() => {
     const map = mapRef.current;
     const zoom = map?.getZoom() ?? INITIAL_ZOOM;
-    markersRef.current.forEach(({ el }, id) => {
-      el.innerHTML = pinSvg(id === selectedId, zoom);
-    });
+    // 이전 선택 핀 → 국기로 복귀
+    const prev = renderedSelRef.current;
+    if (prev != null && prev !== selectedId) {
+      const e = markersRef.current.get(prev);
+      if (e) e.el.innerHTML = markerHtml(false, e.iso, zoom);
+    }
+    // 새 선택 핀 → 갈색 도넛
+    if (selectedId != null) {
+      const e = markersRef.current.get(selectedId);
+      if (e) e.el.innerHTML = markerHtml(true, e.iso, zoom);
+    }
+    renderedSelRef.current = selectedId;
     if (selectedId === null) {
       map?.flyTo({ zoom: INITIAL_ZOOM, duration: 600 });
     } else {
