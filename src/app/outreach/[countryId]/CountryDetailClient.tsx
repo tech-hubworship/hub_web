@@ -26,7 +26,8 @@ interface Season {
   period: "summer" | "winter";
   start_date: string | null;
   end_date: string | null;
-  region: string | null;
+  region_en: string | null;
+  region_ko: string | null;
   key_phrase: string | null;
   mission_field: string | null;
   theme_verse: string | null;
@@ -57,7 +58,7 @@ function seasonLabel(s: Season) {
 
 /** 폴라로이드 캡션: "Bangkok, Thailand, 2024" */
 function captionText(country: Country, s: Season) {
-  return [s.region, country.name_en, s.year].filter(Boolean).join(", ");
+  return [s.region_en, country.name_en, s.year].filter(Boolean).join(", ");
 }
 
 export default function CountryDetailClient({
@@ -113,7 +114,7 @@ export default function CountryDetailClient({
       {/* 고정 앱 헤더 (이 페이지에서만 불투명 — paper.png 상단 색상으로 채움) */}
       <PaperHeader>
         <HeaderBtn aria-label="뒤로가기" onClick={() => router.push("/outreach")}>
-          ←
+          <img src="/images/outreach/arrow_back.png" alt="" width={24} height={24} style={{ display: "block", objectFit: "contain" }} />
         </HeaderBtn>
         <HeaderTitle
           onClick={() => seasons.length > 1 && setSheetOpen(true)}
@@ -158,6 +159,12 @@ export default function CountryDetailClient({
 
             {/* 3) 상세 정보 */}
             <Fields>
+              {selected.region_ko && (
+                <Field>
+                  <FieldLabel>방문 지역</FieldLabel>
+                  <FieldValue>{selected.region_ko}</FieldValue>
+                </Field>
+              )}
               {selected.mission_field && (
                 <Field>
                   <FieldLabel>선교지</FieldLabel>
@@ -330,7 +337,6 @@ const Polaroid = styled.div`
   aspect-ratio: 654 / 572;
   background: url("/images/outreach/frame.png") center / 100% 100% no-repeat;
   transform: rotate(-4.5deg);
-  filter: drop-shadow(0 8px 20px rgba(78, 89, 104, 0.18));
 `;
 
 const PhotoWindow = styled.div`

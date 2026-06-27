@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import styled from "@emotion/styled";
-import { Footprints, Sun, Snowflake } from "lucide-react";
+import { Footprints } from "lucide-react";
 import {
   OutreachPage as _OutreachPage,
   AppHeader,
@@ -41,7 +41,8 @@ interface Season {
   period: "summer" | "winter";
   start_date: string | null;
   end_date: string | null;
-  region: string | null;
+  region_en: string | null;
+  region_ko: string | null;
 }
 
 // alpha-3 코드 중 앞 2글자 ≠ alpha-2인 경우만 명시
@@ -81,6 +82,14 @@ function seasonRank(s: Season) {
   return s.year * 10 + (s.period === "summer" ? 1 : 0);
 }
 
+// region_ko를 라벨로: 2곳 이하는 전부(쉼표 join), 3곳 이상은 "대표지역 외 n곳"
+function regionLabel(regionKo: string | null): string {
+  if (!regionKo) return "";
+  const parts = regionKo.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 3) return `${parts[0]} 외 ${parts.length - 1}곳`;
+  return parts.join(", ");
+}
+
 export default function OutreachMainClient() {
   const router = useRouter();
   const [countries, setCountries] = useState<Country[]>([]);
@@ -89,6 +98,8 @@ export default function OutreachMainClient() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [sheetLoading, setSheetLoading] = useState(false);
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
+  const chipAreaRef = useRef<HTMLDivElement>(null);
+  const chipRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
     fetch("/api/outreach/countries")
@@ -96,6 +107,16 @@ export default function OutreachMainClient() {
       .then((d) => setCountries(d.countries ?? []))
       .finally(() => setLoading(false));
   }, []);
+
+  // 선택된 국가 칩을 칩 영역 가운데로 스크롤 (핀/칩 어느 쪽으로 선택해도 동작)
+  useEffect(() => {
+    if (selectedId == null) return;
+    const area = chipAreaRef.current;
+    const chip = chipRefs.current.get(selectedId);
+    if (!area || !chip) return;
+    const target = chip.offsetLeft - (area.clientWidth - chip.clientWidth) / 2;
+    area.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+  }, [selectedId]);
 
   const selectCountry = async (id: number) => {
     if (selectedId === id) {
@@ -121,13 +142,16 @@ export default function OutreachMainClient() {
   const seasonCount = countries.reduce((sum, c) => sum + c.season_count, 0);
   const selectedSeason =
     seasons.find((s) => s.id === selectedSeasonId) ?? seasons[0] ?? null;
+  const selectedRegionLabel = regionLabel(selectedSeason?.region_ko ?? null);
 
   if (loading) return <LoadingPage />;
 
   return (
     <MapPage>
       <AppHeader>
-        <HeaderBtn aria-label="뒤로가기" onClick={() => router.back()}>←</HeaderBtn>
+        <HeaderBtn aria-label="뒤로가기" onClick={() => router.back()}>
+          <img src="/images/outreach/arrow_back.png" alt="" width={24} height={24} style={{ display: "block", objectFit: "contain" }} />
+        </HeaderBtn>
         {countryCount > 0 ? (
           <HeaderStats>
             <Stat>
@@ -150,13 +174,20 @@ export default function OutreachMainClient() {
           selectedId={selectedId}
           onCountryClick={selectCountry}
         />
-        <ChipArea>
+        <ChipArea ref={chipAreaRef}>
           <ChipRow>
             {countries.map((c) => (
               <Chip
                 key={c.id}
+                ref={(el) => {
+                  if (el) chipRefs.current.set(c.id, el);
+                  else chipRefs.current.delete(c.id);
+                }}
                 data-active={selectedId === c.id ? "true" : "false"}
-                onClick={() => selectCountry(c.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectCountry(c.id);
+                }}
               >
                 <ChipFlag src={flagUrl(c.iso_code)} alt="" />
                 {c.name_ko}
@@ -214,15 +245,18 @@ export default function OutreachMainClient() {
                 <SeasonCard onClick={() => router.push(`/outreach/${selectedCountry.id}/${selectedSeason.id}`)}>
                   <SeasonCardLeft>
                     <SeasonEmoji>
-                      {selectedSeason.period === "winter" ? (
-                        <Snowflake size={18} strokeWidth={2} color="#5B9BD5" aria-hidden />
-                      ) : (
-                        <Sun size={18} strokeWidth={2} color="#E8843E" aria-hidden />
-                      )}
+                      <img
+                        src={`/images/outreach/${selectedSeason.period === "winter" ? "winter" : "summer"}.png`}
+                        alt=""
+                        width={20}
+                        height={20}
+                        style={{ display: "block", objectFit: "contain" }}
+                      />
                     </SeasonEmoji>
                     <SeasonInfo>
                       <SeasonTitle>
                         {selectedSeason.year}년 {selectedSeason.period === "winter" ? "겨울" : "여름"}
+                        {selectedRegionLabel && ` (${selectedRegionLabel})`}
                       </SeasonTitle>
                       {(selectedSeason.start_date || selectedSeason.end_date) && (
                         <SeasonDate>
@@ -282,7 +316,7 @@ const ChipArea = styled.div`
   right: 0;
   z-index: 1100;
   overflow-x: auto;
-  padding: 0 16px;
+  padding: 8px 16px 16px;
   &::-webkit-scrollbar { display: none; }
 `;
 
@@ -307,8 +341,7 @@ const Chip = styled.button`
   cursor: pointer;
   white-space: nowrap;
   letter-spacing: -0.28px;
-  box-shadow: 0px 4px 8px rgba(78, 89, 104, 0.05),
-    0px 15px 40px rgba(78, 89, 104, 0.2);
+  box-shadow: 0px 2px 6px rgba(78, 89, 104, 0.12);
   transition: background 0.15s, border-color 0.15s;
 
   &[data-active="true"] {
@@ -322,6 +355,15 @@ const Chip = styled.button`
 const ChipFlag = styled.img`
   width: 16px;
   height: 16px;
+  border-radius: 99px;
+  border: 0.5px solid ${LINE};
+  object-fit: cover;
+  flex-shrink: 0;
+`;
+
+const CountryFlag = styled.img`
+  width: 28px;
+  height: 28px;
   border-radius: 99px;
   border: 0.5px solid ${LINE};
   object-fit: cover;
@@ -401,15 +443,6 @@ const SheetLeft = styled.div`
   align-items: center;
   gap: 8px;
   min-width: 0;
-`;
-
-const CountryFlag = styled.img`
-  width: 28px;
-  height: 28px;
-  border-radius: 99px;
-  border: 0.5px solid ${LINE};
-  object-fit: cover;
-  flex-shrink: 0;
 `;
 
 const CountryName = styled.span`
@@ -582,8 +615,6 @@ const SeasonCard = styled.button`
   cursor: pointer;
   text-align: left;
   font-family: ${SANS};
-  box-shadow: 0px 10px 30px rgba(78, 89, 104, 0.05),
-    0px 15px 80px rgba(78, 89, 104, 0.08);
 `;
 
 const SeasonCardLeft = styled.div`
