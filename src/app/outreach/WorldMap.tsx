@@ -102,8 +102,9 @@ function flagMarker(iso: string): string {
   const wide = iso.toUpperCase() in FLAG_OVERRIDE;
   const file = FLAG_OVERRIDE[iso.toUpperCase()] ?? toAlpha2(iso).toLowerCase();
   const src = `/images/outreach/flags/${file}.png`;
+  // 합본 PNG는 투명 영역이 있어 box-shadow(사각 박스 기준) 대신 drop-shadow(알파 모양 기준)를 사용
   const imgStyle = wide
-    ? "display:block;height:24px;width:auto;border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,0.55)"
+    ? "display:block;height:24px;width:auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45))"
     : "display:block;width:24px;height:24px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.55)";
   return `<div style="display:flex;flex-direction:column;align-items:center">
     <img src="${src}" alt="" style="${imgStyle}" />
