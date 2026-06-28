@@ -13,10 +13,11 @@ import {
   BG,
   PRIMARY,
   SANS,
-  SERIF,
 } from "../_components/shared";
 
 const CTA_COLOR = PRIMARY;
+// 온보딩 명조: 부크크명조(Figma 디자인 기준). 미로드 시 기존 명조로 폴백.
+const MYEONGJO = `'BookkMyungjo', 'Nanum Myeongjo', 'AppleMyungjo', 'Apple SD Gothic Neo', serif`;
 
 interface Country {
   season_count: number;
@@ -144,7 +145,7 @@ const BackBtn = styled(HeaderBtn)`
 `;
 
 const Title = styled.h1`
-  font-family: ${SERIF};
+  font-family: ${MYEONGJO};
   font-size: 24px;
   font-weight: 700;
   color: ${TEXT};
@@ -153,7 +154,7 @@ const Title = styled.h1`
 `;
 
 const Subtitle = styled.p`
-  font-family: ${SERIF};
+  font-family: ${MYEONGJO};
   font-size: 14px;
   font-weight: 300;
   color: ${TEXT};
@@ -177,7 +178,7 @@ const Stat = styled.div`
 `;
 
 const StatNum = styled.span`
-  font-family: ${SERIF};
+  font-family: ${MYEONGJO};
   font-weight: 700;
   font-size: 20px;
   line-height: 1.1;

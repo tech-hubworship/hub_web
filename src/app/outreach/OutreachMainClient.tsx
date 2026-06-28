@@ -364,8 +364,8 @@ const Chip = styled.button`
 const ChipFlag = styled.img<{ $wide?: boolean }>`
   width: ${(p) => (p.$wide ? "auto" : "16px")};
   height: 16px;
-  border-radius: ${(p) => (p.$wide ? "2px" : "99px")};
-  border: 0.5px solid ${LINE};
+  border-radius: ${(p) => (p.$wide ? "0" : "99px")};
+  border: ${(p) => (p.$wide ? "none" : `0.5px solid ${LINE}`)};
   object-fit: ${(p) => (p.$wide ? "contain" : "cover")};
   flex-shrink: 0;
 `;
@@ -373,8 +373,8 @@ const ChipFlag = styled.img<{ $wide?: boolean }>`
 const CountryFlag = styled.img<{ $wide?: boolean }>`
   width: ${(p) => (p.$wide ? "auto" : "28px")};
   height: 28px;
-  border-radius: ${(p) => (p.$wide ? "3px" : "99px")};
-  border: 0.5px solid ${LINE};
+  border-radius: ${(p) => (p.$wide ? "0" : "99px")};
+  border: ${(p) => (p.$wide ? "none" : `0.5px solid ${LINE}`)};
   object-fit: ${(p) => (p.$wide ? "contain" : "cover")};
   flex-shrink: 0;
 `;
