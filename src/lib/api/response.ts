@@ -6,8 +6,8 @@ export function jsonError(
   return Response.json({ error: message, ...(extra ?? {}) }, { status });
 }
 
-export function jsonOk<T>(data: T, status = 200) {
-  return Response.json(data, { status });
+export function jsonOk<T>(data: T, status = 200, headers?: HeadersInit) {
+  return Response.json(data, { status, headers });
 }
 
 export function methodNotAllowed(allowed?: string[]) {
