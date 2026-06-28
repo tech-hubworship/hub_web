@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import styled from '@emotion/styled';
 
-const OPEN_TIME = new Date('2026-04-12T13:00:00+09:00');
+const OPEN_TIME = new Date('2026-06-28T14:00:00+09:00');
 
 function getTimeLeft() {
   const diff = OPEN_TIME.getTime() - Date.now();
@@ -28,14 +28,14 @@ export default function HubUpBanner() {
 
   return (
     <Wrapper>
-      <Icon>🕊️</Icon>
-      <Title>Be Holy</Title>
-      <Sub>HUBUP 2026</Sub>
+      <Icon>✈️</Icon>
+      <Title>Go To Nation</Title>
+      <Sub>Outreach 2026</Sub>
       {isOpen ? (
-        <Btn onClick={() => router.push('/hub_up')}>허브업 신청하기 →</Btn>
+        <Btn onClick={() => router.push('/outreach')}>발자취 따라가기 →</Btn>
       ) : (
         <CountdownWrap>
-          <CountdownLabel>허브업 신청까지</CountdownLabel>
+          <CountdownLabel>아웃리치 발자취 확인까지</CountdownLabel>
           <CountdownTime>
             {String(timeLeft.h).padStart(2, '0')}:{String(timeLeft.m).padStart(2, '0')}:{String(timeLeft.s).padStart(2, '0')}
           </CountdownTime>
