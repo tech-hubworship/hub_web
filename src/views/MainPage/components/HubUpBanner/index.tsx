@@ -32,7 +32,7 @@ export default function HubUpBanner() {
       <Title>Go To Nation</Title>
       <Sub>Outreach 2026</Sub>
       {isOpen ? (
-        <Btn onClick={() => router.push('/outreach')}>발자취 따라가기 →</Btn>
+        <Btn onClick={() => router.push('/outreach/onboarding')}>발자취 따라가기 →</Btn>
       ) : (
         <CountdownWrap>
           <CountdownLabel>아웃리치 발자취 확인까지</CountdownLabel>
