@@ -66,8 +66,17 @@ function toAlpha2(iso: string): string {
   return ISO3_FIX[u] ?? u.substring(0, 2);
 }
 
+// 일부 국가는 표준 국기 대신 전용 이미지를 사용 (예: 튀르키예&그리스 → 합본 국기)
+const FLAG_OVERRIDE: Record<string, string> = { TUR: "gr_tr" };
+
 function flagUrl(iso: string) {
-  return `/images/outreach/flags/${toAlpha2(iso).toLowerCase()}.png`;
+  const file = FLAG_OVERRIDE[iso.toUpperCase()] ?? toAlpha2(iso).toLowerCase();
+  return `/images/outreach/flags/${file}.png`;
+}
+
+// 전용(합본) 국기는 원형 크롭 대신 원본 가로 비율 그대로 표시
+function isWideFlag(iso: string) {
+  return iso.toUpperCase() in FLAG_OVERRIDE;
 }
 
 function fmtDate(d: string | null) {
@@ -189,7 +198,7 @@ export default function OutreachMainClient() {
                   selectCountry(c.id);
                 }}
               >
-                <ChipFlag src={flagUrl(c.iso_code)} alt="" />
+                <ChipFlag src={flagUrl(c.iso_code)} $wide={isWideFlag(c.iso_code)} alt="" />
                 {c.name_ko}
               </Chip>
             ))}
@@ -204,7 +213,7 @@ export default function OutreachMainClient() {
           <>
             <SheetHeader>
               <SheetLeft>
-                <CountryFlag src={flagUrl(selectedCountry.iso_code)} alt="" />
+                <CountryFlag src={flagUrl(selectedCountry.iso_code)} $wide={isWideFlag(selectedCountry.iso_code)} alt="" />
                 <CountryName>{selectedCountry.name_ko}</CountryName>
               </SheetLeft>
               <StepCount>
@@ -352,21 +361,21 @@ const Chip = styled.button`
   }
 `;
 
-const ChipFlag = styled.img`
-  width: 16px;
+const ChipFlag = styled.img<{ $wide?: boolean }>`
+  width: ${(p) => (p.$wide ? "auto" : "16px")};
   height: 16px;
-  border-radius: 99px;
+  border-radius: ${(p) => (p.$wide ? "2px" : "99px")};
   border: 0.5px solid ${LINE};
-  object-fit: cover;
+  object-fit: ${(p) => (p.$wide ? "contain" : "cover")};
   flex-shrink: 0;
 `;
 
-const CountryFlag = styled.img`
-  width: 28px;
+const CountryFlag = styled.img<{ $wide?: boolean }>`
+  width: ${(p) => (p.$wide ? "auto" : "28px")};
   height: 28px;
-  border-radius: 99px;
+  border-radius: ${(p) => (p.$wide ? "3px" : "99px")};
   border: 0.5px solid ${LINE};
-  object-fit: cover;
+  object-fit: ${(p) => (p.$wide ? "contain" : "cover")};
   flex-shrink: 0;
 `;
 

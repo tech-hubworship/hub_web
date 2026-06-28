@@ -93,12 +93,20 @@ function pinSvg(selected: boolean, zoom = 1.4): string {
   </svg>`;
 }
 
+// 일부 국가는 표준 국기 대신 전용 이미지를 사용 (예: 튀르키예&그리스 → 합본 국기)
+const FLAG_OVERRIDE: Record<string, string> = { TUR: "gr_tr" };
+
 // 미선택 핀: 해당 국가 국기 원형(기본 24×24px) + 아래 갈색 막대
+// 전용(합본) 국기는 원형 크롭 대신 원본 가로 비율 그대로 표시
 function flagMarker(iso: string): string {
-  const src = `/images/outreach/flags/${toAlpha2(iso).toLowerCase()}.png`;
+  const wide = iso.toUpperCase() in FLAG_OVERRIDE;
+  const file = FLAG_OVERRIDE[iso.toUpperCase()] ?? toAlpha2(iso).toLowerCase();
+  const src = `/images/outreach/flags/${file}.png`;
+  const imgStyle = wide
+    ? "display:block;height:24px;width:auto;border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,0.55)"
+    : "display:block;width:24px;height:24px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.55)";
   return `<div style="display:flex;flex-direction:column;align-items:center">
-    <img src="${src}" alt="" width="24" height="24"
-      style="display:block;width:24px;height:24px;border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.55)" />
+    <img src="${src}" alt="" style="${imgStyle}" />
     <div style="width:2px;height:10px;background:${TEXT}"></div>
   </div>`;
 }
