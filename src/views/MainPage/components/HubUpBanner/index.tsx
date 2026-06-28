@@ -29,7 +29,7 @@ export default function HubUpBanner() {
   return (
     <Wrapper>
       <Icon>✈️</Icon>
-      <Title>Go To Nation</Title>
+      <Title>Go To The Nation</Title>
       <Sub>Outreach 2026</Sub>
       {isOpen ? (
         <Btn onClick={() => router.push('/outreach')}>발자취 따라가기 →</Btn>
