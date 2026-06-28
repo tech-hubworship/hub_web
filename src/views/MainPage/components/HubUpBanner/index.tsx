@@ -66,12 +66,19 @@ const Icon = styled.div`
 const Title = styled.h2`
   font-family: 'Wanted Sans', sans-serif;
   font-weight: 700;
-  font-size: 64px;
+  font-size: 36px;
   line-height: 1.2;
   text-align: center;
   color: #2D478C;
   margin: 0;
   letter-spacing: -0.02em;
+
+  @media (min-width: 480px) {
+    font-size: 44px;
+  }
+  @media (min-width: 768px) {
+    font-size: 52px;
+  }
 `;
 
 const Sub = styled.p`
