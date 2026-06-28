@@ -20,18 +20,6 @@ import {
   SERIF,
 } from "../_components/shared";
 
-/**
- * Supabase Storage 원본 URL을 변환(render) 엔드포인트로 바꿔 리사이즈·압축본을 받는다.
- * 표시 크기에 맞는 width로 받으면 전송량이 90%+ 줄고, 변환 결과는 CDN 캐싱된다.
- * (Supabase 공개 URL이 아니면 원본 그대로 반환)
- */
-function imgSrc(url: string | null | undefined, w: number, q = 70): string | undefined {
-  if (!url) return undefined;
-  if (!url.includes("/storage/v1/object/public/")) return url;
-  const rendered = url.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/");
-  return `${rendered}?width=${w}&quality=${q}`;
-}
-
 interface Season {
   id: number;
   year: number;
@@ -146,10 +134,8 @@ export default function CountryDetailClient({
               <PhotoWindow>
                 {selected.hero_image_url ? (
                   <PhotoImg
-                    src={imgSrc(selected.hero_image_url, 900, 70)}
+                    src={selected.hero_image_url}
                     alt={`${country.name_ko} 대표사진`}
-                    fetchPriority="high"
-                    decoding="async"
                     onClick={() => setLightboxUrl(selected.hero_image_url)}
                   />
                 ) : (
@@ -232,10 +218,8 @@ export default function CountryDetailClient({
                   {albumUrls.map((url, i) => (
                     <AlbumThumb
                       key={`${url}-${i}`}
-                      src={imgSrc(url, 300, 60)}
+                      src={url}
                       alt={`앨범 ${i + 1}`}
-                      loading="lazy"
-                      decoding="async"
                       onClick={() => setLightboxUrl(url)}
                     />
                   ))}
@@ -272,7 +256,7 @@ export default function CountryDetailClient({
       {/* 라이트박스 */}
       {lightboxUrl && (
         <Lightbox onClick={() => setLightboxUrl(null)}>
-          <LightboxImg src={imgSrc(lightboxUrl, 1400, 80)} alt="확대 이미지" onClick={(e) => e.stopPropagation()} />
+          <LightboxImg src={lightboxUrl} alt="확대 이미지" onClick={(e) => e.stopPropagation()} />
           <LightboxClose onClick={() => setLightboxUrl(null)}>✕</LightboxClose>
         </Lightbox>
       )}

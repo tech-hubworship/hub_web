@@ -43,7 +43,7 @@ export default function OnboardingClient() {
   return (
     <OnboardingPage>
       <AppHeader>
-        <BackBtn aria-label="뒤로가기">
+        <BackBtn aria-label="뒤로가기" onClick={() => router.push("/")}>
           <img src="/images/outreach/arrow_back.png" alt="" />
         </BackBtn>
         <HeaderTitle as="span"></HeaderTitle>
