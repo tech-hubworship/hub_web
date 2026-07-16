@@ -186,9 +186,14 @@ const CancelButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #f8fafc;
     border-color: #cbd5e1;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   @media (max-width: 480px) {
@@ -225,6 +230,87 @@ const SaveButton = styled.button`
   }
 `;
 
+const WithdrawButton = styled.button`
+  width: 100%;
+  height: 48px;
+  background-color: white;
+  border: 1px solid #ffcdd2;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e57373;
+  cursor: pointer;
+  margin-top: 8px;
+  margin-bottom: 40px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #fff5f5;
+    border-color: #ef9a9a;
+    color: #c62828;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+`;
+
+const DeleteModalTitle = styled.h2`
+  font-size: 20px;
+  font-weight: 700;
+  color: #c62828;
+  text-align: center;
+  margin: 0 0 12px 0;
+`;
+
+const DeleteModalDesc = styled.p`
+  font-size: 14px;
+  color: #555;
+  text-align: center;
+  line-height: 1.7;
+  margin: 0 0 20px 0;
+  white-space: pre-line;
+`;
+
+const DeleteInput = styled.input`
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 16px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+
+  &:focus {
+    outline: none;
+    border-color: #e57373;
+    box-shadow: 0 0 0 4px rgba(229, 115, 115, 0.15);
+  }
+`;
+
+const DeleteConfirmButton = styled.button`
+  flex: 1;
+  padding: 16px;
+  background: #d32f2f;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: #b71c1c;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+`;
+
 export default function MyInfoPage() {
   const router = useRouter();
   const { data: session, status } = useSession({
@@ -239,6 +325,28 @@ export default function MyInfoPage() {
   });
 
   const handleLogout = () => signOut({ callbackUrl: '/login' });
+
+  // 탈퇴 관련 state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const handleDeleteAccount = async () => {
+    setDeleteLoading(true);
+    setDeleteError('');
+    try {
+      const res = await fetch('/api/user/delete-account', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || '탈퇴 처리 중 오류가 발생했습니다.');
+      // 탈퇴 성공 → 로그아웃 처리
+      await signOut({ callbackUrl: '/login' });
+    } catch (err: any) {
+      setDeleteError(err.message);
+      setDeleteLoading(false);
+    }
+  };
+
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -452,7 +560,44 @@ export default function MyInfoPage() {
               </Link>
 
               <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
+
+              {/* 회원 탈퇴 */}
+              <WithdrawButton onClick={() => { setShowDeleteModal(true); setDeleteConfirmText(''); setDeleteError(''); }}>
+                회원 탈퇴
+              </WithdrawButton>
             </>
+          )}
+
+          {/* 탈퇴 확인 모달 */}
+          {showDeleteModal && (
+            <S.ModalOverlay onClick={() => !deleteLoading && setShowDeleteModal(false)}>
+              <S.ModalContent onClick={(e) => e.stopPropagation()}>
+                <DeleteModalTitle>정말 탈퇴하시겠습니까?</DeleteModalTitle>
+                <DeleteModalDesc>
+                  탈퇴하시면 모든 정보가 <strong>영구적으로 삭제</strong>되며 복구할 수 없습니다.{'\n'}
+                  계속하려면 아래에 <strong>탈퇴합니다</strong>를 입력해주세요.
+                </DeleteModalDesc>
+                <DeleteInput
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="탈퇴합니다"
+                  disabled={deleteLoading}
+                />
+                {deleteError && <S.ErrorMessage style={{ marginTop: 8, marginBottom: 0 }}>{deleteError}</S.ErrorMessage>}
+                <ButtonGroup>
+                  <CancelButton onClick={() => setShowDeleteModal(false)} disabled={deleteLoading}>
+                    취소
+                  </CancelButton>
+                  <DeleteConfirmButton
+                    onClick={handleDeleteAccount}
+                    disabled={deleteConfirmText !== '탈퇴합니다' || deleteLoading}
+                  >
+                    {deleteLoading ? '처리 중...' : '탈퇴하기'}
+                  </DeleteConfirmButton>
+                </ButtonGroup>
+              </S.ModalContent>
+            </S.ModalOverlay>
           )}
 
           {profileData && isEditMode && (
