@@ -56,7 +56,7 @@ export async function GET(req: Request) {
     if (userId) {
       let logsQuery = supabaseAdmin
         .from("weekly_attendance")
-        .select("id, week_date, status, is_excused, late_fee, is_report_required, attended_at, note, updated_by")
+        .select("id, week_date, status, is_excused, late_fee, late_fee_excused, is_report_required, attended_at, note, updated_by")
         .eq("user_id", userId)
         .eq("category", CATEGORY_OD)
         .gt("late_fee", 0)
@@ -87,7 +87,11 @@ export async function GET(req: Request) {
         .eq("user_id", userId)
         .single();
 
-      const totalLateFee = (logs || []).reduce((sum, r) => sum + (r.late_fee || 0), 0);
+      // late_fee_excused = true인 항목은 합계에서 제외 (overall-stats와 동일한 로직)
+      const totalLateFee = (logs || []).reduce((sum, r) => {
+        if ((r as any).late_fee_excused) return sum;
+        return sum + (r.late_fee || 0);
+      }, 0);
       const totalSettled = (settlements || []).reduce((sum, r) => sum + (r.amount || 0), 0);
       return Response.json({
         userId,
@@ -113,7 +117,7 @@ export async function GET(req: Request) {
     const userIds = (roster || []).map((r: any) => r.user_id);
 
     let attendanceQuery = userIds.length > 0
-      ? supabaseAdmin.from("weekly_attendance").select("user_id, late_fee")
+      ? supabaseAdmin.from("weekly_attendance").select("user_id, late_fee, late_fee_excused")
           .eq("category", CATEGORY_OD).in("user_id", userIds).gt("late_fee", 0).range(0, MAX_ROWS)
       : null;
     if (attendanceQuery && dateRange) {
@@ -139,7 +143,9 @@ export async function GET(req: Request) {
     ]);
 
     const totalByUser = new Map<string, number>();
+    // late_fee_excused = true인 항목은 합계에서 제외 (overall-stats와 동일한 로직)
     ((attendanceRows as any).data || []).forEach((r: any) => {
+      if (r.late_fee_excused) return;
       totalByUser.set(r.user_id, (totalByUser.get(r.user_id) || 0) + (r.late_fee || 0));
     });
 

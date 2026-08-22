@@ -37,6 +37,8 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     // 예외처리 시 지각비/보고서 예외 반영. 결석(인정) 선택 시 status를 excused_absence로 설정.
+    // excuseReport와 excused_absence를 동시에 선택한 경우: 결석 처리 + 보고서 예외 모두 반영.
+    const isExcusedAbsence = exceptionStatus === "excused_absence";
     const updateData: Record<string, any> = {
       note: note.trim(),
       updated_by: adminName,
@@ -51,11 +53,14 @@ export async function POST(req: Request) {
       updateData.report_excused = true;
       updateData.is_excused = true;
     }
-    if (exceptionStatus === "excused_absence") {
+    if (isExcusedAbsence) {
       updateData.status = "excused_absence";
       updateData.is_excused = true;
-      updateData.is_report_required = true;
-      updateData.report_excused = false;
+      // excuseReport와 동시 선택 시: 보고서 예외처리 우선 적용 (is_report_required = false 유지)
+      if (!excuseReport) {
+        updateData.is_report_required = true;
+        updateData.report_excused = false;
+      }
     }
 
     let result;
@@ -72,7 +77,6 @@ export async function POST(req: Request) {
       result = data;
     } else {
       // 기존 기록 없을 때: 새 행 생성. 예외처리이므로 출석 시간은 null.
-      const isExcusedAbsence = exceptionStatus === "excused_absence";
       const insertPayload: Record<string, any> = {
         user_id: userId,
         week_date: baseDate,
@@ -83,9 +87,10 @@ export async function POST(req: Request) {
         updated_by: adminName,
         is_excused: !!(excuseLateFee || excuseReport || isExcusedAbsence),
         late_fee: 0,
-        is_report_required: isExcusedAbsence ? true : false,
+        // excuseReport와 isExcusedAbsence 동시: 보고서 예외 우선 적용
+        is_report_required: isExcusedAbsence && !excuseReport ? true : false,
         late_fee_excused: !!excuseLateFee,
-        report_excused: isExcusedAbsence ? false : !!excuseReport,
+        report_excused: !!excuseReport,
       };
       const { data, error } = await supabaseAdmin
         .from("weekly_attendance")
