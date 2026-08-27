@@ -7,7 +7,23 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CATEGORY_OD = "OD";
-const MAX_ROWS = 99999;
+const PAGE_SIZE = 1000;
+
+async function fetchAll<T = any>(
+  fetchPage: (offset: number, limit: number) => Promise<{ data: T[] | null; error: any }>
+): Promise<T[]> {
+  const all: T[] = [];
+  let offset = 0;
+  while (true) {
+    const { data, error } = await fetchPage(offset, PAGE_SIZE);
+    if (error) throw error;
+    const page = data || [];
+    all.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return all;
+}
 
 // ── 분기 날짜 범위 ──
 const QUARTERS: Record<string, { start: string; end: string; label: string }> = {
@@ -54,32 +70,34 @@ export async function GET(req: Request) {
 
     // ── 기존 OD 명단 사용자 상세 조회 ──
     if (userId) {
-      let logsQuery = supabaseAdmin
-        .from("weekly_attendance")
-        .select("id, week_date, status, is_excused, late_fee, late_fee_excused, is_report_required, attended_at, note, updated_by")
-        .eq("user_id", userId)
-        .eq("category", CATEGORY_OD)
-        .gt("late_fee", 0)
-        .order("week_date", { ascending: false })
-        .range(0, MAX_ROWS);
-      if (dateRange) {
-        logsQuery = logsQuery.gte("week_date", dateRange.start).lte("week_date", dateRange.end);
-      }
-      const { data: logs, error } = await logsQuery;
-      if (error) throw error;
+      const logs = await fetchAll<any>(async (offset, limit) => {
+        let q = supabaseAdmin
+          .from("weekly_attendance")
+          .select("id, week_date, status, is_excused, late_fee, late_fee_excused, is_report_required, attended_at, note, updated_by")
+          .eq("user_id", userId)
+          .eq("category", CATEGORY_OD)
+          .gt("late_fee", 0)
+          .order("week_date", { ascending: false })
+          .range(offset, offset + limit - 1);
+        if (dateRange) {
+          q = q.gte("week_date", dateRange.start).lte("week_date", dateRange.end);
+        }
+        return q;
+      });
 
-      let settleQuery = supabaseAdmin
-        .from("late_fee_settlements")
-        .select("id, amount, note, settled_by, settled_at")
-        .eq("user_id", userId)
-        .eq("category", CATEGORY_OD)
-        .order("settled_at", { ascending: false })
-        .range(0, MAX_ROWS);
-      if (dateRange) {
-        settleQuery = settleQuery.gte("settled_at", dateRange.start).lte("settled_at", dateRange.end + "T23:59:59");
-      }
-      const { data: settlements, error: setError } = await settleQuery;
-      if (setError) throw setError;
+      const settlements = await fetchAll<any>(async (offset, limit) => {
+        let q = supabaseAdmin
+          .from("late_fee_settlements")
+          .select("id, amount, note, settled_by, settled_at")
+          .eq("user_id", userId)
+          .eq("category", CATEGORY_OD)
+          .order("settled_at", { ascending: false })
+          .range(offset, offset + limit - 1);
+        if (dateRange) {
+          q = q.gte("settled_at", dateRange.start).lte("settled_at", dateRange.end + "T23:59:59");
+        }
+        return q;
+      });
 
       const { data: profile } = await supabaseAdmin
         .from("profiles")
@@ -88,16 +106,16 @@ export async function GET(req: Request) {
         .single();
 
       // late_fee_excused = true인 항목은 합계에서 제외 (overall-stats와 동일한 로직)
-      const totalLateFee = (logs || []).reduce((sum, r) => {
-        if ((r as any).late_fee_excused) return sum;
+      const totalLateFee = logs.reduce((sum: number, r: any) => {
+        if (r.late_fee_excused) return sum;
         return sum + (r.late_fee || 0);
       }, 0);
-      const totalSettled = (settlements || []).reduce((sum, r) => sum + (r.amount || 0), 0);
+      const totalSettled = settlements.reduce((sum: number, r: any) => sum + (r.amount || 0), 0);
       return Response.json({
         userId,
         name: (profile as any)?.name || "-",
-        logs: logs || [],
-        settlements: settlements || [],
+        logs,
+        settlements,
         totalLateFee,
         totalSettled,
         remaining: Math.max(0, totalLateFee - totalSettled),
@@ -107,55 +125,72 @@ export async function GET(req: Request) {
     // ── 전체 목록 조회 (OD 명단 + 수동 항목 합산) ──
 
     // 1) OD 명단 기반
-    const { data: roster } = await supabaseAdmin
-      .from("attendance_od_targets")
-      .select("user_id, name")
-      .eq("category", CATEGORY_OD)
-      .order("name")
-      .range(0, MAX_ROWS);
+    const roster = await fetchAll<any>(async (offset, limit) =>
+      supabaseAdmin
+        .from("attendance_od_targets")
+        .select("user_id, name")
+        .eq("category", CATEGORY_OD)
+        .order("name")
+        .range(offset, offset + limit - 1)
+    );
 
-    const userIds = (roster || []).map((r: any) => r.user_id);
-
-    let attendanceQuery = userIds.length > 0
-      ? supabaseAdmin.from("weekly_attendance").select("user_id, late_fee, late_fee_excused")
-          .eq("category", CATEGORY_OD).in("user_id", userIds).gt("late_fee", 0).range(0, MAX_ROWS)
-      : null;
-    if (attendanceQuery && dateRange) {
-      attendanceQuery = attendanceQuery.gte("week_date", dateRange.start).lte("week_date", dateRange.end);
-    }
-
-    let settleQuery2 = userIds.length > 0
-      ? supabaseAdmin.from("late_fee_settlements").select("user_id, amount")
-          .eq("category", CATEGORY_OD).in("user_id", userIds).range(0, MAX_ROWS)
-      : null;
-    if (settleQuery2 && dateRange) {
-      settleQuery2 = settleQuery2.gte("settled_at", dateRange.start).lte("settled_at", dateRange.end + "T23:59:59");
-    }
+    const userIds = roster.map((r: any) => r.user_id);
 
     const [attendanceRows, allSettlements, profiles] = await Promise.all([
-      attendanceQuery ? attendanceQuery : Promise.resolve({ data: [] }),
-      settleQuery2 ? settleQuery2 : Promise.resolve({ data: [] }),
       userIds.length > 0
-        ? supabaseAdmin.from("profiles")
-            .select("user_id, name, group_id, cell_id, hub_groups:group_id(name), hub_cells:cell_id(name)")
-            .in("user_id", userIds).range(0, MAX_ROWS)
-        : Promise.resolve({ data: [] }),
+        ? fetchAll<any>(async (offset, limit) => {
+            let q = supabaseAdmin
+              .from("weekly_attendance")
+              .select("user_id, late_fee, late_fee_excused")
+              .eq("category", CATEGORY_OD)
+              .in("user_id", userIds)
+              .gt("late_fee", 0)
+              .range(offset, offset + limit - 1);
+            if (dateRange) {
+              q = q.gte("week_date", dateRange.start).lte("week_date", dateRange.end);
+            }
+            return q;
+          })
+        : Promise.resolve([]),
+      userIds.length > 0
+        ? fetchAll<any>(async (offset, limit) => {
+            let q = supabaseAdmin
+              .from("late_fee_settlements")
+              .select("user_id, amount")
+              .eq("category", CATEGORY_OD)
+              .in("user_id", userIds)
+              .range(offset, offset + limit - 1);
+            if (dateRange) {
+              q = q.gte("settled_at", dateRange.start).lte("settled_at", dateRange.end + "T23:59:59");
+            }
+            return q;
+          })
+        : Promise.resolve([]),
+      userIds.length > 0
+        ? fetchAll<any>(async (offset, limit) =>
+            supabaseAdmin
+              .from("profiles")
+              .select("user_id, name, group_id, cell_id, hub_groups:group_id(name), hub_cells:cell_id(name)")
+              .in("user_id", userIds)
+              .range(offset, offset + limit - 1)
+          )
+        : Promise.resolve([]),
     ]);
 
     const totalByUser = new Map<string, number>();
     // late_fee_excused = true인 항목은 합계에서 제외 (overall-stats와 동일한 로직)
-    ((attendanceRows as any).data || []).forEach((r: any) => {
+    (attendanceRows as any[]).forEach((r: any) => {
       if (r.late_fee_excused) return;
       totalByUser.set(r.user_id, (totalByUser.get(r.user_id) || 0) + (r.late_fee || 0));
     });
 
     const settledByUser = new Map<string, number>();
-    ((allSettlements as any).data || []).forEach((s: any) => {
+    (allSettlements as any[]).forEach((s: any) => {
       settledByUser.set(s.user_id, (settledByUser.get(s.user_id) || 0) + (s.amount || 0));
     });
 
     const profileMap = new Map<string, { name?: string; group_name: string; cell_name: string }>(
-      ((profiles as any).data || []).map((p: any) => [
+      (profiles as any[]).map((p: any) => [
         p.user_id,
         { name: p.name, group_name: p.hub_groups?.name || "-", cell_name: p.hub_cells?.name || "-" },
       ])
