@@ -626,13 +626,14 @@ export default function LateFeeManage() {
                             key={`log-${entry.data.id}`}
                             style={{
                               padding: "12px 16px",
-                              background: "#f8fafc",
+                              background: entry.data.late_fee_excused ? "#f8fafc" : "#f8fafc",
                               borderRadius: "8px",
-                              borderLeft: "4px solid #dc2626",
+                              borderLeft: `4px solid ${entry.data.late_fee_excused ? "#94a3b8" : "#dc2626"}`,
                               display: "flex",
                               justifyContent: "space-between",
                               alignItems: "flex-start",
                               gap: "12px",
+                              opacity: entry.data.late_fee_excused ? 0.65 : 1,
                             }}
                           >
                             <div>
@@ -640,6 +641,9 @@ export default function LateFeeManage() {
                                 {dayjs(entry.data.week_date).format("YYYY-MM-DD")}
                               </span>
                               <span style={{ marginLeft: "8px", color: "#64748b", fontSize: "12px" }}>지각비</span>
+                              {entry.data.late_fee_excused && (
+                                <span style={{ marginLeft: "6px", fontSize: "11px", background: "#e2e8f0", color: "#475569", padding: "1px 6px", borderRadius: "4px", fontWeight: "600" }}>예외처리</span>
+                              )}
                               {entry.data.attended_at && (
                                 <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
                                   출석 {dayjs(entry.data.attended_at).format("HH:mm:ss")}
@@ -650,7 +654,7 @@ export default function LateFeeManage() {
                                 <div style={{ fontSize: "12px", color: "#475569", marginTop: "2px" }}>{entry.data.note}</div>
                               )}
                             </div>
-                            <span style={{ color: "#dc2626", fontWeight: "bold", whiteSpace: "nowrap" }}>
+                            <span style={{ color: entry.data.late_fee_excused ? "#94a3b8" : "#dc2626", fontWeight: "bold", whiteSpace: "nowrap", textDecoration: entry.data.late_fee_excused ? "line-through" : "none" }}>
                               +{entry.data.late_fee?.toLocaleString()}원
                             </span>
                           </div>
