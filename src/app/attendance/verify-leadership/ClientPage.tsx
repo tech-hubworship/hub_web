@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession, signOut, signIn } from "next-auth/react";
 import PageLayout from "@src/components/common/PageLayout";
@@ -10,7 +10,9 @@ const SELF_PATH = "/attendance/verify-leadership";
 
 type Phase = "checking" | "confirm" | "processing" | "done" | "already" | "error";
 
-export default function VerifyLeadershipPage() {
+// useSearchParams() 는 Suspense 경계 안에서만 prerender 가능하므로
+// 실제 로직은 내부 컴포넌트로 분리하고 아래 default export 에서 Suspense 로 감싼다.
+function VerifyLeadershipInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -216,5 +218,29 @@ export default function VerifyLeadershipPage() {
         )}
       </div>
     </PageLayout>
+  );
+}
+
+export default function VerifyLeadershipPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageLayout>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: "60vh",
+              color: "#6b7280",
+            }}
+          >
+            불러오는 중...
+          </div>
+        </PageLayout>
+      }
+    >
+      <VerifyLeadershipInner />
+    </Suspense>
   );
 }
