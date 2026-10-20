@@ -15,6 +15,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { global } from "@src/lib/styles/global";
 import { InquiryModalProvider } from "@src/contexts/InquiryModalContext";
 import EmotionRegistry from "./EmotionRegistry";
+import ProfileGuard from "@src/components/common/ProfileGuard";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -65,6 +66,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <MotionConfig isValidProp={isValidProp}>
             {children}
+            <ProfileGuard />
             {!isAdmin && <Analytics />}
             {/* <SpeedInsights sampleRate={0.1} /> 무료 플랜 소진으로 미사용 */}
           </MotionConfig>

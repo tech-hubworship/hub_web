@@ -27,6 +27,11 @@ interface ProfileData {
   cell_id: number | null;
   group_name: string | null;
   cell_name: string | null;
+  // 리더십(OD 명단) 여부 판정용 — /api/user/profile 응답에 포함됨
+  is_sunjang?: boolean;
+  responsible_group_id?: number | null;
+  responsible_cell_id?: number | null;
+  roles?: string[];
 }
 
 interface Group {
@@ -550,14 +555,20 @@ export default function MyInfoPage() {
                 )}
               </S.Card>
 
-              <Link href="/attendance/my" passHref legacyBehavior>
-                <S.AttendanceLink>
-                  <S.AttendanceLinkLabel>
-                    📋 출석·지각비 보기
-                  </S.AttendanceLinkLabel>
-                  <S.AttendanceLinkArrow>›</S.AttendanceLinkArrow>
-                </S.AttendanceLink>
-              </Link>
+              {/* 출석·지각비는 OD 명단(리더십)에게만 노출 */}
+              {(profileData.is_sunjang === true ||
+                profileData.responsible_group_id != null ||
+                profileData.responsible_cell_id != null ||
+                (profileData.roles?.length ?? 0) > 0) && (
+                <Link href="/attendance/my" passHref legacyBehavior>
+                  <S.AttendanceLink>
+                    <S.AttendanceLinkLabel>
+                      📋 출석·지각비 보기
+                    </S.AttendanceLinkLabel>
+                    <S.AttendanceLinkArrow>›</S.AttendanceLinkArrow>
+                  </S.AttendanceLink>
+                </Link>
+              )}
 
               <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>
 
