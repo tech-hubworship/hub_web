@@ -193,7 +193,17 @@ export default function SignUpPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message);
       alert(completeGroup ? '그룹/다락방 정보가 업데이트되었습니다!' : '회원가입이 완료되었습니다!');
-      router.replace('/myinfo');
+
+      // 로그인/링크 진입 시 저장해둔 복귀 경로가 있으면 그곳으로 (예: 리더십 인증 링크)
+      const REDIRECT_KEY = 'login_redirect';
+      const redirectPath =
+        typeof window !== 'undefined' ? localStorage.getItem(REDIRECT_KEY) : null;
+      if (redirectPath) {
+        localStorage.removeItem(REDIRECT_KEY);
+        router.replace(redirectPath);
+      } else {
+        router.replace('/myinfo');
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {

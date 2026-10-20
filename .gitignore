@@ -1,5 +1,7 @@
 **/.DS_Store
 
+db_backup/
+db_backup/*
 # Logs
 logs
 *.log

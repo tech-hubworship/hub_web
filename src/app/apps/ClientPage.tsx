@@ -625,18 +625,21 @@ export default function AppsClientPage() {
   }, []);
 
   React.useEffect(() => {
-    if (sessionStatus === 'authenticated') {
-      fetch('/api/user/profile')
-        .then(res => res.json())
-        .then(result => {
-          setIsDarakbangUser(
-            result?.name === '김수진' ||
-            (result?.group_id === 5 &&
-              (result?.responsible_cell_id !== null || result?.responsible_group_id !== null || result?.is_sunjang === true))
-          );
-        })
-        .catch(() => setIsDarakbangUser(false));
-    }
+    // [비활성화] 그룹/다락방/리더십 체계 변경으로 '우리 다락방' 기능을 일시 중단합니다.
+    // 복구 시 아래 주석 처리된 원본 로직을 되살리고 setIsDarakbangUser(false) 줄을 제거하세요.
+    setIsDarakbangUser(false);
+    // if (sessionStatus === 'authenticated') {
+    //   fetch('/api/user/profile')
+    //     .then(res => res.json())
+    //     .then(result => {
+    //       setIsDarakbangUser(
+    //         result?.name === '김수진' ||
+    //         (result?.group_id === 5 &&
+    //           (result?.responsible_cell_id !== null || result?.responsible_group_id !== null || result?.is_sunjang === true))
+    //       );
+    //     })
+    //     .catch(() => setIsDarakbangUser(false));
+    // }
   }, [sessionStatus]);
 
   const handleAppClick = (path: string) => {

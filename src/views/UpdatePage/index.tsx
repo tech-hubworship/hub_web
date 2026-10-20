@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PageLayout from '@src/components/common/PageLayout';
 import * as S from './style';
 import { Combobox } from '@src/components/ui/combobox';
@@ -8,6 +8,9 @@ import { Combobox } from '@src/components/ui/combobox';
 export default function UpdatePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // force=1 이면 이미 소속이 있어도 그룹/다락방을 다시 입력받는다 (리더십 링크 등에서 사용)
+  const force = searchParams?.get('force') === '1';
 
   const [userInfo, setUserInfo] = useState({
     name: '',
@@ -85,16 +88,20 @@ export default function UpdatePage() {
           // 허브 활성 사용자 또는 관리자이고 그룹/셀이 비어있는 경우에만 업데이트 페이지 표시
           const isHubActive = profile.community === '허브' && profile.status === '활성';
           const hasEmptyGroupCell = !profile.group_id || !profile.cell_id;
-          
-          if (!isAdmin && (!isHubActive || !hasEmptyGroupCell)) {
-            router.replace('/myinfo');
-            return;
-          }
 
-          // 관리자는 그룹/셀이 비어있을 때만 업데이트 가능
-          if (isAdmin && !hasEmptyGroupCell) {
-            router.replace('/myinfo');
-            return;
+          // force 모드가 아니면 기존 쫓아내기 규칙 적용.
+          // force=1 이면 소속이 이미 있어도 재입력을 허용한다.
+          if (!force) {
+            if (!isAdmin && (!isHubActive || !hasEmptyGroupCell)) {
+              router.replace('/myinfo');
+              return;
+            }
+
+            // 관리자는 그룹/셀이 비어있을 때만 업데이트 가능
+            if (isAdmin && !hasEmptyGroupCell) {
+              router.replace('/myinfo');
+              return;
+            }
           }
 
           // 사용자 정보 설정
@@ -120,7 +127,7 @@ export default function UpdatePage() {
 
       checkProfile();
     }
-  }, [session, status, router]);
+  }, [session, status, router, force]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
