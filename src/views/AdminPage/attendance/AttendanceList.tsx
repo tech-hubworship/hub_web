@@ -19,6 +19,11 @@ export default function AttendanceList() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editDeleting, setEditDeleting] = useState(false);
 
+  const [absenceModalOpen, setAbsenceModalOpen] = useState(false);
+  const [absenceTarget, setAbsenceTarget] = useState<{ userId: string; name: string; status: 'unexcused_absence' | 'no_show' } | null>(null);
+  const [absenceNote, setAbsenceNote] = useState('');
+  const [absenceSubmitting, setAbsenceSubmitting] = useState(false);
+
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
   const [exceptionTarget, setExceptionTarget] = useState<{ userId: string; name: string } | null>(null);
   const [excuseLateFee, setExcuseLateFee] = useState(true);
@@ -237,7 +242,7 @@ export default function AttendanceList() {
   const seg3 = `${fmt(graceEndM + 21)}~${fmt(graceEndM + 30)}`;
   const seg4 = `${fmt(graceEndM + 31)}~`;
 
-  const handleUpdateStatus = async (userId: string, newStatus: string) => {
+  const handleUpdateStatus = async (userId: string, newStatus: string, note: string = '') => {
     try {
       const res = await fetch('/api/admin/attendance/update-status', {
         method: 'POST',
@@ -246,7 +251,7 @@ export default function AttendanceList() {
           userId,
           weekDate: date,
           status: newStatus,
-          note: '',
+          note,
           category: 'OD'
         }),
       });
@@ -260,6 +265,30 @@ export default function AttendanceList() {
     } catch (e) {
       console.error(e);
       alert("오류가 발생했습니다.");
+    }
+  };
+
+  // 미인정 결석 / 무단 결석: 사유 필수 입력 모달
+  const openAbsenceModal = (userId: string, name: string, status: 'unexcused_absence' | 'no_show') => {
+    setAbsenceTarget({ userId, name, status });
+    setAbsenceNote('');
+    setAbsenceModalOpen(true);
+  };
+
+  const submitAbsence = async () => {
+    if (!absenceTarget) return;
+    if (!absenceNote.trim()) {
+      alert('사유를 입력해주세요.');
+      return;
+    }
+    setAbsenceSubmitting(true);
+    try {
+      await handleUpdateStatus(absenceTarget.userId, absenceTarget.status, absenceNote.trim());
+      setAbsenceModalOpen(false);
+      setAbsenceTarget(null);
+      setAbsenceNote('');
+    } finally {
+      setAbsenceSubmitting(false);
     }
   };
 
@@ -500,6 +529,81 @@ export default function AttendanceList() {
             </span>
           </div>
         </div>
+
+        {/* 미인정 결석 / 무단 결석 사유 입력 모달 */}
+        {absenceModalOpen && absenceTarget && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1001,
+            }}
+            onClick={() => setAbsenceModalOpen(false)}
+          >
+            <div
+              style={{
+                background: 'white',
+                borderRadius: '12px',
+                padding: '24px',
+                maxWidth: '400px',
+                width: '90%',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h4 style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 6px 0' }}>
+                {absenceTarget.status === 'unexcused_absence' ? '미인정 결석' : '무단 결석'} – {absenceTarget.name}
+              </h4>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px 0' }}>
+                {absenceTarget.status === 'unexcused_absence'
+                  ? '사전에 사유를 제출했으나 인정되지 않는 경우 (벌금 5,000원 + OD 보고서)'
+                  : '사전에 사유를 제출하지 않은 경우 (벌금 5,000원 + OD 보고서)'}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>사유 (필수)</label>
+                  <textarea
+                    value={absenceNote}
+                    onChange={(e) => setAbsenceNote(e.target.value)}
+                    placeholder={absenceTarget.status === 'unexcused_absence' ? '예: 개인 약속, 시험공부, 순 아웃팅' : '예: 사전 연락 없음'}
+                    rows={3}
+                    autoFocus
+                    style={{ padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', width: '100%', resize: 'vertical' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => setAbsenceModalOpen(false)}
+                    style={{ padding: '10px 20px', background: '#e2e8f0', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitAbsence}
+                    disabled={absenceSubmitting || !absenceNote.trim()}
+                    style={{
+                      padding: '10px 20px',
+                      background: (absenceSubmitting || !absenceNote.trim()) ? '#94a3b8' : (absenceTarget.status === 'unexcused_absence' ? '#ea580c' : '#dc2626'),
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      cursor: (absenceSubmitting || !absenceNote.trim()) ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {absenceSubmitting ? '처리 중...' : (absenceTarget.status === 'unexcused_absence' ? '미인정 결석 처리' : '무단 결석 처리')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 예외처리 모달 */}
         {exceptionModalOpen && exceptionTarget && (
@@ -1413,7 +1517,7 @@ export default function AttendanceList() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleUpdateStatus(item.user_id, 'unexcused_absence')}
+                              onClick={() => openAbsenceModal(item.user_id, item.name, 'unexcused_absence')}
                               title="사전에 사유를 제출했으나 인정되지 않는 경우 (벌금 + OD 보고서)"
                               style={{
                                 padding: '5px 10px',
@@ -1430,7 +1534,7 @@ export default function AttendanceList() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleUpdateStatus(item.user_id, 'no_show')}
+                              onClick={() => openAbsenceModal(item.user_id, item.name, 'no_show')}
                               title="사전에 사유를 제출하지 않은 경우 (벌금 + OD 보고서)"
                               style={{
                                 padding: '5px 10px',

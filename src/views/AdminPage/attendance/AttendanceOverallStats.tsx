@@ -464,7 +464,7 @@ export default function AttendanceOverallStats() {
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: CELL_SIZE, height: CELL_SIZE, borderRadius: 3, background: "#f1f5f9", border: "1px solid #d0d7de", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#64748b" }}>✕</span>
-            예외(지각비/보고서)
+            인정결석(예외처리)
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: CELL_SIZE, height: CELL_SIZE, borderRadius: 3, background: NO_DATA_COLOR, border: "1px solid #d0d7de" }} />

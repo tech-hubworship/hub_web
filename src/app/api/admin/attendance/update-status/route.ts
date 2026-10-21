@@ -96,6 +96,7 @@ export async function POST(req: Request) {
     } else if (status === "unexcused_absence" || status === "no_show") {
       // 미인정 결석 / 무단 결석: 둘 다 벌금 5,000원 + OD 보고서 대상.
       // 차이는 status 값으로만 구분 (사전 사유 제출 여부).
+      updateData.attended_at = null; // 결석이므로 출석 시각 없음
       updateData.late_fee = 5000;
       updateData.is_report_required = true;
       updateData.late_fee_excused = false;
