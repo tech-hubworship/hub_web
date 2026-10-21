@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       .eq("category", category)
       .maybeSingle();
 
-    // status: 출석 상태만 (present | late | unexcused_absence). 예외는 is_excused로 별도 관리
+    // status: 출석 상태만 (present | late | unexcused_absence | no_show). 예외는 is_excused로 별도 관리
     let updateData: Record<string, any> = {
       updated_by: adminName,
       attended_at: nowIso,
@@ -93,7 +93,9 @@ export async function POST(req: Request) {
         updateData.late_fee = lateFee;
         updateData.is_report_required = isReportRequired;
       }
-    } else if (status === "unexcused_absence") {
+    } else if (status === "unexcused_absence" || status === "no_show") {
+      // 미인정 결석 / 무단 결석: 둘 다 벌금 5,000원 + OD 보고서 대상.
+      // 차이는 status 값으로만 구분 (사전 사유 제출 여부).
       updateData.late_fee = 5000;
       updateData.is_report_required = true;
       updateData.late_fee_excused = false;

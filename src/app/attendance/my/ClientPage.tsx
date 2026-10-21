@@ -172,6 +172,8 @@ function statusLabel(status: string | null): string {
     case "excused_absence":
       return "결석(인정)";
     case "unexcused_absence":
+      return "미인정 결석";
+    case "no_show":
       return "무단 결석";
     case "no_status":
     default:

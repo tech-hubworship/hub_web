@@ -16,7 +16,7 @@ const CATEGORY_OD = "OD";
 const MAX_ROWS = 99999;
 
 type ParsedRow = {
-  status: "present" | "late" | "unexcused_absence" | "excused";
+  status: "present" | "late" | "unexcused_absence" | "no_show" | "excused";
   late_fee: number;
   is_report_required: boolean;
   is_excused: boolean;
@@ -47,6 +47,8 @@ function parseValue(val: string): ParsedRow | null {
     return { status: "late", late_fee: 4000, is_report_required: true, is_excused: false, late_fee_excused: false, report_excused: false };
   if (v === "5")
     return { status: "unexcused_absence", late_fee: 5000, is_report_required: true, is_excused: false, late_fee_excused: false, report_excused: false };
+  if (v === "6")
+    return { status: "no_show", late_fee: 5000, is_report_required: true, is_excused: false, late_fee_excused: false, report_excused: false };
   if (v === "예외" || v.toLowerCase() === "예외")
     return { status: "excused", late_fee: 0, is_report_required: false, is_excused: true, late_fee_excused: true, report_excused: true };
   if (v !== "") {
@@ -198,7 +200,7 @@ export async function POST(req: Request) {
         .maybeSingle();
 
       const attendedAt =
-        row.status === "excused" || row.status === "unexcused_absence"
+        row.status === "excused" || row.status === "unexcused_absence" || row.status === "no_show"
           ? null
           : attendedAtForValue(weekDate, row.late_fee);
 
@@ -235,9 +237,11 @@ export async function POST(req: Request) {
         const status =
           row.status === "unexcused_absence"
             ? "unexcused_absence"
-            : row.status === "present"
-              ? "present"
-              : "late";
+            : row.status === "no_show"
+              ? "no_show"
+              : row.status === "present"
+                ? "present"
+                : "late";
         const payload = {
           status,
           late_fee: row.late_fee,

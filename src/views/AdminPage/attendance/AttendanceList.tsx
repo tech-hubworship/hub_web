@@ -102,6 +102,7 @@ export default function AttendanceList() {
   const filteredLate = filteredList.filter((r: any) => r.status === 'late').length;
   const filteredExcused = filteredList.filter((r: any) => r.status === 'excused_absence').length;
   const filteredUnexcused = filteredList.filter((r: any) => r.status === 'unexcused_absence').length;
+  const filteredNoShow = filteredList.filter((r: any) => r.status === 'no_show').length;
   const filteredAttendedCount = filteredPresent + filteredLate;
   const filteredDenom = filteredTotal - filteredExcused;
   const filteredStats = filteredTotal
@@ -113,15 +114,17 @@ export default function AttendanceList() {
         late_count: filteredLate,
         excused_absence_count: filteredExcused,
         unexcused_absence_count: filteredUnexcused,
+        no_show_count: filteredNoShow,
       }
     : stats;
 
-  // 그룹장만 / 다락방장만 (필터 적용 기준: 재적·출석·결석·무단결석·출석율)
+  // 그룹장만 / 다락방장만 (필터 적용 기준: 재적·출석·결석·미인정결석·무단결석·출석율)
   const groupLeadersList = filteredList.filter((r: any) => r.is_group_leader);
   const groupLeadersPresent = groupLeadersList.filter((r: any) => r.status === 'present').length;
   const groupLeadersLate = groupLeadersList.filter((r: any) => r.status === 'late').length;
   const groupLeadersExcused = groupLeadersList.filter((r: any) => r.status === 'excused_absence').length;
   const groupLeadersUnexcused = groupLeadersList.filter((r: any) => r.status === 'unexcused_absence').length;
+  const groupLeadersNoShow = groupLeadersList.filter((r: any) => r.status === 'no_show').length;
   const groupLeadersAttended = groupLeadersPresent + groupLeadersLate;
   const groupLeadersDenom = groupLeadersList.length - groupLeadersExcused;
   const groupLeadersStats = {
@@ -131,6 +134,7 @@ export default function AttendanceList() {
     late: groupLeadersLate,
     excused: groupLeadersExcused,
     unexcused: groupLeadersUnexcused,
+    noShow: groupLeadersNoShow,
     rate: groupLeadersDenom > 0 ? Math.round((groupLeadersAttended / groupLeadersDenom) * 100) : 0,
   };
   const cellLeadersList = filteredList.filter((r: any) => r.is_cell_leader);
@@ -138,6 +142,7 @@ export default function AttendanceList() {
   const cellLeadersLate = cellLeadersList.filter((r: any) => r.status === 'late').length;
   const cellLeadersExcused = cellLeadersList.filter((r: any) => r.status === 'excused_absence').length;
   const cellLeadersUnexcused = cellLeadersList.filter((r: any) => r.status === 'unexcused_absence').length;
+  const cellLeadersNoShow = cellLeadersList.filter((r: any) => r.status === 'no_show').length;
   const cellLeadersAttended = cellLeadersPresent + cellLeadersLate;
   const cellLeadersDenom = cellLeadersList.length - cellLeadersExcused;
   const cellLeadersStats = {
@@ -147,26 +152,28 @@ export default function AttendanceList() {
     late: cellLeadersLate,
     excused: cellLeadersExcused,
     unexcused: cellLeadersUnexcused,
+    noShow: cellLeadersNoShow,
     rate: cellLeadersDenom > 0 ? Math.round((cellLeadersAttended / cellLeadersDenom) * 100) : 0,
   };
 
-  // 다락방별 통계: 그룹장·다락방장 제외, 트리 구조 (그룹 → 다락방), 출석/결석/무단결석
+  // 다락방별 통계: 그룹장·다락방장 제외, 트리 구조 (그룹 → 다락방), 출석/결석/미인정결석/무단결석
   const treeStats = (() => {
     const membersOnly = filteredList.filter((r: any) => !r.is_group_leader && !r.is_cell_leader);
-    const byGroup = new Map<string, Map<string, { total: number; attended: number; excused: number; unexcused: number }>>();
+    const byGroup = new Map<string, Map<string, { total: number; attended: number; excused: number; unexcused: number; noShow: number }>>();
     for (const row of membersOnly) {
       const gn = row.group_name ?? '-';
       const cn = row.cell_name ?? '-';
       if (!byGroup.has(gn)) byGroup.set(gn, new Map());
       const cells = byGroup.get(gn)!;
-      if (!cells.has(cn)) cells.set(cn, { total: 0, attended: 0, excused: 0, unexcused: 0 });
+      if (!cells.has(cn)) cells.set(cn, { total: 0, attended: 0, excused: 0, unexcused: 0, noShow: 0 });
       const cur = cells.get(cn)!;
       cur.total += 1;
       if (row.status === 'present' || row.status === 'late') cur.attended += 1;
       else if (row.status === 'excused_absence') cur.excused += 1;
       else if (row.status === 'unexcused_absence') cur.unexcused += 1;
+      else if (row.status === 'no_show') cur.noShow += 1;
     }
-    const result: { group_name: string; cells: { cell_name: string; total: number; attended: number; excused: number; unexcused: number }[] }[] = [];
+    const result: { group_name: string; cells: { cell_name: string; total: number; attended: number; excused: number; unexcused: number; noShow: number }[] }[] = [];
     Array.from(byGroup.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .forEach(([group_name, cells]) => {
@@ -185,29 +192,30 @@ export default function AttendanceList() {
     const attendedCount = (s as any).attended_count ?? 0;
     const excusedCount = (s as any).excused_absence_count ?? 0;
     const unexcusedCount = (s as any).unexcused_absence_count ?? 0;
-    const expectedCount = Math.max(0, totalMembers - excusedCount - attendedCount - unexcusedCount);
+    const noShowCount = (s as any).no_show_count ?? 0;
+    const expectedCount = Math.max(0, totalMembers - excusedCount - attendedCount - unexcusedCount - noShowCount);
     const rate = (s as any).attendance_rate ?? 0;
 
-    const groupExpected = Math.max(0, groupLeadersStats.total - groupLeadersStats.excused - groupLeadersStats.attended - groupLeadersStats.unexcused);
-    const cellExpected = Math.max(0, cellLeadersStats.total - cellLeadersStats.excused - cellLeadersStats.attended - cellLeadersStats.unexcused);
+    const groupExpected = Math.max(0, groupLeadersStats.total - groupLeadersStats.excused - groupLeadersStats.attended - groupLeadersStats.unexcused - groupLeadersStats.noShow);
+    const cellExpected = Math.max(0, cellLeadersStats.total - cellLeadersStats.excused - cellLeadersStats.attended - cellLeadersStats.unexcused - cellLeadersStats.noShow);
 
     const rows: (string | number)[][] = [
       ['출석 현황 요약'],
       [`OD 명단 기준 · ${date}${(filterGroup || filterCell || filterName || filterStatus || filterReportRequiredOnly || showOnlyDuplicateNameGroupCell) ? ` (필터: ${showOnlyDuplicateNameGroupCell ? duplicateMemberCount : filteredTotal}명)` : ''}`],
       [],
-      ['구분', '재적', '출석', '결석', '무단결석', '출석예정', '출석율(%)'],
-      ['전체', totalMembers, attendedCount, excusedCount, unexcusedCount, expectedCount, rate],
+      ['구분', '재적', '출석', '결석(인정)', '미인정결석', '무단결석', '출석예정', '출석율(%)'],
+      ['전체', totalMembers, attendedCount, excusedCount, unexcusedCount, noShowCount, expectedCount, rate],
       [],
-      ['그룹장', groupLeadersStats.total, groupLeadersStats.attended, groupLeadersStats.excused, groupLeadersStats.unexcused, groupExpected, groupLeadersStats.rate],
-      ['다락방장', cellLeadersStats.total, cellLeadersStats.attended, cellLeadersStats.excused, cellLeadersStats.unexcused, cellExpected, cellLeadersStats.rate],
+      ['그룹장', groupLeadersStats.total, groupLeadersStats.attended, groupLeadersStats.excused, groupLeadersStats.unexcused, groupLeadersStats.noShow, groupExpected, groupLeadersStats.rate],
+      ['다락방장', cellLeadersStats.total, cellLeadersStats.attended, cellLeadersStats.excused, cellLeadersStats.unexcused, cellLeadersStats.noShow, cellExpected, cellLeadersStats.rate],
       [],
-      ['그룹', '다락방', '재적', '출석', '결석', '무단결석', '출석예정'],
+      ['그룹', '다락방', '재적', '출석', '결석(인정)', '미인정결석', '무단결석', '출석예정'],
     ];
 
     for (const group of treeStats) {
       for (const cell of group.cells) {
-        const exp = Math.max(0, cell.total - cell.excused - cell.attended - cell.unexcused);
-        rows.push([group.group_name, cell.cell_name, cell.total, cell.attended, cell.excused, cell.unexcused, exp]);
+        const exp = Math.max(0, cell.total - cell.excused - cell.attended - cell.unexcused - cell.noShow);
+        rows.push([group.group_name, cell.cell_name, cell.total, cell.attended, cell.excused, cell.unexcused, cell.noShow, exp]);
       }
     }
 
@@ -485,7 +493,10 @@ export default function AttendanceList() {
               <strong>지각</strong>: {graceEndTime} 이후 · {seg1} 1,000원 · {seg2} 2,000원 · {seg3} 3,000원 · {seg4} 4,000원
             </span>
             <span>
-              <strong>무단 결석</strong>: 출석 관리에서 무단 결석 버튼으로 체크 시 5,000원
+              <strong>미인정 결석</strong>: 사전에 사유를 제출했으나 인정되지 않는 경우 (개인 약속, 시험공부, 순 아웃팅 등 스케줄 조정 가능) · 5,000원 + OD 보고서
+            </span>
+            <span>
+              <strong>무단 결석</strong>: 사전에 사유를 제출하지 않은 경우 · 5,000원 + OD 보고서
             </span>
           </div>
         </div>
@@ -712,7 +723,8 @@ export default function AttendanceList() {
                     <option value="present">정상</option>
                     <option value="late">지각</option>
                     <option value="excused_absence">결석(인정)</option>
-                    <option value="unexcused_absence">무단 결석</option>
+                    <option value="unexcused_absence">미인정 결석</option>
+                    <option value="no_show">무단 결석</option>
                   </select>
                 </div>
                 <div>
@@ -846,8 +858,9 @@ export default function AttendanceList() {
                   <span style={{ fontSize: '14px', color: '#64748b' }}>재적 <strong style={{ color: '#1e293b' }}>{(filteredStats || stats).total_members ?? 0}</strong></span>
                   <span style={{ fontSize: '14px', color: '#64748b' }}>출석 <strong style={{ color: '#2563eb' }}>{(filteredStats || stats).attended_count ?? 0}</strong></span>
                   <span style={{ fontSize: '14px', color: '#64748b' }}>결석 <strong style={{ color: '#78716c' }}>{(filteredStats || stats).excused_absence_count ?? 0}</strong></span>
-                  <span style={{ fontSize: '14px', color: '#64748b' }}>무단결석 <strong style={{ color: '#dc2626' }}>{(filteredStats || stats).unexcused_absence_count ?? 0}</strong></span>
-                  <span style={{ fontSize: '14px', color: '#64748b' }}>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, ((filteredStats || stats).total_members ?? 0) - ((filteredStats || stats).excused_absence_count ?? 0) - ((filteredStats || stats).attended_count ?? 0) - ((filteredStats || stats).unexcused_absence_count ?? 0))}</strong></span>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>미인정결석 <strong style={{ color: '#ea580c' }}>{(filteredStats || stats).unexcused_absence_count ?? 0}</strong></span>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>무단결석 <strong style={{ color: '#dc2626' }}>{(filteredStats || stats).no_show_count ?? 0}</strong></span>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, ((filteredStats || stats).total_members ?? 0) - ((filteredStats || stats).excused_absence_count ?? 0) - ((filteredStats || stats).attended_count ?? 0) - ((filteredStats || stats).unexcused_absence_count ?? 0) - ((filteredStats || stats).no_show_count ?? 0))}</strong></span>
                 </div>
                 <button
                   type="button"
@@ -890,7 +903,7 @@ export default function AttendanceList() {
                 padding: '16px 20px',
                 background: '#f8fafc',
               }}>
-                {/* 그룹장 / 다락방장: 재적·출석·결석·무단결석·출석예정 */}
+                {/* 그룹장 / 다락방장: 재적·출석·결석·미인정결석·무단결석·출석예정 */}
                 {(groupLeadersList.length > 0 || cellLeadersList.length > 0) && (
                   <div style={{ marginBottom: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
                     {groupLeadersList.length > 0 && (
@@ -902,8 +915,9 @@ export default function AttendanceList() {
                           <span>재적 <strong>{groupLeadersStats.total}</strong></span>
                           <span>출석 <strong style={{ color: '#2563eb' }}>{groupLeadersStats.attended}</strong></span>
                           <span>결석 <strong style={{ color: '#78716c' }}>{groupLeadersStats.excused}</strong></span>
-                          <span>무단결석 <strong style={{ color: '#dc2626' }}>{groupLeadersStats.unexcused}</strong></span>
-                          <span>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, groupLeadersStats.total - groupLeadersStats.excused - groupLeadersStats.attended - groupLeadersStats.unexcused)}</strong></span>
+                          <span>미인정결석 <strong style={{ color: '#ea580c' }}>{groupLeadersStats.unexcused}</strong></span>
+                          <span>무단결석 <strong style={{ color: '#dc2626' }}>{groupLeadersStats.noShow}</strong></span>
+                          <span>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, groupLeadersStats.total - groupLeadersStats.excused - groupLeadersStats.attended - groupLeadersStats.unexcused - groupLeadersStats.noShow)}</strong></span>
                         </div>
                       </div>
                     )}
@@ -916,17 +930,18 @@ export default function AttendanceList() {
                           <span>재적 <strong>{cellLeadersStats.total}</strong></span>
                           <span>출석 <strong style={{ color: '#2563eb' }}>{cellLeadersStats.attended}</strong></span>
                           <span>결석 <strong style={{ color: '#78716c' }}>{cellLeadersStats.excused}</strong></span>
-                          <span>무단결석 <strong style={{ color: '#dc2626' }}>{cellLeadersStats.unexcused}</strong></span>
-                          <span>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, cellLeadersStats.total - cellLeadersStats.excused - cellLeadersStats.attended - cellLeadersStats.unexcused)}</strong></span>
+                          <span>미인정결석 <strong style={{ color: '#ea580c' }}>{cellLeadersStats.unexcused}</strong></span>
+                          <span>무단결석 <strong style={{ color: '#dc2626' }}>{cellLeadersStats.noShow}</strong></span>
+                          <span>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, cellLeadersStats.total - cellLeadersStats.excused - cellLeadersStats.attended - cellLeadersStats.unexcused - cellLeadersStats.noShow)}</strong></span>
                         </div>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* 다락방별: 재적·출석·결석·무단결석·출석예정 */}
+                {/* 다락방별: 재적·출석·결석·미인정결석·무단결석·출석예정 */}
                 <div style={{ fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '10px' }}>
-                  다락방별 재적 · 출석 · 결석 · 무단결석 · 출석예정 (그룹장·다락방장 제외)
+                  다락방별 재적 · 출석 · 결석 · 미인정결석 · 무단결석 · 출석예정 (그룹장·다락방장 제외)
                 </div>
                 <div
                   style={{
@@ -945,6 +960,7 @@ export default function AttendanceList() {
                       const groupAttended = group.cells.reduce((a, c) => a + c.attended, 0);
                       const groupExcused = group.cells.reduce((a, c) => a + c.excused, 0);
                       const groupUnexcused = group.cells.reduce((a, c) => a + c.unexcused, 0);
+                      const groupNoShow = group.cells.reduce((a, c) => a + c.noShow, 0);
                       return (
                       <div
                         key={group.group_name}
@@ -974,8 +990,9 @@ export default function AttendanceList() {
                           <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>재적 <strong>{groupTotal}</strong></span>
                           <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>출석 <strong style={{ color: '#2563eb' }}>{groupAttended}</strong></span>
                           <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>결석 <strong style={{ color: '#78716c' }}>{groupExcused}</strong></span>
-                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>무단결석 <strong style={{ color: '#dc2626' }}>{groupUnexcused}</strong></span>
-                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, groupTotal - groupExcused - groupAttended - groupUnexcused)}</strong></span>
+                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>미인정결석 <strong style={{ color: '#ea580c' }}>{groupUnexcused}</strong></span>
+                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>무단결석 <strong style={{ color: '#dc2626' }}>{groupNoShow}</strong></span>
+                          <span style={{ fontSize: '13px', color: '#475569', fontWeight: '500' }}>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, groupTotal - groupExcused - groupAttended - groupUnexcused - groupNoShow)}</strong></span>
                         </div>
                         {group.cells.map((cell) => (
                           <div
@@ -995,8 +1012,9 @@ export default function AttendanceList() {
                             <span>재적 <strong>{cell.total}</strong></span>
                             <span>출석 <strong style={{ color: '#2563eb' }}>{cell.attended}</strong></span>
                             <span>결석 <strong style={{ color: '#78716c' }}>{cell.excused}</strong></span>
-                            <span>무단결석 <strong style={{ color: '#dc2626' }}>{cell.unexcused}</strong></span>
-                            <span>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, cell.total - cell.excused - cell.attended - cell.unexcused)}</strong></span>
+                            <span>미인정결석 <strong style={{ color: '#ea580c' }}>{cell.unexcused}</strong></span>
+                            <span>무단결석 <strong style={{ color: '#dc2626' }}>{cell.noShow}</strong></span>
+                            <span>출석예정 <strong style={{ color: '#0369a1' }}>{Math.max(0, cell.total - cell.excused - cell.attended - cell.unexcused - cell.noShow)}</strong></span>
                           </div>
                         ))}
                       </div>
@@ -1047,7 +1065,7 @@ export default function AttendanceList() {
             📥 텍스트로 일괄 입력 (해당 날짜에 저장)
           </h4>
           <p style={{ fontSize: '12px', color: '#713f12', margin: '0 0 10px 0' }}>
-            형식: <strong>다락방/역할</strong>·이름·값을 <strong>탭</strong>으로 구분. 값: <strong>0</strong>=정상, <strong>1~4</strong>=지각비, <strong>5</strong>=무단결석, <strong>예외</strong> 또는 <strong>사유 텍스트</strong>=결석(인정)+예외사유. 동명이인은 다락방+이름 우선 매칭 후 이름만 매칭.
+            형식: <strong>다락방/역할</strong>·이름·값을 <strong>탭</strong>으로 구분. 값: <strong>0</strong>=정상, <strong>1~4</strong>=지각비, <strong>5</strong>=미인정결석, <strong>6</strong>=무단결석, <strong>예외</strong> 또는 <strong>사유 텍스트</strong>=결석(인정)+예외사유. 동명이인은 다락방+이름 우선 매칭 후 이름만 매칭.
           </p>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <textarea
@@ -1209,7 +1227,8 @@ export default function AttendanceList() {
                 <option value="present">출석</option>
                 <option value="late">지각</option>
                 <option value="excused_absence">결석(인정)</option>
-                <option value="unexcused_absence">무단결석</option>
+                <option value="unexcused_absence">미인정 결석</option>
+                <option value="no_show">무단 결석</option>
               </select>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#475569' }}>
@@ -1292,6 +1311,7 @@ export default function AttendanceList() {
                     const hasAttended = item.attended_at != null;
                     const isExcusedAbsence = item.status === 'excused_absence';
                     const isUnexcusedAbsence = item.status === 'unexcused_absence';
+                    const isNoShow = item.status === 'no_show';
                     const isLate = item.status === 'late';
                     const isPresent = item.status === 'present';
                     const rowBg = item.is_group_leader ? { background: '#eff6ff' } : item.is_cell_leader ? { background: '#fefce8' } : isExcusedAbsence ? { background: '#f5f5f5' } : undefined;
@@ -1319,6 +1339,10 @@ export default function AttendanceList() {
                               결석
                             </span>
                           ) : isUnexcusedAbsence ? (
+                            <span style={{ color: '#ffffff', background: '#f97316', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
+                              미인정 결석
+                            </span>
+                          ) : isNoShow ? (
                             <span style={{ color: '#ffffff', background: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
                               무단 결석
                             </span>
@@ -1390,6 +1414,24 @@ export default function AttendanceList() {
                             <button
                               type="button"
                               onClick={() => handleUpdateStatus(item.user_id, 'unexcused_absence')}
+                              title="사전에 사유를 제출했으나 인정되지 않는 경우 (벌금 + OD 보고서)"
+                              style={{
+                                padding: '5px 10px',
+                                fontSize: '12px',
+                                background: '#ffedd5',
+                                color: '#9a3412',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                              }}
+                            >
+                              미인정결석
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateStatus(item.user_id, 'no_show')}
+                              title="사전에 사유를 제출하지 않은 경우 (벌금 + OD 보고서)"
                               style={{
                                 padding: '5px 10px',
                                 fontSize: '12px',

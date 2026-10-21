@@ -32,7 +32,8 @@ const ROW_HEIGHT = 22;
 const ROW_HEIGHT_HEADER = 24;
 const COLOR_PRESENT = "#39d353"; // 출석(0원) 녹색
 const COLOR_LATE = "#eab308";    // 지각 노란색
-const COLOR_UNEXCUSED = "#dc2626"; // 무단 결석 빨간색
+const COLOR_UNEXCUSED = "#f97316"; // 미인정 결석 주황색
+const COLOR_NO_SHOW = "#dc2626";  // 무단 결석 빨간색
 const NO_DATA_COLOR = "#ebedf0";
 const COL_GROUP = 52;
 const COL_CELL = 52;
@@ -55,6 +56,7 @@ function getCellStyle(cell: CellData | null): { bg: string; text?: string; isExc
   const isLate = cell.status === "late" || (cell.fee != null && cell.fee > 0);
   const isPresent = cell.status === "present" || cell.fee === 0;
   if (cell.status === "unexcused_absence") return { bg: COLOR_UNEXCUSED };
+  if (cell.status === "no_show") return { bg: COLOR_NO_SHOW };
   if (cell.status === "excused_absence") return { bg: "#f1f5f9", isExcused: true };
   if (isLate) return { bg: COLOR_LATE, text: String(Math.round((cell.fee ?? 0) / 1000)), isExcused: isExcused || undefined };
   if (isPresent) return { bg: COLOR_PRESENT, isExcused: isExcused || undefined };
@@ -454,6 +456,10 @@ export default function AttendanceOverallStats() {
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: CELL_SIZE, height: CELL_SIZE, borderRadius: 3, background: COLOR_UNEXCUSED, border: "1px solid #d0d7de" }} />
+            미인정결석
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: CELL_SIZE, height: CELL_SIZE, borderRadius: 3, background: COLOR_NO_SHOW, border: "1px solid #d0d7de" }} />
             무단결석
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -591,10 +597,12 @@ export default function AttendanceOverallStats() {
                             : fee === 0
                               ? "출석 0원"
                               : cell?.status === "unexcused_absence"
-                                ? "무단결석"
-                                : (fee ?? 0) > 0
-                                  ? `${(fee ?? 0).toLocaleString()}원`
-                                  : "출석";
+                                ? "미인정결석"
+                                : cell?.status === "no_show"
+                                  ? "무단결석"
+                                  : (fee ?? 0) > 0
+                                    ? `${(fee ?? 0).toLocaleString()}원`
+                                    : "출석";
                         const hasDetail = cell != null;
                         const modalLabel =
                           fee === null && !cell
@@ -604,8 +612,10 @@ export default function AttendanceOverallStats() {
                               : fee === 0
                                 ? "출석 0원"
                                 : cell?.status === "unexcused_absence"
-                                  ? "무단결석"
-                                  : `${(fee ?? 0).toLocaleString()}원`;
+                                  ? "미인정결석"
+                                  : cell?.status === "no_show"
+                                    ? "무단결석"
+                                    : `${(fee ?? 0).toLocaleString()}원`;
                         return (
                           <td
                             key={w}
@@ -669,7 +679,7 @@ export default function AttendanceOverallStats() {
                                 justifyContent: "center",
                                 fontSize: 10,
                                 fontWeight: 700,
-                                color: bg === "#f1f5f9" ? "#64748b" : isExcused ? "#1a1a1a" : cell?.status === "unexcused_absence" || (cell?.status === "late" || ((cell?.fee ?? 0) > 0)) ? "#fff" : "transparent",
+                                color: bg === "#f1f5f9" ? "#64748b" : isExcused ? "#1a1a1a" : cell?.status === "unexcused_absence" || cell?.status === "no_show" || (cell?.status === "late" || ((cell?.fee ?? 0) > 0)) ? "#fff" : "transparent",
                               }}
                             >
                               {isExcused ? "✕" : (text ?? (bg === "#f1f5f9" ? "✕" : ""))}

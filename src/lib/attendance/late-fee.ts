@@ -12,6 +12,55 @@ export interface LateFeeResult {
 }
 
 /**
+ * OD 출석 상태 값 정의
+ * - present: 정상 출석
+ * - late: 지각
+ * - excused_absence: 인정 결석 (예외처리, 벌금/보고서 없음, 출석율 분모에서 제외)
+ * - unexcused_absence: 미인정 결석 (사전에 사유를 제출했으나 인정되지 않는 사유) → 벌금 + 보고서
+ * - no_show: 무단 결석 (사전에 사유를 제출하지 않음) → 벌금 + 보고서
+ *
+ * 미인정 결석(unexcused_absence)과 무단 결석(no_show)의 차이:
+ * - 사전에 사유를 말했는지의 유무로 구분
+ * - 둘 다 벌금 5,000원 및 OD 보고서 제출 대상
+ */
+export const ABSENCE_FINE = 5000;
+
+export type AttendanceStatus =
+  | "present"
+  | "late"
+  | "excused_absence"
+  | "unexcused_absence"
+  | "no_show";
+
+/** 벌금 + 보고서 대상인 결석 상태 (미인정 결석 / 무단 결석) */
+export const FINED_ABSENCE_STATUSES: AttendanceStatus[] = [
+  "unexcused_absence",
+  "no_show",
+];
+
+export function isFinedAbsence(status: string | null | undefined): boolean {
+  return status === "unexcused_absence" || status === "no_show";
+}
+
+/** 상태 → 한글 라벨 */
+export function attendanceStatusLabel(status: string | null | undefined): string {
+  switch (status) {
+    case "present":
+      return "정상";
+    case "late":
+      return "지각";
+    case "excused_absence":
+      return "결석(인정)";
+    case "unexcused_absence":
+      return "미인정 결석";
+    case "no_show":
+      return "무단 결석";
+    default:
+      return "미출석";
+  }
+}
+
+/**
  * 지각 유예 분: 이 시간까지는 정상 출석.
  * 예: 10분으로 정했으면 10분까지 정상, 11분부터 지각. 40분이면 40분까지 정상, 41분부터 지각.
  */

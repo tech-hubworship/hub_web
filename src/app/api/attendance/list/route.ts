@@ -61,6 +61,7 @@ export async function GET(req: Request) {
             late_count: 0,
             excused_absence_count: 0,
             unexcused_absence_count: 0,
+            no_show_count: 0,
           },
           pagination: { page: 1, limit: 0, total: 0, totalPages: 0 },
         },
@@ -155,12 +156,14 @@ export async function GET(req: Request) {
     let lateCount = 0;
     let excusedAbsenceCount = 0;
     let unexcusedAbsenceCount = 0;
+    let noShowCount = 0;
     for (const a of Array.from(attendanceByUser.values())) {
       const s = (a as any).status;
       if (s === "present") presentCount += 1;
       else if (s === "late") lateCount += 1;
       else if (s === "excused_absence") excusedAbsenceCount += 1;
       else if (s === "unexcused_absence") unexcusedAbsenceCount += 1;
+      else if (s === "no_show") noShowCount += 1;
     }
     const attendedCount = presentCount + lateCount;
     const denominator = totalMembers - excusedAbsenceCount;
@@ -191,6 +194,7 @@ export async function GET(req: Request) {
           late_count: lateCount,
           excused_absence_count: excusedAbsenceCount,
           unexcused_absence_count: unexcusedAbsenceCount,
+          no_show_count: noShowCount,
         },
         pagination: {
           page: 1,

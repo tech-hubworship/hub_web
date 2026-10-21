@@ -14,10 +14,10 @@ const QUARTER_LABELS: Record<string, string> = {
 };
 const QUARTER_DATES: Record<string, string> = {
   "": "",
-  "1": "25.11.15~26.1.15",
-  "2": "26.1.24~4.25",
-  "3": "26.4.30~7.25",
-  "4": "26.7.30~",
+  "1": "26.11~27.1",
+  "2": "27.2~4",
+  "3": "27.5~7",
+  "4": "27.8~10",
 };
 
 export default function LateFeeManage() {

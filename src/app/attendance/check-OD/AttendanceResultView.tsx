@@ -76,6 +76,7 @@ export function AttendanceResultView({ step, message, result, errorProfile, onGo
   }
 
   const isUnexcusedAbsence = result?.status === "unexcused_absence";
+  const isNoShow = result?.status === "no_show";
   const isLate = result?.status === "late";
   const isExcused = !!(
     result?.is_excused ||
@@ -92,6 +93,11 @@ export function AttendanceResultView({ step, message, result, errorProfile, onGo
   let icon = "✅";
 
   if (isUnexcusedAbsence) {
+    bgColor = "#fff7ed";
+    textColor = "#ea580c";
+    statusText = "미인정 결석";
+    icon = "⚠️";
+  } else if (isNoShow) {
     bgColor = "#fef2f2";
     textColor = "#dc2626";
     statusText = "무단 결석";

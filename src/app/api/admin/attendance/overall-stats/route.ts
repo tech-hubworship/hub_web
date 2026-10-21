@@ -193,13 +193,23 @@ export async function GET(req: Request) {
     });
 
     // 5. 분기별 지각비 합계 (기간 내 실제 데이터, 예외 제외)
+    // 분기 기준(지각비 관리와 동일): 11월 시작 회계 분기
+    //  1분기: 11~익년1월 / 2분기: 2~4월 / 3분기: 5~7월 / 4분기: 8~10월
+    const fiscalQuarterLabel = (weekDate: string): string => {
+      const d = dayjs(weekDate);
+      const m = d.month() + 1; // 1~12
+      const y = d.year();
+      if (m >= 11) return `${y}~${y + 1} 1분기`; // 11,12월 → 해당 연도 시작 1분기
+      if (m === 1) return `${y - 1}~${y} 1분기`; // 1월 → 전년도 시작 1분기
+      if (m >= 2 && m <= 4) return `${y - 1}~${y} 2분기`;
+      if (m >= 5 && m <= 7) return `${y - 1}~${y} 3분기`;
+      return `${y - 1}~${y} 4분기`; // 8~10월
+    };
     const qMap = new Map<string, number>();
     for (const row of attendanceRows) {
       const r = row as any;
       if (r.late_fee_excused) continue; // 지각비 예외 시 합계 제외
-      const d = dayjs(r.week_date);
-      const qNum = Math.ceil((d.month() + 1) / 3);
-      const q = `${d.year()} ${qNum}분기`;
+      const q = fiscalQuarterLabel(r.week_date);
       qMap.set(q, (qMap.get(q) || 0) + (r.late_fee ?? 0));
     }
     const quarterlyTotals = Array.from(qMap.entries())
