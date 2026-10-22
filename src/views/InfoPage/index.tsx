@@ -46,6 +46,14 @@ interface Cell {
 
 // MC 그룹 id (hub_groups 의 'MC' 그룹). 이 그룹을 고르면 MC 인증(암호)로 진행한다.
 const MC_GROUP_ID = '99';
+const MC_CELL_ID = '99'; // MC 그룹의 'MC' 다락방
+
+// 해당없음 그룹/다락방: 그룹이 해당없음이면 다락방도 자동으로 해당없음
+const NONE_GROUP_ID = '7';
+const NONE_CELL_ID = '26';
+
+// 그룹장/교역자(직분)를 고를 수 있는 일반 그룹들 (사랑/믿음/소망/링크/새가족/실타)
+const LEADERSHIP_GROUP_IDS = ['1', '2', '3', '4', '5', '6'];
 
 // --- API 호출 함수 ---
 const fetchProfile = async (): Promise<ProfileData> => {
@@ -375,7 +383,11 @@ export default function MyInfoPage() {
   const queryClient = useQueryClient();
 
   const isHub = formData.community === '허브';
-  const isMcGroup = formData.group_id?.toString() === MC_GROUP_ID;
+  const groupIdStr = formData.group_id?.toString() || '';
+  const isMcGroup = groupIdStr === MC_GROUP_ID;
+  const isNoneGroup = groupIdStr === NONE_GROUP_ID;
+  // 직분(그룹장/교역자)을 고를 수 있는 그룹인지
+  const canSelectRole = LEADERSHIP_GROUP_IDS.includes(groupIdStr);
   // 암호 인증이 필요한 리더십 직분인지
   const isLeaderRole =
     leaderRole === '그룹장' || leaderRole === '목회자' || leaderRole === 'MC';
@@ -477,7 +489,8 @@ export default function MyInfoPage() {
             group_id: formData.group_id
               ? parseInt(formData.group_id.toString())
               : null,
-            cell_id: null,
+            // MC는 다락방도 MC(99)로 저장, 그룹장/교역자는 다락방 없음
+            cell_id: leaderRole === 'MC' ? parseInt(MC_CELL_ID) : null,
             // 그룹장/교역자만 담당 그룹 연결, MC는 소속 그룹만 저장
             responsible_group_id:
               leaderRole === 'MC'
@@ -720,10 +733,18 @@ export default function MyInfoPage() {
                       <Combobox
                         value={formData.group_id?.toString() || ''}
                         onChange={(value) => {
+                          // 그룹별 다락방 자동 지정:
+                          //  - MC(99)   → 다락방 MC(99)
+                          //  - 해당없음(7) → 다락방 해당없음(26)
+                          //  - 그 외      → 다락방 비움(사용자가 선택)
+                          let autoCell: string | number = '';
+                          if (value === MC_GROUP_ID) autoCell = parseInt(MC_CELL_ID);
+                          else if (value === NONE_GROUP_ID) autoCell = parseInt(NONE_CELL_ID);
+
                           setFormData(prev => ({
                             ...prev,
                             group_id: value ? parseInt(value) : '',
-                            cell_id: '',
+                            cell_id: autoCell,
                           }));
                           // MC 그룹이면 직분을 MC로 자동 지정, 아니면 직분/암호 초기화
                           setLeaderRole(value === MC_GROUP_ID ? 'MC' : '');
@@ -737,12 +758,12 @@ export default function MyInfoPage() {
                       />
                     </FormGroup>
 
-                    {/* MC 그룹: 직분/다락방 없이 바로 MC 암호 */}
+                    {/* MC 그룹: 다락방 자동(MC) + MC 암호 */}
                     {formData.group_id && isMcGroup && (
                       <FormGroup>
                         <Label>MC 암호</Label>
                         <InfoNote style={{ marginBottom: 10 }}>
-                          MC는 암호 인증이 필요해요.
+                          MC는 다락방이 MC로 자동 지정되며, 암호 인증이 필요해요.
                         </InfoNote>
                         <Input
                           type="password"
@@ -754,8 +775,15 @@ export default function MyInfoPage() {
                       </FormGroup>
                     )}
 
-                    {/* 일반 그룹: 직분 선택 */}
-                    {formData.group_id && !isMcGroup && (
+                    {/* 해당없음 그룹: 다락방 자동(해당없음), 추가 선택 없음 */}
+                    {formData.group_id && isNoneGroup && (
+                      <InfoNote>
+                        해당없음 그룹은 다락방도 자동으로 해당없음으로 처리됩니다.
+                      </InfoNote>
+                    )}
+
+                    {/* 직분 선택 가능 그룹(사랑/믿음/소망/링크/새가족/실타): 직분 선택 */}
+                    {formData.group_id && canSelectRole && (
                       <FormGroup>
                         <Label>직분</Label>
                         <Combobox
@@ -779,8 +807,8 @@ export default function MyInfoPage() {
                       </FormGroup>
                     )}
 
-                    {/* 일반 그룹 + '다락방 선택하기': 다락방 드롭다운 */}
-                    {formData.group_id && !isMcGroup && leaderRole === '일반' && (
+                    {/* 직분 그룹 + '다락방 선택하기': 다락방 드롭다운 */}
+                    {formData.group_id && canSelectRole && leaderRole === '일반' && (
                       <FormGroup>
                         <Label>다락방</Label>
                         <Combobox
@@ -798,8 +826,8 @@ export default function MyInfoPage() {
                       </FormGroup>
                     )}
 
-                    {/* 일반 그룹 + 그룹장/교역자: 암호 */}
-                    {formData.group_id && !isMcGroup &&
+                    {/* 직분 그룹 + 그룹장/교역자: 암호 */}
+                    {formData.group_id && canSelectRole &&
                       (leaderRole === '그룹장' || leaderRole === '목회자') && (
                       <FormGroup>
                         <Label>
@@ -838,10 +866,10 @@ export default function MyInfoPage() {
                       loading ||
                       // 허브인데 그룹 미선택
                       (isHub && !formData.group_id) ||
-                      // 일반 그룹인데 직분 미선택
-                      (isHub && !!formData.group_id && !isMcGroup && !leaderRole) ||
-                      // 다락방 선택인데 다락방 미선택
-                      (isHub && leaderRole === '일반' && !formData.cell_id) ||
+                      // 직분 선택 그룹인데 직분 미선택
+                      (isHub && canSelectRole && !leaderRole) ||
+                      // 직분='일반'(다락방 선택)인데 다락방 미선택
+                      (isHub && canSelectRole && leaderRole === '일반' && !formData.cell_id) ||
                       // 리더십(그룹장/교역자/MC)인데 암호 미입력
                       (isHub && isLeaderRole && !leaderPassword)
                     }

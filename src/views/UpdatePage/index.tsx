@@ -7,6 +7,14 @@ import { Combobox } from '@src/components/ui/combobox';
 
 // MC 그룹 id (hub_groups 의 'MC' 그룹, id=99). MC 그룹을 고르면 곧바로 MC 인증(암호)로 진행한다.
 const MC_GROUP_ID = '99';
+const MC_CELL_ID = '99'; // MC 그룹의 'MC' 다락방
+
+// 해당없음 그룹/다락방: 그룹이 해당없음이면 다락방도 자동으로 해당없음
+const NONE_GROUP_ID = '7';
+const NONE_CELL_ID = '26';
+
+// 그룹장/교역자(직분)를 고를 수 있는 일반 그룹들 (사랑/믿음/소망/링크/새가족/실타)
+const LEADERSHIP_GROUP_IDS = ['1', '2', '3', '4', '5', '6'];
 
 export default function UpdatePage() {
   const { data: session, status } = useSession();
@@ -161,11 +169,15 @@ export default function UpdatePage() {
       setLeaderPassword('');
     }
     // 그룹이 변경되면 셀/직분 초기화.
-    // MC 그룹을 고르면 직분을 자동으로 'MC' 로 지정한다.
+    //  - MC(99)   → 직분 MC 자동, 다락방 MC(99) 자동
+    //  - 해당없음(7) → 다락방 해당없음(26) 자동
+    //  - 그 외      → 다락방 비움
     if (name === 'group_id') {
-      newFormData.cell_id = '';
       setLeaderPassword('');
       setLeaderRole(value === MC_GROUP_ID ? 'MC' : '');
+      if (value === MC_GROUP_ID) newFormData.cell_id = MC_CELL_ID;
+      else if (value === NONE_GROUP_ID) newFormData.cell_id = NONE_CELL_ID;
+      else newFormData.cell_id = '';
     }
     
     setFormData(newFormData);
@@ -184,12 +196,15 @@ export default function UpdatePage() {
 
   const handleGroupNext = () => {
     if (!formData.group_id) return;
-    // MC 그룹이면 직분 선택 없이 곧바로 암호 입력 단계로
     if (formData.group_id === MC_GROUP_ID) {
+      // MC: 암호 인증 단계로
       setCurrentStep('password');
-    } else {
-      // 일반 그룹은 직분(다락방원/그룹장/교역자) 선택 단계로
+    } else if (LEADERSHIP_GROUP_IDS.includes(formData.group_id)) {
+      // 사랑/믿음/소망/링크/새가족/실타: 직분 선택 단계로
       setCurrentStep('role');
+    } else {
+      // 해당없음 및 그 외: 다락방 단계로 (해당없음은 자동 지정됨)
+      setCurrentStep('cell');
     }
   };
 
@@ -254,9 +269,12 @@ export default function UpdatePage() {
     } else if (currentStep === 'cell') {
       if (formData.community === '타공동체') {
         setCurrentStep('community');
-      } else {
-        // 다락방 → 직분 선택
+      } else if (LEADERSHIP_GROUP_IDS.includes(formData.group_id)) {
+        // 리더십 그룹에서 '다락방 선택하기'로 온 경우 → 직분 선택으로
         setCurrentStep('role');
+      } else {
+        // 해당없음/그 외 그룹 → 그룹으로
+        setCurrentStep('group');
       }
     } else if (currentStep === 'role') {
       setCurrentStep('group');
@@ -297,9 +315,10 @@ export default function UpdatePage() {
             password: leaderPassword,
             // 서버는 group_id/cell_id 로 profiles 소속을 저장하고,
             // responsible_group_id 로 담당 그룹(group_leader_id/pastor_id)을 연결한다.
-            // 그룹장/교역자만 담당 그룹을 연결하고, MC는 소속 그룹만 저장한다.
+            // - MC: 다락방도 MC(99)로 저장, 담당 그룹 연결은 없음
+            // - 그룹장/교역자: 다락방 없음, 담당 그룹 연결
             group_id: formData.group_id,
-            cell_id: null,
+            cell_id: leaderRole === 'MC' ? MC_CELL_ID : null,
             responsible_group_id:
               leaderRole === 'MC' ? undefined : formData.group_id,
           }),
@@ -559,17 +578,31 @@ export default function UpdatePage() {
             </S.StepComponent>
           ) : (
             <S.StepComponent
-              title={formData.community === '타공동체' ? '정보 업데이트 완료' : '소속 다락방을 선택해주세요'}
+              title={
+                formData.community === '타공동체'
+                  ? '정보 업데이트 완료'
+                  : formData.group_id === NONE_GROUP_ID
+                  ? '정보 업데이트 완료'
+                  : '소속 다락방을 선택해주세요'
+              }
               onBack={handleBack}
               onSubmit={handleSubmit}
               finalStep={true}
               loading={loading}
-              nextDisabled={formData.community === '허브' && !formData.cell_id}
+              nextDisabled={
+                formData.community === '허브' &&
+                formData.group_id !== NONE_GROUP_ID &&
+                !formData.cell_id
+              }
             >
               {formData.community === '타공동체' ? (
                 <S.InfoText>
                   타공동체 소속이시군요!<br />
                   그룹/다락방 선택은 생략됩니다.
+                </S.InfoText>
+              ) : formData.group_id === NONE_GROUP_ID ? (
+                <S.InfoText>
+                  해당없음 그룹은 다락방도 자동으로 해당없음으로 처리됩니다.
                 </S.InfoText>
               ) : (
                 <Combobox
