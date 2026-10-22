@@ -65,7 +65,7 @@ function getCellStyle(cell: CellData | null): { bg: string; text?: string; isExc
   return { bg: NO_DATA_COLOR };
 }
 
-const DEFAULT_START = "2025-11-01";
+const DEFAULT_START = "2026-10-24";
 
 export default function AttendanceOverallStats() {
   const [start, setStart] = useState(DEFAULT_START);
