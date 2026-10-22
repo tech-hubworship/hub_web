@@ -17,6 +17,20 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { group_id, cell_id, community, name, birth_date, gender } = body ?? {};
 
+  // 불완전 소속 방어:
+  // 일반 저장 경로(이 API)는 리더십 암호 검증이 없으므로 '일반 멤버' 저장으로 간주한다.
+  // 허브에서 그룹을 지정하면서 다락방을 비운 채 저장하는 것을 서버에서 막는다.
+  // (그룹장/교역자는 /api/user/update-profile 로 가므로 이 API 로 오지 않는다)
+  if (community === "허브" && group_id && !cell_id) {
+    return Response.json(
+      {
+        message: "다락방을 선택해야 저장할 수 있습니다.",
+        code: "CELL_REQUIRED",
+      },
+      { status: 400 }
+    );
+  }
+
   try {
     // 프로필 정보 업데이트 (그룹/셀/커뮤니티)
     const profileDataToUpdate: Record<string, any> = {

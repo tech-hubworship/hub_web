@@ -45,7 +45,15 @@ export default function ProfileGuard() {
           profile.community === "허브" && profile.status === "활성";
         const isAdmin =
           (profile.roles?.length ?? 0) > 0 || profile.status === "관리자";
-        const hasEmptyGroupCell = !profile.group_id || !profile.cell_id;
+        // 그룹장/교역자처럼 담당 그룹/다락방이 있거나 역할이 있는 리더십은
+        // 다락방(cell_id)이 없어도 소속이 완료된 것으로 본다.
+        const isLeadership =
+          profile.responsible_group_id != null ||
+          profile.responsible_cell_id != null ||
+          (profile.roles?.length ?? 0) > 0;
+        // 소속 미완료: 그룹이 없거나, (다락방이 없으면서 리더십도 아님)
+        const hasEmptyGroupCell =
+          !profile.group_id || (!profile.cell_id && !isLeadership);
 
         // 허브 활성 사용자 또는 관리자(허브 소속)이면서 소속이 비어있으면 모달 노출
         if ((isHubActive || isAdmin) && hasEmptyGroupCell) {

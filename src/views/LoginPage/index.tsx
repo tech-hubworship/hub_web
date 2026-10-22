@@ -79,7 +79,13 @@ export default function LoginPage() {
       
       // 허브 활성 사용자 또는 관리자이고 그룹/셀이 비어있는 경우
       const isHubActive = profile.community === '허브' && profile.status === '활성';
-      const hasEmptyGroupCell = !profile.group_id || !profile.cell_id;
+      // 그룹장/교역자처럼 리더십은 다락방(cell_id)이 없어도 소속 완료로 본다.
+      const isLeadership =
+        profile.responsible_group_id != null ||
+        profile.responsible_cell_id != null ||
+        (profile.roles?.length ?? 0) > 0;
+      const hasEmptyGroupCell =
+        !profile.group_id || (!profile.cell_id && !isLeadership);
       
       if ((isHubActive || isAdmin) && hasEmptyGroupCell) {
         // 정보 업데이트 페이지로 리다이렉트 (redirect 값은 localStorage에 유지)

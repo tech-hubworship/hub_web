@@ -622,11 +622,9 @@ export default function MyInfoPage() {
                 )}
               </S.Card>
 
-              {/* 출석·지각비는 OD 명단(리더십)에게만 노출 */}
-              {(profileData.is_sunjang === true ||
-                profileData.responsible_group_id != null ||
-                profileData.responsible_cell_id != null ||
-                (profileData.roles?.length ?? 0) > 0) && (
+              {/* 출석·지각비는 OD 명단(출석 대상 리더십)에게만 노출.
+                  일반 순원은 출석 대상이 아니므로 보이지 않는다. */}
+              {profileData.is_sunjang === true && (
                 <Link href="/attendance/my" passHref legacyBehavior>
                   <S.AttendanceLink>
                     <S.AttendanceLinkLabel>

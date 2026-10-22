@@ -84,6 +84,30 @@ export async function POST(req: Request) {
       }
     }
 
+    // 리더십(그룹장/교역자/다락방장/MC)으로 인증한 경우 OD 명단에 자동 등록한다.
+    // - 그룹장  → is_group_leader = true
+    // - 다락방장 → is_cell_leader = true
+    // - 교역자/MC → 둘 다 false (OD 명단에는 포함하되 그룹장/다락방장은 아님)
+    if (role && ALL_ROLES.includes(role)) {
+      const { error: odError } = await supabaseAdmin
+        .from("attendance_od_targets")
+        .upsert(
+          {
+            category: "OD",
+            user_id: userId,
+            name: session.user.name || "이름 없음",
+            created_by: userId,
+            is_group_leader: role === "그룹장",
+            is_cell_leader: role === "다락방장",
+          },
+          { onConflict: "user_id,category" }
+        );
+      if (odError) {
+        console.error("OD 명단 자동 등록 실패:", odError);
+        // OD 등록 실패는 프로필 저장을 되돌리지 않고 경고만 남긴다.
+      }
+    }
+
     return jsonOk({ message: "정보가 성공적으로 업데이트되었습니다." }, 200);
   } catch (error: any) {
     console.error("Error in /api/user/update-profile:", error);

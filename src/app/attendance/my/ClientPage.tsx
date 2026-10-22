@@ -9,7 +9,7 @@ function LateFeeAccountCard() {
   const [copied, setCopied] = useState(false);
 
   const copyAccount = () => {
-    const text = "3333-18-2424686";
+    const text = "3333-14-6662950";
     const done = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -68,7 +68,7 @@ function LateFeeAccountCard() {
           cursor: "pointer",
         }}
       >
-        3333-18-2424686
+        3333-14-6662950
         <span
           style={{
             fontSize: "10px",
@@ -83,7 +83,7 @@ function LateFeeAccountCard() {
         </span>
       </button>
       <span style={{ color: "#cbd5e1" }}>|</span>
-      <span>이지원</span>
+      <span>김수진</span>
       <span style={{ color: "#cbd5e1" }}>|</span>
       <span style={{ color: "#94a3b8" }}>송금시: 다락방/이름</span>
     </div>

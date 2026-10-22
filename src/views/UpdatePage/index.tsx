@@ -111,7 +111,13 @@ export default function UpdatePage() {
           
           // 허브 활성 사용자 또는 관리자이고 그룹/셀이 비어있는 경우에만 업데이트 페이지 표시
           const isHubActive = profile.community === '허브' && profile.status === '활성';
-          const hasEmptyGroupCell = !profile.group_id || !profile.cell_id;
+          // 그룹장/교역자처럼 리더십은 다락방(cell_id)이 없어도 소속 완료로 본다.
+          const isLeadership =
+            profile.responsible_group_id != null ||
+            profile.responsible_cell_id != null ||
+            (profile.roles?.length ?? 0) > 0;
+          const hasEmptyGroupCell =
+            !profile.group_id || (!profile.cell_id && !isLeadership);
 
           // force 모드가 아니면 기존 쫓아내기 규칙 적용.
           // force=1 이면 소속이 이미 있어도 재입력을 허용한다.
