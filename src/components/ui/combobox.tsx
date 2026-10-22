@@ -72,9 +72,16 @@ const ComboboxIcon = styled(ChevronsUpDown)`
   flex-shrink: 0;
 `
 
-const ComboboxPopover = styled.div<{ $isOpen: boolean }>`
+const ComboboxPopover = styled.div<{ $isOpen: boolean; $dropUp?: boolean }>`
   position: absolute;
-  top: calc(100% + 8px);
+  ${({ $dropUp }) =>
+    $dropUp
+      ? css`
+          bottom: calc(100% + 8px);
+        `
+      : css`
+          top: calc(100% + 8px);
+        `}
   left: 0;
   right: 0;
   z-index: 9999;
@@ -184,6 +191,7 @@ export function Combobox({
 }: ComboboxProps) {
   const [isOpen, setIsOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
+  const [dropUp, setDropUp] = React.useState(false)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const popoverRef = React.useRef<HTMLDivElement>(null)
@@ -210,25 +218,48 @@ export function Combobox({
 
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside)
+      document.addEventListener("scroll", decidePlacement, true)
+      window.addEventListener("resize", decidePlacement)
+      // 열릴 때 방향(위/아래) 결정 후 검색창 포커스
+      decidePlacement()
       setTimeout(() => {
         inputRef.current?.focus()
-        // 열린 목록이 화면(특히 하단 푸터) 밖으로 잘리지 않도록 보이게 스크롤
-        const popover = popoverRef.current
-        if (popover) {
-          const rect = popover.getBoundingClientRect()
-          const viewportH =
-            window.innerHeight || document.documentElement.clientHeight
-          if (rect.bottom > viewportH) {
-            popover.scrollIntoView({ block: "nearest", behavior: "smooth" })
-          }
-        }
       }, 0)
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("scroll", decidePlacement, true)
+      window.removeEventListener("resize", decidePlacement)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
+
+  // 트리거 아래 공간이 부족(화면 끝/푸터에 가릴 때)하면 위로 펼친다.
+  function decidePlacement() {
+    const btn = containerRef.current
+    if (!btn) return
+    const rect = btn.getBoundingClientRect()
+    const viewportH =
+      window.innerHeight || document.documentElement.clientHeight
+    const popoverH = Math.min(popoverRef.current?.offsetHeight || 300, 300)
+
+    // 화면에 실제로 보이는 푸터가 트리거 아래쪽에 있으면, 그 상단을 '아래 한계'로 삼는다.
+    // (position 이 relative 여도 내용이 짧아 뷰포트 하단에 보이면 드롭다운이 가려지므로)
+    const footer = document.querySelector("footer") as HTMLElement | null
+    let bottomLimit = viewportH
+    if (footer) {
+      const fRect = footer.getBoundingClientRect()
+      if (fRect.top > rect.bottom && fRect.top < viewportH) {
+        bottomLimit = fRect.top
+      }
+    }
+
+    const spaceBelow = bottomLimit - rect.bottom
+    const spaceAbove = rect.top - 8 // 상단 헤더 여유
+    // 아래 공간이 팝오버보다 좁고, 위 공간이 더 넓으면 위로
+    setDropUp(spaceBelow < popoverH && spaceAbove > spaceBelow)
+  }
 
   const handleSelect = (optionValue: string) => {
     onChange?.(optionValue)
@@ -258,7 +289,7 @@ export function Combobox({
         </ComboboxValue>
         <ComboboxIcon />
       </ComboboxButton>
-      <ComboboxPopover ref={popoverRef} $isOpen={isOpen}>
+      <ComboboxPopover ref={popoverRef} $isOpen={isOpen} $dropUp={dropUp}>
         {searchable && (
           <ComboboxInput
             ref={inputRef}
