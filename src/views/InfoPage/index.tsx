@@ -44,6 +44,9 @@ interface Cell {
   name: string;
 }
 
+// MC 그룹 id (hub_groups 의 'MC' 그룹). 이 그룹을 고르면 MC 인증(암호)로 진행한다.
+const MC_GROUP_ID = '99';
+
 // --- API 호출 함수 ---
 const fetchProfile = async (): Promise<ProfileData> => {
   const res = await fetch('/api/user/profile');
@@ -360,6 +363,11 @@ export default function MyInfoPage() {
     group_id: '' as string | number,
     cell_id: '' as string | number,
   });
+  // 직분: '' = 미선택, '일반' = 다락방 선택, 그 외는 리더십(암호 필요)
+  const [leaderRole, setLeaderRole] = useState<
+    '일반' | '그룹장' | '목회자' | 'MC' | ''
+  >('');
+  const [leaderPassword, setLeaderPassword] = useState('');
   const [groups, setGroups] = useState<Group[]>([]);
   const [cells, setCells] = useState<Cell[]>([]);
   const [updateError, setUpdateError] = useState('');
@@ -367,6 +375,10 @@ export default function MyInfoPage() {
   const queryClient = useQueryClient();
 
   const isHub = formData.community === '허브';
+  const isMcGroup = formData.group_id?.toString() === MC_GROUP_ID;
+  // 암호 인증이 필요한 리더십 직분인지
+  const isLeaderRole =
+    leaderRole === '그룹장' || leaderRole === '목회자' || leaderRole === 'MC';
 
   // 그룹 목록 가져오기
   useEffect(() => {
@@ -414,6 +426,15 @@ export default function MyInfoPage() {
       });
       setIsEditMode(true);
       setUpdateError('');
+      setLeaderPassword('');
+      // 기존 상태로 직분 기본값 추정: MC 그룹이면 MC, 다락방 있으면 일반, 아니면 미선택
+      if (profileData.group_id?.toString() === MC_GROUP_ID) {
+        setLeaderRole('MC');
+      } else if (profileData.cell_id) {
+        setLeaderRole('일반');
+      } else {
+        setLeaderRole('');
+      }
     }
   };
 
@@ -421,6 +442,8 @@ export default function MyInfoPage() {
   const handleCancelEdit = () => {
     setIsEditMode(false);
     setUpdateError('');
+    setLeaderRole('');
+    setLeaderPassword('');
     setFormData({
       name: '',
       birth_date: '',
@@ -436,28 +459,59 @@ export default function MyInfoPage() {
     setUpdateError('');
 
     try {
-      const updateData: any = {
-        name: formData.name,
-        birth_date: formData.birth_date,
-        community: formData.community,
-      };
+      let res: Response;
 
-      if (formData.community === '타공동체') {
-        updateData.group_id = null;
-        updateData.cell_id = null;
+      // 허브 + 리더십 직분(그룹장/교역자/MC): 암호 검증 API로 보낸다.
+      if (isHub && isLeaderRole) {
+        if (!leaderPassword) {
+          setUpdateError('암호를 입력해주세요.');
+          setLoading(false);
+          return;
+        }
+        res = await fetch('/api/user/update-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: leaderRole, // '그룹장' | '목회자' | 'MC'
+            password: leaderPassword,
+            group_id: formData.group_id
+              ? parseInt(formData.group_id.toString())
+              : null,
+            cell_id: null,
+            // 그룹장/교역자만 담당 그룹 연결, MC는 소속 그룹만 저장
+            responsible_group_id:
+              leaderRole === 'MC'
+                ? undefined
+                : formData.group_id
+                ? parseInt(formData.group_id.toString())
+                : undefined,
+          }),
+        });
       } else {
-        updateData.group_id = formData.group_id ? parseInt(formData.group_id.toString()) : null;
-        updateData.cell_id = formData.cell_id ? parseInt(formData.cell_id.toString()) : null;
+        // 일반 사용자: 기존대로 소속만 업데이트
+        const updateData: any = {
+          name: formData.name,
+          birth_date: formData.birth_date,
+          community: formData.community,
+        };
+
+        if (formData.community === '타공동체') {
+          updateData.group_id = null;
+          updateData.cell_id = null;
+        } else {
+          updateData.group_id = formData.group_id ? parseInt(formData.group_id.toString()) : null;
+          updateData.cell_id = formData.cell_id ? parseInt(formData.cell_id.toString()) : null;
+        }
+
+        res = await fetch('/api/auth/update-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData),
+        });
       }
 
-      const res = await fetch('/api/auth/update-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData),
-      });
-
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || '업데이트 실패');
+      if (!res.ok) throw new Error(data.message || data.error || '업데이트 실패');
 
       alert('정보가 성공적으로 업데이트되었습니다.');
       await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
@@ -665,35 +719,104 @@ export default function MyInfoPage() {
                       <Label>그룹</Label>
                       <Combobox
                         value={formData.group_id?.toString() || ''}
-                        onChange={(value) => setFormData(prev => ({
-                          ...prev,
-                          group_id: value ? parseInt(value) : '',
-                          cell_id: '',
-                        }))}
+                        onChange={(value) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            group_id: value ? parseInt(value) : '',
+                            cell_id: '',
+                          }));
+                          // MC 그룹이면 직분을 MC로 자동 지정, 아니면 직분/암호 초기화
+                          setLeaderRole(value === MC_GROUP_ID ? 'MC' : '');
+                          setLeaderPassword('');
+                        }}
                         options={[
                           { value: '', label: '선택하세요' },
-                          ...(groups || []).map(g => ({ value: g.id.toString(), label: g.name })),
+                          ...(groups || []).map(g => ({ value: g.id.toString(), label: g.name.trim() })),
                         ]}
                         placeholder="선택하세요"
                       />
                     </FormGroup>
 
-                    <FormGroup>
-                      <Label>다락방</Label>
-                      <Combobox
-                        value={formData.cell_id?.toString() || ''}
-                        onChange={(value) => setFormData(prev => ({
-                          ...prev,
-                          cell_id: value ? parseInt(value) : '',
-                        }))}
-                        options={[
-                          { value: '', label: '선택하세요' },
-                          ...(cells || []).map(c => ({ value: c.id.toString(), label: c.name })),
-                        ]}
-                        placeholder="선택하세요"
-                        disabled={!formData.group_id}
-                      />
-                    </FormGroup>
+                    {/* MC 그룹: 직분/다락방 없이 바로 MC 암호 */}
+                    {formData.group_id && isMcGroup && (
+                      <FormGroup>
+                        <Label>MC 암호</Label>
+                        <InfoNote style={{ marginBottom: 10 }}>
+                          MC는 암호 인증이 필요해요.
+                        </InfoNote>
+                        <Input
+                          type="password"
+                          value={leaderPassword}
+                          onChange={(e) => setLeaderPassword(e.target.value)}
+                          placeholder="MC 암호를 입력하세요"
+                          autoComplete="off"
+                        />
+                      </FormGroup>
+                    )}
+
+                    {/* 일반 그룹: 직분 선택 */}
+                    {formData.group_id && !isMcGroup && (
+                      <FormGroup>
+                        <Label>직분</Label>
+                        <Combobox
+                          value={leaderRole}
+                          onChange={(value) => {
+                            setLeaderRole(value as '일반' | '그룹장' | '목회자' | '');
+                            setLeaderPassword('');
+                            // 리더십으로 바꾸면 다락방 값 제거
+                            if (value === '그룹장' || value === '목회자') {
+                              setFormData(prev => ({ ...prev, cell_id: '' }));
+                            }
+                          }}
+                          options={[
+                            { value: '', label: '선택하세요' },
+                            { value: '일반', label: '다락방 선택하기' },
+                            { value: '그룹장', label: '그룹장' },
+                            { value: '목회자', label: '교역자(목회자)' },
+                          ]}
+                          placeholder="선택하세요"
+                        />
+                      </FormGroup>
+                    )}
+
+                    {/* 일반 그룹 + '다락방 선택하기': 다락방 드롭다운 */}
+                    {formData.group_id && !isMcGroup && leaderRole === '일반' && (
+                      <FormGroup>
+                        <Label>다락방</Label>
+                        <Combobox
+                          value={formData.cell_id?.toString() || ''}
+                          onChange={(value) => setFormData(prev => ({
+                            ...prev,
+                            cell_id: value ? parseInt(value) : '',
+                          }))}
+                          options={[
+                            { value: '', label: '선택하세요' },
+                            ...(cells || []).map(c => ({ value: c.id.toString(), label: c.name })),
+                          ]}
+                          placeholder="선택하세요"
+                        />
+                      </FormGroup>
+                    )}
+
+                    {/* 일반 그룹 + 그룹장/교역자: 암호 */}
+                    {formData.group_id && !isMcGroup &&
+                      (leaderRole === '그룹장' || leaderRole === '목회자') && (
+                      <FormGroup>
+                        <Label>
+                          {leaderRole === '목회자' ? '교역자' : '그룹장'} 암호
+                        </Label>
+                        <InfoNote style={{ marginBottom: 10 }}>
+                          담당 그룹 인증을 위해 암호를 입력해주세요.
+                        </InfoNote>
+                        <Input
+                          type="password"
+                          value={leaderPassword}
+                          onChange={(e) => setLeaderPassword(e.target.value)}
+                          placeholder="암호를 입력하세요"
+                          autoComplete="off"
+                        />
+                      </FormGroup>
+                    )}
                   </>
                 )}
 
@@ -709,7 +832,20 @@ export default function MyInfoPage() {
                   <CancelButton onClick={handleCancelEdit}>
                     취소
                   </CancelButton>
-                  <SaveButton onClick={handleSave} disabled={loading}>
+                  <SaveButton
+                    onClick={handleSave}
+                    disabled={
+                      loading ||
+                      // 허브인데 그룹 미선택
+                      (isHub && !formData.group_id) ||
+                      // 일반 그룹인데 직분 미선택
+                      (isHub && !!formData.group_id && !isMcGroup && !leaderRole) ||
+                      // 다락방 선택인데 다락방 미선택
+                      (isHub && leaderRole === '일반' && !formData.cell_id) ||
+                      // 리더십(그룹장/교역자/MC)인데 암호 미입력
+                      (isHub && isLeaderRole && !leaderPassword)
+                    }
+                  >
                     {loading ? '저장 중...' : '저장'}
                   </SaveButton>
                 </ButtonGroup>

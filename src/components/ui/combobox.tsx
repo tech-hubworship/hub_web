@@ -74,33 +74,37 @@ const ComboboxIcon = styled(ChevronsUpDown)`
 
 const ComboboxPopover = styled.div<{ $isOpen: boolean }>`
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 8px);
   left: 0;
   right: 0;
   z-index: 9999;
   background: white;
   border: 1px solid #d7d7d7;
   border-radius: 6px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.18), 0 2px 6px -1px rgba(0, 0, 0, 0.08);
   max-height: 300px;
   overflow-y: auto;
   overflow-x: hidden;
   display: ${({ $isOpen }) => ($isOpen ? "block" : "none")};
-  
+
   @media (max-width: 768px) {
     max-height: 250px;
   }
 `
 
 const ComboboxInput = styled.input`
+  position: sticky;
+  top: 0;
+  z-index: 1;
   width: 100%;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: none;
   border-bottom: 1px solid #e5e7eb;
   border-radius: 6px 6px 0 0;
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
+  background: white;
 
   &:focus {
     outline: none;
@@ -182,6 +186,7 @@ export function Combobox({
   const [searchValue, setSearchValue] = React.useState("")
   const containerRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const popoverRef = React.useRef<HTMLDivElement>(null)
 
   const selectedOption = options.find((opt) => opt.value === value)
 
@@ -207,6 +212,16 @@ export function Combobox({
       document.addEventListener("mousedown", handleClickOutside)
       setTimeout(() => {
         inputRef.current?.focus()
+        // 열린 목록이 화면(특히 하단 푸터) 밖으로 잘리지 않도록 보이게 스크롤
+        const popover = popoverRef.current
+        if (popover) {
+          const rect = popover.getBoundingClientRect()
+          const viewportH =
+            window.innerHeight || document.documentElement.clientHeight
+          if (rect.bottom > viewportH) {
+            popover.scrollIntoView({ block: "nearest", behavior: "smooth" })
+          }
+        }
       }, 0)
     }
 
@@ -243,7 +258,7 @@ export function Combobox({
         </ComboboxValue>
         <ComboboxIcon />
       </ComboboxButton>
-      <ComboboxPopover $isOpen={isOpen}>
+      <ComboboxPopover ref={popoverRef} $isOpen={isOpen}>
         {searchable && (
           <ComboboxInput
             ref={inputRef}

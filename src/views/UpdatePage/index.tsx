@@ -5,6 +5,9 @@ import PageLayout from '@src/components/common/PageLayout';
 import * as S from './style';
 import { Combobox } from '@src/components/ui/combobox';
 
+// MC 그룹 id (hub_groups 의 'MC' 그룹, id=99). MC 그룹을 고르면 곧바로 MC 인증(암호)로 진행한다.
+const MC_GROUP_ID = '99';
+
 export default function UpdatePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -22,13 +25,26 @@ export default function UpdatePage() {
     group_id: '',
     cell_id: '',
   });
+  // 그룹 선택 후 직분 선택.
+  //  - 다락방원: 다락방 선택 단계로
+  //  - 그룹장/교역자/MC: 다락방 없이 암호 입력 단계로 (아무나 못 하도록 서버에서 암호 검증)
+  const [leaderRole, setLeaderRole] = useState<
+    '일반' | '그룹장' | '목회자' | 'MC' | ''
+  >('');
+  // 리더십 암호 (서버에서 .env 값과 대조)
+  const [leaderPassword, setLeaderPassword] = useState('');
+  // 다락방이 없는 직분(그룹장/교역자/MC)인지 여부
+  const isLeaderSelected =
+    leaderRole === '그룹장' || leaderRole === '목회자' || leaderRole === 'MC';
   const [groups, setGroups] = useState<{id: number, name: string}[]>([]);
   const [cells, setCells] = useState<{id: number, name: string}[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [isEditingUserInfo, setIsEditingUserInfo] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'userInfo' | 'community' | 'group' | 'cell'>('userInfo');
+  const [currentStep, setCurrentStep] = useState<
+    'userInfo' | 'community' | 'group' | 'role' | 'cell' | 'password'
+  >('userInfo');
 
   // 그룹 목록 가져오기
   useEffect(() => {
@@ -137,14 +153,19 @@ export default function UpdatePage() {
   const handleComboboxChange = (name: string, value: string) => {
     const newFormData = { ...formData, [name]: value };
     
-    // 커뮤니티가 변경되면 그룹/셀 초기화
+    // 커뮤니티가 변경되면 그룹/셀/직분 초기화
     if (name === 'community') {
       newFormData.group_id = '';
       newFormData.cell_id = '';
+      setLeaderRole('');
+      setLeaderPassword('');
     }
-    // 그룹이 변경되면 셀 초기화
+    // 그룹이 변경되면 셀/직분 초기화.
+    // MC 그룹을 고르면 직분을 자동으로 'MC' 로 지정한다.
     if (name === 'group_id') {
       newFormData.cell_id = '';
+      setLeaderPassword('');
+      setLeaderRole(value === MC_GROUP_ID ? 'MC' : '');
     }
     
     setFormData(newFormData);
@@ -162,7 +183,21 @@ export default function UpdatePage() {
   };
 
   const handleGroupNext = () => {
-    if (formData.group_id) {
+    if (!formData.group_id) return;
+    // MC 그룹이면 직분 선택 없이 곧바로 암호 입력 단계로
+    if (formData.group_id === MC_GROUP_ID) {
+      setCurrentStep('password');
+    } else {
+      // 일반 그룹은 직분(다락방원/그룹장/교역자) 선택 단계로
+      setCurrentStep('role');
+    }
+  };
+
+  const handleRoleNext = () => {
+    // 그룹장/교역자 → 암호 입력 단계, 다락방원 → 다락방 선택 단계
+    if (leaderRole === '그룹장' || leaderRole === '목회자') {
+      setCurrentStep('password');
+    } else {
       setCurrentStep('cell');
     }
   };
@@ -209,12 +244,22 @@ export default function UpdatePage() {
   };
 
   const handleBack = () => {
-    if (currentStep === 'cell') {
+    if (currentStep === 'password') {
+      // MC 는 그룹에서 바로 왔으므로 그룹으로, 그 외(그룹장/교역자)는 직분 선택으로
+      if (formData.group_id === MC_GROUP_ID) {
+        setCurrentStep('group');
+      } else {
+        setCurrentStep('role');
+      }
+    } else if (currentStep === 'cell') {
       if (formData.community === '타공동체') {
         setCurrentStep('community');
       } else {
-        setCurrentStep('group');
+        // 다락방 → 직분 선택
+        setCurrentStep('role');
       }
+    } else if (currentStep === 'role') {
+      setCurrentStep('group');
     } else if (currentStep === 'group') {
       setCurrentStep('community');
     } else if (currentStep === 'community') {
@@ -230,18 +275,50 @@ export default function UpdatePage() {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/update-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          community: formData.community,
-          group_id: formData.community === '타공동체' ? null : formData.group_id,
-          cell_id: formData.community === '타공동체' ? null : formData.cell_id,
-        }),
-      });
+      let response: Response;
+
+      // 그룹장/교역자/MC인 경우: 암호 검증 API로 보내 직분/담당그룹을 등록한다.
+      if (formData.community === '허브' && isLeaderSelected) {
+        if (!leaderRole) {
+          setError('직분(그룹장/교역자/MC)을 선택해주세요.');
+          setLoading(false);
+          return;
+        }
+        if (!leaderPassword) {
+          setError('암호를 입력해주세요.');
+          setLoading(false);
+          return;
+        }
+        response = await fetch('/api/user/update-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: leaderRole, // '그룹장' | '목회자' | 'MC'
+            password: leaderPassword,
+            // 서버는 group_id/cell_id 로 profiles 소속을 저장하고,
+            // responsible_group_id 로 담당 그룹(group_leader_id/pastor_id)을 연결한다.
+            // 그룹장/교역자만 담당 그룹을 연결하고, MC는 소속 그룹만 저장한다.
+            group_id: formData.group_id,
+            cell_id: null,
+            responsible_group_id:
+              leaderRole === 'MC' ? undefined : formData.group_id,
+          }),
+        });
+      } else {
+        // 일반 사용자: 기존대로 소속만 업데이트
+        response = await fetch('/api/auth/update-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            community: formData.community,
+            group_id: formData.community === '타공동체' ? null : formData.group_id,
+            cell_id: formData.community === '타공동체' ? null : formData.cell_id,
+          }),
+        });
+      }
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
+      if (!response.ok) throw new Error(data.message || data.error);
 
       alert('그룹/다락방 정보가 업데이트되었습니다!');
       
@@ -416,10 +493,68 @@ export default function UpdatePage() {
                 onChange={(value) => handleComboboxChange('group_id', value)}
                 options={[
                   { value: '', label: '-- 그룹 선택 --' },
-                  ...groups.map(g => ({ value: g.id.toString(), label: g.name })),
+                  // MC 그룹(id=99)을 고르면 MC 인증으로 진행. 이름의 앞뒤 공백은 정리해 표시.
+                  ...groups.map((g) => ({
+                    value: g.id.toString(),
+                    label: g.name.trim(),
+                  })),
                 ]}
                 placeholder="-- 그룹 선택 --"
                 required
+              />
+            </S.StepComponent>
+          ) : currentStep === 'role' ? (
+            <S.StepComponent
+              title="직분을 선택해주세요"
+              onBack={handleBack}
+              onNext={handleRoleNext}
+              nextDisabled={!leaderRole}
+            >
+              <S.InfoText style={{ marginBottom: 12 }}>
+                일반 순원은 다락방을 선택하고, 그룹장·교역자는 담당 그룹 인증을
+                진행해요.
+              </S.InfoText>
+              <Combobox
+                name="leader_role"
+                value={leaderRole}
+                onChange={(value) =>
+                  setLeaderRole(value as '일반' | '그룹장' | '목회자' | '')
+                }
+                options={[
+                  { value: '', label: '-- 선택 --' },
+                  { value: '일반', label: '다락방 선택하기' },
+                  { value: '그룹장', label: '그룹장' },
+                  { value: '목회자', label: '교역자(목회자)' },
+                ]}
+                placeholder="-- 선택 --"
+                required
+              />
+            </S.StepComponent>
+          ) : currentStep === 'password' ? (
+            <S.StepComponent
+              title={leaderRole === 'MC' ? 'MC 인증' : '리더십 인증'}
+              onBack={handleBack}
+              onSubmit={handleSubmit}
+              finalStep={true}
+              loading={loading}
+              nextDisabled={!leaderPassword}
+            >
+              <S.InfoText style={{ marginBottom: 12 }}>
+                {leaderRole === 'MC'
+                  ? 'MC 암호를 입력해주세요.'
+                  : `${
+                      leaderRole === '목회자' ? '교역자' : leaderRole
+                    } 암호를 입력해주세요.`}
+              </S.InfoText>
+              <S.Label>암호</S.Label>
+              <S.Input
+                type="password"
+                name="leader_password"
+                value={leaderPassword}
+                onChange={(e) => setLeaderPassword(e.target.value)}
+                placeholder="암호를 입력하세요"
+                autoComplete="off"
+                autoFocus
               />
             </S.StepComponent>
           ) : (
