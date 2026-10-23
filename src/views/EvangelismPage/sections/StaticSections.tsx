@@ -12,51 +12,72 @@ import {
   Kicker,
   H2,
   Panel,
-  Grid,
-  Tag,
   Btn,
   Small,
 } from "../styles";
 
 // ---------- Explore ----------
 // 둘러보기 탭: Welcome 인사말 + 주제 카드(클릭 시 해당 탭으로 이동)
-const Tile = styled.button`
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: #fff;
+// 둘러보기 주제 리스트 (한 줄짜리 행)
+const ExploreList = styled.div`
   border: 1px solid ${C.line};
   border-radius: 18px;
-  padding: 23px;
+  background: #fff;
+  overflow: hidden;
+`;
+
+const ExploreRow = styled.button`
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: none;
+  border-top: 1px solid ${C.line};
+  background: #fff;
   font: inherit;
   cursor: pointer;
-  transition:
-    transform 0.18s,
-    border-color 0.18s;
-  min-height: 160px;
+  transition: background 0.14s;
 
+  &:first-of-type {
+    border-top: none;
+  }
   &:hover {
-    transform: translateY(-3px);
-    border-color: #9eb6a3;
+    background: #f6f8f5;
   }
 
-  h3 {
-    margin: 0 0 7px;
-    font-size: 18px;
-    letter-spacing: -0.03em;
+  .ico {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: ${C.sage};
+    display: grid;
+    place-items: center;
+    font-size: 22px;
+  }
+  .meta {
+    min-width: 0;
+    flex: 1;
+  }
+  strong {
+    display: block;
+    font-size: 16px;
+    letter-spacing: -0.02em;
     color: ${C.ink};
   }
-  p {
-    margin: 0;
+  .desc {
+    font-size: 13px;
     color: ${C.muted};
-    font-size: 13px;
+    margin-top: 2px;
+    line-height: 1.5;
   }
-  .arrow {
-    display: block;
-    margin-top: 16px;
+  .chev {
+    flex: 0 0 auto;
     color: ${C.green2};
-    font-weight: 750;
-    font-size: 13px;
+    font-size: 18px;
+    font-weight: 700;
   }
 `;
 
@@ -100,19 +121,26 @@ export function Explore({
           </div>
           <p>원하는 주제를 골라 살펴보세요.</p>
         </SectionHead>
-        <Grid>
+        <ExploreList>
           {EXPLORE_ITEMS.map((item) => (
-            <Tile
+            <ExploreRow
               key={item.tab}
               type="button"
               onClick={() => onSelectTab(item.tab)}
             >
-              <h3>{item.title}</h3>
-              <p>{item.desc}</p>
-              <span className="arrow">{item.cta} →</span>
-            </Tile>
+              <span className="ico" aria-hidden>
+                {item.icon}
+              </span>
+              <span className="meta">
+                <strong>{item.title}</strong>
+                <span className="desc">{item.desc}</span>
+              </span>
+              <span className="chev" aria-hidden>
+                →
+              </span>
+            </ExploreRow>
           ))}
-        </Grid>
+        </ExploreList>
       </Wrap>
     </Section>
   );
@@ -166,45 +194,160 @@ export function Why() {
 }
 
 // ---------- CGN Videos ----------
-const CgnIntro = styled(Panel)`
-  margin-bottom: 18px;
-`;
-
-// 외부 플레이리스트 링크용 anchor 타일
-const LinkTile = styled.a`
+// 히어로 배너
+const CgnHero = styled.a`
+  position: relative;
   display: block;
-  background: #fff;
-  border: 1px solid ${C.line};
-  border-radius: 18px;
-  padding: 23px;
+  overflow: hidden;
+  border-radius: 22px;
+  padding: 28px 24px;
+  margin-bottom: 20px;
   text-decoration: none;
-  transition:
-    transform 0.18s,
-    border-color 0.18s;
-  min-height: 160px;
+  color: #fff;
+  background: linear-gradient(135deg, #16221d 0%, #24433a 60%, #356451 100%);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.5);
 
-  &:hover {
-    transform: translateY(-3px);
-    border-color: #9eb6a3;
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    background: rgba(255, 255, 255, 0.16);
+    padding: 5px 11px;
+    border-radius: 999px;
   }
-
   h3 {
-    margin: 0 0 7px;
-    font-size: 18px;
+    margin: 12px 0 8px;
+    font-size: clamp(20px, 3.4vw, 26px);
     letter-spacing: -0.03em;
-    color: ${C.ink};
+    line-height: 1.3;
   }
   p {
-    margin: 0;
-    color: ${C.muted};
-    font-size: 13px;
+    margin: 0 0 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #dbe7df;
+    max-width: 560px;
   }
-  .arrow {
-    display: block;
-    margin-top: 16px;
-    color: ${C.green2};
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 14px;
     font-weight: 750;
-    font-size: 13px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #16221d;
+    padding: 10px 16px;
+    border-radius: 999px;
+  }
+`;
+
+const RailHead = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 4px 2px 10px;
+
+  strong {
+    font-size: 15px;
+    letter-spacing: -0.02em;
+    color: ${C.ink};
+  }
+  .hint {
+    font-size: 12px;
+    color: ${C.muted};
+  }
+`;
+
+// 가로 스크롤 콘텐츠 레일
+const Rail = styled.div`
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 2px 18px 8px;
+  margin: 0 -18px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+`;
+
+const VideoCard = styled.a<{ gradient: string }>`
+  flex: 0 0 auto;
+  width: 180px;
+  scroll-snap-align: start;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  @media (max-width: 480px) {
+    width: 158px;
+  }
+
+  .poster {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    border-radius: 16px;
+    overflow: hidden;
+    background: ${(p) => p.gradient};
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 14px;
+    box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.5);
+    transition: transform 0.18s;
+  }
+  &:hover .poster {
+    transform: translateY(-4px);
+  }
+
+  .tag {
+    align-self: flex-start;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.28);
+    padding: 4px 9px;
+    border-radius: 999px;
+  }
+  .emoji {
+    font-size: 44px;
+    text-align: center;
+    margin: auto 0;
+  }
+  .play {
+    align-self: flex-end;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.95);
+    color: #1d2b25;
+    display: grid;
+    place-items: center;
+    font-size: 15px;
+  }
+  .info {
+    padding: 0 2px;
+  }
+  .info strong {
+    display: block;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+    color: ${C.ink};
+    line-height: 1.35;
+  }
+  .info span {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    color: ${C.muted};
+    line-height: 1.5;
   }
 `;
 
@@ -220,28 +363,46 @@ export function CgnVideos() {
           <p>지금 내 마음에 필요한 콘텐츠를 만나보세요.</p>
         </SectionHead>
 
-        <CgnIntro dark>
-          <Tag>CGN · 미디어 선교</Tag>
+        <CgnHero href={CGN_CHANNEL_URL} target="_blank" rel="noopener">
+          <span className="badge">CGN · 미디어 선교</span>
           <h3>일상에서 만나는 복음의 이야기</h3>
           <p>
-            CGN은 말씀과 예배부터 간증, 선교 현장 이야기까지 다양한 기독교
-            콘텐츠를 전하는 미디어입니다. 처음 신앙을 접하는 분도 관심 있는
-            주제부터 편하게 살펴보세요.
+            찬양·예배부터 간증, 선교 현장까지. 처음 신앙을 접하는 분도 관심 있는
+            주제부터 편하게 즐겨보세요.
           </p>
-          <Btn variant="dark" href={CGN_CHANNEL_URL} target="_blank" rel="noopener">
-            CGN 유튜브 채널 보러가기 ↗
-          </Btn>
-        </CgnIntro>
+          <span className="cta">채널 둘러보기 ↗</span>
+        </CgnHero>
 
-        <Grid>
+        <RailHead>
+          <strong>주제별로 골라보기</strong>
+          <span className="hint">← 옆으로 넘기기 →</span>
+        </RailHead>
+
+        <Rail>
           {CGN_PLAYLISTS.map((pl) => (
-            <LinkTile key={pl.href} href={pl.href} target="_blank" rel="noopener">
-              <h3>{pl.title}</h3>
-              <p>{pl.desc}</p>
-              <span className="arrow">플레이리스트 보기 ↗</span>
-            </LinkTile>
+            <VideoCard
+              key={pl.href}
+              href={pl.href}
+              target="_blank"
+              rel="noopener"
+              gradient={pl.gradient}
+            >
+              <div className="poster">
+                <span className="tag">{pl.tag}</span>
+                <span className="emoji" aria-hidden>
+                  {pl.emoji}
+                </span>
+                <span className="play" aria-hidden>
+                  ▶
+                </span>
+              </div>
+              <div className="info">
+                <strong>{pl.title}</strong>
+                <span>{pl.desc}</span>
+              </div>
+            </VideoCard>
           ))}
-        </Grid>
+        </Rail>
 
         <Small style={{ marginTop: 14 }}>
           더 다양한 영상은 CGN 유튜브 채널에서 만나보세요.
@@ -414,6 +575,8 @@ const FooterBox = styled.footer`
   margin-top: 24px;
   font-size: 12px;
   color: #5c685f;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 
   .row {
     display: flex;

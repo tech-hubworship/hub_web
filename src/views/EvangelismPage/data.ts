@@ -248,6 +248,12 @@ export interface CgnPlaylist {
   title: string;
   desc: string;
   href: string;
+  /** 카드 배경 그라데이션 */
+  gradient: string;
+  /** 카드 상단 이모지/심볼 */
+  emoji: string;
+  /** 짧은 라벨(장르 배지) */
+  tag: string;
 }
 
 export const CGN_CHANNEL_URL = "https://www.youtube.com/@cgn";
@@ -255,23 +261,35 @@ export const CGN_CHANNEL_URL = "https://www.youtube.com/@cgn";
 export const CGN_PLAYLISTS: CgnPlaylist[] = [
   {
     title: "찬양과 기독교 문화",
-    desc: "찬양과 기독교 문화 콘텐츠를 만나보세요.",
+    desc: "마음을 울리는 찬양과 문화 콘텐츠",
     href: "https://www.youtube.com/playlist?list=PLSvEGrDFKwMk",
+    gradient: "linear-gradient(145deg, #2f5d53 0%, #4b7e6d 70%, #7fa98f 100%)",
+    emoji: "🎵",
+    tag: "WORSHIP",
   },
   {
     title: "다큐멘터리",
-    desc: "다큐멘터리 영상으로 다양한 삶과 현장을 살펴보세요.",
+    desc: "삶과 선교 현장의 진짜 이야기",
     href: "https://www.youtube.com/playlist?list=PLjj_uvKdTemB6oFOx2kgR1l26j22ZuvIC",
+    gradient: "linear-gradient(145deg, #2b3a67 0%, #3f5aa6 70%, #7f9bd6 100%)",
+    emoji: "🎬",
+    tag: "DOCU",
   },
   {
     title: "성경 이야기",
-    desc: "성경 속 이야기들을 영상으로 만나보세요.",
+    desc: "쉽게 풀어보는 성경 속 이야기",
     href: "https://www.youtube.com/playlist?list=PLjj_uvKdTemAdrgZOpESpm0FV0a_KnFd3",
+    gradient: "linear-gradient(145deg, #7a3b1d 0%, #c2662f 70%, #e59b5b 100%)",
+    emoji: "📖",
+    tag: "BIBLE",
   },
   {
     title: "인기 콘텐츠",
-    desc: "많은 사람에게 사랑받는 CGN 콘텐츠를 만나보세요.",
+    desc: "지금 가장 많이 보는 CGN 영상",
     href: "https://www.youtube.com/playlist?list=PLjj_uvKdTemCzs1xbPidEK96UyWQkAbry",
+    gradient: "linear-gradient(145deg, #7a2d4a 0%, #c0547d 70%, #f0a3bf 100%)",
+    emoji: "🔥",
+    tag: "HOT",
   },
 ];
 
@@ -453,46 +471,46 @@ export function isTabKey(value: string | null | undefined): value is TabKey {
 /** 둘러보기 탭의 주제 카드 — 클릭 시 해당 탭으로 이동 */
 export interface ExploreItem {
   tab: TabKey;
+  icon: string;
   title: string;
   desc: string;
-  cta: string;
 }
 
 export const EXPLORE_ITEMS: ExploreItem[] = [
   {
     tab: "why",
+    icon: "💛",
     title: "우리가 전도하는 이유",
-    desc: "우리가 전하고 싶은 사랑과 복음의 이야기.",
-    cta: "이야기 읽기",
+    desc: "우리가 전하고 싶은 사랑과 복음의 이야기",
   },
   {
     tab: "gospel",
+    icon: "✝️",
     title: "복음에 대해 들어보실래요?",
-    desc: "참된 행복과 평안, 영생에 관한 복음의 이야기.",
-    cta: "복음 알아보기",
+    desc: "참된 행복과 평안, 영생에 관한 이야기",
   },
   {
     tab: "qna",
+    icon: "💬",
     title: "질문과 답변",
-    desc: "하나님, 신앙, 교회에 관한 질문을 남겨보세요.",
-    cta: "질문 남기기",
+    desc: "하나님·신앙·교회에 관해 편하게 물어보세요",
   },
   {
     tab: "songs",
+    icon: "🎧",
     title: "찬양 추천",
-    desc: "지금 내 마음에 어울리는 찬양을 찾아보세요.",
-    cta: "찬양 살펴보기",
+    desc: "지금 내 마음에 어울리는 찬양 듣기",
   },
   {
     tab: "cgn",
+    icon: "🎬",
     title: "CGN 영상",
     desc: "말씀과 간증, 다양한 기독교 콘텐츠",
-    cta: "영상 콘텐츠 살펴보기",
   },
   {
     tab: "church",
+    icon: "📍",
     title: "가까운 온누리교회 찾아보기",
-    desc: "가까운 캠퍼스의 위치와 예배 안내를 확인해 보세요.",
-    cta: "캠퍼스 찾아보기",
+    desc: "가까운 캠퍼스 위치와 예배 안내 확인",
   },
 ];

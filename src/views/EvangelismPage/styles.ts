@@ -21,6 +21,10 @@ export const Page = styled.main`
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
+
+  /* 한글이 단어(어절) 중간에서 끊기지 않도록 — "안녕/하세요" 방지 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 `;
 
 export const Wrap = styled.div`
