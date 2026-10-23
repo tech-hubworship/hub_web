@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 const MAX_QUESTION_LENGTH = 3000;
 const MAX_NAME_LENGTH = 60;
+const MAX_CONTACT_LENGTH = 200;
 const DUPLICATE_WINDOW_MINUTES = 3;
 
 /**
@@ -20,6 +21,7 @@ export async function POST(req: Request) {
 
     const rawQuestion = typeof body.question === "string" ? body.question.trim() : "";
     const rawName = typeof body.name === "string" ? body.name.trim() : "";
+    const rawContact = typeof body.contact === "string" ? body.contact.trim() : "";
 
     if (!rawQuestion) {
       return jsonError("질문 내용을 입력해주세요.", 400);
@@ -27,8 +29,12 @@ export async function POST(req: Request) {
     if (rawQuestion.length > MAX_QUESTION_LENGTH) {
       return jsonError(`질문은 ${MAX_QUESTION_LENGTH}자를 초과할 수 없습니다.`, 400);
     }
+    if (rawContact.length > MAX_CONTACT_LENGTH) {
+      return jsonError(`연락처는 ${MAX_CONTACT_LENGTH}자를 초과할 수 없습니다.`, 400);
+    }
 
     const name = rawName ? rawName.slice(0, MAX_NAME_LENGTH) : null;
+    const contact = rawContact ? rawContact.slice(0, MAX_CONTACT_LENGTH) : null;
 
     const userIp =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -61,6 +67,7 @@ export async function POST(req: Request) {
       .insert({
         name,
         question: rawQuestion,
+        contact,
         status: "new",
       })
       .select("id, created_at")

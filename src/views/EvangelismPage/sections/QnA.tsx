@@ -93,6 +93,7 @@ const Label = styled.label`
 
 export default function QnA() {
   const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
   const [question, setQuestion] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ tone: "ok" | "err"; msg: string } | null>(
@@ -112,7 +113,11 @@ export default function QnA() {
       const res = await fetch("/api/evangelism/questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), question: question.trim() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          contact: contact.trim(),
+          question: question.trim(),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -123,6 +128,7 @@ export default function QnA() {
         msg: data.message || "질문이 전달되었어요. 소중한 마음으로 읽겠습니다.",
       });
       setName("");
+      setContact("");
       setQuestion("");
     } catch (err) {
       setResult({
@@ -158,6 +164,10 @@ export default function QnA() {
               여러분의 이야기를 소중히 여기며 여러분의 마음과 삶을 위해 진심으로
               기도하겠습니다.
             </p>
+            <p>
+              답변을 받고 싶으시면 연락처를 남겨주세요. 남겨주신 연락처로 저희가
+              정성껏 답해 드릴게요. (연락처 없이 익명으로 남기셔도 괜찮습니다.)
+            </p>
           </Panel>
 
           <Panel>
@@ -171,6 +181,18 @@ export default function QnA() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="익명으로 남겨도 괜찮아요"
+              />
+
+              <Label htmlFor="ev-contact">
+                <strong>답변 받을 연락처</strong>{" "}
+                <span className="opt">(선택 · 남겨주시면 답변드려요)</span>
+              </Label>
+              <Field
+                id="ev-contact"
+                maxLength={200}
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                placeholder="이메일 · 카카오톡 ID · 전화번호 등 편한 방법으로"
               />
 
               <Label htmlFor="ev-question">
