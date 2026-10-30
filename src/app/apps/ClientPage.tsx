@@ -614,7 +614,7 @@ export default function AppsClientPage() {
   const { data: session, status: sessionStatus } = useSession();
   const [hoveredApp, setHoveredApp] = useState<number | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  // 새가족 그룹(group_id=5)인 경우에만 '우리 다락방' 아이콘 노출
+  // 로그인한 전체 사용자에게 '우리 다락방' 아이콘 노출
   const [isDarakbangUser, setIsDarakbangUser] = useState<boolean | null>(null);
   // 허브업 당일(2026-05-24) 이후에만 아이콘 활성화
   const [isHubUpActive, setIsHubUpActive] = useState(false);
@@ -625,21 +625,9 @@ export default function AppsClientPage() {
   }, []);
 
   React.useEffect(() => {
-    // [비활성화] 그룹/다락방/리더십 체계 변경으로 '우리 다락방' 기능을 일시 중단합니다.
-    // 복구 시 아래 주석 처리된 원본 로직을 되살리고 setIsDarakbangUser(false) 줄을 제거하세요.
-    setIsDarakbangUser(false);
-    // if (sessionStatus === 'authenticated') {
-    //   fetch('/api/user/profile')
-    //     .then(res => res.json())
-    //     .then(result => {
-    //       setIsDarakbangUser(
-    //         result?.name === '김수진' ||
-    //         (result?.group_id === 5 &&
-    //           (result?.responsible_cell_id !== null || result?.responsible_group_id !== null || result?.is_sunjang === true))
-    //       );
-    //     })
-    //     .catch(() => setIsDarakbangUser(false));
-    // }
+    // '우리 다락방' 기능 활성화: 로그인한 전체 사용자에게 아이콘을 노출한다.
+    // (소속 다락방이 없는 경우 클릭 시 handleMyDarakbangClick에서 안내 처리)
+    setIsDarakbangUser(sessionStatus === 'authenticated');
   }, [sessionStatus]);
 
   const handleAppClick = (path: string) => {
@@ -672,12 +660,7 @@ export default function AppsClientPage() {
         return;
       }
 
-      const { group_id, cell_id, group_name, cell_name, name } = result;
-
-      if (name === '김수진') {
-        router.push('/apps/새가족/새본');
-        return;
-      }
+      const { group_id, cell_id, group_name, cell_name } = result;
 
       if (!group_name || !cell_name || group_id === 7 || cell_id === 26 || cell_id === 99) {
         alert("현재 소속된 다락방이 없습니다.");
@@ -729,7 +712,7 @@ export default function AppsClientPage() {
               </motion.div>
             )}
 
-            {/* 우리 다락방 먼저 배치 - 새가족 그룹(group_id=5)에만 표시 */}
+            {/* 우리 다락방 먼저 배치 - 로그인한 전체 사용자에게 표시 */}
             {isDarakbangUser === true && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
