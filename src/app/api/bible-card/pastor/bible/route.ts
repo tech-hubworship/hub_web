@@ -25,40 +25,29 @@ export async function GET(req: Request) {
     const verse = url.searchParams.get("verse");
 
     if (type === "books") {
+      // 모든 책은 1장 1절로 시작하므로 그 행만 읽으면 66권 목록이 된다.
+      // (기존: bible 전체 3만여 행을 1000행씩 순차 조회 → 느리고 타임아웃 위험)
+      const { data, error } = await supabaseAdmin
+        .from("bible")
+        .select("id, book_full_name, book_name")
+        .eq("chapter", 1)
+        .eq("verse", 1)
+        .order("id", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching books:", error);
+        return Response.json({ error: "책 목록 조회 실패" }, { status: 500 });
+      }
+
       const bookMap = new Map<string, { id: number; full_name: string; short_name: string }>();
-      let offset = 0;
-      const limit = 1000;
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await supabaseAdmin
-          .from("bible")
-          .select("id, book_full_name, book_name")
-          .order("id", { ascending: true })
-          .range(offset, offset + limit - 1);
-
-        if (error) {
-          console.error("Error fetching books:", error);
-          return Response.json({ error: "책 목록 조회 실패" }, { status: 500 });
+      for (const item of (data ?? []) as any[]) {
+        if (!bookMap.has(item.book_full_name)) {
+          bookMap.set(item.book_full_name, {
+            id: item.id,
+            full_name: item.book_full_name,
+            short_name: item.book_name,
+          });
         }
-
-        if (!data || data.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        for (const item of data as any[]) {
-          if (!bookMap.has(item.book_full_name)) {
-            bookMap.set(item.book_full_name, {
-              id: item.id,
-              full_name: item.book_full_name,
-              short_name: item.book_name,
-            });
-          }
-        }
-
-        if (data.length < limit) hasMore = false;
-        else offset += limit;
       }
 
       if (bookMap.size === 0) {
