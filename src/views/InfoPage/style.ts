@@ -1,6 +1,7 @@
 // 파일 경로: src/views/InfoPage/style.ts
 
 import styled from "@emotion/styled";
+import Link from "next/link";
 import { keyframes } from "@emotion/react";
 
 const fadeIn = keyframes`
@@ -479,7 +480,7 @@ export const MenuText = styled.div`
 `;
 
 // 출석·지각비 바로가기 링크 (내 정보 페이지)
-export const AttendanceLink = styled.a`
+export const AttendanceLink = styled(Link)`
   display: flex;
   align-items: center;
   justify-content: space-between;

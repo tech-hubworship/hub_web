@@ -32,14 +32,21 @@ const nextConfig = {
     return config;
   },
   async headers() {
+    const isProd = process.env.NODE_ENV === 'production';
     return [
       // ── 정적 에셋 (빌드 해시 포함) - 영구 캐싱 ──
-      {
-        source: '/_next/static/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
-      },
+      // dev 청크는 파일명에 해시가 없어 immutable 캐싱 시 업그레이드/재시작 후
+      // 옛 청크가 섞여 "Cannot read properties of undefined (reading 'call')" 발생 → 프로덕션에서만 적용
+      ...(isProd
+        ? [
+            {
+              source: '/_next/static/:path*',
+              headers: [
+                { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+              ],
+            },
+          ]
+        : []),
       // ── Next.js 최적화 이미지 - 장기 캐싱 ──
       {
         source: '/_next/image',

@@ -625,14 +625,12 @@ export default function MyInfoPage() {
               {/* 출석·지각비는 OD 명단(출석 대상 리더십)에게만 노출.
                   일반 순원은 출석 대상이 아니므로 보이지 않는다. */}
               {profileData.is_sunjang === true && (
-                <Link href="/attendance/my" passHref legacyBehavior>
-                  <S.AttendanceLink>
-                    <S.AttendanceLinkLabel>
-                      📋 출석·지각비 보기
-                    </S.AttendanceLinkLabel>
-                    <S.AttendanceLinkArrow>›</S.AttendanceLinkArrow>
-                  </S.AttendanceLink>
-                </Link>
+                <S.AttendanceLink href="/attendance/my">
+                  <S.AttendanceLinkLabel>
+                    📋 출석·지각비 보기
+                  </S.AttendanceLinkLabel>
+                  <S.AttendanceLinkArrow>›</S.AttendanceLinkArrow>
+                </S.AttendanceLink>
               )}
 
               <S.LogoutButton onClick={handleLogout}>로그아웃</S.LogoutButton>

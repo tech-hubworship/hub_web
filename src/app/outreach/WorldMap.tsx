@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import type { Map as MlMap, StyleSpecification } from "maplibre-gl";
 import * as topojson from "topojson-client";
 import styled from "@emotion/styled";

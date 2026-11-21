@@ -1,4 +1,5 @@
 import styled from '@emotion/styled';
+import Link from 'next/link';
 import { colors } from '@sopt-makers/colors';
 
 export const Root = styled.footer<{ variant?: "default" | "dark" }>`
@@ -84,7 +85,7 @@ export const LegalLinks = styled.div`
   }
 `;
 
-export const LegalLink = styled.a`
+export const LegalLink = styled(Link)`
   font-size: 12px;
   font-weight: 400;
   color: #ffffff;

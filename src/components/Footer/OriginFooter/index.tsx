@@ -92,15 +92,9 @@ const OriginFooter: FC<{ variant?: "default" | "dark" }> = ({ variant = "default
             <ArrowRight />
           </St.TitleButton>
           <St.LegalLinks>
-            <Link href="/law/intro" passHref legacyBehavior prefetch={false}>
-              <St.LegalLink>사이트 소개</St.LegalLink>
-            </Link>
-            <Link href="/law/terms" passHref legacyBehavior prefetch={false}>
-              <St.LegalLink>이용약관</St.LegalLink>
-            </Link>
-            <Link href="/law/privacy" passHref legacyBehavior prefetch={false}>
-              <St.LegalLink>개인정보 처리방침</St.LegalLink>
-            </Link>
+            <St.LegalLink href="/law/intro" prefetch={false}>사이트 소개</St.LegalLink>
+            <St.LegalLink href="/law/terms" prefetch={false}>이용약관</St.LegalLink>
+            <St.LegalLink href="/law/privacy" prefetch={false}>개인정보 처리방침</St.LegalLink>
           </St.LegalLinks>
           <St.CopyrightText>
             HUB TECH
