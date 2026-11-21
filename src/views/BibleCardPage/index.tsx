@@ -10,7 +10,12 @@ import { keyframes } from '@emotion/react';
 import { Header } from '@src/components/Header';
 import Footer from '@src/components/Footer';
 import { Combobox } from '@src/components/ui/combobox';
-import { BIBLE_CARD_CONFIG, isBibleCardApplicationOpen } from '@src/lib/bibleCardConfig';
+import {
+  BIBLE_CARD_CONFIG,
+  isBibleCardApplicationOpen,
+  isBibleCardTester,
+  isBibleCardTestApplicationOpen,
+} from '@src/lib/bibleCardConfig';
 
 interface Group {
   id: number;
@@ -35,8 +40,14 @@ interface Profile {
 
 const COMMUNITIES = ['허브', '타공동체'];
 
-export default function BibleCardApplyPage() {
+interface BibleCardApplyPageProps {
+  /** /test: MC·목회자·마스터만 사전 테스트 기간부터 신청 가능 */
+  testMode?: boolean;
+}
+
+export default function BibleCardApplyPage({ testMode = false }: BibleCardApplyPageProps) {
   const { data: session, status } = useSession();
+  const isTester = isBibleCardTester(session?.user?.roles);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -60,8 +71,9 @@ export default function BibleCardApplyPage() {
 
   // 신청 기간 체크 (src/lib/bibleCardConfig.ts)
   useEffect(() => {
-    setIsApplicationClosed(!isBibleCardApplicationOpen());
-  }, []);
+    const open = testMode ? isBibleCardTestApplicationOpen() : isBibleCardApplicationOpen();
+    setIsApplicationClosed(!open);
+  }, [testMode]);
 
   // 내 신청 정보 조회
   const { data: myApplication, isLoading } = useQuery({
@@ -219,6 +231,35 @@ export default function BibleCardApplyPage() {
               <Spinner />
               <LoadingText>로딩 중...</LoadingText>
             </LoadingContainer>
+          </ContentWrapper>
+        </Container>
+        <Footer />
+      </>
+    );
+  }
+
+  // 테스트 페이지: MC·목회자·마스터가 아니면 접근 불가
+  if (testMode && status === 'authenticated' && !isTester) {
+    return (
+      <>
+        <Header />
+        <Container>
+          <ContentWrapper>
+            <Card>
+              <CardHeader>
+                <Title>📜 말씀카드 사전 테스트</Title>
+              </CardHeader>
+              <ClosedMessage>
+                <ClosedIcon>🔒</ClosedIcon>
+                <ClosedTitle>접근 권한이 없습니다</ClosedTitle>
+                <ClosedDescription>
+                  MC, 목회자, 마스터 권한이 있는 계정만 이용할 수 있습니다.
+                </ClosedDescription>
+                <CompleteButton onClick={() => router.push('/')}>
+                  메인으로 →
+                </CompleteButton>
+              </ClosedMessage>
+            </Card>
           </ContentWrapper>
         </Container>
         <Footer />

@@ -31,3 +31,17 @@ export function getBibleCardPhase(now: Date = new Date()): BibleCardPhase {
 export function isBibleCardApplicationOpen(now: Date = new Date()): boolean {
   return getBibleCardPhase(now) === 'open';
 }
+
+// ── 사전 테스트 (/test) ─────────────────────────────────────────
+/** 사전 테스트에 들어올 수 있는 admin_roles 역할 */
+export const BIBLE_CARD_TESTER_ROLES = ['MC', '목회자', '마스터'] as const;
+/** 테스터 신청 가능 시작 (KST). 마감은 일반 신청과 동일 */
+export const BIBLE_CARD_TEST_OPEN_DATE = new Date('2026-11-21T00:00:00+09:00');
+
+export function isBibleCardTester(roles: readonly string[] | null | undefined): boolean {
+  return !!roles?.some((r) => (BIBLE_CARD_TESTER_ROLES as readonly string[]).includes(r));
+}
+
+export function isBibleCardTestApplicationOpen(now: Date = new Date()): boolean {
+  return now >= BIBLE_CARD_TEST_OPEN_DATE && now < BIBLE_CARD_CLOSE_DATE;
+}

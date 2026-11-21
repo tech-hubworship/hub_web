@@ -2,20 +2,29 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@src/lib/auth";
 import { supabaseAdmin } from "@src/lib/supabase";
 import { methodNotAllowed } from "@src/lib/api/response";
-import { isBibleCardApplicationOpen } from "@src/lib/bibleCardConfig";
+import {
+  isBibleCardApplicationOpen,
+  isBibleCardTester,
+  isBibleCardTestApplicationOpen,
+} from "@src/lib/bibleCardConfig";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    if (!isBibleCardApplicationOpen()) {
-      return Response.json({ error: "말씀카드 신청 기간이 아닙니다." }, { status: 400 });
-    }
-
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    }
+
+    // 일반: 정식 신청 기간만 허용
+    // 테스터(MC/목회자/마스터): 사전 테스트 기간부터 허용 (역할은 서버 세션 기준으로 검증)
+    const isOpen =
+      isBibleCardApplicationOpen() ||
+      (isBibleCardTester(session.user.roles) && isBibleCardTestApplicationOpen());
+    if (!isOpen) {
+      return Response.json({ error: "말씀카드 신청 기간이 아닙니다." }, { status: 400 });
     }
 
     const userId = session.user.id;
