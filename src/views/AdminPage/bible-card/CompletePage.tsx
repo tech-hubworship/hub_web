@@ -515,14 +515,15 @@ export default function BibleCardCompletePage() {
 
             <ExcelSection>
               <ExcelInfo>
-                엑셀 파일 형식: "말씀카드 신청 ID", "구글 드라이브 링크" 컬럼이 필요합니다.
+                엑셀(.xlsx) 또는 CSV 파일: "말씀카드 신청 ID", "구글 드라이브 링크" 컬럼이 필요합니다.<br />
+                CSV 다운로드 파일의 "링크1" 열에 링크를 채워서 그대로 올려도 됩니다. (링크가 빈 행은 건너뜀)
               </ExcelInfo>
               
               <FileInputWrapper>
                 <FileInput
                   id="excel-file-input"
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".xlsx,.xls,.csv"
                   onChange={handleExcelFileChange}
                   disabled={uploadingExcel}
                 />

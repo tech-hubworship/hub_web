@@ -12,6 +12,26 @@ interface ExcelRow {
   drive_link: string;
 }
 
+/** xlsx(zip) 또는 xls(OLE) 바이너리인지 */
+function isZipOrOle(buf: Buffer) {
+  const zip = buf[0] === 0x50 && buf[1] === 0x4b; // "PK"
+  const ole = buf[0] === 0xd0 && buf[1] === 0xcf && buf[2] === 0x11 && buf[3] === 0xe0;
+  return zip || ole;
+}
+
+/**
+ * CSV 바이트 → 문자열
+ * - UTF-8 (BOM 유무 무관): CSV 다운로드 파일, 엑셀 "CSV UTF-8" 저장
+ * - CP949(EUC-KR): 엑셀에서 일반 "CSV"로 저장한 경우 (한글 Windows 기본)
+ */
+function decodeCsv(buf: Buffer) {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buf).replace(/^\uFEFF/, "");
+  } catch {
+    return new TextDecoder("euc-kr").decode(buf);
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -29,10 +49,14 @@ export async function POST(req: Request) {
     const base64Data = String(fileData).split(",")[1] || String(fileData);
     const buffer = Buffer.from(base64Data, "base64");
 
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    // xlsx/xls는 그대로, CSV(완료 관리의 CSV 다운로드 파일)는 인코딩을 맞춰 문자열로 읽는다.
+    const workbook = isZipOrOle(buffer)
+      ? XLSX.read(buffer, { type: "buffer" })
+      : XLSX.read(decodeCsv(buffer), { type: "string" });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const data: any[] = XLSX.utils.sheet_to_json(worksheet);
+    // defval: 빈 셀도 열로 포함해야 링크가 빈 행에서도 링크 열을 찾을 수 있다
+    const data: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
     const excelData: ExcelRow[] = [];
     const errors: string[] = [];
@@ -72,16 +96,21 @@ export async function POST(req: Request) {
         return;
       }
 
-      if (!drive_link) {
-        errors.push(`행 ${rowNum}: 링크가 비어있습니다.`);
-        return;
-      }
+      // 링크를 아직 채우지 않은 행은 건너뛴다 (CSV 다운로드 파일에 일부만 채워서 올리는 경우)
+      if (!drive_link) return;
 
       excelData.push({ id, drive_link });
     });
 
     if (errors.length > 0) {
       return Response.json({ error: "엑셀 파일 파싱 오류", errors }, { status: 400 });
+    }
+
+    if (excelData.length === 0) {
+      return Response.json(
+        { error: "링크가 입력된 행이 없습니다.", errors: ["링크1(구글 드라이브 링크) 열에 링크를 입력한 뒤 업로드해주세요."] },
+        { status: 400 }
+      );
     }
 
     const ids = excelData.map((row) => row.id);
