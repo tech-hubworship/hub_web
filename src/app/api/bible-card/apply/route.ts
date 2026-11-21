@@ -2,17 +2,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@src/lib/auth";
 import { supabaseAdmin } from "@src/lib/supabase";
 import { methodNotAllowed } from "@src/lib/api/response";
+import { isBibleCardApplicationOpen } from "@src/lib/bibleCardConfig";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// 신청 종료 (2025년 12월 15일 이후)
-const APPLICATION_CLOSED = true;
-
 export async function POST(req: Request) {
   try {
-    if (APPLICATION_CLOSED) {
-      return Response.json({ error: "말씀카드 신청이 종료되었습니다." }, { status: 400 });
+    if (!isBibleCardApplicationOpen()) {
+      return Response.json({ error: "말씀카드 신청 기간이 아닙니다." }, { status: 400 });
     }
 
     const session = await getServerSession(authOptions);

@@ -9,6 +9,7 @@ import styled from '@emotion/styled';
 import { keyframes } from '@emotion/react';
 import { Header } from '@src/components/Header';
 import Footer from '@src/components/Footer';
+import { BIBLE_CARD_CONFIG, BIBLE_CARD_DISTRIBUTION_DATE } from '@src/lib/bibleCardConfig';
 
 interface ApplicationData {
   id: number;
@@ -48,8 +49,8 @@ const pulse = keyframes`
   50% { transform: scale(1.05); }
 `;
 
-// 2026년 1월 1일 0시 0분 0초 (한국 시간)
-const OPEN_DATE = new Date('2026-01-01T00:00:00+09:00');
+// 공개 시작 시각 (src/lib/bibleCardConfig.ts)
+const OPEN_DATE = BIBLE_CARD_DISTRIBUTION_DATE;
 
 export default function BibleCardDownloadPage() {
   const { data: session, status } = useSession();
@@ -363,7 +364,7 @@ export default function BibleCardDownloadPage() {
                     <CountdownUnit>초</CountdownUnit>
                   </CountdownItem>
                 </CountdownGrid>
-                <OpenDate>2026년 1월 1일 00:00 오픈</OpenDate>
+                <OpenDate>{BIBLE_CARD_CONFIG.distributionLabel} 00:00 오픈</OpenDate>
               </CountdownSection>
 
               <InfoMessage>

@@ -10,6 +10,7 @@ import { keyframes } from '@emotion/react';
 import { Header } from '@src/components/Header';
 import Footer from '@src/components/Footer';
 import { Combobox } from '@src/components/ui/combobox';
+import { BIBLE_CARD_CONFIG, isBibleCardApplicationOpen } from '@src/lib/bibleCardConfig';
 
 interface Group {
   id: number;
@@ -57,9 +58,9 @@ export default function BibleCardApplyPage() {
     prayer_request: '',
   });
 
-  // 신청 종료 (2025년 12월 15일 이후 신청 마감)
+  // 신청 기간 체크 (src/lib/bibleCardConfig.ts)
   useEffect(() => {
-    setIsApplicationClosed(true);
+    setIsApplicationClosed(!isBibleCardApplicationOpen());
   }, []);
 
   // 내 신청 정보 조회
@@ -240,8 +241,8 @@ export default function BibleCardApplyPage() {
                 <ClosedIcon>⏰</ClosedIcon>
                 <ClosedTitle>신청종료</ClosedTitle>
                 <ClosedDescription>
-                  말씀카드 신청 기간이 지났습니다.<br />
-                  이미 신청하신 분들은 2026년 1월 1일부터<br />
+                  말씀카드 신청 기간({BIBLE_CARD_CONFIG.applicationPeriodLabel})이 아닙니다.<br />
+                  이미 신청하신 분들은 {BIBLE_CARD_CONFIG.distributionLabel}부터<br />
                   말씀카드를 다운로드하실 수 있습니다.
                 </ClosedDescription>
                 {myApplication?.hasApplication && (

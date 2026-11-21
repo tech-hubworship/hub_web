@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import {
+  BIBLE_CARD_CONFIG,
+  BIBLE_CARD_OPEN_DATE,
+  BIBLE_CARD_CLOSE_DATE,
+  BIBLE_CARD_DISTRIBUTION_DATE,
+} from '@src/lib/bibleCardConfig';
 
 const SectionCard = styled.div`
   background: #171E39;
@@ -186,12 +192,10 @@ export default function BibleCardPromotion() {
     seconds: number;
   } | null>(null);
 
-  // 신청 마감 시간: 2025년 12월 15일 02시 (한국시간)
-  const APPLICATION_CLOSE_DATE = new Date('2025-12-15T02:00:00+09:00');
-  // 배부 시작 시간: 2026년 1월 1일 00시 (한국시간)
-  const DISTRIBUTION_DATE = new Date('2026-01-01T00:00:00+09:00');
-  // 오픈 시간: 2025년 11월 30일 16시 (오후 4시, 한국시간)
-  const OPEN_DATE = new Date('2025-11-30T16:00:00+09:00');
+  // 일정은 src/lib/bibleCardConfig.ts 에서 관리
+  const APPLICATION_CLOSE_DATE = BIBLE_CARD_CLOSE_DATE;
+  const DISTRIBUTION_DATE = BIBLE_CARD_DISTRIBUTION_DATE;
+  const OPEN_DATE = BIBLE_CARD_OPEN_DATE;
 
   useEffect(() => {
     // 테스트 모드: 카운트다운 무시하고 버튼 표시
@@ -266,7 +270,7 @@ export default function BibleCardPromotion() {
         <IconWrapper>📜</IconWrapper>
         {isApplicationClosed ? (
           <>
-            <Title>신년 말씀카드</Title>
+            <Title>{BIBLE_CARD_CONFIG.title}</Title>
             {distributionTimeLeft ? (
               <CountdownWrapper>
                 <CountdownText>{isSpecialUser ? `${userName} 30살까지 남은 시간` : '공개까지 남은 시간'}</CountdownText>
@@ -300,11 +304,17 @@ export default function BibleCardPromotion() {
           </>
         ) : (
           <>
-        <Title>신년 말씀카드 신청</Title>
+        <Title>{BIBLE_CARD_CONFIG.title} 기도 신청</Title>
         {isOpen ? (
-          <CTAButton onClick={handleClick}>
-            말씀카드 페이지로 이동 →
-          </CTAButton>
+          <>
+            <Description>
+              {BIBLE_CARD_CONFIG.applicationPeriodLabel}까지<br />
+              기도제목을 받습니다.
+            </Description>
+            <CTAButton onClick={handleClick}>
+              기도제목 신청하기 →
+            </CTAButton>
+          </>
         ) : (
           <CountdownWrapper>
             <CountdownText>오픈까지 남은 시간</CountdownText>
