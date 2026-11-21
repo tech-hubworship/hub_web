@@ -172,7 +172,12 @@ const ContentWrapper = styled.div`
  * React.memo를 사용하여 불필요한 리렌더링을 방지합니다.
  * 반응형 디자인으로 모든 디바이스에서 최적화된 경험을 제공합니다.
  */
-const MainPage = memo(function MainPage() {
+interface MainPageProps {
+  /** /test: 기능 사전 테스트용. 말씀카드 배너가 테스트 일정으로 동작 */
+  testMode?: boolean;
+}
+
+const MainPage = memo(function MainPage({ testMode = false }: MainPageProps) {
 
   return (
     <>
@@ -198,7 +203,7 @@ const MainPage = memo(function MainPage() {
 
         {/* 말씀카드 페이지 광고 섹션 - 두 번째 섹션 (전체 너비) */}
         <LazyLoadSection id="bible-card-promotion-section" priority={true}>
-          <BibleCardPromotion />
+          <BibleCardPromotion testMode={testMode} />
         </LazyLoadSection>
         
         {/* 콘텐츠 배너 섹션 (전체 너비) */}

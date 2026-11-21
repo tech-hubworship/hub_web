@@ -7,6 +7,7 @@ import {
   BIBLE_CARD_OPEN_DATE,
   BIBLE_CARD_CLOSE_DATE,
   BIBLE_CARD_DISTRIBUTION_DATE,
+  BIBLE_CARD_TEST_OPEN_DATE,
 } from '@src/lib/bibleCardConfig';
 
 const SectionCard = styled.div`
@@ -164,7 +165,12 @@ const CountdownSeparator = styled.div`
   }
 `;
 
-export default function BibleCardPromotion() {
+interface BibleCardPromotionProps {
+  /** /test 페이지: 테스트 시작일 기준으로 열리고 /test/bible-card 로 이동 */
+  testMode?: boolean;
+}
+
+export default function BibleCardPromotion({ testMode = false }: BibleCardPromotionProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
@@ -195,7 +201,8 @@ export default function BibleCardPromotion() {
   // 일정은 src/lib/bibleCardConfig.ts 에서 관리
   const APPLICATION_CLOSE_DATE = BIBLE_CARD_CLOSE_DATE;
   const DISTRIBUTION_DATE = BIBLE_CARD_DISTRIBUTION_DATE;
-  const OPEN_DATE = BIBLE_CARD_OPEN_DATE;
+  const OPEN_DATE = testMode ? BIBLE_CARD_TEST_OPEN_DATE : BIBLE_CARD_OPEN_DATE;
+  const APPLY_PATH = testMode ? '/test/bible-card' : '/bible-card';
 
   useEffect(() => {
     // 테스트 모드: 카운트다운 무시하고 버튼 표시
@@ -252,11 +259,11 @@ export default function BibleCardPromotion() {
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [isTestMode]);
+  }, [isTestMode, testMode]);
 
   const handleClick = () => {
     if (isOpen && !isApplicationClosed) {
-      router.push('/bible-card');
+      router.push(APPLY_PATH);
     } else if (isApplicationClosed) {
       // 테스트 모드면 쿼리 스트링 전달
       const url = isTestMode ? '/bible-card/download?value=test' : '/bible-card/download';

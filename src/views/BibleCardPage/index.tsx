@@ -41,7 +41,7 @@ interface Profile {
 const COMMUNITIES = ['허브', '타공동체'];
 
 interface BibleCardApplyPageProps {
-  /** /test: MC·목회자·마스터만 사전 테스트 기간부터 신청 가능 */
+  /** /test/bible-card: MC·목회자·마스터만 사전 테스트 기간부터 신청 가능 */
   testMode?: boolean;
 }
 

@@ -5,13 +5,13 @@ export const BIBLE_CARD_CONFIG = {
   /** 배너/페이지에 표시되는 이름 */
   title: '신년 말씀카드',
   /** 신청(기도제목 접수) 시작 (KST) */
-  applicationOpen: '2026-11-22T00:00:00+09:00',
+  applicationOpen: '2026-11-22T12:00:00+09:00',
   /** 신청 마감 (KST). 12월 6일 23:59:59까지 접수 */
   applicationClose: '2026-12-07T00:00:00+09:00',
   /** 말씀카드 공개/다운로드 시작 (KST) */
   distribution: '2027-01-01T00:00:00+09:00',
   /** 사람이 읽는 표기 */
-  applicationPeriodLabel: '11월 22일 ~ 12월 6일',
+  applicationPeriodLabel: '11월 22일 12:00 ~ 12월 6일',
   distributionLabel: '2027년 1월 1일',
 } as const;
 
@@ -32,7 +32,7 @@ export function isBibleCardApplicationOpen(now: Date = new Date()): boolean {
   return getBibleCardPhase(now) === 'open';
 }
 
-// ── 사전 테스트 (/test) ─────────────────────────────────────────
+// ── 사전 테스트 (/test 메인, /test/bible-card 신청) ──────────────
 /** 사전 테스트에 들어올 수 있는 admin_roles 역할 */
 export const BIBLE_CARD_TESTER_ROLES = ['MC', '목회자', '마스터'] as const;
 /** 테스터 신청 가능 시작 (KST). 마감은 일반 신청과 동일 */
