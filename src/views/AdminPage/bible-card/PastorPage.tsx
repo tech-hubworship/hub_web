@@ -1,10 +1,14 @@
 // 파일 경로: src/views/AdminPage/bible-card/PastorPage.tsx
 // 목회자 전용 페이지 - 배정된 지체 목록 & 말씀 입력
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styled from '@emotion/styled';
 import { Combobox } from '@src/components/ui/combobox';
+import { BIBLE_INDEX, getBibleChapters, getBibleVerses } from '@src/lib/bible/bibleIndex';
+
+// 책 목록은 정적 목차에서 바로 사용 (API 조회 없음)
+const BIBLE_BOOKS = BIBLE_INDEX.map(({ id, full_name, short_name }) => ({ id, full_name, short_name }));
 
 interface Application {
   id: number;
@@ -47,14 +51,14 @@ export default function BibleCardPastorPage() {
   const [selectedVerse, setSelectedVerse] = useState<string>(''); // 범위 지원을 위해 string으로 변경
 
   // 로드된 옵션들
-  const [books, setBooks] = useState<Array<{id: number, full_name: string, short_name: string}>>([]);
+  const books = BIBLE_BOOKS;
   const [chapters, setChapters] = useState<number[]>([]);
   const [verses, setVerses] = useState<number[]>([]);
 
-  // 로딩 상태
-  const [isLoadingBooks, setIsLoadingBooks] = useState(false);
-  const [isLoadingChapters, setIsLoadingChapters] = useState(false);
-  const [isLoadingVerses, setIsLoadingVerses] = useState(false);
+  // 로딩 상태 (책·장·절은 정적 목차라 즉시 표시, 본문만 API 조회)
+  const isLoadingBooks = false;
+  const isLoadingChapters = false;
+  const isLoadingVerses = false;
   const [isLoadingText, setIsLoadingText] = useState(false);
 
   const [appliedStatusFilter, setAppliedStatusFilter] = useState('');
@@ -105,29 +109,6 @@ export default function BibleCardPastorPage() {
   const stats = assignedData?.stats;
   const pagination = assignedData?.pagination;
 
-  // 책 목록 로드 (컴포넌트 마운트 시)
-  useEffect(() => {
-    const fetchBooks = async () => {
-      setIsLoadingBooks(true);
-      try {
-        const response = await fetch('/api/bible-card/pastor/bible?type=books');
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || '책 목록 조회 실패');
-        }
-        const data = await response.json();
-        console.log('[PastorPage] 책 목록 로드 성공:', data.length, '개');
-        console.log('[PastorPage] 첫 5개 책:', data.slice(0, 5));
-        setBooks(data);
-      } catch (error) {
-        console.error('책 목록 로드 실패:', error);
-      } finally {
-        setIsLoadingBooks(false);
-      }
-    };
-    fetchBooks();
-  }, []);
-
   // 기존 구절 파싱 함수 (범위 지원)
   const parseReference = (reference: string) => {
     // "책명 1:2" 또는 "책명 1:2-3" 형식 지원
@@ -141,57 +122,23 @@ export default function BibleCardPastorPage() {
   };
 
   // 책 선택 핸들러
-  const handleBookChange = async (bookFullName: string) => {
+  const handleBookChange = (bookFullName: string) => {
     const book = books.find(b => b.full_name === bookFullName);
     
     setSelectedBook(bookFullName);
     setSelectedBookShort(book?.short_name || '');
     setSelectedChapter('');
     setSelectedVerse('');
-    setChapters([]);
+    setChapters(book?.short_name ? getBibleChapters(book.short_name) : []);
     setVerses([]);
-    
-    if (book?.short_name) {
-      setIsLoadingChapters(true);
-      try {
-        const response = await fetch(
-          `/api/bible-card/pastor/bible?type=chapters&book=${encodeURIComponent(book.short_name)}`
-        );
-        if (!response.ok) throw new Error('장 목록 조회 실패');
-        const data = await response.json();
-        setChapters(data.chapters);
-      } catch (error) {
-        console.error('장 목록 로드 실패:', error);
-        alert('장 목록을 불러올 수 없습니다.');
-      } finally {
-        setIsLoadingChapters(false);
-      }
-    }
   };
 
   // 장 선택 핸들러
-  const handleChapterChange = async (chapterValue: string) => {
+  const handleChapterChange = (chapterValue: string) => {
     const chapter = chapterValue ? parseInt(chapterValue) : '';
     setSelectedChapter(chapter);
     setSelectedVerse('');
-    setVerses([]);
-    
-    if (selectedBookShort && chapter) {
-      setIsLoadingVerses(true);
-      try {
-        const response = await fetch(
-          `/api/bible-card/pastor/bible?type=verses&book=${encodeURIComponent(selectedBookShort)}&chapter=${chapter}`
-        );
-        if (!response.ok) throw new Error('절 목록 조회 실패');
-        const data = await response.json();
-        setVerses(data.verses);
-      } catch (error) {
-        console.error('절 목록 로드 실패:', error);
-        alert('절 목록을 불러올 수 없습니다.');
-      } finally {
-        setIsLoadingVerses(false);
-      }
-    }
+    setVerses(selectedBookShort && chapter ? getBibleVerses(selectedBookShort, chapter) : []);
   };
 
   // 절 선택 핸들러 (범위 지원)
@@ -270,7 +217,7 @@ export default function BibleCardPastorPage() {
     // 기존에 저장된 구절이 있으면 복원
     if (app.bible_verse_reference) {
       const parsed = parseReference(app.bible_verse_reference);
-      if (parsed && books.length > 0) {
+      if (parsed) {
         const book = books.find(b => b.full_name === parsed.book);
         if (book) {
           // 구약/신약 자동 설정
@@ -278,35 +225,11 @@ export default function BibleCardPastorPage() {
           setSelectedTestament(isOldTestament ? '구약' : '신약');
           setSelectedBook(book.full_name);
           setSelectedBookShort(book.short_name);
-          
-          // 장 목록 로드
-          setIsLoadingChapters(true);
-          try {
-            const chaptersRes = await fetch(
-              `/api/bible-card/pastor/bible?type=chapters&book=${encodeURIComponent(book.short_name)}`
-            );
-            if (chaptersRes.ok) {
-              const chaptersData = await chaptersRes.json();
-              setChapters(chaptersData.chapters);
-              setSelectedChapter(parsed.chapter);
-              
-              // 절 목록 로드
-              setIsLoadingVerses(true);
-              const versesRes = await fetch(
-                `/api/bible-card/pastor/bible?type=verses&book=${encodeURIComponent(book.short_name)}&chapter=${parsed.chapter}`
-              );
-              if (versesRes.ok) {
-                const versesData = await versesRes.json();
-                setVerses(versesData.verses);
-                setSelectedVerse(parsed.verse);
-              }
-            }
-          } catch (error) {
-            console.error('기존 구절 복원 실패:', error);
-          } finally {
-            setIsLoadingChapters(false);
-            setIsLoadingVerses(false);
-          }
+          // 장·절 목록은 정적 목차에서 즉시 복원
+          setChapters(getBibleChapters(book.short_name));
+          setSelectedChapter(parsed.chapter);
+          setVerses(getBibleVerses(book.short_name, parsed.chapter));
+          setSelectedVerse(parsed.verse);
         }
       }
     }
