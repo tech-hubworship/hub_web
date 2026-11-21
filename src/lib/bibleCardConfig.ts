@@ -11,7 +11,7 @@ export const BIBLE_CARD_CONFIG = {
   /** 말씀카드 공개/다운로드 시작 (KST) */
   distribution: '2027-01-01T00:00:00+09:00',
   /** 사람이 읽는 표기 */
-  applicationPeriodLabel: '11월 22일 12:00 ~ 12월 6일',
+  applicationPeriodLabel: '11월 22일 12:00 ~ 12월 6일 24:00',
   distributionLabel: '2027년 1월 1일',
 } as const;
 

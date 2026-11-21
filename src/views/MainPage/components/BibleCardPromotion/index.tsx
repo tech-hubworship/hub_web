@@ -311,15 +311,14 @@ export default function BibleCardPromotion({ testMode = false }: BibleCardPromot
           </>
         ) : (
           <>
-        <Title>{BIBLE_CARD_CONFIG.title} 기도 신청</Title>
+        <Title>{BIBLE_CARD_CONFIG.title} 신청</Title>
         {isOpen ? (
           <>
             <Description>
-              {BIBLE_CARD_CONFIG.applicationPeriodLabel}까지<br />
-              기도제목을 받습니다.
+              기간: {BIBLE_CARD_CONFIG.applicationPeriodLabel}
             </Description>
             <CTAButton onClick={handleClick}>
-              기도제목 신청하기 →
+              말씀카드 신청하기 →
             </CTAButton>
           </>
         ) : (
