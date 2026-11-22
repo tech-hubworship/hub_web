@@ -44,9 +44,9 @@ const BibleCardPromotion = dynamic(() => import('./components/BibleCardPromotion
 });
 // ── 허브업 배너 on/off ──────────────────────────────────────
 // true = 배너 표시, false = 숨김 (변경 후 재배포)
-const HUBUP_BANNER_ENABLED = true;
+const GO_TO_THE_NATION_BANNER_ENABLED = true;
 
-const HubUpBanner = dynamic(() => import('./components/HubUpBanner'), {
+const GoToTheNationBanner = dynamic(() => import('./components/GoToTheNationBanner'), {
   ssr: false,
   loading: () => null,
 });
@@ -194,18 +194,18 @@ const MainPage = memo(function MainPage({ testMode = false }: MainPageProps) {
           <Main />
         </LazyLoadSection>
     
-        {/* 허브업 D-day 배너 - HUBUP_BANNER_ENABLED=true 로 활성화 */}
-        {HUBUP_BANNER_ENABLED && (
-          <LazyLoadSection id="hubup-banner-section" priority={true}>
-            <HubUpBanner />
-          </LazyLoadSection>
-        )}
-
         {/* 말씀카드 페이지 광고 섹션 - 두 번째 섹션 (전체 너비) */}
         <LazyLoadSection id="bible-card-promotion-section" priority={true}>
           <BibleCardPromotion testMode={testMode} />
         </LazyLoadSection>
         
+        {/* Go To The Nation 배너 - GO_TO_THE_NATION_BANNER_ENABLED=true 로 활성화 */}
+        {GO_TO_THE_NATION_BANNER_ENABLED && (
+          <LazyLoadSection id="go-to-the-nation-banner-section" priority={true}>
+            <GoToTheNationBanner />
+          </LazyLoadSection>
+        )}
+
         {/* 콘텐츠 배너 섹션 (전체 너비) */}
         <LazyLoadSection id="content-section">
           <ContentBanner />

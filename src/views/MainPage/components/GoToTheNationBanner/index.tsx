@@ -15,7 +15,7 @@ function getTimeLeft() {
   return { h, m, s };
 }
 
-export default function HubUpBanner() {
+export default function GoToTheNationBanner() {
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState(getTimeLeft());
 
